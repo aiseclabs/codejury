@@ -1,0 +1,88 @@
+"""LiteLLMProvider -- Provider backed by LiteLLM, reaching many backends.
+
+LiteLLM speaks the OpenAI chat shape, so the system prompt is sent as the first
+message. ``cache`` is accepted but not applied here: prompt caching under LiteLLM
+is backend-specific, so it stays a no-op until a backend-aware mapping is needed.
+
+The completion callable is injectable so the mapping can be tested without the
+SDK or an API key.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Callable
+
+from codejury.providers.base import CompletionResult, Message, Provider
+
+
+class LiteLLMProvider(Provider):
+    def __init__(
+        self,
+        *,
+        api_key: str | None = None,
+        api_base: str | None = None,
+        temperature: float = 0.2,
+        completion: Callable[..., Any] | None = None,
+    ) -> None:
+        self._api_key = api_key
+        self._api_base = api_base
+        self._temperature = temperature
+        self._completion = completion
+
+    def _completion_fn(self) -> Callable[..., Any]:
+        if self._completion is None:
+            try:
+                import litellm
+            except ImportError as exc:
+                raise RuntimeError("litellm not installed; run: pip install 'codejury[litellm]'") from exc
+            self._completion = litellm.completion
+        return self._completion
+
+    def complete(
+        self,
+        *,
+        system: str,
+        messages: list[Message],
+        model: str,
+        max_tokens: int,
+        cache: bool = False,
+    ) -> CompletionResult:
+        api_messages: list[dict] = []
+        if system:
+            api_messages.append({"role": "system", "content": system})
+        api_messages += [{"role": m.role, "content": m.content} for m in messages]
+
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": api_messages,
+            "max_tokens": max_tokens,
+            "temperature": self._temperature,
+        }
+        if self._api_key:
+            kwargs["api_key"] = self._api_key
+        if self._api_base:
+            kwargs["api_base"] = self._api_base
+
+        response = self._completion_fn()(**kwargs)
+        return CompletionResult(text=_extract_text(response), model=getattr(response, "model", None) or model)
+
+
+def _extract_text(response: Any) -> str:
+    choices = getattr(response, "choices", None) or []
+    if not choices:
+        return ""
+    message = getattr(choices[0], "message", choices[0])
+    content = getattr(message, "content", None)
+    if content is None and isinstance(message, dict):
+        content = message.get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict) and "text" in block:
+                parts.append(str(block["text"]))
+            elif isinstance(block, str):
+                parts.append(block)
+        return "".join(parts)
+    return str(content or "")
