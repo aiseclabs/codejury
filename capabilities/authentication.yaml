@@ -1,0 +1,67 @@
+id: authn
+name: Authentication
+asvs_chapter: V2
+description: Mechanisms that verify a caller's claimed identity.
+
+sub_capabilities:
+  password_storage:
+    correct_patterns:
+      - id: PWD-OK-1
+        description: Hash passwords with bcrypt, scrypt, or Argon2id at an OWASP-recommended cost
+        signals: ["bcrypt.hashpw", "argon2.PasswordHasher", "hashlib.scrypt", "passlib"]
+        why_ok: Slow, salted, memory-hard hashing resists GPU brute force and rainbow tables
+
+    anti_patterns:
+      - id: PWD-BAD-1
+        cwe: CWE-916
+        severity: HIGH
+        description: Hash passwords with a fast general-purpose digest such as MD5, SHA-1, or SHA-256
+        signals: ["hashlib.md5(", "hashlib.sha1(", "hashlib.sha256("]
+        why_bad: Unsalted fast hashes are brute-forced at billions of guesses per second on commodity GPUs
+        example_bad: |
+          hashlib.sha256(password.encode()).hexdigest()
+        example_good: |
+          bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+
+      - id: PWD-BAD-2
+        cwe: CWE-256
+        severity: HIGH
+        description: Store passwords in plaintext or with reversible encryption
+        why_bad: A single database leak exposes every credential directly
+
+      - id: PWD-BAD-3
+        cwe: CWE-759
+        severity: MEDIUM
+        description: Hash without a per-user salt, using a global salt or no salt
+        why_bad: Identical passwords produce identical hashes, so precomputed tables apply across users
+
+  jwt_verification:
+    correct_patterns:
+      - id: JWT-OK-1
+        description: Verify the signature and validate iss, aud, exp, and nbf before trusting any claim
+        signals: ["algorithms=", "audience=", "issuer="]
+        why_ok: Rejects forged, expired, and misrouted tokens before their claims are used
+
+    anti_patterns:
+      - id: JWT-BAD-1
+        cwe: CWE-347
+        severity: HIGH
+        description: Accept the "none" algorithm, or sign with a weak or hardcoded HS256 secret
+        signals: ['algorithms=["none"]', 'algorithms=["HS256"]']
+        why_bad: An attacker can forge tokens that the server accepts as authentic
+
+      - id: JWT-BAD-2
+        cwe: CWE-345
+        severity: HIGH
+        description: Read claims before verifying the signature, or skip verification entirely
+        signals: ['verify_signature": False', "verify=False"]
+        why_bad: Attacker-controlled claims drive trust and authorization decisions
+        example_bad: |
+          claims = jwt.decode(token, options={"verify_signature": False})
+        example_good: |
+          claims = jwt.decode(token, key, algorithms=["RS256"], audience=AUD, issuer=ISS)
+
+trigger_signals:
+  - routes matching /login, /register, /auth, or /token appear
+  - imports of jwt, pyjwt, python-jose, or authlib
+  - a user model with a password or password_hash field
