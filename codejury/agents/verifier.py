@@ -12,9 +12,10 @@ than raising, and unknown status values fall back to UNKNOWN.
 from __future__ import annotations
 
 from codejury.agents.base import Agent
+from codejury.agents.parsing import one_of, str_list, to_evidence, to_float
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
-from codejury.domain.observation import Evidence, Observation, Verdict
+from codejury.domain.observation import Observation, Verdict
 from codejury.infrastructure.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 
@@ -90,47 +91,16 @@ def _parse_verdicts(text: str, cap: Capability) -> list[Verdict]:
         if not isinstance(v, dict):
             continue
         sub = str(v.get("sub_capability", "")).strip()
-        status = v.get("status", "UNKNOWN")
         out.append(
             Verdict(
                 capability=f"{cap.id}.{sub}" if sub else cap.id,
                 produced_by="verifier",
-                status=status if status in _VALID_STATUS else "UNKNOWN",
+                status=one_of(v.get("status"), _VALID_STATUS, "UNKNOWN"),
                 reasoning=str(v.get("reasoning", "")),
-                matched_correct=_str_list(v.get("matched_correct")),
-                matched_anti=_str_list(v.get("matched_anti")),
-                evidence=_parse_evidence(v.get("evidence")),
-                confidence=_as_float(v.get("confidence"), 0.5),
+                matched_correct=str_list(v.get("matched_correct")),
+                matched_anti=str_list(v.get("matched_anti")),
+                evidence=to_evidence(v.get("evidence")),
+                confidence=to_float(v.get("confidence"), 0.5),
             )
         )
     return out
-
-
-def _parse_evidence(items: object) -> list[Evidence]:
-    if not isinstance(items, list):
-        return []
-    out: list[Evidence] = []
-    for e in items:
-        if not isinstance(e, dict):
-            continue
-        line = e.get("line")
-        out.append(
-            Evidence(
-                file=str(e.get("file", "")),
-                line=line if isinstance(line, int) else None,
-                code=str(e.get("code", "")),
-                note=str(e.get("note", "")),
-            )
-        )
-    return out
-
-
-def _str_list(value: object) -> list[str]:
-    return [str(x) for x in value] if isinstance(value, list) else []
-
-
-def _as_float(value: object, default: float) -> float:
-    try:
-        return float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
-        return default
