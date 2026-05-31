@@ -175,12 +175,18 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "eval":
-        metrics = evaluate(
-            load_cases(args.golden),
-            load_capabilities(args.capabilities),
-            provider=make_provider(args.provider),
-            model=args.model,
-        )
+        try:
+            metrics = evaluate(
+                load_cases(args.golden),
+                load_capabilities(args.capabilities),
+                provider=make_provider(args.provider),
+                model=args.model,
+            )
+        except Exception as exc:
+            # e.g. a missing API key surfaces as a provider auth error -- report it
+            # as one line, not a traceback (audit gets this via the orchestrator).
+            print(f"eval failed: {exc}")
+            return 1
         print(_render_metrics(metrics))
         return 0
 

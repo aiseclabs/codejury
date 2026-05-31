@@ -1,7 +1,9 @@
 import json
 
+from codejury import cli
 from codejury.domain.capability import load_capability
 from codejury.evaluation import Metrics, evaluate, load_cases
+from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 
 from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR
@@ -53,3 +55,14 @@ def test_evaluate_always_secure_provider():
     m = evaluate(load_cases(GOLDEN_DIR), _caps(), provider=MockProvider(default=_SECURE), model="m")
     assert m.tp == 0 and m.fn == 2 and m.tn == 2 and m.fp == 0
     assert m.recall == 0.0
+
+
+def test_eval_cli_reports_provider_error_without_traceback(monkeypatch, capsys):
+    class _Boom(Provider):
+        def complete(self, **kwargs):
+            raise RuntimeError("Could not resolve authentication method")
+
+    monkeypatch.setattr("codejury.cli.make_provider", lambda name: _Boom())
+    rc = cli.main(["eval"])
+    assert rc == 1
+    assert "eval failed" in capsys.readouterr().out
