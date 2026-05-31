@@ -1,0 +1,52 @@
+id: dependency_config
+name: Dependencies and Configuration
+asvs_chapter: V14
+description: Software supply chain and deployment configuration -- known-vulnerable components and unsafe defaults.
+
+sub_capabilities:
+  dependencies:
+    correct_patterns:
+      - id: DEP-OK-1
+        description: Pin dependency versions and scan them for known vulnerabilities
+        signals: ["==", "requirements.txt", "poetry.lock", "pip-audit"]
+        why_ok: Builds are reproducible and known-vulnerable versions are caught
+
+    anti_patterns:
+      - id: DEP-BAD-1
+        cwe: CWE-1104
+        severity: MEDIUM
+        description: Depend on unmaintained or known-vulnerable components
+        why_bad: Public CVEs in shipped dependencies are directly exploitable
+
+      - id: DEP-BAD-2
+        cwe: CWE-494
+        severity: MEDIUM
+        description: Download or install code at runtime without an integrity or signature check
+        signals: ["curl | sh", "pip install http", "urlretrieve"]
+        why_bad: A tampered or hijacked source injects code into the build or host
+
+  configuration:
+    correct_patterns:
+      - id: CFG-OK-1
+        description: Ship secure defaults with least privilege and a minimal exposed surface
+        why_ok: Misconfiguration is the default-off state, not something to remember
+
+    anti_patterns:
+      - id: CFG-BAD-1
+        cwe: CWE-732
+        severity: MEDIUM
+        description: Grant overly permissive permissions (world-writable files, public storage buckets)
+        signals: ["chmod 0777", "0o777", "ACL: public-read", "AllUsers"]
+        why_bad: Anyone can read or modify resources that should be restricted
+
+      - id: CFG-BAD-2
+        cwe: CWE-1392
+        severity: HIGH
+        description: Ship default or sample credentials
+        signals: ["admin:admin", "password=admin", "changeme"]
+        why_bad: Default credentials are public knowledge and trivially abused
+
+trigger_signals:
+  - dependency manifests and lock files
+  - install or bootstrap scripts fetching remote code
+  - file permission, bucket ACL, or default credential settings

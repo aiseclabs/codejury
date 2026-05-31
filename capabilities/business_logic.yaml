@@ -1,0 +1,58 @@
+id: business_logic
+name: Business Logic
+asvs_chapter: V11
+description: Correctness of stateful workflows against abuse -- ordering, races, replay, and value validation.
+
+sub_capabilities:
+  state_and_sequence:
+    correct_patterns:
+      - id: BL-OK-1
+        description: Enforce the workflow state machine server-side and make sensitive actions idempotent
+        signals: ["idempotency_key", "select_for_update", "with lock"]
+        why_ok: Steps cannot be skipped or applied twice regardless of client behavior
+
+    anti_patterns:
+      - id: SEQ-BAD-1
+        cwe: CWE-841
+        severity: MEDIUM
+        description: Do not enforce step ordering, so a later step can be invoked without the earlier ones
+        why_bad: An attacker reaches checkout or fulfillment without payment or validation
+
+      - id: RACE-BAD-1
+        cwe: CWE-362
+        severity: HIGH
+        description: Check-then-act on shared state without a lock or atomic update
+        signals: ["if balance >=", "balance -=", ".get(...)\n    ...save()"]
+        why_bad: Concurrent requests both pass the check, enabling double spend
+        example_bad: |
+          if account.balance >= amount:
+              account.balance -= amount
+        example_good: |
+          with transaction.atomic():
+              acct = Account.objects.select_for_update().get(pk=id)
+              if acct.balance >= amount: acct.balance -= amount
+
+  limits_and_replay:
+    correct_patterns:
+      - id: LIM-OK-1
+        description: Validate amounts, quantities, and ranges server-side and rate-limit sensitive actions
+        why_ok: Client-supplied values cannot drive the outcome
+
+    anti_patterns:
+      - id: AMT-BAD-1
+        cwe: CWE-840
+        severity: MEDIUM
+        description: Trust a client-supplied price, amount, or quantity without server validation
+        signals: ["request.json[\"price\"]", "total = request", "quantity = request"]
+        why_bad: A user sets a negative or tiny amount and underpays
+
+      - id: REPLAY-BAD-1
+        cwe: CWE-799
+        severity: MEDIUM
+        description: No rate limiting or replay protection on sensitive actions
+        why_bad: Requests can be replayed or brute-forced without restriction
+
+trigger_signals:
+  - multi-step flows such as checkout, transfer, or approval
+  - balance, amount, price, or quantity arithmetic
+  - shared-state updates without locking or transactions

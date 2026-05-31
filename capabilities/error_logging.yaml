@@ -1,0 +1,49 @@
+id: error_logging
+name: Error Handling and Logging
+asvs_chapter: V7
+description: Failing without leaking information, and recording enough to investigate incidents.
+
+sub_capabilities:
+  information_leakage:
+    correct_patterns:
+      - id: ERR-OK-1
+        description: Return a generic error to the client and log the detail server-side
+        signals: ["except Exception", "return 500", "abort(500)"]
+        why_ok: The caller learns nothing exploitable while operators keep the detail
+
+    anti_patterns:
+      - id: ERR-BAD-1
+        cwe: CWE-209
+        severity: MEDIUM
+        description: Return a stack trace or exception detail to the client
+        signals: ["traceback.format_exc()", "str(e)", "return jsonify(error=str"]
+        why_bad: Internal paths, queries, and versions help an attacker map the system
+        example_bad: |
+          return jsonify(error=traceback.format_exc()), 500
+        example_good: |
+          app.logger.exception("checkout failed"); return jsonify(error="internal error"), 500
+
+      - id: ERR-BAD-2
+        cwe: CWE-489
+        severity: LOW
+        description: Leave a debug feature or verbose mode enabled in production
+        signals: ["DEBUG = True", "app.run(debug=True", "FLASK_DEBUG=1"]
+        why_bad: Debug pages expose internals and sometimes allow code execution
+
+  audit_trail:
+    correct_patterns:
+      - id: AUDIT-OK-1
+        description: Log security-relevant events (auth attempts, access denials, admin actions) with timestamp and actor
+        why_ok: Gives a forensic trail to detect and reconstruct abuse
+
+    anti_patterns:
+      - id: AUDIT-BAD-1
+        cwe: CWE-778
+        severity: MEDIUM
+        description: Do not log security-relevant events
+        why_bad: Without an audit trail, intrusions go unnoticed and uninvestigable
+
+trigger_signals:
+  - exception handlers and error responses
+  - logging configuration and DEBUG flags
+  - authentication, authorization, or admin actions
