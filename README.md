@@ -13,7 +13,7 @@ of adversarial roles -- Finder / Challenger / Judge -- that converge on a verdic
 Layer 5  Task            task configuration (source + capabilities + orchestrator + agents)
 Layer 4  Capability      YAML domain knowledge (authn / authz / input_validation ...)
 Layer 3  Orchestrator    strategy (single / debate / pipeline / reflexion)
-         Source          input (diff / file / repo / function)
+         Source          input (diff / function / repo)
          Agent           audit role (finder / challenger / judge / verifier)
 Layer 2  Provider        model backend (anthropic / openai / litellm / mock)
 Layer 1  Infrastructure  cross-cutting utilities (json parsing, ...)
@@ -33,16 +33,18 @@ compose independently.
 
 ## Status
 
-Usable end to end. Built so far:
+Usable end to end across all five layers:
 
 - **Orchestrators**: single, pipeline, debate, reflexion
-- **Sources**: diff, function (repo with chunking is planned)
-- **Providers**: anthropic, openai, litellm, mock
+- **Sources**: diff, function, repo (with chunking)
+- **Providers**: anthropic, openai, litellm, mock (plus an opt-in retry wrapper)
 - **Capabilities**: all 11 OWASP ASVS areas
+- **Tasks**: named presets in `tasks/` (e.g. `audit_diff_debate`)
 - **Reporting**: text, markdown, json
+- **Evaluation**: a golden-case precision/recall harness
 
-Not yet built: a separate Task configuration layer (the CLI assembles the pieces
-directly for now), a RepoSource, and a golden-set precision/recall harness.
+The golden set ships with seed cases; real precision/recall numbers need a model
+(`codejury eval` with a provider key).
 
 ## Usage
 
@@ -50,12 +52,18 @@ directly for now), a RepoSource, and a golden-set precision/recall harness.
 # Audit a unified diff against the capability library
 git diff | codejury audit --orchestrator debate --provider anthropic --format markdown -
 
+# Run a named task preset (tasks/*.yaml)
+git diff | codejury run audit_diff_debate -
+
+# Score detection quality against the golden cases (needs a provider key)
+codejury eval --provider anthropic
+
 # No API key needed: prove the pipeline composes with mock layers
 codejury dry-run
 ```
 
-`audit` reads a diff from a file argument or stdin (`-`). Real providers read
-their key from the environment (e.g. `ANTHROPIC_API_KEY`).
+`audit` and `run` read a diff from a file argument or stdin (`-`). Real providers
+read their key from the environment (e.g. `ANTHROPIC_API_KEY`).
 
 ## Development
 
