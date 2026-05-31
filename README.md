@@ -16,7 +16,7 @@ Layer 3  Orchestrator    strategy (single / debate / pipeline / reflexion)
          Source          input (diff / file / repo / function)
          Agent           audit role (finder / challenger / judge / verifier)
 Layer 2  Provider        model backend (anthropic / openai / litellm / mock)
-Layer 1  Infrastructure  retry / cache / json_parse / logger
+Layer 1  Infrastructure  cross-cutting utilities (json parsing, ...)
 ```
 
 Layers talk only through typed data. Each layer is an abstract base class (ABC)
@@ -33,12 +33,34 @@ compose independently.
 
 ## Status
 
-Under construction, built in phases. Current: Phase 0 -- finalize the layer
-abstract base classes and run a mock provider end-to-end dry-run.
+Usable end to end. Built so far:
+
+- **Orchestrators**: single, pipeline, debate, reflexion
+- **Sources**: diff, function (repo with chunking is planned)
+- **Providers**: anthropic, openai, litellm, mock
+- **Capabilities**: all 11 OWASP ASVS areas
+- **Reporting**: text, markdown, json
+
+Not yet built: a separate Task configuration layer (the CLI assembles the pieces
+directly for now), a RepoSource, and a golden-set precision/recall harness.
+
+## Usage
+
+```bash
+# Audit a unified diff against the capability library
+git diff | codejury audit --orchestrator debate --provider anthropic --format markdown -
+
+# No API key needed: prove the pipeline composes with mock layers
+codejury dry-run
+```
+
+`audit` reads a diff from a file argument or stdin (`-`). Real providers read
+their key from the environment (e.g. `ANTHROPIC_API_KEY`).
 
 ## Development
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+pytest
 ```
