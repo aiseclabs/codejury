@@ -23,13 +23,14 @@ from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
 from codejury.orchestrators.base import Orchestrator
 from codejury.orchestrators.debate import DebateOrchestrator
+from codejury.orchestrators.pipeline import PipelineOrchestrator
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 from codejury.sources.diff import DiffSource
 
-_STRATEGIES = ("single", "debate")
+_STRATEGIES = ("single", "pipeline", "debate")
 
 _DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 
@@ -74,7 +75,10 @@ def _assemble(
         roles = (FinderAgent, ChallengerAgent, JudgeAgent)
         agents = {cls.role: cls(provider=provider, model=model, max_tokens=max_tokens) for cls in roles}
         return agents, DebateOrchestrator()
-    return {"verifier": VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)}, SingleOrchestrator()
+    verifier = {"verifier": VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)}
+    if strategy == "pipeline":
+        return verifier, PipelineOrchestrator()
+    return verifier, SingleOrchestrator()
 
 
 def _render_dry_run(result: AnalysisResult) -> str:
