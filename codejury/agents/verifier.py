@@ -15,7 +15,7 @@ from codejury.agents.base import Agent
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Evidence, Observation, Verdict
-from codejury.infra.json_parse import extract_json_object
+from codejury.infrastructure.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 
 _VALID_STATUS = {"SECURE", "VULNERABLE", "PARTIAL", "NOT_PRESENT", "UNKNOWN"}
