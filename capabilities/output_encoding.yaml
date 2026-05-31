@@ -1,0 +1,56 @@
+id: output_encoding
+name: Output Encoding
+asvs_chapter: V5
+description: The outbound trust boundary. Untrusted data must be encoded for the context it is rendered into.
+
+sub_capabilities:
+  xss:
+    correct_patterns:
+      - id: XSS-OK-1
+        description: Rely on contextual output encoding or framework auto-escaping; render untrusted data as text, not markup
+        signals: ["escape(", "textContent", "render_template"]
+        why_ok: Data is encoded for its context, so it cannot become executable markup
+
+    anti_patterns:
+      - id: XSS-BAD-1
+        cwe: CWE-79
+        severity: HIGH
+        description: Render untrusted input into HTML through a raw sink
+        signals: ["innerHTML", "dangerouslySetInnerHTML", "|safe", "mark_safe(", "v-html"]
+        why_bad: Attacker-supplied markup runs as script in the victim's browser
+        example_bad: |
+          el.innerHTML = "Hello " + username
+        example_good: |
+          el.textContent = "Hello " + username
+
+      - id: XSS-BAD-2
+        cwe: CWE-79
+        severity: HIGH
+        description: Build HTML by string concatenation of untrusted input
+        why_bad: Same XSS sink, just assembled by hand
+
+      - id: XSS-BAD-3
+        cwe: CWE-116
+        severity: MEDIUM
+        description: Disable template auto-escaping globally
+        signals: ["autoescape=False", "| safe"]
+        why_bad: Every template output becomes a potential injection point
+
+  header_and_log:
+    anti_patterns:
+      - id: HDR-BAD-1
+        cwe: CWE-113
+        severity: MEDIUM
+        description: Place untrusted input into a response header or redirect location without sanitizing newlines
+        why_bad: CR/LF in the value splits the response or injects headers
+
+      - id: LOG-BAD-1
+        cwe: CWE-117
+        severity: LOW
+        description: Write untrusted input to logs without neutralizing newlines or control characters
+        why_bad: Forged log lines mislead investigators and can poison log processors
+
+trigger_signals:
+  - HTML sinks like innerHTML, dangerouslySetInnerHTML, |safe, mark_safe, v-html
+  - templates rendering request data
+  - response headers or redirect targets built from input

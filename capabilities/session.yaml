@@ -1,0 +1,60 @@
+id: session
+name: Session Management
+asvs_chapter: V3
+description: Establishing, protecting, and ending the context that links requests to an authenticated user.
+
+sub_capabilities:
+  cookie_attributes:
+    correct_patterns:
+      - id: COOKIE-OK-1
+        description: Set HttpOnly, Secure, and an explicit SameSite on session cookies
+        signals: ["httponly=True", "secure=True", "samesite="]
+        why_ok: Blocks script access, plaintext transmission, and most cross-site sending
+
+    anti_patterns:
+      - id: COOKIE-BAD-1
+        cwe: CWE-1004
+        severity: MEDIUM
+        description: Session cookie set without HttpOnly
+        signals: ["set_cookie("]
+        why_bad: JavaScript can read the cookie, so an XSS turns into session theft
+        example_bad: |
+          resp.set_cookie("sid", token)
+        example_good: |
+          resp.set_cookie("sid", token, httponly=True, secure=True, samesite="Lax")
+
+      - id: COOKIE-BAD-2
+        cwe: CWE-614
+        severity: MEDIUM
+        description: Session cookie set without Secure
+        why_bad: The cookie is sent over plain HTTP and can be sniffed
+
+      - id: COOKIE-BAD-3
+        cwe: CWE-1275
+        severity: LOW
+        description: SameSite unset, or None without a documented cross-site need
+        why_bad: Widens the CSRF surface
+
+  lifecycle:
+    correct_patterns:
+      - id: SESS-OK-1
+        description: Regenerate the session id at login, invalidate it at logout, and enforce idle and absolute timeouts
+        why_ok: Limits the window an stolen or fixated session is useful
+
+    anti_patterns:
+      - id: SESS-BAD-1
+        cwe: CWE-384
+        severity: HIGH
+        description: Do not rotate the session id after authentication (session fixation)
+        why_bad: An attacker who plants a known session id before login rides it afterward
+
+      - id: SESS-BAD-2
+        cwe: CWE-613
+        severity: MEDIUM
+        description: No session expiry or an unbounded lifetime
+        why_bad: A leaked session stays valid indefinitely
+
+trigger_signals:
+  - set_cookie or Set-Cookie on a session token
+  - login, logout, or session creation handlers
+  - a session store or framework session configuration

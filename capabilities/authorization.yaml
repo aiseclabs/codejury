@@ -1,0 +1,55 @@
+id: authz
+name: Authorization
+asvs_chapter: V4
+description: Deciding whether an authenticated caller is allowed to perform an action on a resource.
+
+sub_capabilities:
+  object_level:
+    correct_patterns:
+      - id: OBJ-OK-1
+        description: Confirm the authenticated user owns or may access the object before acting on it
+        signals: ["filter(owner=request.user", "get_object_or_404(..., user=", "current_user.id =="]
+        why_ok: Ties every object access to the caller's identity, closing direct-object-reference holes
+
+    anti_patterns:
+      - id: IDOR-BAD-1
+        cwe: CWE-639
+        severity: HIGH
+        description: Fetch or mutate a record by a user-supplied id with no ownership or access check
+        signals: ["get(id=request", "objects.get(pk=", "WHERE id ="]
+        why_bad: Any user can read or change another user's data by changing the id (IDOR)
+        example_bad: |
+          account = Account.objects.get(id=request.GET["account_id"])
+        example_good: |
+          account = Account.objects.get(id=request.GET["account_id"], owner=request.user)
+
+      - id: AUTHZ-BAD-1
+        cwe: CWE-862
+        severity: HIGH
+        description: Missing function or endpoint level authorization, so any authenticated user reaches privileged actions
+        why_bad: Authentication is checked but authorization is not; non-admins can hit admin routes
+
+  privilege:
+    correct_patterns:
+      - id: PRIV-OK-1
+        description: Derive roles and permissions server-side from a trusted store, checked per request
+        why_ok: The client cannot grant itself privileges it was not assigned
+
+    anti_patterns:
+      - id: PRIV-BAD-1
+        cwe: CWE-269
+        severity: HIGH
+        description: Derive role or permission from a client-controlled field (request body, query param, client-set claim)
+        signals: ["request.json[\"role\"]", "is_admin = request", "request.POST.get(\"role\""]
+        why_bad: An attacker sets the field and escalates to admin
+
+      - id: PRIV-BAD-2
+        cwe: CWE-602
+        severity: MEDIUM
+        description: Enforce authorization only in the client or UI, not on the server
+        why_bad: The server is the only trust boundary; hidden buttons stop nothing
+
+trigger_signals:
+  - routes with an :id or <pk> path parameter
+  - admin or privileged endpoints
+  - role, permission, or is_admin checks
