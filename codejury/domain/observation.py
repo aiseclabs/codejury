@@ -1,7 +1,7 @@
 """Observation model -- the unit agents produce and orchestrators consume.
 
 A single ``agent.run`` yields a list of ``Observation`` values, each one a
-``Finding``, ``Verdict``, ``Question``, or ``Concession``.
+``Finding``, ``Verdict``, or ``Concession``.
 
 ``Verdict`` is the important one: it is emitted whether the code matches an
 anti-pattern (VULNERABLE) or a safe pattern (SECURE), so a report can explain
@@ -27,7 +27,7 @@ VerdictStatus = Literal[
     "UNKNOWN",      # insufficient evidence to decide
 ]
 
-ObservationKind = Literal["finding", "verdict", "question", "concession"]
+ObservationKind = Literal["finding", "verdict", "concession"]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -38,7 +38,6 @@ class Evidence:
     line: int | None = None
     end_line: int | None = None
     code: str = ""
-    note: str = ""
 
 
 @dataclass(kw_only=True)
@@ -89,16 +88,6 @@ class Verdict(Observation):
     confidence: float = 0.5
 
     kind: ClassVar[ObservationKind] = "verdict"
-
-
-@dataclass(kw_only=True)
-class Question(Observation):
-    """A request for more context before a ruling can be made (debate INVESTIGATE)."""
-
-    query: str
-    needed_context: str = ""
-
-    kind: ClassVar[ObservationKind] = "question"
 
 
 @dataclass(kw_only=True)

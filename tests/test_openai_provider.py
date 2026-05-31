@@ -27,7 +27,6 @@ def test_prepends_system_and_maps_messages():
         max_tokens=64,
     )
     assert result.text == "hello"
-    assert result.model == "gpt-4o-mini"
     assert client.create_kwargs["messages"] == [
         {"role": "system", "content": "be careful"},
         {"role": "user", "content": "hi"},

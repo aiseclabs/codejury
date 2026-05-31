@@ -54,4 +54,4 @@ class OpenAIProvider(Provider):
             messages=api_messages,
             max_tokens=max_tokens,
         )
-        return CompletionResult(text=choice_text(response), model=getattr(response, "model", None) or model)
+        return CompletionResult(text=choice_text(response))

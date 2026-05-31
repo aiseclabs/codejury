@@ -51,7 +51,7 @@ class AnthropicProvider(Provider):
             system=system_param,
             messages=[{"role": m.role, "content": m.content} for m in messages],
         )
-        return CompletionResult(text=_extract_text(response), model=getattr(response, "model", model))
+        return CompletionResult(text=_extract_text(response))
 
 
 def _extract_text(response: Any) -> str:

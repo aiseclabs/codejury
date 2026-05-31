@@ -32,8 +32,7 @@ def test_maps_messages_and_joins_text_blocks():
         model="claude-x",
         max_tokens=64,
     )
-    assert result.text == "hello"          # content blocks joined
-    assert result.model == "claude-real"   # echoes the response's model
+    assert result.text == "hello"  # content blocks joined
     assert client.create_kwargs["messages"] == [{"role": "user", "content": "hi"}]
     assert client.create_kwargs["max_tokens"] == 64
 

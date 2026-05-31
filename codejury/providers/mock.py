@@ -29,4 +29,4 @@ class MockProvider(Provider):
     ) -> CompletionResult:
         self.calls.append({"system": system, "messages": messages, "model": model})
         text = self._responses.pop(0) if self._responses else self._default
-        return CompletionResult(text=text, model=model)
+        return CompletionResult(text=text)

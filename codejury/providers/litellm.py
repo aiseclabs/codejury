@@ -65,4 +65,4 @@ class LiteLLMProvider(Provider):
             kwargs["api_base"] = self._api_base
 
         response = self._completion_fn()(**kwargs)
-        return CompletionResult(text=choice_text(response), model=getattr(response, "model", None) or model)
+        return CompletionResult(text=choice_text(response))

@@ -37,7 +37,6 @@ def to_evidence(items: object) -> list[Evidence]:
                 file=str(e.get("file", "")),
                 line=line if isinstance(line, int) else None,
                 code=str(e.get("code", "")),
-                note=str(e.get("note", "")),
             )
         )
     return out

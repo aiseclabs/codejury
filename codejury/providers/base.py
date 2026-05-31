@@ -27,7 +27,6 @@ class Message:
 @dataclass(frozen=True, kw_only=True)
 class CompletionResult:
     text: str
-    model: str = ""  # the model the provider actually resolved and used
 
 
 class Provider(ABC):

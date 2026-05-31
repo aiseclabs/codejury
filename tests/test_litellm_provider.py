@@ -24,7 +24,6 @@ def test_prepends_system_and_maps_messages():
         max_tokens=128,
     )
     assert result.text == "ok"
-    assert result.model == "gpt-x"
     assert captured["messages"] == [
         {"role": "system", "content": "sys"},
         {"role": "user", "content": "hi"},

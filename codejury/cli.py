@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from codejury.agents.mock import MockAgent
 from codejury.assembly import (
     DEFAULT_MODEL,
     PROVIDERS,
@@ -19,7 +20,6 @@ from codejury.assembly import (
     make_provider,
     run_over_source,
 )
-from codejury.agents.mock import MockAgent
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability, load_capabilities
 from codejury.domain.context import AnalysisContext

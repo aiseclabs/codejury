@@ -15,7 +15,7 @@ class _Flaky(Provider):
         self.calls += 1
         if self.calls <= self._fail_times:
             raise RuntimeError("transient")
-        return CompletionResult(text="ok", model=kwargs["model"])
+        return CompletionResult(text="ok")
 
 
 def _call(provider):
