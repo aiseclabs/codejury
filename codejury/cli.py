@@ -13,7 +13,7 @@ from codejury.agents.mock import MockAgent
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.result import AnalysisResult
-from codejury.orchestrators.mock import MockOrchestrator
+from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.mock import MockProvider
 from codejury.sources.mock import MockSource
 
@@ -22,7 +22,7 @@ def dry_run() -> AnalysisResult:
     source = MockSource()
     provider = MockProvider(default="[mock] no real backend was called")
     agent = MockAgent(provider=provider, role="verifier")
-    orchestrator = MockOrchestrator()
+    orchestrator = SingleOrchestrator()
     capabilities = [
         Capability(id="authn", name="Authentication"),
         Capability(id="crypto", name="Cryptography"),
