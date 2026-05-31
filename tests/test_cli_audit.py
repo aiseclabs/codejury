@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
 
-from codejury.cli import _render_audit, audit
-from codejury.domain.capability import load_capability
+from codejury.cli import _render_audit, _render_observation, audit
+from codejury.domain.capability import Capability, load_capability
+from codejury.domain.observation import Concession, Finding, Verdict
 from codejury.providers.mock import MockProvider
 
 CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
@@ -46,3 +47,41 @@ def test_render_groups_by_file_and_shows_matched_patterns():
 
 def test_render_handles_empty_diff():
     assert _render_audit([]) == "no changed files in diff"
+
+
+_ONE_FILE_DIFF = """\
+diff --git a/auth.py b/auth.py
+--- a/auth.py
++++ b/auth.py
+@@ -1,1 +1,1 @@
++    return hashlib.sha256(pwd.encode()).hexdigest()
+"""
+
+
+def test_debate_strategy_wires_finder_challenger_judge():
+    # Two identical rounds -> debate converges; each round is finder, challenger, judge.
+    rounds = []
+    for _ in range(2):
+        rounds += [
+            json.dumps({"findings": [{"title": "weak hash", "severity": "HIGH"}]}),
+            json.dumps({"rebuttals": [], "new_findings": []}),
+            json.dumps({"surviving": [{"title": "weak hash", "severity": "HIGH"}], "dismissed": []}),
+        ]
+    provider = MockProvider(responses=rounds, default="{}")
+    cap = Capability(id="authn", name="Authentication")
+
+    results = audit(_ONE_FILE_DIFF, [cap], provider=provider, model="m", strategy="debate")
+
+    _, result = results[0]
+    findings = [o for o in result.observations if isinstance(o, Finding)]
+    assert [f.title for f in findings] == ["weak hash"]
+    assert len(provider.calls) == 6  # 2 rounds * 3 roles
+
+
+def test_render_observation_covers_each_kind():
+    verdict = _render_observation(Verdict(capability="authn.x", status="VULNERABLE", matched_anti=["PWD-BAD-1"]))
+    finding = _render_observation(Finding(title="weak hash", severity="HIGH", cwe="CWE-916"))
+    concession = _render_observation(Concession(target="weak hash", reason="just a checksum"))
+    assert "VULNERABLE" in verdict and "PWD-BAD-1" in verdict
+    assert "FINDING" in finding and "weak hash" in finding and "CWE-916" in finding
+    assert "DISMISSED" in concession and "just a checksum" in concession

@@ -1,9 +1,9 @@
 """Command-line entry point.
 
 ``dry-run`` wires every mock layer together with no API key, proving the
-contracts compose. ``audit`` runs the real pipeline: a unified diff through
-DiffSource -> VerifierAgent -> SingleOrchestrator against the capability library,
-backed by the Anthropic provider.
+contracts compose. ``audit`` runs the real pipeline against the capability
+library, backed by the Anthropic provider, under a chosen orchestration strategy
+(single verifier, or finder/challenger/judge debate).
 """
 
 from __future__ import annotations
@@ -12,17 +12,24 @@ import argparse
 import os
 import sys
 
+from codejury.agents.base import Agent
+from codejury.agents.debate import ChallengerAgent, FinderAgent, JudgeAgent
 from codejury.agents.mock import MockAgent
 from codejury.agents.verifier import VerifierAgent
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability, load_capabilities
 from codejury.domain.context import AnalysisContext
+from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
+from codejury.orchestrators.base import Orchestrator
+from codejury.orchestrators.debate import DebateOrchestrator
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 from codejury.sources.diff import DiffSource
+
+_STRATEGIES = ("single", "debate")
 
 _DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 
@@ -49,15 +56,25 @@ def audit(
     provider: Provider,
     model: str,
     max_tokens: int = 2048,
+    strategy: str = "single",
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit each changed file in `diff_text`, returning (path, result) per file."""
-    agent = VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)
-    orchestrator = SingleOrchestrator()
+    agents, orchestrator = _assemble(strategy, provider=provider, model=model, max_tokens=max_tokens)
     results = []
     for artifact in DiffSource(diff_text).list_artifacts():
         ctx = AnalysisContext(artifact=artifact, capabilities=capabilities)
-        results.append((artifact.path, orchestrator.run({"verifier": agent}, ctx)))
+        results.append((artifact.path, orchestrator.run(agents, ctx)))
     return results
+
+
+def _assemble(
+    strategy: str, *, provider: Provider, model: str, max_tokens: int
+) -> tuple[dict[str, Agent], Orchestrator]:
+    if strategy == "debate":
+        roles = (FinderAgent, ChallengerAgent, JudgeAgent)
+        agents = {cls.role: cls(provider=provider, model=model, max_tokens=max_tokens) for cls in roles}
+        return agents, DebateOrchestrator()
+    return {"verifier": VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)}, SingleOrchestrator()
 
 
 def _render_dry_run(result: AnalysisResult) -> str:
@@ -77,11 +94,22 @@ def _render_audit(results: list[tuple[str, AnalysisResult]]) -> str:
         lines.append(f"== {path} ==")
         if result.error:
             lines.append(f"  error: {result.error}")
-        for v in result.observations:
-            matched = getattr(v, "matched_anti", []) or getattr(v, "matched_correct", [])
-            suffix = f" [{', '.join(matched)}]" if matched else ""
-            lines.append(f"  {getattr(v, 'status', '-'):<11} {v.capability}{suffix}")
+        for o in result.observations:
+            lines.append("  " + _render_observation(o))
     return "\n".join(lines)
+
+
+def _render_observation(o: Observation) -> str:
+    if o.kind == "verdict":
+        matched = o.matched_anti or o.matched_correct
+        suffix = f" [{', '.join(matched)}]" if matched else ""
+        return f"{o.status:<11} {o.capability}{suffix}"
+    if o.kind == "finding":
+        cwe = f" {o.cwe}" if o.cwe else ""
+        return f"{'FINDING':<11} [{o.severity}{cwe}] {o.title}"
+    if o.kind == "concession":
+        return f"{'DISMISSED':<11} {o.target}: {o.reason}"
+    return f"{o.kind}: {o.capability}"
 
 
 def _read_diff(path: str) -> str:
@@ -100,6 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p = sub.add_parser("audit", help="audit a unified diff against the capability library")
     audit_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
     audit_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
+    audit_p.add_argument("--orchestrator", choices=_STRATEGIES, default="single")
     audit_p.add_argument("--model", default=_DEFAULT_MODEL)
     audit_p.add_argument("--max-tokens", type=int, default=2048)
 
@@ -112,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             provider=AnthropicProvider(),
             model=args.model,
             max_tokens=args.max_tokens,
+            strategy=args.orchestrator,
         )
         print(_render_audit(results))
         return 0
