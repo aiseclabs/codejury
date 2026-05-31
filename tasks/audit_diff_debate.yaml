@@ -1,0 +1,4 @@
+name: audit_diff_debate
+orchestrator: debate
+provider: anthropic
+# capabilities omitted -> check all of them

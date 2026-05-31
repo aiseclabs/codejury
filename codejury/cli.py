@@ -30,6 +30,8 @@ from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 from codejury.reporting import to_json, to_markdown
 from codejury.sources.diff import DiffSource
+from codejury.tasks.base import run_task
+from codejury.tasks.registry import load_tasks
 
 _FORMATS = ("text", "markdown", "json")
 
@@ -98,6 +100,10 @@ def _render_observation(o: Observation) -> str:
     return f"{o.kind}: {o.capability}"
 
 
+def _render_results(fmt: str, results: list[tuple[str, AnalysisResult]]) -> str:
+    return {"text": _render_audit, "markdown": to_markdown, "json": to_json}[fmt](results)
+
+
 def _read_diff(path: str) -> str:
     if path == "-":
         return sys.stdin.read()
@@ -120,6 +126,13 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--model", default=DEFAULT_MODEL)
     audit_p.add_argument("--max-tokens", type=int, default=2048)
 
+    run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
+    run_p.add_argument("task", help="task name")
+    run_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
+    run_p.add_argument("--tasks", default="tasks", help="task YAML directory")
+    run_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
+    run_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
+
     args = parser.parse_args(argv)
 
     if args.command == "audit":
@@ -131,8 +144,18 @@ def main(argv: list[str] | None = None) -> int:
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
         )
-        renderers = {"text": _render_audit, "markdown": to_markdown, "json": to_json}
-        print(renderers[args.fmt](results))
+        print(_render_results(args.fmt, results))
+        return 0
+
+    if args.command == "run":
+        tasks = load_tasks(args.tasks)
+        if args.task not in tasks:
+            print(f"unknown task {args.task!r}; available: {', '.join(sorted(tasks)) or '(none)'}")
+            return 1
+        results = run_task(
+            tasks[args.task], DiffSource(_read_diff(args.diff)), load_capabilities(args.capabilities)
+        )
+        print(_render_results(args.fmt, results))
         return 0
 
     if args.command in (None, "dry-run"):
