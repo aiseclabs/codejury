@@ -30,6 +30,7 @@ from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 from codejury.reporting import to_json, to_markdown
+from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, TASKS_DIR
 from codejury.sources.diff import DiffSource
 from codejury.tasks.base import run_task
 from codejury.tasks.registry import load_tasks
@@ -127,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
 
     audit_p = sub.add_parser("audit", help="audit a unified diff against the capability library")
     audit_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
-    audit_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
+    audit_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     audit_p.add_argument("--orchestrator", choices=STRATEGIES, default="single")
     audit_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     audit_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
@@ -138,13 +139,13 @@ def main(argv: list[str] | None = None) -> int:
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
     run_p.add_argument("task", help="task name")
     run_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
-    run_p.add_argument("--tasks", default="tasks", help="task YAML directory")
-    run_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
+    run_p.add_argument("--tasks", default=TASKS_DIR, help="task YAML directory")
+    run_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     run_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
 
     eval_p = sub.add_parser("eval", help="score golden cases and report precision/recall")
-    eval_p.add_argument("--golden", default="golden", help="golden case YAML directory")
-    eval_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
+    eval_p.add_argument("--golden", default=GOLDEN_DIR, help="golden case YAML directory")
+    eval_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     eval_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     eval_p.add_argument("--model", default=DEFAULT_MODEL)
 

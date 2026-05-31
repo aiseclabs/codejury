@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from codejury.domain.capability import Capability
 from codejury.providers.mock import MockProvider
@@ -7,7 +6,7 @@ from codejury.sources.mock import MockSource
 from codejury.tasks.base import Task, run_task
 from codejury.tasks.registry import load_tasks
 
-TASKS_DIR = Path(__file__).resolve().parent.parent / "tasks"
+from codejury.resources import TASKS_DIR
 
 
 def test_from_dict_parses_and_defaults():

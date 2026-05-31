@@ -7,7 +7,6 @@ run this against a live PR.
 """
 
 import json
-from pathlib import Path
 
 from codejury.agents.verifier import VerifierAgent
 from codejury.domain.artifact import CodeArtifact
@@ -16,7 +15,7 @@ from codejury.domain.context import AnalysisContext
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.mock import MockProvider
 
-CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
+from codejury.resources import CAPABILITIES_DIR
 
 _DIFF = """\
 +def store_password(pwd: str) -> str:

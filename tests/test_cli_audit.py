@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 import pytest
 
@@ -11,7 +10,7 @@ from codejury.providers.litellm import LiteLLMProvider
 from codejury.providers.mock import MockProvider
 from codejury.providers.openai import OpenAIProvider
 
-CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
+from codejury.resources import CAPABILITIES_DIR
 
 _TWO_FILE_DIFF = """\
 diff --git a/auth.py b/auth.py

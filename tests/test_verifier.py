@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from codejury.agents.verifier import VerifierAgent
 from codejury.domain.artifact import CodeArtifact
@@ -7,7 +6,7 @@ from codejury.domain.capability import load_capability
 from codejury.domain.context import AnalysisContext
 from codejury.providers.mock import MockProvider
 
-CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
+from codejury.resources import CAPABILITIES_DIR
 
 
 def _ctx(content="+ hashlib.sha256(pwd)"):

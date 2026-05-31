@@ -1,12 +1,10 @@
 import json
-from pathlib import Path
 
 from codejury.domain.capability import load_capability
 from codejury.evaluation import Metrics, evaluate, load_cases
 from codejury.providers.mock import MockProvider
 
-GOLDEN_DIR = Path(__file__).resolve().parent.parent / "golden"
-CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
+from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR
 
 _VULN = json.dumps({"verdicts": [{"sub_capability": "x", "status": "VULNERABLE"}]})
 _SECURE = json.dumps({"verdicts": [{"sub_capability": "x", "status": "SECURE"}]})

@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import pytest
 
@@ -10,7 +9,7 @@ from codejury.domain.capability import (
     load_capability,
 )
 
-CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
+from codejury.resources import CAPABILITIES_DIR
 
 
 @pytest.mark.parametrize("path", sorted(CAPABILITIES_DIR.glob("*.yaml")), ids=lambda p: p.stem)

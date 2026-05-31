@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from codejury.agents.debate import ChallengerAgent, FinderAgent, JudgeAgent
 from codejury.domain.artifact import CodeArtifact
@@ -8,7 +7,7 @@ from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Concession, Finding
 from codejury.providers.mock import MockProvider
 
-CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
+from codejury.resources import CAPABILITIES_DIR
 
 
 def _ctx(*, history=None, round_num=1, content="hashlib.sha256(pwd)"):
