@@ -9,10 +9,16 @@ library, backed by the Anthropic provider, under a chosen orchestration strategy
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
-from codejury.assembly import STRATEGIES, build_orchestration, run_over_source
+from codejury.assembly import (
+    DEFAULT_MODEL,
+    PROVIDERS,
+    STRATEGIES,
+    build_orchestration,
+    make_provider,
+    run_over_source,
+)
 from codejury.agents.mock import MockAgent
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability, load_capabilities
@@ -20,26 +26,12 @@ from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
 from codejury.orchestrators.single import SingleOrchestrator
-from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Provider
-from codejury.providers.litellm import LiteLLMProvider
 from codejury.providers.mock import MockProvider
-from codejury.providers.openai import OpenAIProvider
 from codejury.reporting import to_json, to_markdown
 from codejury.sources.diff import DiffSource
 
-_PROVIDERS = ("anthropic", "openai", "litellm")
 _FORMATS = ("text", "markdown", "json")
-
-
-def make_provider(name: str) -> Provider:
-    if name == "openai":
-        return OpenAIProvider()
-    if name == "litellm":
-        return LiteLLMProvider()
-    return AnthropicProvider()
-
-_DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 
 
 def dry_run() -> AnalysisResult:
@@ -123,9 +115,9 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
     audit_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
     audit_p.add_argument("--orchestrator", choices=STRATEGIES, default="single")
-    audit_p.add_argument("--provider", choices=_PROVIDERS, default="anthropic")
+    audit_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     audit_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
-    audit_p.add_argument("--model", default=_DEFAULT_MODEL)
+    audit_p.add_argument("--model", default=DEFAULT_MODEL)
     audit_p.add_argument("--max-tokens", type=int, default=2048)
 
     args = parser.parse_args(argv)
