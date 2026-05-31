@@ -25,6 +25,7 @@ from codejury.domain.capability import Capability, load_capabilities
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
+from codejury.evaluation import Metrics, evaluate, load_cases
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
@@ -104,6 +105,13 @@ def _render_results(fmt: str, results: list[tuple[str, AnalysisResult]]) -> str:
     return {"text": _render_audit, "markdown": to_markdown, "json": to_json}[fmt](results)
 
 
+def _render_metrics(m: Metrics) -> str:
+    return (
+        f"cases: {m.total}  (tp={m.tp} fp={m.fp} tn={m.tn} fn={m.fn})\n"
+        f"precision: {m.precision:.2f}  recall: {m.recall:.2f}  accuracy: {m.accuracy:.2f}"
+    )
+
+
 def _read_diff(path: str) -> str:
     if path == "-":
         return sys.stdin.read()
@@ -134,6 +142,12 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
     run_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
 
+    eval_p = sub.add_parser("eval", help="score golden cases and report precision/recall")
+    eval_p.add_argument("--golden", default="golden", help="golden case YAML directory")
+    eval_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
+    eval_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
+    eval_p.add_argument("--model", default=DEFAULT_MODEL)
+
     args = parser.parse_args(argv)
 
     if args.command == "audit":
@@ -157,6 +171,16 @@ def main(argv: list[str] | None = None) -> int:
             tasks[args.task], DiffSource(_read_diff(args.diff)), load_capabilities(args.capabilities)
         )
         print(_render_results(args.fmt, results))
+        return 0
+
+    if args.command == "eval":
+        metrics = evaluate(
+            load_cases(args.golden),
+            load_capabilities(args.capabilities),
+            provider=make_provider(args.provider),
+            model=args.model,
+        )
+        print(_render_metrics(metrics))
         return 0
 
     if args.command in (None, "dry-run"):

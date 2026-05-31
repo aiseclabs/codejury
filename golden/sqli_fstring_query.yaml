@@ -1,0 +1,5 @@
+capability: input_validation
+vulnerable: true
+code: |
+  def find_user(name: str):
+      cursor.execute(f"SELECT * FROM users WHERE name = '{name}'")
