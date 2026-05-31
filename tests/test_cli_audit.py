@@ -1,10 +1,15 @@
 import json
 from pathlib import Path
 
-from codejury.cli import _render_audit, _render_observation, audit
+import pytest
+
+from codejury.cli import _render_audit, _render_observation, audit, make_provider
 from codejury.domain.capability import Capability, load_capability
 from codejury.domain.observation import Concession, Finding, Verdict
+from codejury.providers.anthropic import AnthropicProvider
+from codejury.providers.litellm import LiteLLMProvider
 from codejury.providers.mock import MockProvider
+from codejury.providers.openai import OpenAIProvider
 
 CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
 
@@ -76,6 +81,14 @@ def test_debate_strategy_wires_finder_challenger_judge():
     findings = [o for o in result.observations if isinstance(o, Finding)]
     assert [f.title for f in findings] == ["weak hash"]
     assert len(provider.calls) == 6  # 2 rounds * 3 roles
+
+
+@pytest.mark.parametrize(
+    "name,cls",
+    [("anthropic", AnthropicProvider), ("openai", OpenAIProvider), ("litellm", LiteLLMProvider)],
+)
+def test_make_provider_selects_backend(name, cls):
+    assert isinstance(make_provider(name), cls)
 
 
 def test_render_observation_covers_each_kind():

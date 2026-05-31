@@ -27,10 +27,21 @@ from codejury.orchestrators.pipeline import PipelineOrchestrator
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Provider
+from codejury.providers.litellm import LiteLLMProvider
 from codejury.providers.mock import MockProvider
+from codejury.providers.openai import OpenAIProvider
 from codejury.sources.diff import DiffSource
 
 _STRATEGIES = ("single", "pipeline", "debate")
+_PROVIDERS = ("anthropic", "openai", "litellm")
+
+
+def make_provider(name: str) -> Provider:
+    if name == "openai":
+        return OpenAIProvider()
+    if name == "litellm":
+        return LiteLLMProvider()
+    return AnthropicProvider()
 
 _DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 
@@ -133,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
     audit_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
     audit_p.add_argument("--orchestrator", choices=_STRATEGIES, default="single")
+    audit_p.add_argument("--provider", choices=_PROVIDERS, default="anthropic")
     audit_p.add_argument("--model", default=_DEFAULT_MODEL)
     audit_p.add_argument("--max-tokens", type=int, default=2048)
 
@@ -142,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
         results = audit(
             _read_diff(args.diff),
             load_capabilities(args.capabilities),
-            provider=AnthropicProvider(),
+            provider=make_provider(args.provider),
             model=args.model,
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
