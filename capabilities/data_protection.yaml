@@ -1,0 +1,57 @@
+id: data_protection
+name: Data Protection
+asvs_chapter: V8
+description: Protecting sensitive data in transit, at rest, and in use, including PII handling.
+
+sub_capabilities:
+  in_transit:
+    correct_patterns:
+      - id: TLS-OK-1
+        description: Send sensitive data only over TLS and verify the peer certificate
+        signals: ["https://", "verify=True", "ssl.create_default_context"]
+        why_ok: Confidentiality and integrity on the wire, with a checked endpoint identity
+
+    anti_patterns:
+      - id: TLS-BAD-1
+        cwe: CWE-319
+        severity: HIGH
+        description: Transmit sensitive data over plaintext HTTP
+        signals: ["http://"]
+        why_bad: Anyone on the path can read or alter the data
+
+      - id: TLS-BAD-2
+        cwe: CWE-295
+        severity: HIGH
+        description: Disable TLS certificate verification
+        signals: ["verify=False", "ssl._create_unverified_context", "CERT_NONE"]
+        why_bad: Removes protection against man-in-the-middle interception
+        example_bad: |
+          requests.get(url, verify=False)
+        example_good: |
+          requests.get(url)  # verification on by default
+
+  at_rest:
+    correct_patterns:
+      - id: REST-OK-1
+        description: Encrypt sensitive fields and backups at rest
+        why_ok: A storage or backup leak does not expose plaintext
+
+    anti_patterns:
+      - id: REST-BAD-1
+        cwe: CWE-311
+        severity: MEDIUM
+        description: Store sensitive data (PII, tokens, financial) unencrypted
+        why_bad: Any database or disk access reveals it directly
+
+  pii:
+    anti_patterns:
+      - id: PII-BAD-1
+        cwe: CWE-359
+        severity: MEDIUM
+        description: Expose PII in URLs, responses, or logs beyond what the operation needs
+        why_bad: PII spreads into caches, history, and logs, widening breach impact
+
+trigger_signals:
+  - outbound requests or URLs carrying user data
+  - models or tables with PII, token, or financial fields
+  - TLS or certificate verification configuration

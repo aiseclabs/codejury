@@ -1,0 +1,78 @@
+id: crypto
+name: Cryptography
+asvs_chapter: V6
+description: Correct choice and use of cryptographic primitives for confidentiality and integrity.
+
+sub_capabilities:
+  algorithm:
+    correct_patterns:
+      - id: CRYPTO-OK-1
+        description: Use vetted authenticated encryption such as AES-GCM or ChaCha20-Poly1305
+        signals: ["AESGCM", "ChaCha20Poly1305", "AES.MODE_GCM"]
+        why_ok: Modern AEAD provides confidentiality and integrity with no mode pitfalls
+
+    anti_patterns:
+      - id: CRYPTO-BAD-1
+        cwe: CWE-327
+        severity: HIGH
+        description: Use a broken or obsolete cipher or hash for security (DES, 3DES, RC4, MD5, SHA-1)
+        signals: ["DES.new", "ARC4", "Crypto.Cipher.DES", "hashlib.md5", "hashlib.sha1"]
+        why_bad: These are practically attackable and unfit for protecting data
+        example_bad: |
+          cipher = DES.new(key, DES.MODE_ECB)
+        example_good: |
+          cipher = AESGCM(key); ct = cipher.encrypt(nonce, data, None)
+
+      - id: CRYPTO-BAD-2
+        cwe: CWE-327
+        severity: HIGH
+        description: Use ECB mode for a block cipher
+        signals: ["MODE_ECB"]
+        why_bad: ECB leaks plaintext structure because identical blocks encrypt identically
+
+      - id: CRYPTO-BAD-3
+        cwe: CWE-326
+        severity: MEDIUM
+        description: Use an inadequate key size (e.g. RSA shorter than 2048 bits)
+        why_bad: Undersized keys are within reach of feasible attacks
+
+  key_and_nonce:
+    correct_patterns:
+      - id: KEY-OK-1
+        description: Load keys from a KMS or secret store and rotate them; derive a fresh random nonce per message
+        why_ok: Keys are not exposed in code and nonces stay unique
+
+    anti_patterns:
+      - id: KEY-BAD-1
+        cwe: CWE-321
+        severity: HIGH
+        description: Hardcode a cryptographic key in source
+        signals: ["key = b\"", "SECRET_KEY = \"", "AES_KEY ="]
+        why_bad: Anyone with the source can decrypt everything
+
+      - id: IV-BAD-1
+        cwe: CWE-329
+        severity: HIGH
+        description: Use a static or reused IV/nonce
+        signals: ["iv = b\"\\x00", "nonce = b\"", "IV = bytes(16)"]
+        why_bad: Nonce reuse breaks GCM and reveals patterns under CBC
+
+  randomness:
+    correct_patterns:
+      - id: RND-OK-1
+        description: Use a CSPRNG (secrets, os.urandom) for tokens, keys, and salts
+        signals: ["secrets.token_", "os.urandom("]
+        why_ok: Cryptographically strong randomness is unpredictable
+
+    anti_patterns:
+      - id: RND-BAD-1
+        cwe: CWE-338
+        severity: MEDIUM
+        description: Use a non-cryptographic PRNG for security-sensitive values
+        signals: ["random.random(", "random.randint(", "random.choice("]
+        why_bad: Mersenne Twister output is predictable from a few samples
+
+trigger_signals:
+  - imports of hashlib, Crypto, cryptography, or ssl
+  - encrypt, decrypt, sign, or token generation
+  - key, iv, nonce, or salt literals
