@@ -46,6 +46,13 @@ Usable end to end across all five layers:
 The golden set ships with seed cases; real precision/recall numbers need a model
 (`codejury eval` with a provider key).
 
+## Install
+
+```bash
+pip install codejury                 # core + CLI
+pip install 'codejury[anthropic]'    # add the provider you'll use (anthropic / openai / litellm)
+```
+
 ## Usage
 
 ```bash
