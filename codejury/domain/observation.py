@@ -103,9 +103,13 @@ class Question(Observation):
 
 @dataclass(kw_only=True)
 class Concession(Observation):
-    """Withdrawal of an earlier claim -- a key debate convergence signal."""
+    """A position that an earlier claim should be withdrawn or dismissed, with reason.
 
-    target: str  # identifier of the withdrawn claim (title / finding id)
+    Covers both a finder conceding its own finding and a challenger or judge
+    moving to dismiss one. ``target`` identifies the claim (a Finding title).
+    """
+
+    target: str
     reason: str = ""
 
     kind: ClassVar[ObservationKind] = "concession"
