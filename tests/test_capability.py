@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from codejury.domain.capability import AntiPattern, Capability, SubCapability, load_capability
+from codejury.domain.capability import (
+    AntiPattern,
+    Capability,
+    SubCapability,
+    load_capabilities,
+    load_capability,
+)
 
 CAPABILITIES_DIR = Path(__file__).resolve().parent.parent / "capabilities"
 
@@ -18,6 +24,12 @@ def test_shipped_capabilities_load(path):
     assert cap.sub_capabilities
     for sub in cap.sub_capabilities.values():
         assert isinstance(sub, SubCapability)
+
+
+def test_load_capabilities_loads_every_file():
+    caps = load_capabilities(CAPABILITIES_DIR)
+    ids = {c.id for c in caps}
+    assert {"authn", "input_validation"} <= ids
 
 
 def test_authentication_structure():

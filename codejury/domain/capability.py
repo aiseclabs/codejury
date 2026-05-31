@@ -116,3 +116,8 @@ def load_capability(path: str | Path) -> Capability:
     if not isinstance(data, dict):
         raise ValueError(f"{path}: expected a YAML mapping at the top level, got {type(data).__name__}")
     return Capability.from_dict(data)
+
+
+def load_capabilities(directory: str | Path) -> list[Capability]:
+    """Load every ``*.yaml`` capability file in a directory, sorted by name."""
+    return [load_capability(p) for p in sorted(Path(directory).glob("*.yaml"))]
