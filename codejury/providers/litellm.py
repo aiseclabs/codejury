@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from codejury.providers.base import CompletionResult, Message, Provider
+from codejury.providers.openai_format import choice_text
 
 
 class LiteLLMProvider(Provider):
@@ -64,25 +65,4 @@ class LiteLLMProvider(Provider):
             kwargs["api_base"] = self._api_base
 
         response = self._completion_fn()(**kwargs)
-        return CompletionResult(text=_extract_text(response), model=getattr(response, "model", None) or model)
-
-
-def _extract_text(response: Any) -> str:
-    choices = getattr(response, "choices", None) or []
-    if not choices:
-        return ""
-    message = getattr(choices[0], "message", choices[0])
-    content = getattr(message, "content", None)
-    if content is None and isinstance(message, dict):
-        content = message.get("content")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict) and "text" in block:
-                parts.append(str(block["text"]))
-            elif isinstance(block, str):
-                parts.append(block)
-        return "".join(parts)
-    return str(content or "")
+        return CompletionResult(text=choice_text(response), model=getattr(response, "model", None) or model)
