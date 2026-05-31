@@ -1,0 +1,92 @@
+id: input_validation
+name: Input Validation
+asvs_chapter: V5
+description: >-
+  The inbound trust boundary. Untrusted input must be parameterized, validated
+  against an allowlist, or escaped before it reaches an interpreter (SQL, shell,
+  filesystem, template, LDAP, ...).
+
+sub_capabilities:
+  sql_injection:
+    correct_patterns:
+      - id: SQLI-OK-1
+        description: Use parameterized queries or ORM-bound parameters; never build SQL from input
+        signals: ["cursor.execute(", "execute(query, params", "session.query(", "text(:param)"]
+        why_ok: The driver sends data separately from the statement, so input cannot alter the query
+
+    anti_patterns:
+      - id: SQLI-BAD-1
+        cwe: CWE-89
+        severity: CRITICAL
+        description: Build SQL by string concatenation or f-string interpolation of input
+        signals: ['execute(f"', 'execute("SELECT', '" + ', "% (", ".format("]
+        why_bad: Input becomes part of the statement and can change its meaning entirely
+        example_bad: |
+          cursor.execute(f"SELECT * FROM users WHERE name = '{name}'")
+        example_good: |
+          cursor.execute("SELECT * FROM users WHERE name = %s", (name,))
+
+      - id: SQLI-BAD-2
+        cwe: CWE-89
+        severity: HIGH
+        description: Interpolate a table or column name from input without an allowlist
+        why_bad: Identifiers cannot be parameterized, so unchecked input still injects
+
+      - id: SQLI-BAD-3
+        cwe: CWE-89
+        severity: HIGH
+        description: Pass a pre-built SQL string to an ORM raw or text escape hatch
+        signals: [".raw(", "text(", "execute_sql("]
+        why_bad: Raw escape hatches bypass the ORM's parameter binding
+
+  command_injection:
+    correct_patterns:
+      - id: CMDI-OK-1
+        description: Run subprocesses with an argument list and shell=False
+        signals: ["subprocess.run([", "subprocess.Popen(["]
+        why_ok: Arguments are passed directly to execve, so the shell never parses input
+
+    anti_patterns:
+      - id: CMDI-BAD-1
+        cwe: CWE-78
+        severity: CRITICAL
+        description: Invoke a shell with an interpolated command string
+        signals: ["os.system(", "shell=True", "os.popen("]
+        why_bad: Shell metacharacters in input let an attacker run arbitrary commands
+        example_bad: |
+          os.system("ping " + host)
+        example_good: |
+          subprocess.run(["ping", "-c", "1", host], shell=False)
+
+      - id: CMDI-BAD-2
+        cwe: CWE-78
+        severity: HIGH
+        description: Build the argument list itself from an unvalidated, shell-parsed string
+        signals: ["shlex.split(", "shell=True"]
+        why_bad: Splitting an untrusted string can still smuggle extra arguments or commands
+
+  path_traversal:
+    correct_patterns:
+      - id: PATH-OK-1
+        description: Resolve the path and confirm it stays within an allowed base directory
+        signals: ["os.path.realpath", "Path(...).resolve()", "is_relative_to("]
+        why_ok: A resolved path outside the base is rejected before any file access
+
+    anti_patterns:
+      - id: PATH-BAD-1
+        cwe: CWE-22
+        severity: HIGH
+        description: Join user input into a filesystem path without containment checks
+        signals: ["os.path.join(", "open(", "Path("]
+        why_bad: Sequences like ../ let input escape the intended directory
+        example_bad: |
+          open(os.path.join(UPLOAD_DIR, filename))
+        example_good: |
+          target = (UPLOAD_DIR / filename).resolve()
+          if not target.is_relative_to(UPLOAD_DIR):
+              raise ValueError("path escapes upload dir")
+
+trigger_signals:
+  - raw SQL strings or cursor.execute calls appear
+  - imports of os, subprocess, or shlex with process execution
+  - file paths built from request, form, or query parameters
