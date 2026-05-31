@@ -55,6 +55,12 @@ pip install 'codejury[anthropic]'    # add the provider you'll use (anthropic / 
 
 ## Usage
 
+A real audit calls a model, so set the provider's key first:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...   # or OPENAI_API_KEY for --provider openai
+```
+
 ```bash
 # Audit a unified diff against the capability library
 git diff | codejury audit --orchestrator debate --provider anthropic --format markdown -
@@ -62,15 +68,17 @@ git diff | codejury audit --orchestrator debate --provider anthropic --format ma
 # Run a named task preset (tasks/*.yaml)
 git diff | codejury run audit_diff_debate -
 
-# Score detection quality against the golden cases (needs a provider key)
+# Score detection quality against the golden cases
 codejury eval --provider anthropic
 
 # No API key needed: prove the pipeline composes with mock layers
 codejury dry-run
 ```
 
-`audit` and `run` read a diff from a file argument or stdin (`-`). Real providers
-read their key from the environment (e.g. `ANTHROPIC_API_KEY`).
+`audit` and `run` read a diff from a file argument or stdin (`-`). The provider
+key is read from the environment: `ANTHROPIC_API_KEY` for `--provider anthropic`,
+`OPENAI_API_KEY` for `--provider openai`. Without a key the model providers
+raise an authentication error; `codejury dry-run` needs no key.
 
 ## Development
 
