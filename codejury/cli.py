@@ -31,10 +31,12 @@ from codejury.providers.base import Provider
 from codejury.providers.litellm import LiteLLMProvider
 from codejury.providers.mock import MockProvider
 from codejury.providers.openai import OpenAIProvider
+from codejury.reporting import to_json, to_markdown
 from codejury.sources.diff import DiffSource
 
 _STRATEGIES = ("single", "pipeline", "debate", "reflexion")
 _PROVIDERS = ("anthropic", "openai", "litellm")
+_FORMATS = ("text", "markdown", "json")
 
 
 def make_provider(name: str) -> Provider:
@@ -152,6 +154,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
     audit_p.add_argument("--orchestrator", choices=_STRATEGIES, default="single")
     audit_p.add_argument("--provider", choices=_PROVIDERS, default="anthropic")
+    audit_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     audit_p.add_argument("--model", default=_DEFAULT_MODEL)
     audit_p.add_argument("--max-tokens", type=int, default=2048)
 
@@ -166,7 +169,8 @@ def main(argv: list[str] | None = None) -> int:
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
         )
-        print(_render_audit(results))
+        renderers = {"text": _render_audit, "markdown": to_markdown, "json": to_json}
+        print(renderers[args.fmt](results))
         return 0
 
     if args.command in (None, "dry-run"):
