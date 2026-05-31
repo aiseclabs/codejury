@@ -23,6 +23,7 @@ from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Provider
 from codejury.providers.litellm import LiteLLMProvider
 from codejury.providers.openai import OpenAIProvider
+from codejury.providers.retry import RetryProvider
 from codejury.sources.base import Source
 
 STRATEGIES = ("single", "pipeline", "debate", "reflexion")
@@ -30,12 +31,16 @@ PROVIDERS = ("anthropic", "openai", "litellm")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 
 
-def make_provider(name: str) -> Provider:
+def make_provider(name: str, *, retries: int = 0) -> Provider:
     if name == "openai":
-        return OpenAIProvider()
-    if name == "litellm":
-        return LiteLLMProvider()
-    return AnthropicProvider()
+        provider: Provider = OpenAIProvider()
+    elif name == "litellm":
+        provider = LiteLLMProvider()
+    else:
+        provider = AnthropicProvider()
+    if retries > 0:
+        provider = RetryProvider(provider, max_attempts=retries + 1)
+    return provider
 
 
 def build_orchestration(

@@ -125,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     audit_p.add_argument("--model", default=DEFAULT_MODEL)
     audit_p.add_argument("--max-tokens", type=int, default=2048)
+    audit_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
 
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
     run_p.add_argument("task", help="task name")
@@ -139,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
         results = audit(
             _read_diff(args.diff),
             load_capabilities(args.capabilities),
-            provider=make_provider(args.provider),
+            provider=make_provider(args.provider, retries=args.retries),
             model=args.model,
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,

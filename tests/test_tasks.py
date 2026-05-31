@@ -36,7 +36,7 @@ def test_run_task_executes_selected_capabilities(monkeypatch):
     reply = json.dumps(
         {"verdicts": [{"sub_capability": "password_storage", "status": "VULNERABLE", "matched_anti": ["PWD-BAD-1"]}]}
     )
-    monkeypatch.setattr("codejury.tasks.base.make_provider", lambda name: MockProvider(default=reply))
+    monkeypatch.setattr("codejury.tasks.base.make_provider", lambda name, **kw: MockProvider(default=reply))
 
     task = Task(name="t", orchestrator="single", capabilities=("authn",))
     caps = [Capability(id="authn", name="Authentication"), Capability(id="crypto", name="Cryptography")]
