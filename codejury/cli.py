@@ -12,19 +12,13 @@ import argparse
 import os
 import sys
 
-from codejury.agents.base import Agent
-from codejury.agents.debate import ChallengerAgent, FinderAgent, JudgeAgent
+from codejury.assembly import STRATEGIES, build_orchestration, run_over_source
 from codejury.agents.mock import MockAgent
-from codejury.agents.verifier import VerifierAgent
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability, load_capabilities
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
-from codejury.orchestrators.base import Orchestrator
-from codejury.orchestrators.debate import DebateOrchestrator
-from codejury.orchestrators.pipeline import PipelineOrchestrator
-from codejury.orchestrators.reflexion import ReflexionOrchestrator
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Provider
@@ -34,7 +28,6 @@ from codejury.providers.openai import OpenAIProvider
 from codejury.reporting import to_json, to_markdown
 from codejury.sources.diff import DiffSource
 
-_STRATEGIES = ("single", "pipeline", "debate", "reflexion")
 _PROVIDERS = ("anthropic", "openai", "litellm")
 _FORMATS = ("text", "markdown", "json")
 
@@ -74,31 +67,8 @@ def audit(
     strategy: str = "single",
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit each changed file in `diff_text`, returning (path, result) per file."""
-    agents, orchestrator = _assemble(strategy, provider=provider, model=model, max_tokens=max_tokens)
-    results = []
-    for artifact in DiffSource(diff_text).list_artifacts():
-        ctx = AnalysisContext(artifact=artifact, capabilities=capabilities)
-        results.append((artifact.path, orchestrator.run(agents, ctx)))
-    return results
-
-
-def _assemble(
-    strategy: str, *, provider: Provider, model: str, max_tokens: int
-) -> tuple[dict[str, Agent], Orchestrator]:
-    if strategy == "debate":
-        roles = (FinderAgent, ChallengerAgent, JudgeAgent)
-        agents = {cls.role: cls(provider=provider, model=model, max_tokens=max_tokens) for cls in roles}
-        return agents, DebateOrchestrator()
-    if strategy == "reflexion":
-        agents = {
-            "actor": FinderAgent(provider=provider, model=model, max_tokens=max_tokens),
-            "critic": ChallengerAgent(provider=provider, model=model, max_tokens=max_tokens),
-        }
-        return agents, ReflexionOrchestrator()
-    verifier = {"verifier": VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)}
-    if strategy == "pipeline":
-        return verifier, PipelineOrchestrator()
-    return verifier, SingleOrchestrator()
+    agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
+    return run_over_source(DiffSource(diff_text), capabilities, agents, orchestrator)
 
 
 def _render_dry_run(result: AnalysisResult) -> str:
@@ -152,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p = sub.add_parser("audit", help="audit a unified diff against the capability library")
     audit_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
     audit_p.add_argument("--capabilities", default="capabilities", help="capability YAML directory")
-    audit_p.add_argument("--orchestrator", choices=_STRATEGIES, default="single")
+    audit_p.add_argument("--orchestrator", choices=STRATEGIES, default="single")
     audit_p.add_argument("--provider", choices=_PROVIDERS, default="anthropic")
     audit_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     audit_p.add_argument("--model", default=_DEFAULT_MODEL)
