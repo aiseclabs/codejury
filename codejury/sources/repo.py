@@ -11,7 +11,7 @@ from pathlib import Path
 
 from codejury.domain.artifact import CodeArtifact
 from codejury.sources.base import Source
-from codejury.sources.callers import caller_context
+from codejury.sources.callers import caller_context, callee_context
 from codejury.sources.chunker import Chunker
 
 _SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache"})
@@ -26,23 +26,37 @@ class RepoSource(Source):
         chunker: Chunker | None = None,
         skip_dirs: frozenset[str] = _SKIP_DIRS,
         with_callers: bool = False,
+        with_callees: bool = False,
     ) -> None:
         self._root = Path(root)
         self._extensions = extensions
         self._chunker = chunker or Chunker()
         self._skip_dirs = skip_dirs
         self._with_callers = with_callers
+        self._with_callees = with_callees
 
     def list_artifacts(self) -> list[CodeArtifact]:
         files = self._read_files()
         artifacts: list[CodeArtifact] = []
         for rel, content in sorted(files.items()):
-            context = caller_context(rel, files) if self._with_callers else ""
+            context = self._context(rel, files)
             for chunk_path, chunk_content in self._chunker.split(rel, content):
                 artifacts.append(
                     CodeArtifact(kind="repo", path=chunk_path, content=chunk_content, context=context)
                 )
         return artifacts
+
+    def _context(self, rel: str, files: dict[str, str]) -> str:
+        parts = []
+        if self._with_callers:
+            callers = caller_context(rel, files)
+            if callers:
+                parts.append("Callers (where this file's functions are used):\n" + callers)
+        if self._with_callees:
+            callees = callee_context(rel, files)
+            if callees:
+                parts.append("Callees (functions this file calls, defined elsewhere):\n" + callees)
+        return "\n\n".join(parts)
 
     def _read_files(self) -> dict[str, str]:
         files: dict[str, str] = {}

@@ -86,10 +86,15 @@ def scan(
     extensions: tuple[str, ...] = (".py",),
     max_chars: int = 200_000,
     with_callers: bool = False,
+    with_callees: bool = False,
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit every matching file in a directory tree, returning (path, result) per artifact."""
     source = RepoSource(
-        directory, extensions=extensions, chunker=Chunker(max_chars=max_chars), with_callers=with_callers
+        directory,
+        extensions=extensions,
+        chunker=Chunker(max_chars=max_chars),
+        with_callers=with_callers,
+        with_callees=with_callees,
     )
     artifacts = source.list_artifacts()
     calls = len(artifacts) * len(capabilities)
@@ -233,6 +238,10 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument(
         "--callers", action="store_true", help="add cross-file call sites as context (cuts taint false positives)"
     )
+    scan_p.add_argument(
+        "--full-review", action="store_true", dest="full_review",
+        help="bidirectional cross-file context: callers + called code (callees) for deeper review",
+    )
     scan_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     scan_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
@@ -288,7 +297,8 @@ def main(argv: list[str] | None = None) -> int:
             strategy=args.orchestrator,
             extensions=extensions,
             max_chars=args.max_chars,
-            with_callers=args.callers,
+            with_callers=args.callers or args.full_review,
+            with_callees=args.full_review,
         )
         results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))

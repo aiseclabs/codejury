@@ -1,4 +1,4 @@
-from codejury.sources.callers import caller_context, defined_names
+from codejury.sources.callers import callee_context, caller_context, defined_names
 from codejury.sources.chunker import Chunker
 from codejury.sources.repo import RepoSource
 
@@ -30,6 +30,32 @@ def test_caller_context_word_boundary_avoids_prefix_matches():
         "caller.py": "load_capabilities(dirpath)\n",
     }
     assert caller_context("lib.py", files) == ""
+
+
+def test_callee_context_pulls_in_called_code_from_other_files():
+    files = {
+        "views.py": "from m import bind\ndef handler(req):\n    return bind(req.user_handle, req.node)\n",
+        "m.py": "def bind(user_handle, node):\n    Dao.update(user_handle, node)  # no ownership check\n",
+        "unrelated.py": "def other(): pass\n",
+    }
+    ctx = callee_context("views.py", files)
+    assert "m.py -> bind" in ctx
+    assert "Dao.update(user_handle, node)" in ctx   # the called code is surfaced
+    assert "other" not in ctx                        # uncalled code is not
+
+
+def test_callee_context_excludes_same_file_definitions():
+    files = {"a.py": "def helper(): pass\ndef main():\n    helper()\n"}
+    assert callee_context("a.py", files) == ""  # helper is local, not cross-file
+
+
+def test_repo_source_full_review_attaches_callers_and_callees(tmp_path):
+    (tmp_path / "views.py").write_text("from m import bind\ndef handler(r):\n    return bind(r.h)\n", encoding="utf-8")
+    (tmp_path / "m.py").write_text("def bind(h):\n    return open(h)\n", encoding="utf-8")
+    arts = {a.path: a for a in RepoSource(tmp_path, with_callers=True, with_callees=True).list_artifacts()}
+    # the view's artifact should now contain the called bind() source from m.py
+    assert "Callees" in arts["views.py"].context
+    assert "def bind(h)" in arts["views.py"].context
 
 
 def test_repo_source_attaches_caller_context_when_enabled(tmp_path):
