@@ -75,6 +75,31 @@ def trace_value(func: ast.FunctionDef | ast.AsyncFunctionDef, expr: ast.AST) -> 
     return _classify(expr, _params(func), _assignments(func), frozenset())
 
 
+def parameters(func: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """The parameter names of ``func`` (positional, keyword, *args, **kwargs)."""
+    return _params(func)
+
+
+def assignments(func: ast.FunctionDef | ast.AsyncFunctionDef) -> dict[str, list[ast.AST]]:
+    """Map each assigned local name to the right-hand sides it is assigned (union)."""
+    return _assignments(func)
+
+
+def callee(call: ast.Call) -> tuple[str | None, str | None]:
+    """The (dotted, bare) callee of a call: ("json.loads", "loads") or ("open", "open")."""
+    return _dotted(call.func), _call_name(call)
+
+
+def access_path(node: ast.AST) -> str | None:
+    """Dotted access chain with subscripts collapsed: request.args["x"] -> request.args."""
+    return _dotted(node)
+
+
+def access_root(node: ast.AST) -> str | None:
+    """Leftmost name of an attribute/subscript chain: request.args["x"] -> request."""
+    return _root_name(node)
+
+
 def _classify(expr: ast.AST, params: set[str], assigns: dict[str, list[ast.AST]], seen: frozenset[str]) -> Origin:
     if isinstance(expr, ast.Constant):
         return _LITERAL
