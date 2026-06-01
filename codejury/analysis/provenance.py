@@ -72,7 +72,40 @@ def find_calls(scope: ast.AST, callee: str) -> list[ast.Call]:
 
 def trace_value(func: ast.FunctionDef | ast.AsyncFunctionDef, expr: ast.AST) -> Origin:
     """Trace where ``expr`` (an expression inside ``func``) gets its value from."""
-    return _classify(expr, _params(func), _assignments(func), frozenset())
+    params = _params(func)
+
+    def leaf(node: ast.AST, recurse) -> Origin:
+        if isinstance(node, ast.Call):
+            # the return value's provenance depends on the callee's semantics, which
+            # P1-03 decides with the vocabulary; here we just name the callee.
+            name = _call_name(node)
+            return Origin(calls=frozenset({name})) if name else _UNKNOWN
+        if isinstance(node, (ast.Attribute, ast.Subscript)):
+            dotted = _dotted(node)
+            origin = Origin(attrs=frozenset({dotted})) if dotted else _UNKNOWN
+            if _root_name(node) in params:  # e.g. request.args[...] where `request` is a parameter
+                origin = origin.merge(Origin(params=frozenset({_root_name(node)})))
+            return origin
+        return _UNKNOWN
+
+    return reduce_value(
+        expr,
+        params=params,
+        assigns=_assignments(func),
+        combine=_merge_origins,
+        leaf=leaf,
+        on_param=lambda n: Origin(params=frozenset({n})),
+        on_global=lambda n: Origin(globals_=frozenset({n})),
+        on_constant=lambda: _LITERAL,
+        on_cycle=Origin,  # assignment cycle -- no new information
+    )
+
+
+def _merge_origins(origins: list[Origin]) -> Origin:
+    out = Origin()
+    for o in origins:
+        out = out.merge(o)
+    return out
 
 
 def parameters(func: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
@@ -100,51 +133,63 @@ def access_root(node: ast.AST) -> str | None:
     return _root_name(node)
 
 
-def _classify(expr: ast.AST, params: set[str], assigns: dict[str, list[ast.AST]], seen: frozenset[str]) -> Origin:
+def reduce_value(
+    expr: ast.AST,
+    *,
+    params: set[str],
+    assigns: dict[str, list[ast.AST]],
+    combine,
+    leaf,
+    on_param,
+    on_global,
+    on_constant,
+    on_cycle,
+    seen: frozenset[str] = frozenset(),
+):
+    """Walk a value expression, folding it to a single result of the caller's type.
+
+    This is the structural recursion shared by provenance (P1-01) and taint
+    classification (P1-03): the composite forms that pass a value through (binops,
+    f-strings, conditionals, collections) and the local-name dispatch (parameter /
+    assignment chain / assignment cycle / free global) are handled here once. The
+    caller supplies the policy:
+
+    - ``combine(list)`` -> fold component results (also defines the empty result);
+    - ``on_constant() / on_param(name) / on_global(name) / on_cycle()`` -> leaf
+      results for a literal, a parameter, a free name, and an assignment cycle;
+    - ``leaf(node, recurse)`` -> everything else (calls, attribute/subscript
+      access, unmodelled nodes); ``recurse`` re-enters the walk for sub-expressions
+      (e.g. a taint propagator recursing into its arguments).
+    """
+
+    def recurse(e: ast.AST, _seen: frozenset[str] | None = None):
+        return reduce_value(
+            e, params=params, assigns=assigns, combine=combine, leaf=leaf,
+            on_param=on_param, on_global=on_global, on_constant=on_constant,
+            on_cycle=on_cycle, seen=seen if _seen is None else _seen,
+        )
+
     if isinstance(expr, ast.Constant):
-        return _LITERAL
+        return on_constant()
     if isinstance(expr, ast.JoinedStr):  # f-string: literal parts + interpolated exprs
-        origin = _LITERAL
-        for value in expr.values:
-            if isinstance(value, ast.FormattedValue):
-                origin = origin.merge(_classify(value.value, params, assigns, seen))
-        return origin
+        return combine([on_constant()] + [recurse(v.value) for v in expr.values if isinstance(v, ast.FormattedValue)])
     if isinstance(expr, ast.BinOp):
-        return _classify(expr.left, params, assigns, seen).merge(_classify(expr.right, params, assigns, seen))
-    if isinstance(expr, (ast.BoolOp,)):
-        return _merge_all(expr.values, params, assigns, seen)
-    if isinstance(expr, ast.IfExp):  # value is one branch or the other; the test does not flow in
-        return _classify(expr.body, params, assigns, seen).merge(_classify(expr.orelse, params, assigns, seen))
+        return combine([recurse(expr.left), recurse(expr.right)])
+    if isinstance(expr, ast.BoolOp):
+        return combine([recurse(v) for v in expr.values])
+    if isinstance(expr, ast.IfExp):  # one branch or the other; the test does not flow in
+        return combine([recurse(expr.body), recurse(expr.orelse)])
     if isinstance(expr, (ast.List, ast.Tuple, ast.Set)):
-        return _merge_all(expr.elts, params, assigns, seen)
-    if isinstance(expr, ast.Call):
-        # the return value's taint depends on the callee's semantics, which P1-03
-        # decides with the sanitizer/propagator catalog; here we just name the callee.
-        name = _call_name(expr)
-        return Origin(calls=frozenset({name})) if name else _UNKNOWN
-    if isinstance(expr, (ast.Attribute, ast.Subscript)):
-        dotted = _dotted(expr)
-        origin = Origin(attrs=frozenset({dotted})) if dotted else _UNKNOWN
-        root = _root_name(expr)
-        if root in params:  # e.g. request.args[...] where `request` is a parameter
-            origin = origin.merge(Origin(params=frozenset({root})))
-        return origin
+        return combine([recurse(e) for e in expr.elts])
     if isinstance(expr, ast.Name):
         if expr.id in seen:  # assignment cycle -- stop
-            return Origin()
+            return on_cycle()
         if expr.id in params:
-            return Origin(params=frozenset({expr.id}))
+            return on_param(expr.id)
         if expr.id in assigns:
-            return _merge_all(assigns[expr.id], params, assigns, seen | {expr.id})
-        return Origin(globals_=frozenset({expr.id}))  # module global, import, or builtin
-    return _UNKNOWN
-
-
-def _merge_all(exprs: list[ast.AST], params, assigns, seen) -> Origin:
-    origin = Origin()
-    for e in exprs:
-        origin = origin.merge(_classify(e, params, assigns, seen))
-    return origin
+            return combine([recurse(r, seen | {expr.id}) for r in assigns[expr.id]])
+        return on_global(expr.id)  # module global, import, or builtin
+    return leaf(expr, recurse)
 
 
 def _params(func: ast.AST) -> set[str]:

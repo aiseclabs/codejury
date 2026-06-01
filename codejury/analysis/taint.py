@@ -35,6 +35,7 @@ from codejury.analysis.provenance import (
     callee,
     find_calls,
     parameters,
+    reduce_value,
 )
 from codejury.resources import TAINT_FILE
 
@@ -108,65 +109,55 @@ def taint_of(
 
     ``resolve_param`` is an optional ``(name) -> Taint`` callback; when given, a
     value that reaches a parameter is resolved through it (the cross-file caller
-    hop, P1-03b) instead of returning PARAM.
+    hop, P1-03b) instead of returning PARAM. Shares the structural recursion with
+    provenance via ``reduce_value``; this is the vocabulary-aware policy.
     """
-    return _walk(func, expr, vocab, assignments(func), parameters(func), frozenset(), resolve_param)
+    params = parameters(func)
 
+    def on_param(name: str) -> Taint:
+        return resolve_param(name) if resolve_param else Taint.PARAM
 
-def _walk(func, expr, vocab, assigns, params, seen, resolve) -> Taint:
-    def w(e):
-        return _walk(func, e, vocab, assigns, params, seen, resolve)
+    def leaf(node: ast.AST, recurse) -> Taint:
+        if isinstance(node, ast.Call):
+            if _callee_in(node, vocab.sanitizers):
+                return Taint.SANITIZED        # a sanitizer cleans its result regardless of input
+            if _callee_in(node, vocab.sources):
+                return Taint.EXTERNAL         # e.g. input()
+            # a method ON a source/trusted object, e.g. request.args.get("id")
+            func_path = access_path(node.func)
+            if func_path and _access_in(func_path, vocab.sources):
+                return Taint.EXTERNAL
+            if func_path and _access_in(func_path, vocab.trusted):
+                return Taint.TRUSTED
+            if _callee_in(node, vocab.propagators) or _callee_in(node, vocab.safe_sinks):
+                return _combine([recurse(a) for a in node.args])
+            return Taint.UNKNOWN              # unknown call -- a cross-file hop may resolve it later
+        if isinstance(node, (ast.Attribute, ast.Subscript)):
+            path = access_path(node)
+            if path and _access_in(path, vocab.sources):
+                return Taint.EXTERNAL
+            if path and _access_in(path, vocab.trusted):
+                return Taint.TRUSTED
+            if access_root(node) in params:   # attribute of a parameter -- resolve at the call site
+                return on_param(access_root(node))
+            return Taint.UNKNOWN              # unknown object attribute (e.g. self.x): not provably safe
+        return Taint.UNKNOWN
 
-    if isinstance(expr, ast.Constant):
-        return Taint.CONSTANT
-    if isinstance(expr, ast.JoinedStr):
-        return _combine([Taint.CONSTANT] + [w(v.value) for v in expr.values if isinstance(v, ast.FormattedValue)])
-    if isinstance(expr, ast.BinOp):
-        return _combine([w(expr.left), w(expr.right)])
-    if isinstance(expr, ast.BoolOp):
-        return _combine([w(v) for v in expr.values])
-    if isinstance(expr, ast.IfExp):
-        return _combine([w(expr.body), w(expr.orelse)])
-    if isinstance(expr, (ast.List, ast.Tuple, ast.Set)):
-        return _combine([w(e) for e in expr.elts] or [Taint.CONSTANT])
-    if isinstance(expr, ast.Call):
-        if _callee_in(expr, vocab.sanitizers):
-            return Taint.SANITIZED            # a sanitizer cleans its result regardless of input
-        if _callee_in(expr, vocab.sources):
-            return Taint.EXTERNAL             # e.g. input()
-        # a method ON a source/trusted object, e.g. request.args.get("id") or os.environ.get("X")
-        func_path = access_path(expr.func)
-        if func_path and _access_in(func_path, vocab.sources):
-            return Taint.EXTERNAL
-        if func_path and _access_in(func_path, vocab.trusted):
-            return Taint.TRUSTED
-        if _callee_in(expr, vocab.propagators) or _callee_in(expr, vocab.safe_sinks):
-            return _combine([w(a) for a in expr.args] or [Taint.CONSTANT])
-        return Taint.UNKNOWN                  # unknown call -- a cross-file hop may resolve it later
-    if isinstance(expr, (ast.Attribute, ast.Subscript)):
-        path = access_path(expr)
-        if path and _access_in(path, vocab.sources):
-            return Taint.EXTERNAL
-        if path and _access_in(path, vocab.trusted):
-            return Taint.TRUSTED
-        root = access_root(expr)
-        if root in params:                    # attribute of a parameter -- resolve at call site
-            return resolve(root) if resolve else Taint.PARAM
-        return Taint.UNKNOWN                  # unknown object attribute (e.g. self.x): not provably safe
-    if isinstance(expr, ast.Name):
-        if expr.id in seen:
-            return Taint.CONSTANT             # assignment cycle: no new information
-        if expr.id in params:
-            return resolve(expr.id) if resolve else Taint.PARAM
-        if expr.id in assigns:
-            return _combine([_walk(func, r, vocab, assigns, params, seen | {expr.id}, resolve)
-                             for r in assigns[expr.id]])
-        return Taint.TRUSTED                  # free module global / builtin -- conventionally a constant
-    return Taint.UNKNOWN
+    return reduce_value(
+        expr,
+        params=params,
+        assigns=assignments(func),
+        combine=_combine,
+        leaf=leaf,
+        on_param=on_param,
+        on_global=lambda n: Taint.TRUSTED,    # free module global / builtin -- conventionally a constant
+        on_constant=lambda: Taint.CONSTANT,
+        on_cycle=lambda: Taint.CONSTANT,      # assignment cycle: no new information
+    )
 
 
 def _combine(taints: list[Taint]) -> Taint:
-    return max(taints, key=lambda t: _RANK[t])
+    return max(taints, key=lambda t: _RANK[t]) if taints else Taint.CONSTANT
 
 
 def _callee_in(call: ast.Call, names: tuple[str, ...]) -> bool:
