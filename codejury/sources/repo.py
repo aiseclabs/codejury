@@ -11,6 +11,7 @@ from pathlib import Path
 
 from codejury.domain.artifact import CodeArtifact
 from codejury.sources.base import Source
+from codejury.sources.callers import caller_context
 from codejury.sources.chunker import Chunker
 
 _SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache"})
@@ -24,21 +25,32 @@ class RepoSource(Source):
         extensions: tuple[str, ...] = (".py",),
         chunker: Chunker | None = None,
         skip_dirs: frozenset[str] = _SKIP_DIRS,
+        with_callers: bool = False,
     ) -> None:
         self._root = Path(root)
         self._extensions = extensions
         self._chunker = chunker or Chunker()
         self._skip_dirs = skip_dirs
+        self._with_callers = with_callers
 
     def list_artifacts(self) -> list[CodeArtifact]:
+        files = self._read_files()
         artifacts: list[CodeArtifact] = []
-        for path in sorted(self._root.rglob("*")):
+        for rel, content in sorted(files.items()):
+            context = caller_context(rel, files) if self._with_callers else ""
+            for chunk_path, chunk_content in self._chunker.split(rel, content):
+                artifacts.append(
+                    CodeArtifact(kind="repo", path=chunk_path, content=chunk_content, context=context)
+                )
+        return artifacts
+
+    def _read_files(self) -> dict[str, str]:
+        files: dict[str, str] = {}
+        for path in self._root.rglob("*"):
             if not path.is_file() or path.suffix not in self._extensions:
                 continue
             if any(part in self._skip_dirs for part in path.relative_to(self._root).parts):
                 continue
             rel = path.relative_to(self._root).as_posix()
-            content = path.read_text(encoding="utf-8", errors="replace")
-            for chunk_path, chunk_content in self._chunker.split(rel, content):
-                artifacts.append(CodeArtifact(kind="repo", path=chunk_path, content=chunk_content))
-        return artifacts
+            files[rel] = path.read_text(encoding="utf-8", errors="replace")
+        return files

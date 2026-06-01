@@ -18,3 +18,6 @@ class CodeArtifact:
     kind: ArtifactKind
     path: str       # identifier used when building Evidence references
     content: str    # the diff/file/function text the agent analyzes
+    # related code (e.g. cross-file call sites) shown to help trace data flow,
+    # but not itself under review
+    context: str = ""

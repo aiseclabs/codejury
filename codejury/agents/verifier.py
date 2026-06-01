@@ -44,7 +44,7 @@ class VerifierAgent(Agent):
     def run(self, ctx: AnalysisContext) -> list[Observation]:
         verdicts: list[Observation] = []
         for cap in ctx.capabilities:
-            prompt = _build_prompt(ctx.artifact.path, ctx.artifact.content, cap)
+            prompt = _build_prompt(ctx.artifact.path, ctx.artifact.content, cap, ctx.artifact.context)
             result = self._provider.complete(
                 system=_SYSTEM,
                 messages=[Message(role="user", content=prompt)],
@@ -70,12 +70,19 @@ def _render_capability(cap: Capability) -> str:
     return "\n".join(lines)
 
 
-def _build_prompt(path: str, content: str, cap: Capability) -> str:
+def _build_prompt(path: str, content: str, cap: Capability, context: str = "") -> str:
     sub_names = ", ".join(cap.sub_capabilities) or "(none)"
+    context_block = (
+        f"Related code (call sites / usages elsewhere -- for tracing where values come from, "
+        f"NOT under review):\n```\n{context}\n```\n\n"
+        if context
+        else ""
+    )
     return (
         "Check the code below against this capability.\n\n"
         f"{_render_capability(cap)}\n\n"
         f"Code under review ({path}):\n```\n{content}\n```\n\n"
+        f"{context_block}"
         f"For EVERY sub_capability ({sub_names}) output one verdict, even if SECURE "
         "or NOT_PRESENT. Cite matched pattern ids and evidence lines.\n"
         "For input-driven issues (injection, path traversal, SSRF), mark VULNERABLE only when "

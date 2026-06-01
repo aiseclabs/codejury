@@ -82,9 +82,12 @@ def scan(
     strategy: str = "pipeline",
     extensions: tuple[str, ...] = (".py",),
     max_chars: int = 200_000,
+    with_callers: bool = False,
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit every matching file in a directory tree, returning (path, result) per artifact."""
-    source = RepoSource(directory, extensions=extensions, chunker=Chunker(max_chars=max_chars))
+    source = RepoSource(
+        directory, extensions=extensions, chunker=Chunker(max_chars=max_chars), with_callers=with_callers
+    )
     artifacts = source.list_artifacts()
     calls = len(artifacts) * len(capabilities)
     print(
@@ -177,6 +180,9 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--model", default=DEFAULT_MODEL)
     scan_p.add_argument("--max-tokens", type=int, default=2048)
     scan_p.add_argument("--max-chars", type=int, default=200_000, help="chunk budget; default keeps whole files")
+    scan_p.add_argument(
+        "--callers", action="store_true", help="add cross-file call sites as context (cuts taint false positives)"
+    )
     scan_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
 
@@ -226,6 +232,7 @@ def main(argv: list[str] | None = None) -> int:
             strategy=args.orchestrator,
             extensions=extensions,
             max_chars=args.max_chars,
+            with_callers=args.callers,
         )
         print(_render_results(args.fmt, results))
         return 0
