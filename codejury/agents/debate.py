@@ -30,6 +30,20 @@ _FINDING_SHAPE = (
     '"description": "...", "evidence": [{"file": "...", "line": 0, "code": "..."}], "confidence": 0.0}'
 )
 
+_DEEP_LENS = (
+    "Look past surface patterns for the deepest flaw:\n"
+    "- Trust anchors: what does this code trust to authenticate or authorize -- a key, token, header, "
+    "signature, role, or caller -- and who controls that value? If the attacker supplies what is used to "
+    "verify them (e.g. their own public key, an unconfigured key that disables verification), passing the "
+    "check proves nothing.\n"
+    "- Order of operations: is an external, irreversible, or privileged action performed before the local "
+    "state is committed, or before the check that should guard it? Can a check and the action it guards be "
+    "split apart under concurrency (race / TOCTOU) or partial failure (on-chain done, DB rolled back)?\n"
+    "- Attack chains: combine several weak points into one end-to-end exploit.\n"
+    "Prefer the deepest design/authorization/state flaw over surface issues like missing rate limiting or "
+    "verbose logging; report those only as secondary."
+)
+
 
 class _DebateAgent(Agent):
     """Shared provider plumbing for the three debate roles."""
@@ -60,7 +74,7 @@ class FinderAgent(_DebateAgent):
     )
 
     def run(self, ctx: AnalysisContext) -> list[Observation]:
-        parts = ["Review the code for security vulnerabilities.", _hints(ctx.capabilities), _code(ctx.artifact)]
+        parts = ["Review the code for security vulnerabilities.", _hints(ctx.capabilities), _DEEP_LENS, _code(ctx.artifact)]
         if ctx.round_num > 1 and ctx.history:
             parts.append(_render_history(ctx.history))
             parts.append("Concede findings the rebuttals refute, keep the valid ones, and add any you missed.")
@@ -84,7 +98,9 @@ class ChallengerAgent(_DebateAgent):
     def run(self, ctx: AnalysisContext) -> list[Observation]:
         parts = [
             "Challenge the findings below. For each one you believe is a false positive, write a rebuttal. "
-            "Add new_findings for any real issue that was missed.",
+            "Add new_findings for any real issue that was missed -- especially a deeper flaw the finder "
+            "stopped short of.",
+            _DEEP_LENS,
             _code(ctx.artifact),
             _render_history(ctx.history),
             'Respond as JSON: {"rebuttals": [{"target": "finding title", "reason": "..."}], '
