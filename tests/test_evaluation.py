@@ -1,8 +1,8 @@
 import json
 
 from codejury import cli
-from codejury.domain.capability import load_capabilities
-from codejury.evaluation import EvalReport, Metrics, evaluate, load_cases
+from codejury.domain.capability import Capability, load_capabilities
+from codejury.evaluation import EvalReport, GoldenCase, Metrics, evaluate, load_cases
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 
@@ -116,6 +116,20 @@ def test_evaluate_always_secure_provider():
     o = report.overall
     assert o.tp == 0 and o.fp == 0 and o.fn == n_vuln and o.tn == n_safe
     assert o.recall == 0.0
+
+
+def test_evaluate_feeds_cross_file_context_to_verifier():
+    # A cross-file golden case carries its caller/callee code in `context`; eval
+    # must hand that to the verifier so it can judge provenance.
+    case = GoldenCase(
+        name="xfile", capability="authn", vulnerable=True,
+        code="store(user_token)",
+        context="def handler(req):\n    store(req.args['token'])  # attacker-controlled",
+    )
+    provider = MockProvider(default=_SECURE)
+    evaluate([case], [Capability(id="authn", name="Authentication")], provider=provider, model="m")
+    prompt = provider.calls[0]["messages"][0].content
+    assert "attacker-controlled" in prompt  # the cross-file context reached the verifier
 
 
 def test_evaluate_breaks_down_by_capability():

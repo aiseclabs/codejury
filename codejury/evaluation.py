@@ -40,6 +40,7 @@ class GoldenCase:
     capability: str  # capability id this case exercises
     vulnerable: bool  # the ground-truth label
     code: str
+    context: str = ""  # cross-file context (callers/callees) shown but not under review
     split: str = ""  # e.g. "held-out"; "" means part of every split
 
     @classmethod
@@ -49,6 +50,7 @@ class GoldenCase:
             capability=data["capability"],
             vulnerable=bool(data["vulnerable"]),
             code=data["code"],
+            context=str(data.get("context", "")),
             split=str(data.get("split", "")),
         )
 
@@ -147,7 +149,9 @@ def evaluate(
         if capability is None:
             raise ValueError(f"golden case {case.name!r} references unknown capability {case.capability!r}")
         ctx = AnalysisContext(
-            artifact=CodeArtifact(kind="file", path=case.name, content=case.code),
+            artifact=CodeArtifact(
+                kind="file", path=case.name, content=case.code, context=case.context
+            ),
             capabilities=[capability],
         )
         predicted = any(getattr(v, "status", None) == "VULNERABLE" for v in agent.run(ctx))
