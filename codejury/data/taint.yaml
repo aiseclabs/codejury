@@ -1,0 +1,109 @@
+#
+# Data that turns a raw Origin (P1-01) into a taint classification (P1-03):
+# does a value reaching a sink come from an attacker, get neutralized on the way,
+# or come from a trusted constant? Knowledge as data, not Python.
+#
+# How each section is matched against an Origin:
+#   sources / trusted -> matched against Origin.attrs (dotted roots like
+#       "request.args") and free names; prefix match, so "request.args" matches
+#       "request.args.get" too.
+#   sanitizers / safe_sinks / propagators -> matched against a Call's callee. A
+#       qualified entry (json.loads) matches the dotted callee only -- so it does
+#       NOT match pickle.loads, which is the whole point. A bare entry (int) matches
+#       the final name, for builtins and methods that have no stable module path.
+version: "0"
+
+# Attacker-controlled origins. A value derived from one of these is tainted.
+sources:
+  - id: http-request
+    match:
+      - request.args        # Flask/Django query + form
+      - request.form
+      - request.values
+      - request.json
+      - request.data
+      - request.body        # Django / DRF / FastAPI
+      - request.files
+      - request.cookies
+      - request.headers
+      - request.GET
+      - request.POST
+      - request.query_params # Starlette / FastAPI
+      - request.path_params
+    why: Every field of an inbound HTTP request is controlled by its sender.
+  - id: stdin
+    match: ["input", "sys.stdin"]
+    why: Interactive / piped input is outside the program's trust boundary.
+
+# Operator-, deploy-, or config-controlled origins. NOT attacker-controlled, so a
+# value from one of these is trusted (the capability YAML already says an
+# operator-supplied CLI arg or trusted-config path is not a finding).
+trusted:
+  - id: environment
+    match: ["os.environ", "os.getenv"]
+    why: Environment is set by whoever deploys the service, not by an attacker.
+  - id: cli-args
+    match: ["sys.argv"]
+    why: Command-line arguments are supplied by the operator running the process.
+
+# Callees that neutralize taint for a class of sink. capability scopes which class.
+sanitizers:
+  - id: path-basename
+    calls: ["os.path.basename"]    # strips directory components
+    capability: input_validation
+    why: Reduces "../../etc/passwd" to "passwd", so a join cannot escape its base.
+  - id: secure-filename
+    calls: ["secure_filename"]     # werkzeug.utils.secure_filename (usually imported bare)
+    capability: input_validation
+    why: Strips path separators and traversal from an uploaded filename.
+  - id: shell-quote
+    calls: ["shlex.quote"]
+    capability: input_validation
+    why: Escapes a string so the shell treats it as a single literal argument.
+  - id: html-escape
+    calls: ["html.escape", "markupsafe.escape"]
+    capability: output_encoding
+    why: Encodes < > & " so the value renders as text, not markup.
+  - id: numeric-cast
+    calls: ["int", "float"]        # builtins -- bare match
+    capability: input_validation
+    why: Coercing to a number removes any injection payload from the value.
+
+# Callees safe to feed tainted input -- the look-dangerous-but-aren't parsers.
+# A value flowing into these is not a vulnerability for the named capability.
+# Qualified on purpose: json.loads is safe, pickle.loads is NOT and must not match.
+safe_sinks:
+  - id: json-parse
+    calls: ["json.loads", "json.load"]
+    capability: input_validation
+    why: Builds plain data structures; no object construction or code execution.
+  - id: yaml-safe
+    calls: ["yaml.safe_load"]
+    capability: input_validation
+    why: The safe loader cannot instantiate arbitrary objects (unlike yaml.load).
+  - id: literal-eval
+    calls: ["ast.literal_eval"]
+    capability: input_validation
+    why: Parses literals only -- no names, calls, or operators, so no code runs.
+
+# Callees that pass taint from their arguments through to their return value, so
+# the tracer keeps following the source rather than stopping at the call.
+propagators:
+  - id: path-join
+    calls: ["join"]                # os.path.join(base, tainted) -> tainted result
+    why: The joined path still contains the tainted component.
+  - id: string-ops
+    calls:
+      - str
+      - format
+      - format_map
+      - strip
+      - lstrip
+      - rstrip
+      - lower
+      - upper
+      - title
+      - replace
+      - encode
+      - decode
+    why: String transforms carry the tainted content into their result.
