@@ -1,0 +1,12 @@
+capability: prompt_injection
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-1427
+source: synthetic
+notes: >
+  The user's message is concatenated into the system prompt, so it can override
+  the app's instructions (prompt injection). It belongs in a user-role message.
+code: |
+  def reply(user_message):
+      system = "You are a support bot.\n" + user_message
+      return client.complete(system=system, messages=[{"role": "user", "content": "go"}]).text

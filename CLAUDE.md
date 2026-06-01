@@ -28,7 +28,7 @@ precedence over default behavior. Strategy and phased plan: see `ROADMAP.md`.
 | Layer | Implementations | Location |
 |---|---|---|
 | Task | YAML presets (capabilities + orchestrator + provider + model) | `codejury/tasks/`, `codejury/data/tasks/` |
-| Capability | 11 OWASP ASVS areas, YAML | `codejury/data/capabilities/` |
+| Capability | 11 OWASP ASVS areas + OWASP LLM Top 10 (prompt_injection, ...), YAML | `codejury/data/capabilities/` |
 | Orchestrator | single · pipeline · debate · reflexion · challenge · taint | `codejury/orchestrators/` |
 | Source | mock · diff · function · repo (chunker, callers/callees context) | `codejury/sources/` |
 | Agent | verifier · finder · challenger · judge · refuter · mock | `codejury/agents/` |

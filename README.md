@@ -10,7 +10,7 @@ Finder / Challenger / Judge -- that argue and converge on a verdict.
 
 Why it is built this way:
 
-- **Knowledge is data.** Each of the 11 OWASP ASVS areas is a YAML capability
+- **Knowledge is data.** Each OWASP ASVS area (and now OWASP LLM Top 10 areas) is a YAML capability
   (safe patterns + anti-patterns, with CWE and examples) -- versioned, reviewable
   in a PR, and editable by non-engineers. The framework core stays small.
 - **Verdicts, not just alerts.** Every capability yields `SECURE` / `VULNERABLE`
@@ -126,13 +126,14 @@ capabilities: [authn, input_validation, secrets]   # omit to check all
 
 ## Capabilities
 
-The library covers all 11 OWASP ASVS areas, one YAML each under
-`codejury/data/capabilities/`. These ids are what `--only` and a task's
-`capabilities:` accept:
+The library covers all 11 OWASP ASVS areas plus a growing set of OWASP LLM Top 10
+capabilities, one YAML each under `codejury/data/capabilities/`. These ids are
+what `--only` and a task's `capabilities:` accept:
 
 `authn` · `authz` · `session` · `input_validation` · `output_encoding` ·
 `crypto` · `secrets` · `data_protection` · `error_logging` ·
-`business_logic` · `dependency_config`
+`business_logic` · `dependency_config` · `prompt_injection` ·
+`insecure_output_handling`
 
 To tune for your codebase, edit these files (add patterns / sharpen wording) --
 no code change needed.

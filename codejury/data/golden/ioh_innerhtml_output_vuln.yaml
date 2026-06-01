@@ -1,0 +1,13 @@
+capability: insecure_output_handling
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-79
+source: synthetic
+notes: >
+  The model completion is concatenated into HTML without encoding, so a
+  completion containing markup/script executes in the browser (XSS via model
+  output). Encode it before rendering.
+code: |
+  def render(question):
+      answer = client.complete(messages=[{"role": "user", "content": question}]).text
+      return "<div>" + answer + "</div>"

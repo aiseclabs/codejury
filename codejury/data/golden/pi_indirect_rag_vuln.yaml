@@ -1,0 +1,16 @@
+capability: prompt_injection
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-1427
+source: synthetic
+notes: >
+  Fetched web content is placed into the instruction prompt, so an attacker who
+  controls the page controls the model (indirect prompt injection). The content
+  must be delimited and treated as data.
+code: |
+  def summarize(url):
+      page = requests.get(url).text
+      return client.complete(
+          system="Follow the instructions below:\n" + page,
+          messages=[{"role": "user", "content": "go"}],
+      ).text

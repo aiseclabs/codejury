@@ -1,0 +1,65 @@
+# OWASP LLM Top 10 (2025) -- LLM05: Improper Output Handling.
+id: insecure_output_handling
+name: Insecure Output Handling
+asvs_chapter: ""   # OWASP LLM05, not an ASVS chapter
+description: >-
+  Model output is untrusted. When a completion is passed to a downstream
+  interpreter (eval/exec, a shell, SQL) or rendered as markup without validation
+  or encoding, the model -- or an attacker who steered it via prompt injection --
+  can reach code execution or XSS. Constrain and validate model output before use;
+  encode it before rendering.
+
+sub_capabilities:
+  output_to_interpreter:
+    correct_patterns:
+      - id: IOH-OK-1
+        description: >-
+          Constrain model output to a validated schema / allowlisted action before
+          acting on it; never eval/exec or shell it
+        signals: ["model_validate", "json.loads", "schema", "in ALLOWED"]
+        why_ok: The output can only select among safe, predefined actions
+
+    anti_patterns:
+      - id: IOH-BAD-1
+        cwe: CWE-94
+        severity: CRITICAL
+        description: >-
+          Pass a model completion to eval/exec, a shell (os.system, subprocess
+          shell=True), or a raw SQL string
+        signals: ["exec(", "eval(", "os.system(", "shell=True", ".execute("]
+        why_bad: A completion (attacker-steerable) becomes code or commands that run
+        example_bad: |
+          code = client.complete(messages=[{"role": "user", "content": prompt}]).text
+          exec(code)
+        example_good: |
+          raw = client.complete(messages=[{"role": "user", "content": prompt}]).text
+          action = ActionModel.model_validate_json(raw)  # schema-constrained
+          dispatch(action.name)
+
+  output_to_markup:
+    correct_patterns:
+      - id: IOH-OK-2
+        description: Encode model output before placing it in HTML or a template
+        signals: ["html.escape", "markupsafe", "|e", "autoescape"]
+        why_ok: The completion renders as inert text, not markup
+
+    anti_patterns:
+      - id: IOH-BAD-2
+        cwe: CWE-79
+        severity: HIGH
+        description: >-
+          Render a model completion as HTML / into a template without encoding
+          (innerHTML, string-built HTML, render_template_string)
+        signals: ["innerHTML", "render_template_string", "|safe", "Markup("]
+        why_bad: A completion containing markup or script executes in the browser
+        example_bad: |
+          answer = client.complete(messages=[{"role": "user", "content": q}]).text
+          return "<div>" + answer + "</div>"
+        example_good: |
+          answer = client.complete(messages=[{"role": "user", "content": q}]).text
+          return "<div>" + html.escape(answer) + "</div>"
+
+trigger_signals:
+  - a model completion (.text / .content / choices) flows into exec, eval, a shell, or SQL
+  - a model completion rendered as HTML or into a template
+  - model output used without schema validation or encoding
