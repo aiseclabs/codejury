@@ -105,7 +105,67 @@ sub_capabilities:
           if not target.is_relative_to(UPLOAD_DIR):
               raise ValueError("path escapes upload dir")
 
+  ssrf:
+    correct_patterns:
+      - id: SSRF-OK-1
+        description: Validate the request URL's host against an allowlist before fetching it
+        signals: ["urlparse(", ".hostname", "ALLOWED", "allowlist"]
+        why_ok: An attacker cannot redirect the fetch to an internal target the list omits
+
+      - id: SSRF-OK-2
+        description: >-
+          Fetch a URL that is not attacker-controlled -- a constant, a value from trusted
+          config, or an operator-supplied argument
+        why_ok: >-
+          SSRF needs an external attacker to control the destination. A constant URL or one
+          from trusted config is not a finding, even though it goes through a fetch call.
+
+    anti_patterns:
+      - id: SSRF-BAD-1
+        cwe: CWE-918
+        severity: HIGH
+        description: >-
+          Fetch a URL taken from externally controlled input (HTTP request, form, query, or
+          message field) without validating its host against an allowlist. NOT this: a
+          constant URL, one from trusted config, or an operator-supplied argument.
+        signals: ["requests.get(", "urllib.request.urlopen(", "httpx.", "request.args", "request.json"]
+        why_bad: >-
+          The server makes the request, so attacker input reaches internal-only targets --
+          cloud metadata, localhost admin ports, internal APIs behind the firewall.
+        example_bad: |
+          requests.get(request.args["url"]).text
+        example_good: |
+          if urlparse(url).hostname not in ALLOWED_HOSTS:
+              raise ValueError("host not allowed")
+          requests.get(url).text
+
+  insecure_deserialization:
+    correct_patterns:
+      - id: DESER-OK-1
+        description: >-
+          Parse untrusted input with a data-only parser -- json.loads or yaml.safe_load --
+          that cannot instantiate arbitrary objects
+        signals: ["json.loads", "yaml.safe_load"]
+        why_ok: A data-only parser builds plain structures and has no code-execution path
+
+    anti_patterns:
+      - id: DESER-BAD-1
+        cwe: CWE-502
+        severity: CRITICAL
+        description: >-
+          Deserialize externally controlled bytes with an object-constructing deserializer --
+          pickle, marshal, yaml.load (unsafe Loader), or jsonpickle. NOT this: a data-only
+          parser like json.loads or yaml.safe_load.
+        signals: ["pickle.loads", "pickle.load(", "yaml.load(", "marshal.loads", "jsonpickle.decode"]
+        why_bad: These reconstruct arbitrary objects, so crafted input runs code on unpickle
+        example_bad: |
+          pickle.loads(base64.b64decode(request.data))
+        example_good: |
+          json.loads(request.data)
+
 trigger_signals:
   - raw SQL strings or cursor.execute calls appear
   - imports of os, subprocess, or shlex with process execution
   - file paths built from request, form, or query parameters
+  - outbound HTTP fetches (requests, urllib, httpx) to a non-constant URL
+  - deserialization calls (pickle, yaml.load, marshal) on external input

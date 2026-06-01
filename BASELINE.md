@@ -70,3 +70,19 @@ all 37 cases (same one FP, same two FN), consistent with temperature 0.
 `Unlock P1` requires the per-capability baseline to be **recorded** -- done here.
 The P1/P2/P3/P4 acceptance thresholds (X/Y/Z in ROADMAP) remain human-signed and
 are filled in only on your sign-off.
+
+## Updates since baseline
+
+The numbers above are frozen as the reference the ROADMAP gates measure against;
+improvements are logged here rather than overwriting them.
+
+- **2026-06-01 -- SSRF + insecure-deserialization anti-patterns added to
+  `input_validation.yaml`.** The two baseline false negatives were a knowledge
+  gap, not a model limit: the capability did not enumerate those sinks. Adding
+  them lifts `input_validation` from P 1.00 / R 0.67 / F1 0.80 to **P 1.00 /
+  R 1.00 / F1 1.00**, and overall from F1 0.91 to **0.97** (R 0.88 -> 1.00),
+  with no new false positives -- all false-positive-prone negatives still pass.
+  This clears the signed P1 recall gate **on this single-file corpus**; it does
+  not retire the taint floor for real cross-file code, where provenance still
+  needs the P1 data-flow engine. The lone remaining error is the
+  `dependency_config` TLS false positive.
