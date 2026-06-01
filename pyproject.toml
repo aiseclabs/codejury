@@ -1,6 +1,6 @@
 [project]
 name = "codejury"
-version = "0.10.1"
+version = "0.10.2"
 description = "General-purpose Application Security AI audit framework -- five-layer architecture, capabilities as first-class data"
 readme = "README.md"
 requires-python = ">=3.12"
