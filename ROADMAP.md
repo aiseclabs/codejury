@@ -42,7 +42,8 @@ The executable specs live in a separate planning document. High level:
   human-set baseline. *Gate to unlock P1.* Status: eval and golden exist in basic
   form and need upgrading to spec; determinism (temperature 0 + a verdict cache
   keyed on code + capability fingerprint + orchestration) and SARIF output
-  (`--format sarif`) are in place; the human-set baseline is new.
+  (`--format sarif`) are in place; the baseline is recorded and the gate
+  thresholds are human-signed (`BASELINE.md`, Thresholds below).
 - **P1 -- Context / code-graph engine.** Cross-file source->sink tracing
   (tree-sitter / scope + import graph) to give the model provenance (is a value
   attacker-controlled?). This is the real fix for the taint floor. Start from the
@@ -63,13 +64,15 @@ The executable specs live in a separate planning document. High level:
 
 ## Thresholds
 
-Set during P0 baseline calibration (human-signed). Until then they are
-placeholders -- do not invent values.
+Calibrated from the P0-05 baseline (`BASELINE.md`, 2026-06-01) and human-signed.
+The baseline reframed the P1 gate from precision to recall: on the current
+corpus `input_validation` precision is 1.00 but recall is 0.67 -- the verifier
+misses SSRF / insecure-deserialization sinks, so recall is the real taint gap.
 
-| Gate | Metric | Threshold |
-|---|---|---|
-| Unlock P1 | per-capability P/R/F1 baseline recorded | TBD (P0 baseline) |
-| P1 accept | taint-class precision uplift vs baseline | X (TBD) |
-| P2 accept | proven-exploitable rate on high-severity | Y (TBD) |
-| P4 accept | latency / cost / cost-reduction ratio | Z (TBD) |
-| P3 accept | new-capability P/R parity with ASVS capabilities | TBD |
+| Gate | Metric | Baseline | Threshold |
+|---|---|---|---|
+| Unlock P1 | per-capability P/R/F1 baseline recorded | overall F1 0.91 | recorded (see `BASELINE.md`) |
+| P1 accept | taint-class (`input_validation`) recall uplift, precision held | R 0.67 / P 1.00 | R >= 0.90 with P >= 0.95 |
+| P2 accept | proven-exploitable rate on high-severity VULNERABLE | none yet | >= 0.80 get a passing PoC |
+| P3 accept | new (LLM Top 10) capability parity with ASVS capabilities | ASVS F1 0.91 | per-capability F1 >= 0.85 |
+| P4 accept | adaptive-orchestration cost cut at no quality loss | none yet | >= 40% fewer model calls vs always-debate, F1 not lower |
