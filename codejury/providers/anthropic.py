@@ -17,8 +17,11 @@ from codejury.providers.base import CompletionResult, Message, Provider
 
 
 class AnthropicProvider(Provider):
-    def __init__(self, *, api_key: str | None = None, client: Any | None = None) -> None:
+    def __init__(
+        self, *, api_key: str | None = None, base_url: str | None = None, client: Any | None = None
+    ) -> None:
         self._api_key = api_key
+        self._base_url = base_url
         self._client = client
 
     def _get_client(self) -> Any:
@@ -29,7 +32,12 @@ class AnthropicProvider(Provider):
                 raise RuntimeError(
                     "anthropic SDK not installed; run: pip install 'codejury[anthropic]'"
                 ) from exc
-            self._client = anthropic.Anthropic(api_key=self._api_key)
+            kwargs: dict[str, Any] = {}
+            if self._api_key:
+                kwargs["api_key"] = self._api_key
+            if self._base_url:
+                kwargs["base_url"] = self._base_url
+            self._client = anthropic.Anthropic(**kwargs)
         return self._client
 
     def complete(

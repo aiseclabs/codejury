@@ -135,6 +135,8 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--model", default=DEFAULT_MODEL)
     audit_p.add_argument("--max-tokens", type=int, default=2048)
     audit_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
+    audit_p.add_argument("--api-base", default=None, help="override provider base URL (e.g. a LiteLLM proxy)")
+    audit_p.add_argument("--api-key", default=None, help="provider API key (else read from the environment)")
 
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
     run_p.add_argument("task", help="task name")
@@ -148,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     eval_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     eval_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     eval_p.add_argument("--model", default=DEFAULT_MODEL)
+    eval_p.add_argument("--api-base", default=None, help="override provider base URL (e.g. a LiteLLM proxy)")
+    eval_p.add_argument("--api-key", default=None, help="provider API key (else read from the environment)")
 
     args = parser.parse_args(argv)
 
@@ -155,7 +159,9 @@ def main(argv: list[str] | None = None) -> int:
         results = audit(
             _read_diff(args.diff),
             load_capabilities(args.capabilities),
-            provider=make_provider(args.provider, retries=args.retries),
+            provider=make_provider(
+                args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries
+            ),
             model=args.model,
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
@@ -179,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
             metrics = evaluate(
                 load_cases(args.golden),
                 load_capabilities(args.capabilities),
-                provider=make_provider(args.provider),
+                provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base),
                 model=args.model,
             )
         except Exception as exc:

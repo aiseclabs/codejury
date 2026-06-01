@@ -31,13 +31,15 @@ PROVIDERS = ("anthropic", "openai", "litellm")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 
 
-def make_provider(name: str, *, retries: int = 0) -> Provider:
+def make_provider(
+    name: str, *, api_key: str | None = None, api_base: str | None = None, retries: int = 0
+) -> Provider:
     if name == "openai":
-        provider: Provider = OpenAIProvider()
+        provider: Provider = OpenAIProvider(api_key=api_key, base_url=api_base)
     elif name == "litellm":
-        provider = LiteLLMProvider()
+        provider = LiteLLMProvider(api_key=api_key, api_base=api_base)
     else:
-        provider = AnthropicProvider()
+        provider = AnthropicProvider(api_key=api_key, base_url=api_base)
     if retries > 0:
         provider = RetryProvider(provider, max_attempts=retries + 1)
     return provider

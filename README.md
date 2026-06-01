@@ -71,6 +71,10 @@ git diff | codejury run audit_diff_debate -
 # Score detection quality against the golden cases
 codejury eval --provider anthropic
 
+# Through a LiteLLM proxy / gateway (base URL + key not in shell history)
+git diff | codejury audit --provider litellm \
+  --api-base https://litellm.example.com --api-key "$LITELLM_KEY" --model your-alias -
+
 # No API key needed: prove the pipeline composes with mock layers
 codejury dry-run
 ```
