@@ -71,7 +71,9 @@ git diff | codejury run audit_diff_debate -
 # Score detection quality against the golden cases
 codejury eval --provider anthropic
 
-# Through a LiteLLM proxy / gateway (base URL + key not in shell history)
+# Through a LiteLLM proxy / gateway. The flags default to CODEJURY_API_BASE /
+# CODEJURY_API_KEY / CODEJURY_MODEL, so with those in a sourced .env this is just:
+#   codejury audit --provider litellm -
 git diff | codejury audit --provider litellm \
   --api-base https://litellm.example.com --api-key "$LITELLM_KEY" --model your-alias -
 

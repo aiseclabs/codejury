@@ -29,6 +29,8 @@ from codejury.sources.base import Source
 STRATEGIES = ("single", "pipeline", "debate", "reflexion")
 PROVIDERS = ("anthropic", "openai", "litellm")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
+DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
+DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
 
 
 def make_provider(

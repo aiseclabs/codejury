@@ -13,6 +13,8 @@ import sys
 
 from codejury.agents.mock import MockAgent
 from codejury.assembly import (
+    DEFAULT_API_BASE,
+    DEFAULT_API_KEY,
     DEFAULT_MODEL,
     PROVIDERS,
     STRATEGIES,
@@ -135,8 +137,8 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--model", default=DEFAULT_MODEL)
     audit_p.add_argument("--max-tokens", type=int, default=2048)
     audit_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
-    audit_p.add_argument("--api-base", default=None, help="override provider base URL (e.g. a LiteLLM proxy)")
-    audit_p.add_argument("--api-key", default=None, help="provider API key (else read from the environment)")
+    audit_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
+    audit_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
 
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
     run_p.add_argument("task", help="task name")
@@ -150,8 +152,8 @@ def main(argv: list[str] | None = None) -> int:
     eval_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     eval_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     eval_p.add_argument("--model", default=DEFAULT_MODEL)
-    eval_p.add_argument("--api-base", default=None, help="override provider base URL (e.g. a LiteLLM proxy)")
-    eval_p.add_argument("--api-key", default=None, help="provider API key (else read from the environment)")
+    eval_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
+    eval_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
 
     args = parser.parse_args(argv)
 
