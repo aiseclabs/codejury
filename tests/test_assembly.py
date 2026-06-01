@@ -2,7 +2,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from codejury.assembly import build_orchestration, make_provider, run_over_source
+from codejury.assembly import (
+    build_orchestration,
+    make_provider,
+    orchestration_descriptor,
+    provider_tag,
+    run_over_source,
+)
+from codejury.providers.retry import RetryProvider
 from codejury.domain.capability import Capability
 from codejury.orchestrators.debate import DebateOrchestrator
 from codejury.orchestrators.pipeline import PipelineOrchestrator
@@ -40,6 +47,18 @@ def test_make_provider_forwards_api_base_and_key():
     provider.complete(system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8)
     assert captured["api_base"] == "https://proxy.example"
     assert captured["api_key"] == "sk-test"
+
+
+def test_cache_descriptor_includes_provider():
+    # two providers accepting the same model string must not share a cache key
+    a = orchestration_descriptor(MockProvider(), "single", "gpt-4o", 8)
+    b = orchestration_descriptor(make_provider("openai"), "single", "gpt-4o", 8)
+    assert a != b
+
+
+def test_provider_tag_unwraps_retry():
+    assert provider_tag(MockProvider()) == "MockProvider"
+    assert provider_tag(RetryProvider(MockProvider())) == "MockProvider"
 
 
 def test_run_over_source_runs_each_artifact():

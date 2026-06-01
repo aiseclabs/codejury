@@ -58,7 +58,7 @@ class TaintGateOrchestrator(Orchestrator):
         for v in verdicts:
             if (
                 isinstance(v, Verdict)
-                and v.status in ("VULNERABLE", "PARTIAL")
+                and v.status == "VULNERABLE"  # leave PARTIAL ("incomplete validation") signal intact
                 and v.capability.split(".")[0] in self._taint_capabilities
             ):
                 observations.append(

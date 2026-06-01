@@ -79,7 +79,7 @@ def audit(
     agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
     return run_over_source(
         DiffSource(diff_text), capabilities, agents, orchestrator,
-        cache=cache, orchestration=orchestration_descriptor(strategy, model, max_tokens),
+        cache=cache, orchestration=orchestration_descriptor(provider, strategy, model, max_tokens),
     )
 
 
@@ -114,7 +114,7 @@ def scan(
     agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
     return run_over_artifacts(
         artifacts, capabilities, agents, orchestrator,
-        cache=cache, orchestration=orchestration_descriptor(strategy, model, max_tokens),
+        cache=cache, orchestration=orchestration_descriptor(provider, strategy, model, max_tokens),
     )
 
 

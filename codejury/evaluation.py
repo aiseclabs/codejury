@@ -159,8 +159,19 @@ def evaluate(
             capabilities=[capability],
         )
         result = orchestrator.run(agents, ctx)
-        if result.error:  # e.g. a provider auth failure -- surface it, don't score blanks
-            raise RuntimeError(result.error)
-        predicted = any(getattr(o, "status", None) == "VULNERABLE" for o in result.observations)
+        if result.error:  # e.g. a provider auth failure -- surface it (with the case), don't score blanks
+            raise RuntimeError(f"case {case.name!r}: {result.error}")
+        predicted = _predicted_vulnerable(result.observations)
         report.record(case.capability, actual=case.vulnerable, predicted=predicted)
     return report
+
+
+def _predicted_vulnerable(observations: list) -> bool:
+    """Did the run flag a problem? A Finding (debate/reflexion) or a VULNERABLE
+    Verdict (single/pipeline/taint) counts; SECURE verdicts and dismissed
+    concessions do not. (A bare Finding has no ``status``, so checking only
+    status would score debate/reflexion as zero recall.)"""
+    return any(
+        o.kind == "finding" or (o.kind == "verdict" and getattr(o, "status", None) == "VULNERABLE")
+        for o in observations
+    )

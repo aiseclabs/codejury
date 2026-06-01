@@ -21,6 +21,7 @@ PARAM, for the cross-file caller hop (next) to resolve.
 from __future__ import annotations
 
 import ast
+import functools
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -133,6 +134,12 @@ def _walk(func, expr, vocab, assigns, params, seen, resolve) -> Taint:
             return Taint.SANITIZED            # a sanitizer cleans its result regardless of input
         if _callee_in(expr, vocab.sources):
             return Taint.EXTERNAL             # e.g. input()
+        # a method ON a source/trusted object, e.g. request.args.get("id") or os.environ.get("X")
+        func_path = access_path(expr.func)
+        if func_path and _access_in(func_path, vocab.sources):
+            return Taint.EXTERNAL
+        if func_path and _access_in(func_path, vocab.trusted):
+            return Taint.TRUSTED
         if _callee_in(expr, vocab.propagators) or _callee_in(expr, vocab.safe_sinks):
             return _combine([w(a) for a in expr.args] or [Taint.CONSTANT])
         return Taint.UNKNOWN                  # unknown call -- a cross-file hop may resolve it later
@@ -197,10 +204,11 @@ def taint_in_repo(
 
 
 def _caller_resolver(func, files, vocab):
+    sites = _call_sites(func.name, files)  # computed once, reused across parameters
     def resolve(param_name: str) -> Taint:
         index = _param_index(func, param_name)
         results = []
-        for scope, call in _call_sites(func.name, files):
+        for scope, call in sites:
             arg = _arg_for_param(call, index, param_name)
             # one hop only: classify the caller's argument without recursing further
             results.append(taint_of(scope, arg, vocab) if arg is not None else Taint.UNKNOWN)
@@ -210,6 +218,8 @@ def _caller_resolver(func, files, vocab):
 
 def _param_index(func, name: str) -> int | None:
     positional = [*func.args.posonlyargs, *func.args.args]
+    if positional and positional[0].arg in ("self", "cls"):
+        positional = positional[1:]  # bound-method call sites omit the receiver
     for i, arg in enumerate(positional):
         if arg.arg == name:
             return i
@@ -225,12 +235,21 @@ def _arg_for_param(call: ast.Call, index: int | None, name: str) -> ast.AST | No
     return None
 
 
+@functools.lru_cache(maxsize=256)
+def _parse(source: str) -> ast.Module | None:
+    """Parse a source string once and cache it (the same files are walked repeatedly
+    during cross-file resolution); None if it does not parse."""
+    try:
+        return ast.parse(source)
+    except SyntaxError:
+        return None
+
+
 def _call_sites(name: str, files: dict[str, str]) -> list[tuple[ast.AST, ast.Call]]:
     sites = []
     for source in files.values():
-        try:
-            tree = ast.parse(source)
-        except SyntaxError:
+        tree = _parse(source)
+        if tree is None:
             continue
         funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
         for call in find_calls(tree, name):
@@ -250,24 +269,27 @@ def worst_sink_taint(content: str, files: dict[str, str], vocab: TaintVocab) -> 
 
     A "potential sink" is any call that is not a safe sink, sanitizer, or
     propagator (those are not where injection happens). Each such call's argument
-    taint is classified with the cross-file resolver, and the worst is returned.
-    ``Taint.CONSTANT`` when there is no sink to worry about; ``None`` when the
-    code does not parse (the caller should then not act).
+    taint is classified with the cross-file resolver. A safe sink that consumes
+    tainted data (e.g. ``json.loads(request.data)``) contributes SANITIZED -- the
+    data was handled safely. The worst contribution is returned.
 
-    Used by the taint gate to downgrade an input_validation finding only when the
-    whole artifact is provably clean -- so a single tainted sink keeps every
-    finding (recall preserved).
+    ``Taint.UNKNOWN`` when no inspectable sink is found (the artifact may still be
+    unsafe via a return value or an implicit sink, so it is NOT assumed clean);
+    ``None`` when the code does not parse. The taint gate downgrades a finding only
+    on a SAFE result, so an unproven artifact keeps its findings (recall preserved).
     """
-    try:
-        tree = ast.parse(content)
-    except SyntaxError:
+    tree = _parse(content)
+    if tree is None:
         return None
     funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
     taints: list[Taint] = []
     for call in [n for n in ast.walk(tree) if isinstance(n, ast.Call)]:
-        if is_safe_sink(call, vocab) or _callee_in(call, vocab.sanitizers) or _callee_in(call, vocab.propagators):
-            continue  # not a place an injection lands
+        if is_safe_sink(call, vocab):
+            taints.append(Taint.SANITIZED)  # tainted data consumed by a safe parser
+            continue
+        if _callee_in(call, vocab.sanitizers) or _callee_in(call, vocab.propagators):
+            continue  # not a sink itself; counted via the enclosing sink's argument
         scope = _enclosing_scope(funcs, call) or tree
         for arg in (*call.args, *(kw.value for kw in call.keywords)):
             taints.append(taint_in_repo(scope, arg, vocab, files))
-    return _combine(taints) if taints else Taint.CONSTANT
+    return _combine(taints) if taints else Taint.UNKNOWN

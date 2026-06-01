@@ -79,9 +79,15 @@ def build_orchestration(
     return verifier, SingleOrchestrator()
 
 
-def orchestration_descriptor(strategy: str, model: str, max_tokens: int) -> str:
+def provider_tag(provider: Provider) -> str:
+    """A stable short name for a provider (unwrapping RetryProvider) for cache keys,
+    so two providers that accept the same model string do not share cached verdicts."""
+    return type(getattr(provider, "_inner", provider)).__name__
+
+
+def orchestration_descriptor(provider: Provider, strategy: str, model: str, max_tokens: int) -> str:
     """The non-code, non-capability inputs that affect a verdict, as a cache tag."""
-    return f"{strategy}|{model}|{max_tokens}"
+    return f"{provider_tag(provider)}|{strategy}|{model}|{max_tokens}"
 
 
 def run_over_artifacts(

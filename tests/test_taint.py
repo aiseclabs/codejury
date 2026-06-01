@@ -1,7 +1,7 @@
 import ast
 
 from codejury.analysis.provenance import find_calls, parse_function
-from codejury.analysis.taint import SAFE, Taint, is_safe_sink, load_vocab, taint_of
+from codejury.analysis.taint import SAFE, Taint, is_safe_sink, load_vocab, taint_of, worst_sink_taint
 
 VOCAB = load_vocab()  # the shipped codejury/data/taint.yaml
 
@@ -95,3 +95,29 @@ def test_is_safe_sink_matches_json_and_literal_eval_not_pickle():
 def test_safe_set_membership():
     assert Taint.CONSTANT in SAFE and Taint.SANITIZED in SAFE and Taint.TRUSTED in SAFE
     assert Taint.EXTERNAL not in SAFE and Taint.UNKNOWN not in SAFE and Taint.PARAM not in SAFE
+
+
+def test_source_method_call_is_external():
+    # request.args.get("id") -- a method ON a source object -- must be EXTERNAL, not UNKNOWN
+    src = "def f(request):\n    return request.args.get('id')\n"
+    func = parse_function(src, "f")
+    call = find_calls(func, "get")[0]
+    assert taint_of(func, call, VOCAB) is Taint.EXTERNAL
+
+
+def test_trusted_method_call_is_trusted():
+    src = "def f():\n    return os.environ.get('X')\n"
+    func = parse_function(src, "f")
+    assert taint_of(func, find_calls(func, "get")[0], VOCAB) is Taint.TRUSTED
+
+
+def test_worst_sink_taint_unknown_when_no_sink_call():
+    # tainted data escapes via return with no call sink -> NOT provably safe (UNKNOWN)
+    code = "def q(request):\n    sql = 'SELECT ' + request.args['id']\n    return sql\n"
+    assert worst_sink_taint(code, {"m.py": code}, VOCAB) is Taint.UNKNOWN
+
+
+def test_worst_sink_taint_safe_sink_only_is_sanitized():
+    # a safe parser consuming external data is provably safe
+    code = "def f(request):\n    return ast.literal_eval(request.data)\n"
+    assert worst_sink_taint(code, {"m.py": code}, VOCAB) is Taint.SANITIZED

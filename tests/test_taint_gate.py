@@ -87,3 +87,20 @@ def test_unknown_call_is_not_cleared():
     # a value from an unknown function is not provably safe -> keep the finding.
     src = "def f(request):\n    return run_query(helper(request.args['q']))\n"
     assert _statuses(_run(src)) == ["VULNERABLE"]
+
+
+def test_tainted_value_without_call_sink_is_kept():
+    # tainted SQL string escapes via return with no call sink -> must NOT be cleared
+    src = "def q(request):\n    sql = 'SELECT * FROM t WHERE id=' + request.args['id']\n    return sql\n"
+    assert _statuses(_run(src)) == ["VULNERABLE"]
+
+
+def test_partial_verdict_is_not_downgraded():
+    # the gate downgrades only VULNERABLE; PARTIAL ("incomplete validation") is kept
+    partial = json.dumps({"verdicts": [{"sub_capability": "x", "status": "PARTIAL"}]})
+    agents = {"verifier": VerifierAgent(provider=MockProvider(default=partial), model="m")}
+    ctx = AnalysisContext(
+        artifact=CodeArtifact(kind="file", path="m.py", content="def q():\n    cursor.execute('SELECT 1')\n"),
+        capabilities=[Capability(id="input_validation", name="input_validation")],
+    )
+    assert _statuses(TaintGateOrchestrator().run(agents, ctx)) == ["PARTIAL"]

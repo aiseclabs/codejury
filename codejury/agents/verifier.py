@@ -93,14 +93,23 @@ def _build_prompt(path: str, content: str, cap: Capability, context: str = "") -
     )
 
 
-def _anti_pattern_cwes(cap: Capability) -> dict[str, str]:
-    """Map anti_pattern id -> CWE, so a verdict can inherit the CWE it matched."""
+_SEVERITY_RANK = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1, "INFO": 0}
+
+
+def _anti_pattern_cwes(cap: Capability) -> dict[str, tuple[int, str]]:
+    """Map anti_pattern id -> (severity rank, CWE), so a verdict can inherit the CWE
+    of the most severe anti-pattern it matched (deterministic, not first-seen)."""
     return {
-        p.id: p.cwe
+        p.id: (_SEVERITY_RANK.get(p.severity, 2), p.cwe)
         for sub in cap.sub_capabilities.values()
         for p in sub.anti_patterns
         if p.cwe
     }
+
+
+def _resolve_cwe(matched_anti: list[str], cwe_by_id: dict[str, tuple[int, str]]) -> str:
+    matched = [cwe_by_id[a] for a in matched_anti if a in cwe_by_id]
+    return max(matched, key=lambda rank_cwe: rank_cwe[0])[1] if matched else ""
 
 
 def _parse_verdicts(text: str, cap: Capability) -> list[Verdict]:
@@ -122,7 +131,7 @@ def _parse_verdicts(text: str, cap: Capability) -> list[Verdict]:
                 reasoning=str(v.get("reasoning", "")),
                 matched_correct=str_list(v.get("matched_correct")),
                 matched_anti=matched_anti,
-                cwe=next((cwe_by_id[a] for a in matched_anti if a in cwe_by_id), ""),
+                cwe=_resolve_cwe(matched_anti, cwe_by_id),
                 evidence=to_evidence(v.get("evidence")),
                 confidence=to_float(v.get("confidence"), 0.5),
             )

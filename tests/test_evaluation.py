@@ -155,6 +155,17 @@ def test_evaluate_taint_strategy_gates_constant_sink():
     assert taint.overall.fp == 0 and taint.overall.tn == 1  # gate cleared it
 
 
+def test_predicted_counts_finding_not_just_verdict():
+    # debate/reflexion emit Findings (no .status); they must count as a prediction,
+    # else eval --orchestrator debate scores recall 0.
+    from codejury.domain.observation import Concession, Finding, Verdict
+    from codejury.evaluation import _predicted_vulnerable
+    assert _predicted_vulnerable([Finding(capability="x", title="t")]) is True
+    assert _predicted_vulnerable([Verdict(capability="x", status="VULNERABLE")]) is True
+    assert _predicted_vulnerable([Verdict(capability="x", status="SECURE")]) is False
+    assert _predicted_vulnerable([Concession(capability="x", target="t")]) is False
+
+
 def test_eval_cli_reports_provider_error_without_traceback(monkeypatch, capsys):
     class _Boom(Provider):
         def complete(self, **kwargs):

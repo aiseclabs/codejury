@@ -57,6 +57,16 @@ def test_module_level_caller_resolves():
     assert _sink_arg_taint(caller) is Taint.EXTERNAL
 
 
+def test_method_call_site_resolves():
+    # serve is a method (has self); a bound call site obj.serve(evil) omits self,
+    # so the parameter index must skip self or the caller arg is never matched.
+    method = "class S:\n    def serve(self, name):\n        return open(os.path.join(STATIC_DIR, name)).read()\n"
+    caller = "def view(request):\n    return s.serve(request.args['name'])\n"
+    func = parse_function(method, "serve")
+    open_call = find_calls(func, "open")[0]
+    assert taint_in_repo(func, open_call.args[0], VOCAB, {"m.py": method, "h.py": caller}) is Taint.EXTERNAL
+
+
 def test_multiple_callers_combine_to_worst():
     caller = (
         "def a(request):\n"

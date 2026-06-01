@@ -9,8 +9,8 @@ dismissed.
 from __future__ import annotations
 
 import json
-from importlib.metadata import PackageNotFoundError, version
 
+from codejury import __version__ as _tool_version
 from codejury.domain.observation import Observation, observation_from_dict
 from codejury.domain.result import AnalysisResult
 
@@ -22,13 +22,6 @@ _PROBLEM_STATUSES = ("VULNERABLE", "PARTIAL")
 
 # Finding severity -> SARIF result level; VULNERABLE verdict is error, PARTIAL warning.
 _SARIF_LEVEL = {"CRITICAL": "error", "HIGH": "error", "MEDIUM": "warning", "LOW": "note", "INFO": "note"}
-
-
-def _tool_version() -> str:
-    try:
-        return version("codejury")
-    except PackageNotFoundError:
-        return "0"
 
 
 def to_json(results: Results) -> str:
@@ -183,7 +176,7 @@ def to_sarif(results: Results) -> str:
                     "driver": {
                         "name": "codejury",
                         "informationUri": "https://github.com/aiseclabs/codejury",
-                        "version": _tool_version(),
+                        "version": _tool_version,
                         "rules": rules,
                     }
                 },
