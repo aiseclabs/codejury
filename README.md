@@ -1,116 +1,132 @@
 # codejury
 
-A general-purpose **Application Security AI audit framework**. Domain knowledge (11
-capabilities aligned with OWASP ASVS) lives in versioned YAML files as
-first-class data, keeping the framework core small.
+An AI security auditor for code whose knowledge lives in versioned YAML, not in
+prompts. It reviews a diff or a whole repository against the OWASP ASVS and
+reports a verdict per dimension -- both what is **vulnerable** and what is
+**verified safe**.
 
-The name comes from the core orchestration metaphor: code goes before a "jury"
-of adversarial roles -- Finder / Challenger / Judge -- that converge on a verdict.
+The name is the core idea: code goes before a "jury" of adversarial roles --
+Finder / Challenger / Judge -- that argue and converge on a verdict.
 
-## Five-layer architecture
+Why it is built this way:
 
-```
-Layer 5  Task            task configuration (source + capabilities + orchestrator + agents)
-Layer 4  Capability      YAML domain knowledge (authn / authz / input_validation ...)
-Layer 3  Orchestrator    strategy (single / debate / pipeline / reflexion)
-         Source          input (diff / function / repo)
-         Agent           audit role (finder / challenger / judge / verifier)
-Layer 2  Provider        model backend (anthropic / openai / litellm / mock)
-Layer 1  Infrastructure  cross-cutting utilities (json parsing, ...)
-```
-
-Layers talk only through typed data. Each layer is an abstract base class (ABC)
-plus implementations, so the four axes (task / orchestration / model / input)
-compose independently.
-
-## Design notes
-
-- **Domain knowledge is data, not prompts**: a capability YAML is readable by
-  the LLM, by a rule engine, and by a human, and is versioned alongside code.
-- **Explains both "why it's wrong" and "why it's fine"**: every capability
-  yields a `Verdict`, recording safe matches too -- a checkup dimension rather
-  than an anomaly filter.
-
-## Status
-
-Usable end to end across all five layers:
-
-- **Orchestrators**: single, pipeline, debate, reflexion
-- **Sources**: diff, function, repo (with chunking)
-- **Providers**: anthropic, openai, litellm, mock (plus an opt-in retry wrapper)
-- **Capabilities**: all 11 OWASP ASVS areas
-- **Tasks**: named presets in `tasks/` (e.g. `audit_diff_debate`)
-- **Reporting**: text, markdown, json
-- **Evaluation**: a golden-case precision/recall harness
-
-The golden set ships with seed cases; real precision/recall numbers need a model
-(`codejury eval` with a provider key).
+- **Knowledge is data.** Each of the 11 OWASP ASVS areas is a YAML capability
+  (safe patterns + anti-patterns, with CWE and examples) -- versioned, reviewable
+  in a PR, and editable by non-engineers. The framework core stays small.
+- **Verdicts, not just alerts.** Every capability yields `SECURE` / `VULNERABLE`
+  / `PARTIAL` / `NOT_PRESENT`, so a report shows what was checked and *passed*,
+  not only what failed.
+- **Composable.** Four orchestration strategies, four model backends, and
+  diff / repo inputs are chosen per run -- mix and match.
 
 ## Install
 
 ```bash
 pip install codejury                 # core + CLI
-pip install 'codejury[anthropic]'    # add the provider you'll use (anthropic / openai / litellm)
+pip install 'codejury[anthropic]'    # the provider you'll use: anthropic | openai | litellm
 ```
 
-## Usage
-
-A real audit calls a model, so set the provider's key first (see `.env.example`):
+## Quickstart
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...   # or OPENAI_API_KEY for --provider openai
-```
-
-```bash
-# Audit a unified diff against the capability library
-git diff | codejury audit --orchestrator debate --provider anthropic --format markdown -
-
-# Run a named task preset (tasks/*.yaml)
-git diff | codejury run audit_diff_debate -
-
-# Score detection quality against the golden cases
-codejury eval --provider anthropic
-
-# Through a LiteLLM proxy / gateway. The flags default to CODEJURY_API_BASE /
-# CODEJURY_API_KEY / CODEJURY_MODEL, so with those in a sourced .env this is just:
-#   codejury audit --provider litellm -
-git diff | codejury audit --provider litellm \
-  --api-base https://litellm.example.com --api-key "$LITELLM_KEY" --model your-alias -
-
-# No API key needed: prove the pipeline composes with mock layers
+# No API key needed -- prove the pipeline runs end to end with mock layers
 codejury dry-run
+
+# A real audit: set a key, then review your staged changes
+export ANTHROPIC_API_KEY=sk-ant-...
+git diff | codejury audit --provider anthropic
 ```
 
-### Scanning a whole repository
+## Commands
 
-`audit` and `run` look at a diff (cheap, day-to-day). To audit a whole tree, use
-`scan`, which walks the directory, chunks large files, and checks each one:
+| Command | What it does |
+|---|---|
+| `codejury dry-run` | Run the mock pipeline with no key (smoke test). |
+| `codejury audit [diff]` | Audit a unified diff from a file or stdin (`-`). |
+| `codejury scan <dir>` | Audit a whole directory tree, capability by capability. |
+| `codejury run <task>` | Run a named task preset (see [Tasks](#tasks)). |
+| `codejury eval` | Score the golden cases and report precision / recall. |
+
+Shared flags: `--orchestrator {single,pipeline,debate,reflexion}`,
+`--provider {anthropic,openai,litellm}`, `--model`, `--format {text,markdown,json}`.
 
 ```bash
-# Deep scan, scoped to a few capabilities to keep the call count down
-codejury scan ./myrepo --provider litellm --only secrets,input_validation,crypto
+# Multi-round adversarial debate, rendered as Markdown
+git diff | codejury audit --orchestrator debate --format markdown - > report.md
+
+# Deep whole-repo scan, scoped to a few capabilities to bound the cost
+codejury scan ./myrepo --only secrets,input_validation,crypto
 ```
 
-`scan` defaults to the `pipeline` orchestrator (one capability fails without
-aborting the rest). Cost scales as files x capabilities, so it is a periodic
-deep audit rather than a quick check -- use `--only` to scope it.
+## Configuration
 
-`audit` and `run` read a diff from a file argument or stdin (`-`). The provider
-key is read from the environment: `ANTHROPIC_API_KEY` for `--provider anthropic`,
-`OPENAI_API_KEY` for `--provider openai`. Without a key the model providers
-raise an authentication error; `codejury dry-run` needs no key.
+Provider keys are read from the environment (codejury does **not** auto-load
+`.env` -- copy `.env.example` and `source` it):
 
-A task YAML can pin the provider, model, and base URL (the key stays in the
-environment), so `codejury run` works through a proxy too:
+| Variable | Used by |
+|---|---|
+| `ANTHROPIC_API_KEY` | `--provider anthropic` |
+| `OPENAI_API_KEY` | `--provider openai` |
+| `CODEJURY_API_BASE` / `CODEJURY_API_KEY` / `CODEJURY_MODEL` | defaults for `--api-base` / `--api-key` / `--model` (any provider) |
+
+The `CODEJURY_*` overrides make a LiteLLM proxy a one-liner:
+
+```bash
+# with CODEJURY_API_BASE / CODEJURY_API_KEY / CODEJURY_MODEL in a sourced .env
+git diff | codejury audit --provider litellm -
+```
+
+## Tasks
+
+A task is a named preset (capabilities + orchestrator + provider + model). It
+lives in a YAML file; the API key always stays in the environment.
 
 ```yaml
-# mytasks/proxy_scan.yaml -> codejury run proxy_scan --tasks mytasks
+# mytasks/proxy_scan.yaml  ->  codejury run proxy_scan --tasks mytasks
 name: proxy_scan
 orchestrator: debate
 provider: litellm
 model: your-alias
 api_base: https://litellm.example.com   # key from CODEJURY_API_KEY
+capabilities: [authn, input_validation, secrets]   # omit to check all
 ```
+
+## Capabilities
+
+The library covers all 11 OWASP ASVS areas, one YAML each under
+`codejury/data/capabilities/`. These ids are what `--only` and a task's
+`capabilities:` accept:
+
+`authn` · `authz` · `session` · `input_validation` · `output_encoding` ·
+`crypto` · `secrets` · `data_protection` · `error_logging` ·
+`business_logic` · `dependency_config`
+
+To tune for your codebase, edit these files (add patterns / sharpen wording) --
+no code change needed.
+
+## Architecture
+
+```
+Layer 5  Task            preset: source + capabilities + orchestrator + agents
+Layer 4  Capability      YAML domain knowledge (authn / authz / ...)
+Layer 3  Orchestrator    strategy (single / pipeline / debate / reflexion)
+         Source          input (diff / repo / function)
+         Agent           role (finder / challenger / judge / verifier)
+Layer 2  Provider        model backend (anthropic / openai / litellm / mock)
+Layer 1  Infrastructure  cross-cutting utilities (json parsing, retry, ...)
+```
+
+Layers talk only through typed data, and each is an abstract base class plus
+implementations, so the axes (task / orchestration / model / input) compose
+independently.
+
+## Limitations
+
+- **Prompts are a first pass.** Expect false positives and misses on real code.
+  Tune by editing the capability YAML and growing the golden set; measure the
+  effect with `codejury eval`.
+- **`scan` cost scales as files x capabilities.** It is a periodic deep audit,
+  not a quick check -- scope it with `--only`. Day to day, audit the diff.
 
 ## Development
 
