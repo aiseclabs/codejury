@@ -9,6 +9,7 @@ library, backed by the Anthropic provider, under a chosen orchestration strategy
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from codejury.agents.mock import MockAgent
@@ -35,6 +36,7 @@ from codejury.providers.mock import MockProvider
 from codejury.reporting import to_json, to_markdown
 from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, SUPPRESSIONS_FILE, TASKS_DIR
 from codejury.suppression import filter_results, load_suppressions
+from codejury.integrations.github import build_review, parse_pr_ref, post_review
 from codejury.sources.chunker import Chunker
 from codejury.sources.diff import DiffSource
 from codejury.sources.repo import RepoSource
@@ -146,6 +148,41 @@ def _maybe_suppress(results: list[tuple[str, AnalysisResult]], enabled: bool) ->
         print(f"suppressed {len(suppressed)} known-noise finding(s) by rule", file=sys.stderr)
     return filtered
 
+_FAIL_ON = ("critical", "high", "medium", "low")
+_SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+
+
+def _problem_rank(o: Observation) -> int:
+    if o.kind == "finding":
+        return _SEVERITY_RANK.get(o.severity.lower(), 2)
+    if o.kind == "verdict" and o.status == "VULNERABLE":
+        return _SEVERITY_RANK["high"]
+    if o.kind == "verdict" and o.status == "PARTIAL":
+        return _SEVERITY_RANK["medium"]
+    return -1
+
+
+def _gate_exit(results: list[tuple[str, AnalysisResult]], fail_on: str | None) -> int:
+    if not fail_on:
+        return 0
+    worst = max((_problem_rank(o) for _, r in results for o in r.observations), default=-1)
+    return 1 if worst >= _SEVERITY_RANK[fail_on] else 0
+
+
+def _maybe_post_github(ref: str | None, results: list[tuple[str, AnalysisResult]]) -> None:
+    if not ref:
+        return
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        print("GITHUB_TOKEN not set; skipping PR review", file=sys.stderr)
+        return
+    try:
+        owner, repo, pull = parse_pr_ref(ref)
+        post_review(owner, repo, pull, build_review(results), token=token)
+        print(f"posted review to {ref}", file=sys.stderr)
+    except Exception as exc:
+        print(f"github review failed: {exc}", file=sys.stderr)
+
 
 def _render_metrics(m: Metrics) -> str:
     return (
@@ -179,6 +216,8 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     audit_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     audit_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
+    audit_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
+    audit_p.add_argument("--github", default=None, help="post a PR review: owner/repo#number (needs GITHUB_TOKEN)")
 
     scan_p = sub.add_parser("scan", help="audit a whole directory tree (deep, capability by capability)")
     scan_p.add_argument("directory", help="directory to scan")
@@ -197,6 +236,7 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     scan_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
+    scan_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
     run_p.add_argument("task", help="task name")
@@ -205,6 +245,7 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     run_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     run_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
+    run_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
     eval_p = sub.add_parser("eval", help="score golden cases and report precision/recall")
     eval_p.add_argument("--golden", default=GOLDEN_DIR, help="golden case YAML directory")
@@ -229,7 +270,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))
-        return 0
+        _maybe_post_github(args.github, results)
+        return _gate_exit(results, args.fail_on)
 
     if args.command == "scan":
         capabilities = load_capabilities(args.capabilities)
@@ -250,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))
-        return 0
+        return _gate_exit(results, args.fail_on)
 
     if args.command == "run":
         tasks = load_tasks(args.tasks)
@@ -262,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))
-        return 0
+        return _gate_exit(results, args.fail_on)
 
     if args.command == "eval":
         try:

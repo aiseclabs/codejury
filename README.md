@@ -29,6 +29,12 @@ pip install 'codejury[anthropic]'    # the provider you'll use: anthropic | open
 ## Quickstart
 
 ```bash
+# CI gate: exit 1 if a high-severity issue is found
+git diff origin/main... | codejury audit --fail-on high -
+
+# Post inline review comments on a GitHub pull request (needs GITHUB_TOKEN)
+git diff origin/main... | codejury audit --github your-org/your-repo#123 -
+
 # No API key needed -- prove the pipeline runs end to end with mock layers
 codejury dry-run
 
