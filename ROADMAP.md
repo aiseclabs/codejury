@@ -40,7 +40,9 @@ The executable specs live in a separate planning document. High level:
   recall / F1 eval with negatives and held-out split; a versioned, human-signed
   golden set; determinism (temperature 0 + verdict cache); SARIF output; a
   human-set baseline. *Gate to unlock P1.* Status: eval and golden exist in basic
-  form and need upgrading to spec; determinism, SARIF, and baseline are new.
+  form and need upgrading to spec; determinism (temperature 0 + a verdict cache
+  keyed on code + capability fingerprint + orchestration) is in place; SARIF and
+  baseline are new.
 - **P1 -- Context / code-graph engine.** Cross-file source->sink tracing
   (tree-sitter / scope + import graph) to give the model provenance (is a value
   attacker-controlled?). This is the real fix for the taint floor. Start from the

@@ -65,6 +65,13 @@ outside C/C++) are dropped by versioned rules in
 `--format {text,json}` -- the JSON report is a stable schema (overall plus
 per-capability confusion matrix and precision / recall / F1).
 
+Runs are deterministic: providers query at temperature 0, and `audit` / `scan`
+cache each verdict on a hash of the normalized code, the in-scope capability
+versions, and the orchestration. Re-auditing unchanged code returns the recorded
+verdicts without re-querying the model; editing a capability YAML changes its
+fingerprint and invalidates affected entries. Pass `--no-cache` to always
+re-query.
+
 ```bash
 # Multi-round adversarial debate, rendered as Markdown
 git diff | codejury audit --orchestrator debate --format markdown - > report.md

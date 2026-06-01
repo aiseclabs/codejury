@@ -22,6 +22,7 @@ from codejury.assembly import (
     STRATEGIES,
     build_orchestration,
     make_provider,
+    orchestration_descriptor,
     run_over_artifacts,
     run_over_source,
 )
@@ -31,6 +32,7 @@ from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
 from codejury.evaluation import EvalReport, evaluate, load_cases
+from codejury.infrastructure.cache import VerdictCache
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
@@ -70,10 +72,14 @@ def audit(
     model: str,
     max_tokens: int = 2048,
     strategy: str = "single",
+    cache: VerdictCache | None = None,
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit each changed file in `diff_text`, returning (path, result) per file."""
     agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
-    return run_over_source(DiffSource(diff_text), capabilities, agents, orchestrator)
+    return run_over_source(
+        DiffSource(diff_text), capabilities, agents, orchestrator,
+        cache=cache, orchestration=orchestration_descriptor(strategy, model, max_tokens),
+    )
 
 
 def scan(
@@ -88,6 +94,7 @@ def scan(
     max_chars: int = 200_000,
     with_callers: bool = False,
     with_callees: bool = False,
+    cache: VerdictCache | None = None,
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit every matching file in a directory tree, returning (path, result) per artifact."""
     source = RepoSource(
@@ -104,7 +111,10 @@ def scan(
         file=sys.stderr,
     )
     agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
-    return run_over_artifacts(artifacts, capabilities, agents, orchestrator)
+    return run_over_artifacts(
+        artifacts, capabilities, agents, orchestrator,
+        cache=cache, orchestration=orchestration_descriptor(strategy, model, max_tokens),
+    )
 
 
 def _render_dry_run(result: AnalysisResult) -> str:
@@ -227,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     audit_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     audit_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
+    audit_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
     audit_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
     audit_p.add_argument("--github", default=None, help="post a PR review: owner/repo#number (needs GITHUB_TOKEN)")
 
@@ -250,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     scan_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
+    scan_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
     scan_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
@@ -283,6 +295,7 @@ def main(argv: list[str] | None = None) -> int:
             model=args.model,
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
+            cache=None if args.no_cache else VerdictCache(),
         )
         results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))
@@ -306,6 +319,7 @@ def main(argv: list[str] | None = None) -> int:
             max_chars=args.max_chars,
             with_callers=args.callers,
             with_callees=args.callees,
+            cache=None if args.no_cache else VerdictCache(),
         )
         results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))

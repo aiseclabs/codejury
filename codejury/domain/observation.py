@@ -102,3 +102,22 @@ class Concession(Observation):
     reason: str = ""
 
     kind: ClassVar[ObservationKind] = "concession"
+
+
+_OBSERVATION_CLASSES: dict[ObservationKind, type[Observation]] = {
+    "finding": Finding,
+    "verdict": Verdict,
+    "concession": Concession,
+}
+
+
+def observation_from_dict(data: dict[str, Any]) -> Observation:
+    """Reconstruct an observation from its ``to_dict`` form (inverse of it).
+
+    Used by the verdict cache to round-trip results through JSON.
+    """
+    data = dict(data)
+    cls = _OBSERVATION_CLASSES[data.pop("kind")]
+    if "evidence" in data:
+        data["evidence"] = [Evidence(**e) for e in data["evidence"]]
+    return cls(**data)

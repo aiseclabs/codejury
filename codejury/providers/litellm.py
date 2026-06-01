@@ -22,7 +22,7 @@ class LiteLLMProvider(Provider):
         *,
         api_key: str | None = None,
         api_base: str | None = None,
-        temperature: float = 0.2,
+        temperature: float = 0.0,  # determinism: same input -> same verdicts (invariant 2)
         completion: Callable[..., Any] | None = None,
     ) -> None:
         self._api_key = api_key

@@ -16,6 +16,7 @@ from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.result import AnalysisResult
+from codejury.infrastructure.cache import VerdictCache, verdict_key
 from codejury.orchestrators.base import Orchestrator
 from codejury.orchestrators.challenge import ChallengeOrchestrator
 from codejury.orchestrators.debate import DebateOrchestrator
@@ -75,17 +76,38 @@ def build_orchestration(
     return verifier, SingleOrchestrator()
 
 
+def orchestration_descriptor(strategy: str, model: str, max_tokens: int) -> str:
+    """The non-code, non-capability inputs that affect a verdict, as a cache tag."""
+    return f"{strategy}|{model}|{max_tokens}"
+
+
 def run_over_artifacts(
     artifacts: list[CodeArtifact],
     capabilities: list[Capability],
     agents: dict[str, Agent],
     orchestrator: Orchestrator,
+    *,
+    cache: VerdictCache | None = None,
+    orchestration: str = "",
 ) -> list[tuple[str, AnalysisResult]]:
-    """Run the orchestration over each artifact, returning (path, result) per artifact."""
+    """Run the orchestration over each artifact, returning (path, result) per artifact.
+
+    When ``cache`` is given, an unchanged artifact returns its recorded result
+    instead of re-running the orchestrator (determinism, invariant 2).
+    """
     results = []
     for artifact in artifacts:
+        if cache is not None:
+            key = verdict_key(artifact, capabilities, orchestration=orchestration)
+            hit = cache.get(key)
+            if hit is not None:
+                results.append((artifact.path, hit))
+                continue
         ctx = AnalysisContext(artifact=artifact, capabilities=capabilities)
-        results.append((artifact.path, orchestrator.run(agents, ctx)))
+        result = orchestrator.run(agents, ctx)
+        if cache is not None:
+            cache.put(key, result)
+        results.append((artifact.path, result))
     return results
 
 
@@ -94,5 +116,11 @@ def run_over_source(
     capabilities: list[Capability],
     agents: dict[str, Agent],
     orchestrator: Orchestrator,
+    *,
+    cache: VerdictCache | None = None,
+    orchestration: str = "",
 ) -> list[tuple[str, AnalysisResult]]:
-    return run_over_artifacts(source.list_artifacts(), capabilities, agents, orchestrator)
+    return run_over_artifacts(
+        source.list_artifacts(), capabilities, agents, orchestrator,
+        cache=cache, orchestration=orchestration,
+    )

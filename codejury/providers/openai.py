@@ -53,5 +53,6 @@ class OpenAIProvider(Provider):
             model=model,
             messages=api_messages,
             max_tokens=max_tokens,
+            temperature=0,  # determinism: same input -> same verdicts (invariant 2)
         )
         return CompletionResult(text=choice_text(response))

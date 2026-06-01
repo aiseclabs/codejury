@@ -30,6 +30,7 @@ def test_prepends_system_and_maps_messages():
         {"role": "assistant", "content": "prev"},
     ]
     assert captured["max_tokens"] == 128
+    assert captured["temperature"] == 0.0  # determinism (invariant 2)
 
 
 def test_omits_system_message_when_empty():

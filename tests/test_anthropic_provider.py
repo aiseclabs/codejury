@@ -35,6 +35,7 @@ def test_maps_messages_and_joins_text_blocks():
     assert result.text == "hello"  # content blocks joined
     assert client.create_kwargs["messages"] == [{"role": "user", "content": "hi"}]
     assert client.create_kwargs["max_tokens"] == 64
+    assert client.create_kwargs["temperature"] == 0  # determinism (invariant 2)
 
 
 def test_no_cache_keeps_system_as_plain_string():

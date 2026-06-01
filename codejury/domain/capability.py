@@ -12,7 +12,9 @@ older loaders.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import hashlib
+import json
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -90,6 +92,7 @@ class Capability:
 
     id: str
     name: str
+    version: str = "0"  # declared knowledge version; bump to force-invalidate caches
     asvs_chapter: str = ""
     description: str = ""
     sub_capabilities: dict[str, SubCapability] = field(default_factory=dict)
@@ -102,11 +105,23 @@ class Capability:
         return cls(
             id=data["id"],
             name=data["name"],
+            version=str(data.get("version", "0")),
             asvs_chapter=data.get("asvs_chapter", ""),
             description=data.get("description", ""),
             sub_capabilities={name: SubCapability.from_dict(name, body) for name, body in subs.items()},
             trigger_signals=list(data.get("trigger_signals", [])),
         )
+
+    def fingerprint(self) -> str:
+        """A content hash identifying this capability's knowledge for cache keys.
+
+        It is the "capability version" of the determinism invariant: it covers
+        the declared ``version`` *and* the full pattern content, so any edit to
+        the YAML changes it and stale verdicts are never served -- with no manual
+        bump to forget.
+        """
+        blob = json.dumps(asdict(self), sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
 
 
 def load_capability(path: str | Path) -> Capability:

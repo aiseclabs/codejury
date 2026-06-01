@@ -32,6 +32,7 @@ def test_prepends_system_and_maps_messages():
         {"role": "user", "content": "hi"},
     ]
     assert client.create_kwargs["max_tokens"] == 64
+    assert client.create_kwargs["temperature"] == 0  # determinism (invariant 2)
 
 
 def test_omits_system_message_when_empty():

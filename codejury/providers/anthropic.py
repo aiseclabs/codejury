@@ -56,6 +56,7 @@ class AnthropicProvider(Provider):
         response = self._get_client().messages.create(
             model=model,
             max_tokens=max_tokens,
+            temperature=0,  # determinism: same input -> same verdicts (invariant 2)
             system=system_param,
             messages=[{"role": m.role, "content": m.content} for m in messages],
         )
