@@ -77,7 +77,11 @@ def _build_prompt(path: str, content: str, cap: Capability) -> str:
         f"{_render_capability(cap)}\n\n"
         f"Code under review ({path}):\n```\n{content}\n```\n\n"
         f"For EVERY sub_capability ({sub_names}) output one verdict, even if SECURE "
-        "or NOT_PRESENT. Cite matched pattern ids and evidence lines.\n\n"
+        "or NOT_PRESENT. Cite matched pattern ids and evidence lines.\n"
+        "For input-driven issues (injection, path traversal, SSRF), mark VULNERABLE only when "
+        "untrusted/external input could plausibly reach the sink in the code shown. A constant, "
+        "a stored data field, a value from trusted config, or a path or argument the operator "
+        "supplies (e.g. a CLI argument) is not attacker-controlled -- do not flag it.\n\n"
         "Respond with a single JSON object exactly like:\n" + _JSON_SHAPE
     )
 

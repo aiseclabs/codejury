@@ -81,7 +81,7 @@ def scan(
     max_tokens: int = 2048,
     strategy: str = "pipeline",
     extensions: tuple[str, ...] = (".py",),
-    max_chars: int = 8000,
+    max_chars: int = 200_000,
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit every matching file in a directory tree, returning (path, result) per artifact."""
     source = RepoSource(directory, extensions=extensions, chunker=Chunker(max_chars=max_chars))
@@ -176,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     scan_p.add_argument("--model", default=DEFAULT_MODEL)
     scan_p.add_argument("--max-tokens", type=int, default=2048)
-    scan_p.add_argument("--max-chars", type=int, default=8000, help="chunk budget for large files")
+    scan_p.add_argument("--max-chars", type=int, default=200_000, help="chunk budget; default keeps whole files")
     scan_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
 
