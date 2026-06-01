@@ -1,0 +1,19 @@
+# Adversarial negative: the model chooses an action, but only among a fixed set
+# of low-impact, read-only actions -- no arbitrary dispatch, no high-impact op.
+capability: excessive_agency
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  The model output selects between two hardcoded, low-impact actions via if/elif;
+  there is no getattr/arbitrary dispatch and nothing destructive. Flagging this
+  just because it is agentic is a false positive.
+code: |
+  def step(msg):
+      action = client.complete(messages=[{"role": "user", "content": msg}]).text.strip()
+      if action == "search":
+          return search()
+      if action == "summarize":
+          return summarize()
+      return "unknown action"

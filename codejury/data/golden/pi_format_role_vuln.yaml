@@ -1,0 +1,16 @@
+# Adversarial positive: injection reaches the system prompt via .format, not a
+# visible "system + user_input" concatenation.
+capability: prompt_injection
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-1427
+source: synthetic
+notes: >
+  The user controls the {role} field of the system-prompt template, so they can
+  inject instructions into the system prompt indirectly through str.format.
+code: |
+  ROLE_TEMPLATE = "You are a {role} assistant. Follow your role strictly."
+
+  def reply(user_message):
+      system = ROLE_TEMPLATE.format(role=user_message)
+      return client.complete(system=system, messages=[{"role": "user", "content": "hi"}]).text
