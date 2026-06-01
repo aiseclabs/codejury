@@ -1,26 +1,17 @@
 # Python
 __pycache__/
 *.py[cod]
-*.egg-info/
-.eggs/
 build/
 dist/
+*.egg-info/
 
-# Virtual envs
+# Virtual environment
 .venv/
-venv/
-env/
+
+# Env / secrets
+.env
 
 # Tooling caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
-# Env / secrets
-.env
-.env.*
-
-# Editors / OS
-.vscode/
-.idea/
-.DS_Store

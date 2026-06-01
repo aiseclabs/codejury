@@ -55,7 +55,7 @@ pip install 'codejury[anthropic]'    # add the provider you'll use (anthropic / 
 
 ## Usage
 
-A real audit calls a model, so set the provider's key first:
+A real audit calls a model, so set the provider's key first (see `.env.example`):
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...   # or OPENAI_API_KEY for --provider openai
