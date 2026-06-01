@@ -141,6 +141,20 @@ def test_evaluate_breaks_down_by_capability():
     assert sum(m.total for m in report.by_capability.values()) == report.overall.total
 
 
+def test_evaluate_taint_strategy_gates_constant_sink():
+    # Same always-VULNERABLE provider, a safe constant sink: single scores a false
+    # positive, the taint gate clears it (eval -> orchestrator -> provenance wiring).
+    case = GoldenCase(
+        name="const_sink", capability="input_validation", vulnerable=False,
+        code="def q():\n    cursor.execute('SELECT 1')\n",
+    )
+    caps = load_capabilities(CAPABILITIES_DIR)
+    single = evaluate([case], caps, provider=MockProvider(default=_VULN), model="m", strategy="single")
+    taint = evaluate([case], caps, provider=MockProvider(default=_VULN), model="m", strategy="taint")
+    assert single.overall.fp == 1                       # over-flagged the safe constant
+    assert taint.overall.fp == 0 and taint.overall.tn == 1  # gate cleared it
+
+
 def test_eval_cli_reports_provider_error_without_traceback(monkeypatch, capsys):
     class _Boom(Provider):
         def complete(self, **kwargs):

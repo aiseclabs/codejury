@@ -53,9 +53,15 @@ git diff | codejury audit --provider anthropic
 | `codejury run <task>` | Run a named task preset (see [Tasks](#tasks)). |
 | `codejury eval` | Score the golden cases; report precision / recall / F1, overall and per capability. |
 
-Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge}`,
+Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint}`,
 `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`.
+
+`--orchestrator taint` adds a data-flow gate: after the verifier rules, it clears
+an `input_validation` finding only when static provenance analysis proves the
+value reaching the sink is constant, sanitized, or trusted (using cross-file
+caller/callee context). It downgrades only on positive proof, so it removes false
+positives without dropping real findings.
 
 `--format sarif` emits a SARIF 2.1.0 log (validates against the official schema)
 for CI and security dashboards: each problem with a code location becomes a

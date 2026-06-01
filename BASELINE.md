@@ -115,3 +115,16 @@ improvements are logged here rather than overwriting them.
   precision dip is intentional: these are the precision and cross-file
   provenance gaps P1 targets, now measurable instead of hidden by a saturated
   corpus.
+
+- **2026-06-01 -- P1-04 taint gate clears the precision gap.** The new
+  `--orchestrator taint` runs the verifier, then dismisses an input_validation
+  finding only when the provenance engine proves (via the P1-02 vocabulary and a
+  one-hop cross-file trace) that every sink receives a constant, sanitized, or
+  trusted value. On the full 47-case golden set:
+  `--orchestrator single` -> overall P 0.88 / R 1.00; `--orchestrator taint` ->
+  overall **P 1.00 / R 1.00 / F1 1.00**, input_validation P 0.75 -> 1.00. All
+  three false positives (`literal_eval_safe`, `sql_constant_concat_safe`, the
+  cross-file `xfile_path_sanitized_safe`) cleared, recall unchanged -- it clears
+  the signed P1 gate (input_validation R >= 0.90 with P >= 0.95). `eval` now
+  takes `--orchestrator`, so strategies are measurable against the golden set.
+  Caveat: this corpus is single-file/synthetic; P1-05 validates on a real repo.

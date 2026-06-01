@@ -29,7 +29,7 @@ precedence over default behavior. Strategy and phased plan: see `ROADMAP.md`.
 |---|---|---|
 | Task | YAML presets (capabilities + orchestrator + provider + model) | `codejury/tasks/`, `codejury/data/tasks/` |
 | Capability | 11 OWASP ASVS areas, YAML | `codejury/data/capabilities/` |
-| Orchestrator | single · pipeline · debate · reflexion · challenge | `codejury/orchestrators/` |
+| Orchestrator | single · pipeline · debate · reflexion · challenge · taint | `codejury/orchestrators/` |
 | Source | mock · diff · function · repo (chunker, callers/callees context) | `codejury/sources/` |
 | Agent | verifier · finder · challenger · judge · refuter · mock | `codejury/agents/` |
 | Provider | anthropic · openai · litellm · mock (+ retry wrapper) | `codejury/providers/` |
@@ -42,7 +42,7 @@ Cross-cutting modules: `assembly.py` (build orchestration + provider factory),
 ## Commands
 
 `dry-run` (mock, no key) · `audit [diff]` · `scan <dir>` · `run <task>` · `eval`.
-Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge}`,
+Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint}`,
 `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`.
 

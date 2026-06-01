@@ -23,6 +23,7 @@ from codejury.orchestrators.debate import DebateOrchestrator
 from codejury.orchestrators.pipeline import PipelineOrchestrator
 from codejury.orchestrators.reflexion import ReflexionOrchestrator
 from codejury.orchestrators.single import SingleOrchestrator
+from codejury.orchestrators.taint_gate import TaintGateOrchestrator
 from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Provider
 from codejury.providers.litellm import LiteLLMProvider
@@ -30,7 +31,7 @@ from codejury.providers.openai import OpenAIProvider
 from codejury.providers.retry import RetryProvider
 from codejury.sources.base import Source
 
-STRATEGIES = ("single", "pipeline", "debate", "reflexion", "challenge")
+STRATEGIES = ("single", "pipeline", "debate", "reflexion", "challenge", "taint")
 PROVIDERS = ("anthropic", "openai", "litellm")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
@@ -73,6 +74,8 @@ def build_orchestration(
     verifier = {"verifier": VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)}
     if strategy == "pipeline":
         return verifier, PipelineOrchestrator()
+    if strategy == "taint":
+        return verifier, TaintGateOrchestrator()
     return verifier, SingleOrchestrator()
 
 

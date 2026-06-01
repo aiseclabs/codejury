@@ -243,3 +243,31 @@ def _enclosing_scope(funcs: list[ast.AST], call: ast.Call) -> ast.AST | None:
     if not containing:
         return None  # module-level call site
     return min(containing, key=lambda f: sum(1 for _ in ast.walk(f)))  # innermost
+
+
+def worst_sink_taint(content: str, files: dict[str, str], vocab: TaintVocab) -> Taint | None:
+    """The most dangerous taint reaching any potential sink call in ``content``.
+
+    A "potential sink" is any call that is not a safe sink, sanitizer, or
+    propagator (those are not where injection happens). Each such call's argument
+    taint is classified with the cross-file resolver, and the worst is returned.
+    ``Taint.CONSTANT`` when there is no sink to worry about; ``None`` when the
+    code does not parse (the caller should then not act).
+
+    Used by the taint gate to downgrade an input_validation finding only when the
+    whole artifact is provably clean -- so a single tainted sink keeps every
+    finding (recall preserved).
+    """
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return None
+    funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    taints: list[Taint] = []
+    for call in [n for n in ast.walk(tree) if isinstance(n, ast.Call)]:
+        if is_safe_sink(call, vocab) or _callee_in(call, vocab.sanitizers) or _callee_in(call, vocab.propagators):
+            continue  # not a place an injection lands
+        scope = _enclosing_scope(funcs, call) or tree
+        for arg in (*call.args, *(kw.value for kw in call.keywords)):
+            taints.append(taint_in_repo(scope, arg, vocab, files))
+    return _combine(taints) if taints else Taint.CONSTANT

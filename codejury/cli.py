@@ -276,6 +276,7 @@ def main(argv: list[str] | None = None) -> int:
     eval_p = sub.add_parser("eval", help="score golden cases and report precision/recall")
     eval_p.add_argument("--dataset", default=GOLDEN_DIR, help="golden case YAML directory")
     eval_p.add_argument("--split", default=None, help="only score cases whose 'split' matches (e.g. held-out)")
+    eval_p.add_argument("--orchestrator", choices=STRATEGIES, default="single")
     eval_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     eval_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     eval_p.add_argument("--format", choices=("text", "json"), default="text", dest="fmt")
@@ -344,6 +345,7 @@ def main(argv: list[str] | None = None) -> int:
                 load_capabilities(args.capabilities),
                 provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base),
                 model=args.model,
+                strategy=args.orchestrator,
             )
         except Exception as exc:
             # e.g. a missing API key surfaces as a provider auth error -- report it

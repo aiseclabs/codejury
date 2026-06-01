@@ -27,7 +27,6 @@ from typing import Any
 
 import yaml
 
-from codejury.agents.verifier import VerifierAgent
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
@@ -140,9 +139,14 @@ def evaluate(
     provider: Provider,
     model: str,
     max_tokens: int = 2048,
+    strategy: str = "single",
 ) -> EvalReport:
+    # build_orchestration is imported lazily to avoid importing the provider/agent
+    # graph at module load (and any import cycle through assembly).
+    from codejury.assembly import build_orchestration
+
     by_id = {c.id: c for c in capabilities}
-    agent = VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)
+    agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
     report = EvalReport()
     for case in cases:
         capability = by_id.get(case.capability)
@@ -154,6 +158,9 @@ def evaluate(
             ),
             capabilities=[capability],
         )
-        predicted = any(getattr(v, "status", None) == "VULNERABLE" for v in agent.run(ctx))
+        result = orchestrator.run(agents, ctx)
+        if result.error:  # e.g. a provider auth failure -- surface it, don't score blanks
+            raise RuntimeError(result.error)
+        predicted = any(getattr(o, "status", None) == "VULNERABLE" for o in result.observations)
         report.record(case.capability, actual=case.vulnerable, predicted=predicted)
     return report
