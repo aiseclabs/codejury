@@ -51,7 +51,7 @@ git diff | codejury audit --provider anthropic
 | `codejury audit [diff]` | Audit a unified diff from a file or stdin (`-`). |
 | `codejury scan <dir>` | Audit a whole directory tree, capability by capability. |
 | `codejury run <task>` | Run a named task preset (see [Tasks](#tasks)). |
-| `codejury eval` | Score the golden cases and report precision / recall. |
+| `codejury eval` | Score the golden cases; report precision / recall / F1, overall and per capability. |
 
 Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge}`,
 `--provider {anthropic,openai,litellm}`, `--model`, `--format {text,markdown,json}`.
@@ -59,6 +59,11 @@ Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge}`,
 Findings in known-noise categories (availability/DoS, rate limiting, memory safety
 outside C/C++) are dropped by versioned rules in
 `codejury/data/suppressions.yaml`; disable with `--no-suppress`.
+
+`codejury eval` takes `--dataset <dir>` (golden YAML directory), `--split <name>`
+(score only cases tagged with that `split:`, e.g. a held-out set), and
+`--format {text,json}` -- the JSON report is a stable schema (overall plus
+per-capability confusion matrix and precision / recall / F1).
 
 ```bash
 # Multi-round adversarial debate, rendered as Markdown

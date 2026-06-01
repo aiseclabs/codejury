@@ -2,13 +2,26 @@
 
 A golden case is a code snippet labelled vulnerable or not for one capability.
 ``evaluate`` runs the verifier over each case and scores predictions into a
-confusion matrix with precision / recall / accuracy. The metric math is provider
--agnostic and unit-tested; real numbers need a real provider.
+confusion matrix, aggregated overall and per capability. Negative cases (labelled
+not-vulnerable, expected SECURE/NOT_PRESENT) count into TN/FP, so the false-
+positive rate is measurable. The scoring math is deterministic and provider-
+agnostic; real numbers need a real provider.
+
+Report schema (stable; emitted by ``EvalReport.to_dict`` / ``codejury eval
+--format json``):
+
+    {
+      "cases": <int>,
+      "overall":       {"tp","fp","tn","fn","precision","recall","f1","accuracy"},
+      "by_capability": { "<capability id>": {<same keys as overall>}, ... }
+    }
+
+Rates are in [0, 1], rounded to 4 decimals.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +40,7 @@ class GoldenCase:
     capability: str  # capability id this case exercises
     vulnerable: bool  # the ground-truth label
     code: str
+    split: str = ""  # e.g. "held-out"; "" means part of every split
 
     @classmethod
     def from_dict(cls, name: str, data: dict[str, Any]) -> GoldenCase:
@@ -35,6 +49,7 @@ class GoldenCase:
             capability=data["capability"],
             vulnerable=bool(data["vulnerable"]),
             code=data["code"],
+            split=str(data.get("split", "")),
         )
 
 
@@ -70,16 +85,49 @@ class Metrics:
         return self.tp / actual_positive if actual_positive else 0.0
 
     @property
+    def f1(self) -> float:
+        p, r = self.precision, self.recall
+        return 2 * p * r / (p + r) if (p + r) else 0.0
+
+    @property
     def accuracy(self) -> float:
         return (self.tp + self.tn) / self.total if self.total else 0.0
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "tp": self.tp, "fp": self.fp, "tn": self.tn, "fn": self.fn,
+            "precision": round(self.precision, 4),
+            "recall": round(self.recall, 4),
+            "f1": round(self.f1, 4),
+            "accuracy": round(self.accuracy, 4),
+        }
 
-def load_cases(directory: str | Path) -> list[GoldenCase]:
+
+@dataclass
+class EvalReport:
+    overall: Metrics = field(default_factory=Metrics)
+    by_capability: dict[str, Metrics] = field(default_factory=dict)
+
+    def record(self, capability: str, *, actual: bool, predicted: bool) -> None:
+        self.overall.record(actual=actual, predicted=predicted)
+        self.by_capability.setdefault(capability, Metrics()).record(actual=actual, predicted=predicted)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "cases": self.overall.total,
+            "overall": self.overall.to_dict(),
+            "by_capability": {cap: m.to_dict() for cap, m in sorted(self.by_capability.items())},
+        }
+
+
+def load_cases(directory: str | Path, *, split: str | None = None) -> list[GoldenCase]:
     cases = []
     for path in sorted(Path(directory).glob("*.yaml")):
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
-        cases.append(GoldenCase.from_dict(path.stem, data))
+        case = GoldenCase.from_dict(path.stem, data)
+        if split is None or case.split == split:
+            cases.append(case)
     return cases
 
 
@@ -90,10 +138,10 @@ def evaluate(
     provider: Provider,
     model: str,
     max_tokens: int = 2048,
-) -> Metrics:
+) -> EvalReport:
     by_id = {c.id: c for c in capabilities}
     agent = VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)
-    metrics = Metrics()
+    report = EvalReport()
     for case in cases:
         capability = by_id.get(case.capability)
         if capability is None:
@@ -103,5 +151,5 @@ def evaluate(
             capabilities=[capability],
         )
         predicted = any(getattr(v, "status", None) == "VULNERABLE" for v in agent.run(ctx))
-        metrics.record(actual=case.vulnerable, predicted=predicted)
-    return metrics
+        report.record(case.capability, actual=case.vulnerable, predicted=predicted)
+    return report

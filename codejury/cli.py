@@ -9,6 +9,7 @@ library, backed by the Anthropic provider, under a chosen orchestration strategy
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
@@ -29,7 +30,7 @@ from codejury.domain.capability import Capability, load_capabilities
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
-from codejury.evaluation import Metrics, evaluate, load_cases
+from codejury.evaluation import EvalReport, evaluate, load_cases
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
@@ -189,11 +190,16 @@ def _maybe_post_github(ref: str | None, results: list[tuple[str, AnalysisResult]
         print(f"github review failed: {exc}", file=sys.stderr)
 
 
-def _render_metrics(m: Metrics) -> str:
-    return (
-        f"cases: {m.total}  (tp={m.tp} fp={m.fp} tn={m.tn} fn={m.fn})\n"
-        f"precision: {m.precision:.2f}  recall: {m.recall:.2f}  accuracy: {m.accuracy:.2f}"
-    )
+def _render_eval(report: EvalReport) -> str:
+    def line(label: str, m) -> str:
+        return (
+            f"{label:<20} tp={m.tp} fp={m.fp} tn={m.tn} fn={m.fn}  "
+            f"P={m.precision:.2f} R={m.recall:.2f} F1={m.f1:.2f}"
+        )
+
+    lines = [line(f"overall ({report.overall.total} cases)", report.overall)]
+    lines += [line(cap, m) for cap, m in sorted(report.by_capability.items())]
+    return "\n".join(lines)
 
 
 def _read_diff(path: str) -> str:
@@ -256,9 +262,11 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
     eval_p = sub.add_parser("eval", help="score golden cases and report precision/recall")
-    eval_p.add_argument("--golden", default=GOLDEN_DIR, help="golden case YAML directory")
+    eval_p.add_argument("--dataset", default=GOLDEN_DIR, help="golden case YAML directory")
+    eval_p.add_argument("--split", default=None, help="only score cases whose 'split' matches (e.g. held-out)")
     eval_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     eval_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
+    eval_p.add_argument("--format", choices=("text", "json"), default="text", dest="fmt")
     eval_p.add_argument("--model", default=DEFAULT_MODEL)
     eval_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     eval_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
@@ -317,8 +325,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "eval":
         try:
-            metrics = evaluate(
-                load_cases(args.golden),
+            report = evaluate(
+                load_cases(args.dataset, split=args.split),
                 load_capabilities(args.capabilities),
                 provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base),
                 model=args.model,
@@ -328,7 +336,7 @@ def main(argv: list[str] | None = None) -> int:
             # as one line, not a traceback (audit gets this via the orchestrator).
             print(f"eval failed: {exc}")
             return 1
-        print(_render_metrics(metrics))
+        print(json.dumps(report.to_dict(), indent=2) if args.fmt == "json" else _render_eval(report))
         return 0
 
     if args.command in (None, "dry-run"):
