@@ -86,6 +86,18 @@ key is read from the environment: `ANTHROPIC_API_KEY` for `--provider anthropic`
 `OPENAI_API_KEY` for `--provider openai`. Without a key the model providers
 raise an authentication error; `codejury dry-run` needs no key.
 
+A task YAML can pin the provider, model, and base URL (the key stays in the
+environment), so `codejury run` works through a proxy too:
+
+```yaml
+# mytasks/proxy_scan.yaml -> codejury run proxy_scan --tasks mytasks
+name: proxy_scan
+orchestrator: debate
+provider: litellm
+model: your-alias
+api_base: https://litellm.example.com   # key from CODEJURY_API_KEY
+```
+
 ## Development
 
 ```bash
