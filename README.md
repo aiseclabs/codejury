@@ -57,6 +57,16 @@ Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint}
 `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`.
 
+`audit`/`scan` take `--baseline <report.json>`: save a JSON report of the target
+branch, then on a PR report only findings new since it (matched by a
+line-tolerant fingerprint, so shifted code is not re-reported). Pair with
+`--fail-on` to gate CI on new issues only:
+
+```bash
+git checkout main && codejury scan . --format json > baseline.json
+git checkout pr-branch && codejury scan . --baseline baseline.json --fail-on high
+```
+
 `--orchestrator taint` adds a data-flow gate: after the verifier rules, it clears
 an `input_validation` finding only when static provenance analysis proves the
 value reaching the sink is constant, sanitized, or trusted (using cross-file

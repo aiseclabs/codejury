@@ -36,7 +36,8 @@ from codejury.infrastructure.cache import VerdictCache
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
-from codejury.reporting import to_json, to_markdown, to_sarif
+from codejury.baseline import filter_new
+from codejury.reporting import from_json, to_json, to_markdown, to_sarif
 from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, SUPPRESSIONS_FILE, TASKS_DIR
 from codejury.suppression import filter_results, load_suppressions
 from codejury.integrations.github import build_review, parse_pr_ref, post_review
@@ -164,6 +165,21 @@ def _maybe_suppress(results: list[tuple[str, AnalysisResult]], enabled: bool) ->
         print(f"suppressed {len(suppressed)} known-noise finding(s) by rule", file=sys.stderr)
     return filtered
 
+
+def _maybe_baseline(results: list[tuple[str, AnalysisResult]], baseline_path: str | None) -> list[tuple[str, AnalysisResult]]:
+    if not baseline_path:
+        return results
+    try:
+        with open(baseline_path, encoding="utf-8") as f:
+            baseline = from_json(f.read())
+    except Exception as exc:
+        print(f"could not read baseline {baseline_path!r}: {exc}; reporting all findings", file=sys.stderr)
+        return results
+    filtered, dropped = filter_new(results, baseline)
+    if dropped:
+        print(f"baseline: hid {dropped} pre-existing finding(s)", file=sys.stderr)
+    return filtered
+
 _FAIL_ON = ("critical", "high", "medium", "low")
 _SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 
@@ -238,6 +254,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     audit_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
     audit_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
+    audit_p.add_argument("--baseline", default=None, help="a prior JSON report; report only findings new since it")
     audit_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
     audit_p.add_argument("--github", default=None, help="post a PR review: owner/repo#number (needs GITHUB_TOKEN)")
 
@@ -262,6 +279,7 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     scan_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
     scan_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
+    scan_p.add_argument("--baseline", default=None, help="a prior JSON report; report only findings new since it")
     scan_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
@@ -299,6 +317,7 @@ def main(argv: list[str] | None = None) -> int:
             cache=None if args.no_cache else VerdictCache(),
         )
         results = _maybe_suppress(results, not args.no_suppress)
+        results = _maybe_baseline(results, args.baseline)
         print(_render_results(args.fmt, results))
         _maybe_post_github(args.github, results)
         return _gate_exit(results, args.fail_on)
@@ -323,6 +342,7 @@ def main(argv: list[str] | None = None) -> int:
             cache=None if args.no_cache else VerdictCache(),
         )
         results = _maybe_suppress(results, not args.no_suppress)
+        results = _maybe_baseline(results, args.baseline)
         print(_render_results(args.fmt, results))
         return _gate_exit(results, args.fail_on)
 

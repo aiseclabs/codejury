@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from importlib.metadata import PackageNotFoundError, version
 
-from codejury.domain.observation import Observation
+from codejury.domain.observation import Observation, observation_from_dict
 from codejury.domain.result import AnalysisResult
 
 Results = list[tuple[str, AnalysisResult]]
@@ -43,6 +43,21 @@ def to_json(results: Results) -> str:
         ]
     }
     return json.dumps(payload, indent=2, ensure_ascii=False)
+
+
+def from_json(text: str) -> Results:
+    """Parse a ``to_json`` report back into results (used to load a diff baseline)."""
+    payload = json.loads(text)
+    return [
+        (
+            f.get("path", ""),
+            AnalysisResult(
+                observations=[observation_from_dict(o) for o in f.get("observations", [])],
+                error=f.get("error"),
+            ),
+        )
+        for f in payload.get("files", [])
+    ]
 
 
 def to_markdown(results: Results) -> str:

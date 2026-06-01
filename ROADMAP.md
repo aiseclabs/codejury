@@ -61,10 +61,11 @@ The executable specs live in a separate planning document. High level:
 - **P3 -- AI-era capabilities.** New capability YAML for the OWASP LLM Top 10
   (prompt_injection, insecure_output_handling, excessive_agency, rag_poisoning,
   mcp_security, prompt_secret_leak, model_supply_chain), each with golden samples.
-- **P4 -- Workflow & scale.** PR bot (inline review + gate -- *partially done*:
-  GitHub review and `--fail-on` exist); diff baseline (report only new issues);
-  autofix; adaptive orchestration (escalate to debate only when disputed or
-  high-risk); cheap static pre-filter + tiered models for cost.
+- **P4 -- Workflow & scale.** PR bot (inline review + gate -- *done*: GitHub
+  review, `--fail-on`, and `--baseline` diff baseline that reports only findings
+  new since a saved report); *remaining*: autofix; adaptive orchestration
+  (escalate to debate only when disputed or high-risk); cheap static pre-filter +
+  tiered models for cost.
 - **P5 -- Self-improvement loop.** Mine missed CVEs into new capability patterns,
   propose as PRs, merge only when eval passes. Guardrail: never edit the golden
   set or scoring to "pass" (see CLAUDE.md invariant 5).
