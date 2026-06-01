@@ -86,3 +86,17 @@ improvements are logged here rather than overwriting them.
   not retire the taint floor for real cross-file code, where provenance still
   needs the P1 data-flow engine. The lone remaining error is the
   `dependency_config` TLS false positive.
+
+- **2026-06-01 -- TLS verification dimension added to `dependency_config.yaml`.**
+  The capability had no transport-security dimension, so the verifier judged
+  outbound HTTPS calls by generic "unsafe defaults" reasoning -- catching
+  `verify=False` but also over-flagging the secure-default call. A
+  `transport_security` sub-capability (secure-default correct pattern + a
+  CWE-295 anti-pattern scoped to *disabling* verification) clears the false
+  positive while keeping the true positive. Golden set is now **37/37, overall
+  P/R/F1 = 1.00**.
+
+  Note: a perfect score means this corpus no longer discriminates against this
+  model -- it is saturated. To stay a useful fitness function the golden set
+  needs harder cases (more cross-file/taint, adversarial negatives); 1.00 is a
+  reason to grow the corpus, not to stop measuring.
