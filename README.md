@@ -128,9 +128,11 @@ independently.
 - **Local-pattern checks are sharper than data-flow ones.** Capabilities judged
   from one spot (weak crypto, hardcoded secrets) are reliable; taint / data-flow
   ones like path traversal over-flag in single-file review because the verifier
-  can't see whether a value is attacker-controlled. `scan --callers` adds
-  cross-file call sites for provenance (helps some cases, not a full fix); also
-  scope with `--only` or challenge findings with `--orchestrator debate`.
+  can't see whether a value is attacker-controlled. Mitigations that help but do
+  not fully solve it: `scan --callers` (cross-file call sites for provenance),
+  `--orchestrator challenge` (a recall-safe refutation pass that drops only
+  provably-safe flags), `--only` to scope, or `--orchestrator debate`. Real taint
+  precision needs data-flow analysis, not model skepticism.
 - **`scan` cost scales as files x capabilities.** It is a periodic deep audit,
   not a quick check -- scope it with `--only`. Day to day, audit the diff.
 

@@ -10,12 +10,14 @@ import os
 
 from codejury.agents.base import Agent
 from codejury.agents.debate import ChallengerAgent, FinderAgent, JudgeAgent
+from codejury.agents.refuter import RefuterAgent
 from codejury.agents.verifier import VerifierAgent
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.result import AnalysisResult
 from codejury.orchestrators.base import Orchestrator
+from codejury.orchestrators.challenge import ChallengeOrchestrator
 from codejury.orchestrators.debate import DebateOrchestrator
 from codejury.orchestrators.pipeline import PipelineOrchestrator
 from codejury.orchestrators.reflexion import ReflexionOrchestrator
@@ -27,7 +29,7 @@ from codejury.providers.openai import OpenAIProvider
 from codejury.providers.retry import RetryProvider
 from codejury.sources.base import Source
 
-STRATEGIES = ("single", "pipeline", "debate", "reflexion")
+STRATEGIES = ("single", "pipeline", "debate", "reflexion", "challenge")
 PROVIDERS = ("anthropic", "openai", "litellm")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
@@ -61,6 +63,12 @@ def build_orchestration(
             "critic": ChallengerAgent(provider=provider, model=model, max_tokens=max_tokens),
         }
         return agents, ReflexionOrchestrator()
+    if strategy == "challenge":
+        agents = {
+            "verifier": VerifierAgent(provider=provider, model=model, max_tokens=max_tokens),
+            "refuter": RefuterAgent(provider=provider, model=model),
+        }
+        return agents, ChallengeOrchestrator()
     verifier = {"verifier": VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)}
     if strategy == "pipeline":
         return verifier, PipelineOrchestrator()
