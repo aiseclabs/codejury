@@ -139,9 +139,10 @@ independently.
   from one spot (weak crypto, hardcoded secrets) are reliable; taint / data-flow
   ones like path traversal over-flag in single-file review because the verifier
   can't see whether a value is attacker-controlled. Mitigations that add context
-  but do not fully solve it: `scan --callers` (who calls this file) and `scan
-  --full-review` (bidirectional -- callers plus the called code, so a sink a file
-  delegates to becomes visible); `--orchestrator challenge` (a recall-safe
+  but do not fully solve it: `scan --callers` (where this file's functions are
+  called) and `scan --callees` (the called code it delegates to, so a sink in
+  another file is visible) -- pair them for both directions; `--orchestrator
+  challenge` (a recall-safe
   refutation pass that drops only provably-safe flags); `--only` to scope; or
   `--orchestrator debate`. Real taint precision still needs data-flow analysis,
   not model skepticism.

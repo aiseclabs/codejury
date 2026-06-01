@@ -236,11 +236,10 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--max-tokens", type=int, default=2048)
     scan_p.add_argument("--max-chars", type=int, default=200_000, help="chunk budget; default keeps whole files")
     scan_p.add_argument(
-        "--callers", action="store_true", help="add cross-file call sites as context (cuts taint false positives)"
+        "--callers", action="store_true", help="add cross-file context: where this file's functions are called"
     )
     scan_p.add_argument(
-        "--full-review", action="store_true", dest="full_review",
-        help="bidirectional cross-file context: callers + called code (callees) for deeper review",
+        "--callees", action="store_true", help="add cross-file context: the called code this file delegates to"
     )
     scan_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
@@ -297,8 +296,8 @@ def main(argv: list[str] | None = None) -> int:
             strategy=args.orchestrator,
             extensions=extensions,
             max_chars=args.max_chars,
-            with_callers=args.callers or args.full_review,
-            with_callees=args.full_review,
+            with_callers=args.callers,
+            with_callees=args.callees,
         )
         results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))
