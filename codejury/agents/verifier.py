@@ -1,9 +1,9 @@
-"""VerifierAgent -- check code against a capability's correct/anti patterns.
+"""VerifierAgent: check code against a capability's correct/anti patterns.
 
 It renders the capability into a prompt, calls the provider once per capability,
 and parses the JSON reply into Verdicts. It asks for one verdict per
 sub_capability including SECURE / NOT_PRESENT, so a report can say what was
-checked and what passed -- not only what failed.
+checked and what passed, not only what failed.
 
 Parsing is defensive: a missing or malformed reply yields no verdicts rather
 than raising, and unknown status values fall back to UNKNOWN.
@@ -75,7 +75,7 @@ def _render_capability(cap: Capability) -> str:
 def _build_prompt(path: str, content: str, cap: Capability, context: str = "") -> str:
     sub_names = ", ".join(cap.sub_capabilities) or "(none)"
     context_block = (
-        f"Related code (call sites / usages elsewhere -- for tracing where values come from, "
+        f"Related code (call sites / usages elsewhere, for tracing where values come from, "
         f"NOT under review):\n```\n{context}\n```\n\n"
         if context
         else ""
@@ -90,7 +90,7 @@ def _build_prompt(path: str, content: str, cap: Capability, context: str = "") -
         "For input-driven issues (injection, path traversal, SSRF), mark VULNERABLE only when "
         "untrusted/external input could plausibly reach the sink in the code shown. A constant, "
         "a stored data field, a value from trusted config, or a path or argument the operator "
-        "supplies (e.g. a CLI argument) is not attacker-controlled -- do not flag it.\n\n"
+        "supplies (e.g. a CLI argument) is not attacker-controlled; do not flag it.\n\n"
         "Respond with a single JSON object exactly like:\n" + _JSON_SHAPE
     )
 

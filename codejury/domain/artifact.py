@@ -1,4 +1,4 @@
-"""CodeArtifact -- the unit of code an agent analyzes.
+"""CodeArtifact: the unit of code an agent analyzes.
 
 Produced by a Source (diff hunk, file, function, repo chunk) and consumed by an
 agent. It is cross-layer typed data, so it lives in ``domain`` rather than in

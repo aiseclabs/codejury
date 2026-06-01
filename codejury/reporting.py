@@ -41,8 +41,8 @@ def to_json(results: Results) -> str:
 def from_json(text: str) -> Results:
     """Parse a ``to_json`` report back into results (used to load a diff baseline).
 
-    Raises ValueError on a malformed report (it is external, possibly hand-edited,
-    input) rather than an opaque KeyError/TypeError.
+    Raises ValueError on a malformed report, which is external and possibly
+    hand-edited input, rather than an opaque KeyError/TypeError.
     """
     try:
         payload = json.loads(text)
@@ -212,8 +212,8 @@ def _sarif_level(o: Observation) -> str:
 
 def _sarif_message(o: Observation) -> str:
     if o.kind == "finding":
-        return o.title + (f" -- {o.description}" if o.description else "")
-    return f"{o.status} {o.capability}" + (f" -- {o.reasoning}" if o.reasoning else "")
+        return o.title + (f": {o.description}" if o.description else "")
+    return f"{o.status} {o.capability}" + (f": {o.reasoning}" if o.reasoning else "")
 
 
 def _sarif_locations(o: Observation) -> list[dict]:

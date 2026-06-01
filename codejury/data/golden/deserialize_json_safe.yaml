@@ -1,5 +1,5 @@
 # False-positive-prone negative: deserializing request data looks dangerous,
-# but json.loads only builds data -- it cannot execute code like pickle.
+# but json.loads only builds data; it cannot execute code like pickle.
 capability: input_validation
 vulnerable: false
 expected_verdict: SECURE

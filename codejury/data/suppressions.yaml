@@ -1,6 +1,6 @@
 # Known-noise suppression rules (data-driven false-positive filter).
 # Each drops a flagged finding whose text matches and whose path condition holds.
-# Keep these to out-of-scope / low-signal CATEGORIES -- never key on a real
+# Keep these to out-of-scope / low-signal CATEGORIES; never key on a real
 # vulnerability class, or you will drop true findings.
 
 - id: SUP-AVAILABILITY

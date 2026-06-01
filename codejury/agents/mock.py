@@ -1,4 +1,4 @@
-"""MockAgent -- a minimal Agent for the dry-run and tests.
+"""MockAgent: a minimal Agent for the dry-run and tests.
 
 It really calls the provider (so the dry-run exercises the agent -> provider
 path), then emits one Verdict per in-scope capability, parking the model's reply

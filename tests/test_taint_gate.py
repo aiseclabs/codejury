@@ -8,7 +8,7 @@ from codejury.orchestrators.taint_gate import TaintGateOrchestrator
 from codejury.providers.mock import MockProvider
 
 # The verifier always returns VULNERABLE here, so the gate is the only thing that
-# can clear a finding -- exactly what we want to test.
+# can clear a finding: exactly what we want to test.
 _VULN = json.dumps({"verdicts": [{"sub_capability": "x", "status": "VULNERABLE",
                                   "evidence": [{"file": "m.py", "line": 2}]}]})
 
@@ -51,7 +51,7 @@ def test_safe_sink_parser_is_downgraded():
 
 
 def test_pickle_loads_is_kept():
-    # pickle.loads is NOT a safe sink -- recall must be preserved here.
+    # pickle.loads is NOT a safe sink; recall must be preserved here.
     src = "def f(request):\n    return pickle.loads(request.data)\n"
     assert _statuses(_run(src)) == ["VULNERABLE"]
 

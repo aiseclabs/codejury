@@ -1,6 +1,6 @@
-"""codejury -- a general-purpose Application Security AI audit framework.
+"""codejury: a general-purpose Application Security AI audit framework.
 
-Five layers: Task / (Capability + Orchestrator + Source + Agent) / Provider / Infrastructure.
+Five layers: Task, then Capability plus Orchestrator plus Source plus Agent, then Provider, then Infrastructure.
 Domain knowledge lives in YAML capability files as a first-class citizen,
 aligned with OWASP ASVS.
 """

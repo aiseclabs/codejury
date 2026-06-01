@@ -1,4 +1,4 @@
-"""AnalysisResult -- what an orchestrator returns.
+"""AnalysisResult: what an orchestrator returns.
 
 Orchestrator-agnostic: it carries the observations produced over a run, plus an
 optional error so a partial failure can be reported without raising. Anything

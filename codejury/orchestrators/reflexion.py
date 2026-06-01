@@ -1,4 +1,4 @@
-"""ReflexionOrchestrator -- actor -> critic -> actor self-revision loop.
+"""ReflexionOrchestrator: actor -> critic -> actor self-revision loop.
 
 A lighter cousin of debate: an actor produces findings, a critic pushes back,
 and the actor revises with the critique in its history. There is no judge; the

@@ -1,12 +1,12 @@
-# OWASP LLM Top 10 (2025) -- LLM06: Excessive Agency.
+# OWASP LLM Top 10 (2025), LLM06: Excessive Agency.
 id: excessive_agency
 name: Excessive Agency
 asvs_chapter: ""   # OWASP LLM06, not an ASVS chapter
 description: >-
   An LLM-driven agent acts on the world from model output. The risk is too much
   autonomy or privilege: a completion (which an attacker can steer via prompt
-  injection) triggers a high-impact or irreversible action -- delete, transfer,
-  send, run -- with no allowlist of permitted tools, no human confirmation, and
+  injection) triggers a high-impact or irreversible action, such as delete, transfer,
+  send, or run, with no allowlist of permitted tools, no human confirmation, and
   no least-privilege scoping. The fix is to gate actions: allowlist low-impact
   tools, require human approval for high-impact ones, and scope each tool's
   authority narrowly. This is about the action and its authority, not about

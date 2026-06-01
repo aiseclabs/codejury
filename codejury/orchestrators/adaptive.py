@@ -1,11 +1,11 @@
-"""AdaptiveOrchestrator -- cheap triage, deep debate only where it pays off.
+"""AdaptiveOrchestrator: cheap triage, deep debate only where it pays off.
 
 Most files are clean, and debate is several model calls; running it everywhere
 wastes them. So this runs the single verifier first, then escalates to a full
 Finder -> Challenger -> Judge debate only when the cheap pass found something
 worth a second opinion:
 
-- **high-risk**: any VULNERABLE verdict -- a flagged vulnerability is verified by
+- **high-risk**: any VULNERABLE verdict, a flagged vulnerability is verified by
   the adversarial pass before it is reported / gates CI;
 - **disputed**: a PARTIAL or UNKNOWN verdict the verifier is unsure about
   (confidence below the threshold).

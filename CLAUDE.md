@@ -1,13 +1,13 @@
 # CLAUDE.md
 
-codejury -- an Application Security AI audit framework. Domain knowledge lives in
+codejury: an Application Security AI audit framework. Domain knowledge lives in
 versioned YAML, not in prompts. This file is loaded every session and takes
 precedence over default behavior. Strategy and phased plan: see `ROADMAP.md`.
 
 ## Invariants (never violate; a change that breaks one is rejected even if `eval` passes)
 
 1. **Knowledge is data.** Security knowledge lives in `codejury/data/` YAML
-   (capabilities, suppressions, golden) -- reviewable in a PR, editable by
+   (capabilities, suppressions, golden), reviewable in a PR, editable by
    non-engineers. Detection *logic* is generic; *what* to detect is data. Do not
    hardcode vulnerability knowledge in prompts or Python.
 2. **Determinism & reproducibility.** Same input must give the same verdicts.
@@ -21,7 +21,7 @@ precedence over default behavior. Strategy and phased plan: see `ROADMAP.md`.
 5. **No self-judging.** An agent must NOT certify the golden set's correctness,
    set eval thresholds, or edit the golden set / scoring logic to make a change
    "pass". Those are human-signed.
-6. **English only.** All repo code, comments, docs, and data are English -- no CJK.
+6. **English only.** All repo code, comments, docs, and data are English; no CJK.
 
 ## Architecture (5 layers; layers talk only through typed data; each is an ABC + impls)
 
@@ -52,7 +52,7 @@ Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint,
   `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`.
 - Provider keys come from the environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
   or generic `CODEJURY_API_BASE` / `CODEJURY_API_KEY` / `CODEJURY_MODEL`).
-  codejury does NOT auto-load `.env` -- `source` it.
+  codejury does NOT auto-load `.env`; `source` it.
 - Data ships via `[tool.setuptools.package-data] codejury = ["data/**/*.yaml"]`.
 - Capability ids (`authn`, `authz`, `input_validation`, ...) are what `--only`
   and a task's `capabilities:` accept.
@@ -62,7 +62,7 @@ Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint,
 ## Boundaries
 
 - Never put proprietary/internal code (e.g. Cobo source) into the repo or golden
-  set -- this repo is public on PyPI/GitHub.
+  set: this repo is public on PyPI/GitHub.
 - Taint-class precision (path traversal, SSRF) has a known LLM single-file-review
-  floor (see ROADMAP). Do not grind verifier prompts to fix it -- the real path
+  floor (see ROADMAP). Do not grind verifier prompts to fix it; the real path
   is static data-flow analysis (P1).

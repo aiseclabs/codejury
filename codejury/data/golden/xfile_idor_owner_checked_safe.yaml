@@ -14,7 +14,7 @@ code: |
           raise Forbidden()
       return inv
 context: |
-  # routes.py -- the only caller of get_invoice()
+  # routes.py, the only caller of get_invoice()
   @app.route("/invoice/<invoice_id>")
   @login_required
   def view(invoice_id):

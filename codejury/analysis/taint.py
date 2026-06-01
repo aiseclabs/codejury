@@ -6,7 +6,7 @@ sanitizer makes it SANITIZED (taint stops), a propagator carries taint through t
 the result, and a trusted origin or a literal is clean.
 
 The point is to let a later layer (P1-04) downgrade a taint finding only when the
-value is *provably* not attacker-controlled -- ``classification in SAFE`` -- so
+value is *provably* not attacker-controlled (``classification in SAFE``), so
 recall is preserved: anything uncertain is UNKNOWN or PARAM, never quietly safe.
 
 Two documented precision leans: a bare module-global name (e.g. ``STATIC_DIR``)
@@ -42,7 +42,7 @@ from codejury.resources import TAINT_FILE
 
 class Taint(str, Enum):
     EXTERNAL = "external"    # derives from an attacker source, not sanitized
-    UNKNOWN = "unknown"      # an unknown call / access -- cannot prove either way
+    UNKNOWN = "unknown"      # an unknown call / access; cannot prove either way
     PARAM = "param"          # depends on a parameter; resolve at the call site (cross-file)
     SANITIZED = "sanitized"  # had an external component, but a sanitizer neutralized it
     TRUSTED = "trusted"      # operator/config/global origin
@@ -131,14 +131,14 @@ def taint_of(
                 return Taint.TRUSTED
             if _callee_in(node, vocab.propagators) or _callee_in(node, vocab.safe_sinks):
                 return _combine([recurse(a) for a in node.args])
-            return Taint.UNKNOWN              # unknown call -- a cross-file hop may resolve it later
+            return Taint.UNKNOWN              # unknown call; a cross-file hop may resolve it later
         if isinstance(node, (ast.Attribute, ast.Subscript)):
             path = access_path(node)
             if path and _access_in(path, vocab.sources):
                 return Taint.EXTERNAL
             if path and _access_in(path, vocab.trusted):
                 return Taint.TRUSTED
-            if access_root(node) in params:   # attribute of a parameter -- resolve at the call site
+            if access_root(node) in params:   # attribute of a parameter; resolve at the call site
                 return on_param(access_root(node))
             return Taint.UNKNOWN              # unknown object attribute (e.g. self.x): not provably safe
         return Taint.UNKNOWN
@@ -150,7 +150,7 @@ def taint_of(
         combine=_combine,
         leaf=leaf,
         on_param=on_param,
-        on_global=lambda n: Taint.TRUSTED,    # free module global / builtin -- conventionally a constant
+        on_global=lambda n: Taint.TRUSTED,    # free module global / builtin; conventionally a constant
         on_constant=lambda: Taint.CONSTANT,
         on_cycle=lambda: Taint.CONSTANT,      # assignment cycle: no new information
     )
@@ -261,7 +261,7 @@ def worst_sink_taint(content: str, files: dict[str, str], vocab: TaintVocab) -> 
     A "potential sink" is any call that is not a safe sink, sanitizer, or
     propagator (those are not where injection happens). Each such call's argument
     taint is classified with the cross-file resolver. A safe sink that consumes
-    tainted data (e.g. ``json.loads(request.data)``) contributes SANITIZED -- the
+    tainted data (e.g. ``json.loads(request.data)``) contributes SANITIZED: the
     data was handled safely. The worst contribution is returned.
 
     ``Taint.UNKNOWN`` when no inspectable sink is found (the artifact may still be

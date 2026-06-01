@@ -35,8 +35,8 @@ _FINDING_SHAPE = (
 
 _DEEP_LENS = (
     "Look past surface patterns for the deepest flaw:\n"
-    "- Trust anchors: what does this code trust to authenticate or authorize -- a key, token, header, "
-    "signature, role, or caller -- and who controls that value? If the attacker supplies what is used to "
+    "- Trust anchors: what does this code trust to authenticate or authorize, such as a key, token, header, "
+    "signature, role, or caller, and who controls that value? If the attacker supplies what is used to "
     "verify them (e.g. their own public key, an unconfigured key that disables verification), passing the "
     "check proves nothing.\n"
     "- Order of operations: is an external, irreversible, or privileged action performed before the local "
@@ -101,7 +101,7 @@ class ChallengerAgent(_DebateAgent):
     def run(self, ctx: AnalysisContext) -> list[Observation]:
         parts = [
             "Challenge the findings below. For each one you believe is a false positive, write a rebuttal. "
-            "Add new_findings for any real issue that was missed -- especially a deeper flaw the finder "
+            "Add new_findings for any real issue that was missed, especially a deeper flaw the finder "
             "stopped short of.",
             _DEEP_LENS,
             _code(ctx.artifact),

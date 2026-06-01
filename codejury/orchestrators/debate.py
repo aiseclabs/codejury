@@ -1,4 +1,4 @@
-"""DebateOrchestrator -- adversarial Finder -> Challenger -> Judge rounds.
+"""DebateOrchestrator: adversarial Finder -> Challenger -> Judge rounds.
 
 Each round the three agents run in turn, with the accumulated history and round
 number threaded into their context. The round's product is the Judge's ruling

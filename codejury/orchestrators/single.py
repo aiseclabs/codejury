@@ -1,4 +1,4 @@
-"""SingleOrchestrator -- the baseline: run each agent once and collect verdicts.
+"""SingleOrchestrator: the baseline, run each agent once and collect verdicts.
 
 The cheapest strategy. If an agent raises (e.g. a provider failure), the run
 stops and the partial observations are returned with the error recorded, rather

@@ -1,4 +1,4 @@
-"""AnalysisContext -- the input an agent reads on a single run.
+"""AnalysisContext: the input an agent reads on a single run.
 
 An orchestrator builds one of these (selecting which capabilities apply to the
 artifact) and passes it to ``Agent.run``. Keeping capabilities inside the

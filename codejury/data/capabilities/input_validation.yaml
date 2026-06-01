@@ -54,7 +54,7 @@ sub_capabilities:
         cwe: CWE-78
         severity: CRITICAL
         description: >-
-          Pass interpolated input to an OS shell or subprocess -- os.system, os.popen,
+          Pass interpolated input to an OS shell or subprocess: os.system, os.popen,
           subprocess(..., shell=True), or eval/exec. A normal function, method, or
           library/API call is NOT this; flag only an actual shell or process invocation.
         signals: ["os.system(", "shell=True", "os.popen("]
@@ -80,7 +80,7 @@ sub_capabilities:
 
       - id: PATH-OK-2
         description: >-
-          Use a path that is not attacker-controlled -- a data field, a directory read from
+          Use a path that is not attacker-controlled: a data field, a directory read from
           trusted config, or a path the operator passes on the command line
         why_ok: >-
           Traversal needs an external attacker to control the path. A path stored as a
@@ -114,7 +114,7 @@ sub_capabilities:
 
       - id: SSRF-OK-2
         description: >-
-          Fetch a URL that is not attacker-controlled -- a constant, a value from trusted
+          Fetch a URL that is not attacker-controlled: a constant, a value from trusted
           config, or an operator-supplied argument
         why_ok: >-
           SSRF needs an external attacker to control the destination. A constant URL or one
@@ -130,7 +130,7 @@ sub_capabilities:
           constant URL, one from trusted config, or an operator-supplied argument.
         signals: ["requests.get(", "urllib.request.urlopen(", "httpx.", "request.args", "request.json"]
         why_bad: >-
-          The server makes the request, so attacker input reaches internal-only targets --
+          The server makes the request, so attacker input reaches internal-only targets:
           cloud metadata, localhost admin ports, internal APIs behind the firewall.
         example_bad: |
           requests.get(request.args["url"]).text
@@ -143,7 +143,7 @@ sub_capabilities:
     correct_patterns:
       - id: DESER-OK-1
         description: >-
-          Parse untrusted input with a data-only parser -- json.loads or yaml.safe_load --
+          Parse untrusted input with a data-only parser, json.loads or yaml.safe_load,
           that cannot instantiate arbitrary objects
         signals: ["json.loads", "yaml.safe_load"]
         why_ok: A data-only parser builds plain structures and has no code-execution path
@@ -153,7 +153,7 @@ sub_capabilities:
         cwe: CWE-502
         severity: CRITICAL
         description: >-
-          Deserialize externally controlled bytes with an object-constructing deserializer --
+          Deserialize externally controlled bytes with an object-constructing deserializer:
           pickle, marshal, yaml.load (unsafe Loader), or jsonpickle. NOT this: a data-only
           parser like json.loads or yaml.safe_load.
         signals: ["pickle.loads", "pickle.load(", "yaml.load(", "marshal.loads", "jsonpickle.decode"]

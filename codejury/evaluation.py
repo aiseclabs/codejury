@@ -1,9 +1,9 @@
-"""Evaluation harness -- measure detection quality against labelled golden cases.
+"""Evaluation harness: measure detection quality against labelled golden cases.
 
 A golden case is a code snippet labelled vulnerable or not for one capability.
 ``evaluate`` runs the verifier over each case and scores predictions into a
-confusion matrix, aggregated overall and per capability. Negative cases (labelled
-not-vulnerable, expected SECURE/NOT_PRESENT) count into TN/FP, so the false-
+confusion matrix, aggregated overall and per capability. Negative cases, labelled
+not-vulnerable and expected SECURE/NOT_PRESENT, count into TN/FP, so the false-
 positive rate is measurable. The scoring math is deterministic and provider-
 agnostic; real numbers need a real provider.
 
@@ -165,7 +165,7 @@ def evaluate(
             capabilities=[capability],
         )
         result = orchestrator.run(agents, ctx)
-        if result.error:  # e.g. a provider auth failure -- surface it (with the case), don't score blanks
+        if result.error:  # e.g. a provider auth failure: surface it with the case, don't score blanks
             raise RuntimeError(f"case {case.name!r}: {result.error}")
         predicted = _predicted_vulnerable(result.observations)
         report.record(case.capability, actual=case.vulnerable, predicted=predicted)
@@ -175,8 +175,8 @@ def evaluate(
 def _predicted_vulnerable(observations: list[Observation]) -> bool:
     """Did the run flag a problem? A Finding (debate/reflexion) or a VULNERABLE
     Verdict (single/pipeline/taint) counts; SECURE verdicts and dismissed
-    concessions do not. (A bare Finding has no ``status``, so checking only
-    status would score debate/reflexion as zero recall.)"""
+    concessions do not. A bare Finding has no ``status``, so checking only
+    status would score debate/reflexion as zero recall."""
     return any(
         o.kind == "finding" or (o.kind == "verdict" and getattr(o, "status", None) == "VULNERABLE")
         for o in observations

@@ -1,4 +1,4 @@
-"""LiteLLMProvider -- Provider backed by LiteLLM, reaching many backends.
+"""LiteLLMProvider: Provider backed by LiteLLM, reaching many backends.
 
 LiteLLM speaks the OpenAI chat shape, so the system prompt is sent as the first
 message. ``cache`` is accepted but not applied here: prompt caching under LiteLLM

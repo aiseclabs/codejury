@@ -31,7 +31,7 @@ class Task:
     capabilities: tuple[str, ...] | None = None  # capability ids to check; None = all
     max_tokens: int = 2048
     retries: int = 0  # provider retry attempts on transient failure
-    api_base: str | None = None  # provider base URL (e.g. a LiteLLM proxy); the key stays in the env
+    api_base: str | None = None  # provider base URL, e.g. a LiteLLM proxy; the key stays in the env
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Task:
@@ -59,7 +59,7 @@ class Task:
 def run_task(
     task: Task, source: Source, capabilities: list[Capability]
 ) -> list[tuple[str, AnalysisResult]]:
-    # api_base may come from the task (non-secret URL); the key only from the env.
+    # api_base may come from the task as a non-secret URL; the key only from the env.
     provider = make_provider(
         task.provider,
         api_key=DEFAULT_API_KEY,

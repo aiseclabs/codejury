@@ -1,4 +1,4 @@
-"""Observation model -- the unit agents produce and orchestrators consume.
+"""Observation model: the unit agents produce and orchestrators consume.
 
 A single ``agent.run`` yields a list of ``Observation`` values, each one a
 ``Finding``, ``Verdict``, or ``Concession``.
@@ -77,7 +77,7 @@ class Finding(Observation):
 class Verdict(Observation):
     """A ruling on one capability over a piece of code (produced by Verifier).
 
-    Expresses both "vulnerable here" and "fine here" -- the key to answering
+    Expresses both "vulnerable here" and "fine here", the key to answering
     "why is this not a problem".
     """
 

@@ -1,4 +1,4 @@
-"""OpenAIProvider -- Provider backed by the OpenAI Chat Completions API.
+"""OpenAIProvider: Provider backed by the OpenAI Chat Completions API.
 
 The system prompt is sent as the first chat message. ``cache`` is accepted but
 not applied: OpenAI caches long prompts automatically server-side, with no

@@ -1,4 +1,4 @@
-"""Assembly -- build an orchestration from a strategy name and run it over a source.
+"""Assembly: build an orchestration from a strategy name and run it over a source.
 
 Shared by the CLI and the task layer so the "which agents + which orchestrator"
 mapping and the per-artifact run loop live in one place.

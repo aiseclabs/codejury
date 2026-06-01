@@ -1,7 +1,7 @@
 """Shared coercion from loosely-typed model JSON into domain values.
 
 Agents parse model output that may omit, mistype, or invent fields. These
-helpers coerce defensively -- they never raise on bad input, they fall back.
+helpers coerce defensively: they never raise on bad input, they fall back.
 """
 
 import math

@@ -1,10 +1,10 @@
-"""DiffSource -- turn a unified diff into one CodeArtifact per changed file.
+"""DiffSource: turn a unified diff into one CodeArtifact per changed file.
 
-Splits on ``diff --git`` headers (falling back to a single section for a plain
-diff with no git header). The path is taken from the +++ line, then the ---
-line, then the header -- skipping /dev/null so adds and deletes still resolve to
-the real file. Combined/merge diffs (``diff --cc``) are not split and would fold
-into the preceding section; the intended input is an ordinary two-way PR diff.
+Splits on ``diff --git`` headers, falling back to a single section for a plain
+diff with no git header. The path is taken from the +++ line, then the ---
+line, then the header, skipping /dev/null so adds and deletes still resolve to
+the real file. Combined and merge diffs, ``diff --cc``, are not split and would
+fold into the preceding section; the intended input is an ordinary two-way PR diff.
 """
 
 from __future__ import annotations

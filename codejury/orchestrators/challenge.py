@@ -1,4 +1,4 @@
-"""ChallengeOrchestrator -- verify, then challenge the flagged verdicts.
+"""ChallengeOrchestrator: verify, then challenge the flagged verdicts.
 
 The verifier rules on every capability; then a refuter is shown only the
 VULNERABLE verdicts and the code, and argues which are false positives. A refuted

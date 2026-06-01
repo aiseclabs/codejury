@@ -8,12 +8,12 @@ source: synthetic
 notes: >
   serve() joins its argument onto STATIC_DIR with no containment check. The only
   caller passes a raw query parameter, so the argument is attacker-controlled and
-  ../ escapes the directory. Vulnerable -- provable only by reading the caller.
+  ../ escapes the directory. Vulnerable, provable only by reading the caller.
 code: |
   def serve(name):
       return open(os.path.join(STATIC_DIR, name)).read()
 context: |
-  # handlers.py -- the only caller of serve()
+  # handlers.py, the only caller of serve()
   @app.route("/download")
   def download():
       return serve(request.args["name"])   # raw, unsanitized query parameter

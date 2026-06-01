@@ -5,7 +5,7 @@ expected_verdict: SECURE
 cwe: ""
 source: synthetic
 notes: >
-  The query is assembled with string concatenation -- the classic SQLi shape --
+  The query is assembled with string concatenation, the classic SQLi shape,
   but every operand is a constant; no external input takes part. Flagging it as
   SQL injection is a false positive.
 code: |

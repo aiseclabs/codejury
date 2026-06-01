@@ -6,7 +6,7 @@ expected_verdict: SECURE
 cwe: ""
 source: synthetic
 notes: >
-  The fetched URL is a hardcoded constant -- not attacker-controlled. Flagging
+  The fetched URL is a hardcoded constant, not attacker-controlled. Flagging
   this as SSRF is a false positive.
 code: |
   def healthcheck():

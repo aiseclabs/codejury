@@ -1,4 +1,4 @@
-"""PipelineOrchestrator -- capability-by-capability full sweep.
+"""PipelineOrchestrator: capability-by-capability full sweep.
 
 Each capability is checked in its own single-capability context, so a failure or
 bad reply on one capability does not abort the rest; errors are collected and

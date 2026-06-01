@@ -1,8 +1,8 @@
-"""RetryProvider -- wrap any Provider, retrying complete() on transient failure.
+"""RetryProvider: wrap any Provider, retrying complete() on transient failure.
 
-Real model calls fail intermittently (timeouts, rate limits). This decorator
-retries with linear backoff and re-raises the last error once attempts are
-exhausted. ``sleep`` is injectable so tests do not actually wait.
+Real model calls fail intermittently, for example on timeouts or rate limits.
+This decorator retries with linear backoff and re-raises the last error once
+attempts are exhausted. ``sleep`` is injectable so tests do not actually wait.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class RetryProvider(Provider):
 
     @property
     def inner(self) -> Provider:
-        """The wrapped provider (so callers need not reach into a private field)."""
+        """The wrapped provider, so callers need not reach into a private field."""
         return self._inner
 
     def complete(

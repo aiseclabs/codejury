@@ -1,11 +1,11 @@
-"""Chunker -- split oversized file content so each artifact fits a context budget.
+"""Chunker: split oversized file content so each artifact fits a context budget.
 
 Splits on line boundaries into pieces of at most ``max_chars``. Small content is
 returned unchanged as a single chunk keeping its path; split content gets a
 ``path#N`` suffix per chunk. A single line longer than the budget becomes its own
-(over-budget) chunk rather than being cut mid-line.
+over-budget chunk rather than being cut mid-line.
 
-The default budget is large so a whole file stays in one artifact -- the verifier
+The default budget is large so a whole file stays in one artifact: the verifier
 needs the full file to trace where a value comes from. Only very large files split.
 """
 

@@ -1,5 +1,5 @@
-# Adversarial negative: model output is returned to the user, but as JSON data --
-# no interpreter, no markup -- so there is no output-handling vulnerability.
+# Adversarial negative: model output is returned to the user, but as JSON data,
+# no interpreter, no markup, so there is no output-handling vulnerability.
 capability: insecure_output_handling
 vulnerable: false
 expected_verdict: SECURE

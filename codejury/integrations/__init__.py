@@ -1,1 +1,1 @@
-"""codejury.integrations -- post results to external systems (GitHub PR reviews)."""
+"""codejury.integrations: post results to external systems such as GitHub PR reviews."""

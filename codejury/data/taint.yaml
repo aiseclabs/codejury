@@ -8,7 +8,7 @@
 #       "request.args") and free names; prefix match, so "request.args" matches
 #       "request.args.get" too.
 #   sanitizers / safe_sinks / propagators -> matched against a Call's callee. A
-#       qualified entry (json.loads) matches the dotted callee only -- so it does
+#       qualified entry (json.loads) matches the dotted callee only, so it does
 #       NOT match pickle.loads, which is the whole point. A bare entry (int) matches
 #       the final name, for builtins and methods that have no stable module path.
 version: "0"
@@ -65,11 +65,11 @@ sanitizers:
     capability: output_encoding
     why: Encodes < > & " so the value renders as text, not markup.
   - id: numeric-cast
-    calls: ["int", "float"]        # builtins -- bare match
+    calls: ["int", "float"]        # builtins; bare match
     capability: input_validation
     why: Coercing to a number removes any injection payload from the value.
 
-# Callees safe to feed tainted input -- the look-dangerous-but-aren't parsers.
+# Callees safe to feed tainted input: the look-dangerous-but-aren't parsers.
 # A value flowing into these is not a vulnerability for the named capability.
 # Qualified on purpose: json.loads is safe, pickle.loads is NOT and must not match.
 safe_sinks:
@@ -84,7 +84,7 @@ safe_sinks:
   - id: literal-eval
     calls: ["ast.literal_eval"]
     capability: input_validation
-    why: Parses literals only -- no names, calls, or operators, so no code runs.
+    why: Parses literals only, no names, calls, or operators, so no code runs.
 
 # Callees that pass taint from their arguments through to their return value, so
 # the tracer keeps following the source rather than stopping at the call.

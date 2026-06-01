@@ -1,7 +1,7 @@
 id: business_logic
 name: Business Logic
 asvs_chapter: V11
-description: Correctness of stateful workflows against abuse -- ordering, races, replay, and value validation.
+description: Correctness of stateful workflows against abuse, covering ordering, races, replay, and value validation.
 
 sub_capabilities:
   state_and_sequence:

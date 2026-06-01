@@ -63,7 +63,7 @@ def test_propagator_with_sanitized_arg_is_sanitized():
 
 
 def test_parameter_is_param_pending_caller():
-    # serve(name): the joined path depends on a parameter -- needs the cross-file hop
+    # serve(name): the joined path depends on a parameter, needs the cross-file hop
     src = "def serve(name):\n    return open(os.path.join(STATIC_DIR, name))\n"
     assert _taint(src, "serve", "open") is Taint.PARAM
 
@@ -98,7 +98,7 @@ def test_safe_set_membership():
 
 
 def test_source_method_call_is_external():
-    # request.args.get("id") -- a method ON a source object -- must be EXTERNAL, not UNKNOWN
+    # request.args.get("id"), a method ON a source object, must be EXTERNAL, not UNKNOWN
     src = "def f(request):\n    return request.args.get('id')\n"
     func = parse_function(src, "f")
     call = find_calls(func, "get")[0]

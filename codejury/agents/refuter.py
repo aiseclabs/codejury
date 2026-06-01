@@ -1,8 +1,8 @@
-"""RefuterAgent -- a skeptic that tries to dismiss flagged verdicts as false positives.
+"""RefuterAgent: a skeptic that tries to dismiss flagged verdicts as false positives.
 
 Used by the challenge orchestrator: the verifier flags issues, then the refuter
 gets the code plus the VULNERABLE verdicts (via ``ctx.history``) and argues which
-are false positives -- e.g. a value that is not actually attacker-controlled or a
+are false positives, e.g. a value that is not actually attacker-controlled or a
 sink that is not reachable. It returns a Concession per verdict it refutes.
 
 This is the cheap, focused alternative to a full debate: only flagged verdicts
@@ -53,7 +53,7 @@ class RefuterAgent(Agent):
             "is not attacker-controlled: a stored data field, or traced (here or in the call sites) to "
             "a trusted, config, or operator-supplied source. If its origin is not shown or could "
             "plausibly be external input, do NOT refute. For other issue types (hardcoded secrets, "
-            "weak crypto, ...), a literal value is often the vulnerability itself -- do NOT refute "
+            "weak crypto, ...), a literal value is often the vulnerability itself; do NOT refute "
             "those just because a value is constant.\n\n"
             "Respond with a single JSON object exactly like:\n" + _JSON_SHAPE
         )

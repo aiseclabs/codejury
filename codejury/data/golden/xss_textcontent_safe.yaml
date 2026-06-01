@@ -6,7 +6,7 @@ expected_verdict: SECURE
 cwe: ""
 source: synthetic
 notes: >
-  textContent sets text, never markup -- the browser does not parse the value as
+  textContent sets text, never markup; the browser does not parse the value as
   HTML, so a script payload is rendered as inert text. Contrast the vulnerable
   xss_innerhtml_vuln, which assigns to innerHTML. False positive if flagged.
 code: |

@@ -1,4 +1,4 @@
-"""AnthropicProvider -- Provider backed by the Anthropic Messages API.
+"""AnthropicProvider: Provider backed by the Anthropic Messages API.
 
 When ``cache`` is set, the system prompt is marked with an ephemeral
 cache_control block; the capability checklist is large and reused across

@@ -5,7 +5,7 @@ cwe: CWE-502
 source: synthetic
 notes: >
   pickle.loads on attacker-supplied bytes executes arbitrary code during
-  unpickling -- remote code execution.
+  unpickling: remote code execution.
 code: |
   def load_state(request):
       blob = base64.b64decode(request.data)

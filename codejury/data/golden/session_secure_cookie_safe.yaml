@@ -5,7 +5,7 @@ cwe: ""
 source: synthetic
 notes: >
   Session id is regenerated on login and the cookie is set Secure, HttpOnly and
-  SameSite=Strict -- no fixation, no JS access, no cross-site send.
+  SameSite=Strict: no fixation, no JS access, no cross-site send.
 code: |
   def login(request, response, username, password):
       if not check_password(username, password):

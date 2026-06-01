@@ -1,4 +1,4 @@
-"""MockSource -- a Source that yields canned CodeArtifacts.
+"""MockSource: a Source that yields canned CodeArtifacts.
 
 Used by the dry-run and tests so the pipeline has input without touching git or
 the filesystem. Pass your own artifacts, or rely on the default illustrative diff.

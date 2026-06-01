@@ -2,9 +2,9 @@
 
 For a file under review, find where the functions and classes it defines are
 called elsewhere in the repository. Showing those call sites lets the verifier
-trace where an argument comes from -- which is exactly what single-file review
-lacks for taint-style issues (a path/command that is operator-supplied vs
-attacker-controlled). This is a textual usage finder, not a full call graph: the
+trace where an argument comes from, which is exactly what single-file review
+lacks for taint-style issues, such as a path or command that is operator-supplied
+versus attacker-controlled. This is a textual usage finder, not a full call graph: the
 call regex also matches a name inside a string, a comment, or a `def`/`class`
 line elsewhere, so treat the result as a hint, not a precise caller set.
 """
@@ -63,9 +63,9 @@ def _called_names(content: str) -> set[str]:
 def callee_context(target_path: str, files: dict[str, str], *, max_chars: int = 12_000) -> str:
     """Source of functions that `target_path` calls but that are defined in other files.
 
-    This is the forward direction -- it puts the called code (where a vulnerability
-    often lives, e.g. a manager a view delegates to) in front of the verifier, which
-    single-file review cannot see.
+    This is the forward direction: it puts the called code, where a vulnerability
+    often lives, for example a manager a view delegates to, in front of the verifier,
+    which single-file review cannot see.
     """
     symbols = _symbol_sources(files)
     own = defined_names(files.get(target_path, ""))

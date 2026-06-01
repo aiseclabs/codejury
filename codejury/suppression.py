@@ -1,13 +1,13 @@
-"""Suppress known-noise findings via versioned rules -- data, not hardcoded regex.
+"""Suppress known-noise findings via versioned rules: data, not hardcoded regex.
 
 The same idea as cobo's findings_filter, but the rules live in a YAML file so they
-are reviewable and versioned. A rule drops a *problem* observation (a Finding, or a
-VULNERABLE/PARTIAL Verdict) when its text matches and any path condition holds.
-SECURE / NOT_PRESENT verdicts and concessions are never touched.
+are reviewable and versioned. A rule drops a *problem* observation, a Finding or a
+VULNERABLE/PARTIAL Verdict, when its text matches and any path condition holds.
+SECURE and NOT_PRESENT verdicts and concessions are never touched.
 
-Rules target categories that are out of scope or low-signal for this review
-(availability/DoS, rate limiting, memory safety outside C/C++). They must NOT key
-on a legitimate vulnerability class (e.g. "sql injection") -- that would drop real
+Rules target categories that are out of scope or low-signal for this review,
+such as availability/DoS, rate limiting, and memory safety outside C/C++. They must NOT key
+on a legitimate vulnerability class, e.g. "sql injection", since that would drop real
 findings, the same recall trap an over-eager refuter falls into.
 """
 
@@ -57,7 +57,7 @@ def load_suppressions(path: str | Path) -> list[Suppression]:
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f) or []
     rules = [Suppression.from_dict(d) for d in data]
-    for rule in rules:  # a rule with no match_any never fires -- a silent no-op, almost surely a mistake
+    for rule in rules:  # a rule with no match_any never fires, a silent no-op, almost surely a mistake
         if not rule.match_any:
             raise ValueError(f"suppression {rule.id!r}: 'match_any' is empty; the rule would match nothing")
     return rules

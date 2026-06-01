@@ -1,16 +1,16 @@
-"""Diff baseline -- report only findings new since a stored baseline report.
+"""Diff baseline: report only findings new since a stored baseline report.
 
-The keystone for PR-time noise control: run against a saved baseline report (the
-target branch's findings) and keep only the problem observations whose
+The keystone for PR-time noise control: run against a saved baseline report, the
+target branch's findings, and keep only the problem observations whose
 fingerprint is absent from the baseline, so a review shows what this change
-introduced -- not the codebase's pre-existing findings. Paired with --fail-on,
+introduced rather than the codebase's pre-existing findings. Paired with --fail-on,
 CI then gates on new issues only.
 
-The fingerprint is line-number-tolerant (lines shift between versions): it keys
+The fingerprint is line-number-tolerant because lines shift between versions: it keys
 on the capability, the kind/severity/status, the matched patterns, and the
-normalized evidence snippet -- never the line number. Only problem observations
-(Findings, VULNERABLE/PARTIAL Verdicts) are compared and dropped; SECURE /
-NOT_PRESENT verdicts and concessions are always kept.
+normalized evidence snippet, never the line number. Only problem observations,
+namely Findings and VULNERABLE/PARTIAL Verdicts, are compared and dropped; SECURE
+and NOT_PRESENT verdicts and concessions are always kept.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ def filter_new(results: Results, baseline: Results) -> tuple[Results, int]:
 
 
 def _evidence_sig(o: Observation) -> str:
-    # fingerprints only the first evidence snippet -- enough to distinguish findings
+    # fingerprints only the first evidence snippet, enough to distinguish findings
     # in practice; two findings differing only in a later snippet would collide.
     evidence = getattr(o, "evidence", [])
     return " ".join(evidence[0].code.split()) if evidence and evidence[0].code else ""

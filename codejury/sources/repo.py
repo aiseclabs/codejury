@@ -1,4 +1,4 @@
-"""RepoSource -- walk a repository into CodeArtifacts, one per file (chunked).
+"""RepoSource: walk a repository into CodeArtifacts, one per file, chunked.
 
 Selects files by extension, skips noise directories (.git, virtualenvs, caches),
 and runs each file through a Chunker so large files fit the model's context

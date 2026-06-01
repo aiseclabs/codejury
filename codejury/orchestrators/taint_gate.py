@@ -1,8 +1,8 @@
-"""TaintGateOrchestrator -- verify, then clear taint findings that data-flow proves safe.
+"""TaintGateOrchestrator: verify, then clear taint findings that data-flow proves safe.
 
 The verifier rules on every capability; then, for taint-prone capabilities
 (input_validation), the provenance engine checks whether any attacker-controlled,
-unsanitized value actually reaches a sink in the artifact -- using the
+unsanitized value actually reaches a sink in the artifact, using the
 caller/callee code in ``artifact.context`` for the cross-file hop. If the whole
 artifact is provably clean (every sink receives a constant, sanitized, or trusted
 value), the flagged VULNERABLE verdicts are dismissed as Concessions citing the
@@ -10,7 +10,7 @@ provenance.
 
 This is the conservative half of P1: it downgrades only on positive proof of
 safety. Anything uncertain (an unknown call, an unresolved parameter, code that
-does not parse) keeps the verdict, so recall is preserved -- the gate trades only
+does not parse) keeps the verdict, so recall is preserved; the gate trades only
 false positives, never a real finding. Unlike the refuter in ``challenge``, the
 decision is static analysis, not an LLM opinion.
 """

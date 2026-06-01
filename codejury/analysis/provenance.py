@@ -8,7 +8,7 @@ and literals a value derives from.
 The analysis is deliberately conservative and flow-insensitive: a name assigned
 more than once contributes the union of all its right-hand sides, so a possible
 source is never dropped (recall over precision). A value built only from literals
-is reported as ``is_constant`` -- the signal that distinguishes, for example,
+is reported as ``is_constant``, the signal that distinguishes, for example,
 SQL concatenated from constants (safe) from SQL concatenated from a parameter.
 
 This module finds where a value comes from; it does not decide what is a source
@@ -43,7 +43,7 @@ class Origin:
 
     @property
     def is_constant(self) -> bool:
-        """True when the value is built only from literals -- no param, call, attr,
+        """True when the value is built only from literals: no param, call, attr,
         free name, or unmodelled expression contributes."""
         return not (self.params or self.calls or self.attrs or self.globals_ or self.unknown)
 
@@ -65,7 +65,7 @@ def parse_function(source: str, name: str) -> ast.FunctionDef | ast.AsyncFunctio
 
 
 def find_calls(scope: ast.AST, callee: str) -> list[ast.Call]:
-    """Every call within ``scope`` whose function is named ``callee`` -- matching a
+    """Every call within ``scope`` whose function is named ``callee``, matching a
     bare name (``open``) or the final attribute (``execute`` in ``cur.execute``)."""
     return [node for node in ast.walk(scope) if isinstance(node, ast.Call) and _call_name(node) == callee]
 
@@ -97,7 +97,7 @@ def trace_value(func: ast.FunctionDef | ast.AsyncFunctionDef, expr: ast.AST) -> 
         on_param=lambda n: Origin(params=frozenset({n})),
         on_global=lambda n: Origin(globals_=frozenset({n})),
         on_constant=lambda: _LITERAL,
-        on_cycle=Origin,  # assignment cycle -- no new information
+        on_cycle=Origin,  # assignment cycle, no new information
     )
 
 
@@ -182,7 +182,7 @@ def reduce_value(
     if isinstance(expr, (ast.List, ast.Tuple, ast.Set)):
         return combine([recurse(e) for e in expr.elts])
     if isinstance(expr, ast.Name):
-        if expr.id in seen:  # assignment cycle -- stop
+        if expr.id in seen:  # assignment cycle, stop
             return on_cycle()
         if expr.id in params:
             return on_param(expr.id)

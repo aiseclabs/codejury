@@ -9,8 +9,8 @@ separate planning document.
 
 LLM code-security review usually fails because the security knowledge is buried
 in prompts: unversioned, unshareable, untunable by non-engineers, and drifting on
-every edit. codejury makes the knowledge **data** -- one versioned YAML capability
-per OWASP ASVS area -- and keeps the engine small and composable (orchestration /
+every edit. codejury makes the knowledge **data**: one versioned YAML capability
+per OWASP ASVS area, and keeps the engine small and composable (orchestration /
 model / input axes mix freely). Quality is governed by an evaluation harness, not
 by vibes.
 
@@ -29,14 +29,14 @@ Built and shipped:
 
 Known limitation (measured): taint-class detection (path traversal, SSRF) over-
 flags in single-file LLM review and cannot be fixed by prompt/context tuning
-alone -- it needs real data-flow analysis (P1). Local-pattern detection (weak
+alone; it needs real data-flow analysis (P1). Local-pattern detection (weak
 crypto, hardcoded secrets, IDOR, etc.) is reliable.
 
 ## Phases
 
 The executable specs live in a separate planning document. High level:
 
-- **P0 -- Trustworthy, measurable, reproducible.** Per-capability precision /
+- **P0: Trustworthy, measurable, reproducible.** Per-capability precision /
   recall / F1 eval with negatives and held-out split; a versioned, human-signed
   golden set; determinism (temperature 0 + verdict cache); SARIF output; a
   human-set baseline. *Gate to unlock P1.* Status: eval and golden exist in basic
@@ -44,7 +44,7 @@ The executable specs live in a separate planning document. High level:
   keyed on code + capability fingerprint + orchestration) and SARIF output
   (`--format sarif`) are in place; the baseline is recorded and the gate
   thresholds are human-signed (`BASELINE.md`, Thresholds below).
-- **P1 -- Context / code-graph engine.** Cross-file source->sink tracing to give
+- **P1: Context / code-graph engine.** Cross-file source->sink tracing to give
   the model provenance (is a value attacker-controlled?). *Shipped a first
   engine* (`codejury/analysis/`): a Python-AST value-origin tracer, a signed
   taint vocabulary (`data/taint.yaml`), an intra-procedural + one-hop cross-file
@@ -55,17 +55,17 @@ The executable specs live in a separate planning document. High level:
   attributes, so the gate is recall-safe but inert there. *Remaining*: a deeper
   graph (multi-hop + attribute/field tracking, tree-sitter for other languages)
   is the real fix; the conservative gate must not be loosened at recall's expense.
-- **P2 -- Verification / proof.** For high-severity VULNERABLE, generate and run a
+- **P2: Verification / proof.** For high-severity VULNERABLE, generate and run a
   PoC in an isolated sandbox to separate "proven exploitable" from "suspected".
   Sandbox never touches real environment / network / credentials.
-- **P3 -- AI-era capabilities.** New capability YAML for the OWASP LLM Top 10
+- **P3: AI-era capabilities.** New capability YAML for the OWASP LLM Top 10
   (prompt_injection, insecure_output_handling, excessive_agency, rag_poisoning,
   mcp_security, prompt_secret_leak, model_supply_chain), each with golden samples.
-- **P4 -- Workflow & scale.** PR bot (inline review + gate -- *done*: GitHub
+- **P4: Workflow & scale.** PR bot (inline review + gate, *done*: GitHub
   review, `--fail-on`, `--baseline` diff baseline, and `--orchestrator adaptive`
   that escalates to debate only for VULNERABLE or low-confidence verdicts);
   *remaining*: autofix; cheap static pre-filter + tiered models for cost.
-- **P5 -- Self-improvement loop.** Mine missed CVEs into new capability patterns,
+- **P5: Self-improvement loop.** Mine missed CVEs into new capability patterns,
   propose as PRs, merge only when eval passes. Guardrail: never edit the golden
   set or scoring to "pass" (see CLAUDE.md invariant 5).
 
@@ -73,7 +73,7 @@ The executable specs live in a separate planning document. High level:
 
 Calibrated from the P0-05 baseline (`BASELINE.md`, 2026-06-01) and human-signed.
 The baseline reframed the P1 gate from precision to recall: on the current
-corpus `input_validation` precision is 1.00 but recall is 0.67 -- the verifier
+corpus `input_validation` precision is 1.00 but recall is 0.67; the verifier
 misses SSRF / insecure-deserialization sinks, so recall is the real taint gap.
 
 | Gate | Metric | Baseline | Threshold |

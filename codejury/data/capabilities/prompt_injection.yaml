@@ -1,9 +1,9 @@
-# OWASP LLM Top 10 (2025) -- LLM01: Prompt Injection.
+# OWASP LLM Top 10 (2025), LLM01: Prompt Injection.
 id: prompt_injection
 name: Prompt Injection
 asvs_chapter: ""   # OWASP LLM01, not an ASVS chapter
 description: >-
-  Untrusted text (the end user's input, or content the app retrieves -- web pages,
+  Untrusted text (the end user's input, or content the app retrieves: web pages,
   documents, tool/function results, RAG chunks) reaches the model in a position
   where the model can treat it as instructions. The fix is separation and least
   authority: keep untrusted content as data, never concatenate it into the

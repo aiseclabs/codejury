@@ -24,7 +24,7 @@ def _statuses(results):
 
 def test_repeated_audit_reuses_cached_verdicts(tmp_path):
     cache = VerdictCache(tmp_path)
-    # the provider would answer VULNERABLE first, SECURE second -- but the second
+    # the provider would answer VULNERABLE first, SECURE second, but the second
     # audit must be served from cache, so it never reaches that second answer.
     provider = MockProvider(responses=[_VULN, _SECURE])
     kw = dict(provider=provider, model="m", max_tokens=8, strategy="single", cache=cache)

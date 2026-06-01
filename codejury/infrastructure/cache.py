@@ -1,4 +1,4 @@
-"""Verdict cache -- determinism through content-addressed reuse (ROADMAP P0).
+"""Verdict cache: determinism through content-addressed reuse (ROADMAP P0).
 
 Invariant 2: the same input must yield the same verdicts. An ``AnalysisResult``
 is stored under ``hash(normalized code + capability versions + orchestration)``,
@@ -7,11 +7,11 @@ the model again (which can drift across model revisions even at temperature 0).
 
 The key ingredients:
 
-- **normalized code** -- the artifact text with line endings and trailing
+- **normalized code**: the artifact text with line endings and trailing
   whitespace normalized, so cosmetic reformatting alone does not miss the cache.
-- **capability versions** -- each in-scope capability's ``fingerprint`` (a hash
+- **capability versions**: each in-scope capability's ``fingerprint`` (a hash
   of its knowledge), so editing a capability YAML invalidates affected entries.
-- **orchestration** -- strategy + model + token budget, since those change the
+- **orchestration**: strategy + model + token budget, since those change the
   verdict.
 
 A failed run (``result.error`` set) is never cached, so a transient provider

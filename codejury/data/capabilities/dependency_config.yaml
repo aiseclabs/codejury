@@ -1,7 +1,7 @@
 id: dependency_config
 name: Dependencies and Configuration
 asvs_chapter: V14
-description: Software supply chain and deployment configuration -- known-vulnerable components and unsafe defaults.
+description: Software supply chain and deployment configuration, covering known-vulnerable components and unsafe defaults.
 
 sub_capabilities:
   dependencies:
@@ -50,7 +50,7 @@ sub_capabilities:
     correct_patterns:
       - id: TLS-OK-1
         description: >-
-          Leave TLS certificate verification at its secure default -- verify omitted or
+          Leave TLS certificate verification at its secure default: verify omitted or
           verify=True, the default SSL context, hostname checking on
         signals: ["verify=True", "create_default_context", "requests.get(", "requests.post("]
         why_ok: >-
@@ -63,7 +63,7 @@ sub_capabilities:
         cwe: CWE-295
         severity: HIGH
         description: >-
-          Disable TLS certificate or hostname verification -- verify=False, CERT_NONE,
+          Disable TLS certificate or hostname verification: verify=False, CERT_NONE,
           check_hostname=False, or an unverified SSL context
         signals: ["verify=False", "CERT_NONE", "check_hostname = False", "_create_unverified_context"]
         why_bad: An unverified TLS connection is open to a man-in-the-middle despite https://

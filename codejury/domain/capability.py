@@ -1,4 +1,4 @@
-"""Capability model -- domain knowledge loaded from YAML into typed dataclasses.
+"""Capability model: domain knowledge loaded from YAML into typed dataclasses.
 
 A capability is the first-class unit of Application Security knowledge, one per
 OWASP ASVS area. Its YAML is readable by the model as a checklist, by a rule
@@ -127,7 +127,7 @@ class Capability:
 
         It is the "capability version" of the determinism invariant: it covers
         the declared ``version`` *and* the full pattern content, so any edit to
-        the YAML changes it and stale verdicts are never served -- with no manual
+        the YAML changes it and stale verdicts are never served, with no manual
         bump to forget.
         """
         blob = json.dumps(asdict(self), sort_keys=True, ensure_ascii=False)
