@@ -1,0 +1,16 @@
+capability: data_protection
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+split: held-out
+notes: >
+  The PAN is replaced by a vault token before storage; the CVV is never
+  persisted. Nothing sensitive reaches the database.
+code: |
+  def save_card(user_id, card_number):
+      token = vault.tokenize(card_number)   # store a token, never the PAN
+      db.execute(
+          "INSERT INTO cards (user_id, token) VALUES (?, ?)",
+          (user_id, token),
+      )

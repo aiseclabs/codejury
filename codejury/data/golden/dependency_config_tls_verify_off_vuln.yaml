@@ -1,0 +1,11 @@
+capability: dependency_config
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-295
+source: synthetic
+notes: >
+  TLS certificate verification is disabled, so the connection is open to a
+  man-in-the-middle despite the https:// scheme.
+code: |
+  def fetch_partner_data():
+      return requests.get("https://api.partner.com/data", verify=False).json()

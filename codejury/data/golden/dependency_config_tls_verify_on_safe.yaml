@@ -1,0 +1,11 @@
+capability: dependency_config
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  Certificate verification is left at its secure default (True) and a timeout is
+  set. Nothing weakens the TLS configuration.
+code: |
+  def fetch_partner_data():
+      return requests.get("https://api.partner.com/data", timeout=10).json()

@@ -1,0 +1,12 @@
+capability: input_validation
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-918
+source: synthetic
+notes: >
+  The server fetches a URL taken verbatim from the request, so an attacker can
+  reach internal services (cloud metadata, localhost admin ports, internal APIs).
+code: |
+  def fetch(request):
+      url = request.args["url"]
+      return requests.get(url).text

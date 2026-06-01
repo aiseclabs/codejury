@@ -1,0 +1,13 @@
+# False-positive-prone negative: requests.get is a classic SSRF sink, but here
+# the URL is a constant, so no untrusted input reaches it.
+capability: input_validation
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  The fetched URL is a hardcoded constant -- not attacker-controlled. Flagging
+  this as SSRF is a false positive.
+code: |
+  def healthcheck():
+      return requests.get("http://localhost:8080/health", timeout=2).ok

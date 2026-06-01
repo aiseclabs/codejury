@@ -1,0 +1,14 @@
+capability: data_protection
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-312
+source: synthetic
+notes: >
+  The full card number and the CVV are written to the database in cleartext.
+  The CVV must never be stored at all, and the PAN must be tokenized/encrypted.
+code: |
+  def save_card(user_id, card_number, cvv):
+      db.execute(
+          "INSERT INTO cards (user_id, pan, cvv) VALUES (?, ?, ?)",
+          (user_id, card_number, cvv),
+      )

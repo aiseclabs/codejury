@@ -1,0 +1,11 @@
+capability: error_logging
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  Only the non-sensitive username is logged; the password never enters the log.
+code: |
+  def authenticate(username, password):
+      logger.info("login attempt user=%s", username)
+      return backend.check(username, password)
