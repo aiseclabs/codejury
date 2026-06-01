@@ -15,11 +15,13 @@ from codejury.agents.base import Agent
 from codejury.agents.parsing import one_of, str_list, to_evidence, to_float
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
-from codejury.domain.observation import Observation, Verdict
+from codejury.domain.observation import Observation, Verdict, VerdictStatus
 from codejury.infrastructure.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 
-_VALID_STATUS = {"SECURE", "VULNERABLE", "PARTIAL", "NOT_PRESENT", "UNKNOWN"}
+from typing import get_args
+
+_VALID_STATUS = set(get_args(VerdictStatus))  # single source of truth: the VerdictStatus Literal
 
 _SYSTEM = (
     "You are a security verifier. You check code against a checklist of correct and "
@@ -108,8 +110,10 @@ def _anti_pattern_cwes(cap: Capability) -> dict[str, tuple[int, str]]:
 
 
 def _resolve_cwe(matched_anti: list[str], cwe_by_id: dict[str, tuple[int, str]]) -> str:
+    # the most severe matched anti-pattern's CWE; ties broken by CWE id so the result
+    # is fully determined by the inputs, not by dict/list ordering.
     matched = [cwe_by_id[a] for a in matched_anti if a in cwe_by_id]
-    return max(matched, key=lambda rank_cwe: rank_cwe[0])[1] if matched else ""
+    return max(matched, key=lambda rank_cwe: (rank_cwe[0], rank_cwe[1]))[1] if matched else ""
 
 
 def _parse_verdicts(text: str, cap: Capability) -> list[Verdict]:

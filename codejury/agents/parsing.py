@@ -4,7 +4,7 @@ Agents parse model output that may omit, mistype, or invent fields. These
 helpers coerce defensively -- they never raise on bad input, they fall back.
 """
 
-from __future__ import annotations
+import math
 
 from codejury.domain.observation import Evidence
 
@@ -14,14 +14,21 @@ def str_list(value: object) -> list[str]:
 
 
 def to_float(value: object, default: float) -> float:
+    # reject bool (it is an int subclass) and non-finite values (json.loads accepts
+    # NaN/Infinity); a NaN confidence would silently corrupt every downstream sort.
+    if isinstance(value, bool):
+        return default
     try:
-        return float(value)  # type: ignore[arg-type]
+        result = float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return default
+    return result if math.isfinite(result) else default
 
 
 def one_of(value: object, allowed: set[str], default: str) -> str:
-    return value if value in allowed else default
+    # `value in allowed` would raise TypeError on an unhashable model value
+    # (e.g. status -> [] or {}); guard so bad input falls back, never raises.
+    return value if isinstance(value, str) and value in allowed else default
 
 
 def to_evidence(items: object) -> list[Evidence]:
@@ -32,11 +39,7 @@ def to_evidence(items: object) -> list[Evidence]:
         if not isinstance(e, dict):
             continue
         line = e.get("line")
-        out.append(
-            Evidence(
-                file=str(e.get("file", "")),
-                line=line if isinstance(line, int) else None,
-                code=str(e.get("code", "")),
-            )
-        )
+        # a location needs a real 1-based line; reject 0, negatives, and bool (an int subclass)
+        valid_line = line if isinstance(line, int) and not isinstance(line, bool) and line >= 1 else None
+        out.append(Evidence(file=str(e.get("file", "")), line=valid_line, code=str(e.get("code", ""))))
     return out

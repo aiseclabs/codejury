@@ -174,4 +174,4 @@ def test_eval_cli_reports_provider_error_without_traceback(monkeypatch, capsys):
     monkeypatch.setattr("codejury.cli.make_provider", lambda name, **kw: _Boom())
     rc = cli.main(["eval"])
     assert rc == 1
-    assert "eval failed" in capsys.readouterr().out
+    assert "eval failed" in capsys.readouterr().err

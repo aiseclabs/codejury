@@ -17,6 +17,7 @@ taint checks over-report.
 from __future__ import annotations
 
 import dataclasses
+from collections import Counter
 
 from codejury.agents.base import Agent
 from codejury.domain.context import AnalysisContext
@@ -50,10 +51,19 @@ class ChallengeOrchestrator(Orchestrator):
 
         refutations = agents["refuter"].run(dataclasses.replace(context, history=flagged))
         reasons = {c.target: c.reason for c in refutations if isinstance(c, Concession)}
+        # the refuter targets a capability, not an individual verdict; if a capability
+        # has more than one flagged verdict the refutation is ambiguous, so leave them
+        # all standing rather than risk dismissing one the refuter did not concede.
+        flagged_per_cap = Counter(v.capability for v in flagged)
 
         observations: list[Observation] = []
         for v in verdicts:
-            if isinstance(v, Verdict) and v.status == "VULNERABLE" and v.capability in reasons:
+            if (
+                isinstance(v, Verdict)
+                and v.status == "VULNERABLE"
+                and v.capability in reasons
+                and flagged_per_cap[v.capability] == 1
+            ):
                 observations.append(
                     Concession(
                         capability=v.capability,

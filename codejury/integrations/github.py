@@ -10,6 +10,7 @@ review body. The review requests changes when any problem is found.
 from __future__ import annotations
 
 import json
+import urllib.error
 import urllib.request
 from typing import Any, Callable
 
@@ -18,18 +19,21 @@ from codejury.domain.result import AnalysisResult
 
 Results = list[tuple[str, AnalysisResult]]
 
+# rank for ordering inline comments most-severe first before truncating to max_comments
+_COMMENT_RANK = {"CRITICAL": 0, "HIGH": 1, "VULNERABLE": 1, "MEDIUM": 2, "PARTIAL": 2, "LOW": 3, "INFO": 4}
+
 
 def build_review(results: Results, *, max_comments: int = 50) -> dict:
-    comments: list[dict] = []
-    problems = 0
+    ranked: list[tuple[int, dict]] = []
     for _path, result in results:
         for o in result.observations:
             comment = _inline_comment(o)
-            if comment is None:
-                continue
-            problems += 1
-            if len(comments) < max_comments:
-                comments.append(comment)
+            if comment is not None:
+                ranked.append((_comment_rank(o), comment))
+    problems = len(ranked)
+    # surface the most severe inline when there are more problems than the cap
+    ranked.sort(key=lambda rc: rc[0])
+    comments = [c for _, c in ranked[:max_comments]]
 
     body = (
         f"codejury found {problems} issue(s)." if problems else "codejury found no issues."
@@ -41,6 +45,11 @@ def build_review(results: Results, *, max_comments: int = 50) -> dict:
         "event": "REQUEST_CHANGES" if problems else "COMMENT",
         "comments": comments,
     }
+
+
+def _comment_rank(o: Observation) -> int:
+    key = o.severity if o.kind == "finding" else getattr(o, "status", "")
+    return _COMMENT_RANK.get(key, 5)
 
 
 def _inline_comment(o: Observation) -> dict | None:
@@ -75,8 +84,14 @@ def post_review(
     if transport is not None:
         return transport(url, data, headers)
     request = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    with urllib.request.urlopen(request) as response:
-        return response.status
+    try:
+        with urllib.request.urlopen(request) as response:
+            return response.status
+    except urllib.error.HTTPError as exc:
+        # surface GitHub's error detail (auth 401, repo/PR 404, out-of-diff line 422);
+        # the token is in the request, not this response body, so it is safe to include.
+        detail = exc.read().decode("utf-8", "replace")[:500]
+        raise RuntimeError(f"GitHub review POST failed: {exc.code} {detail}") from exc
 
 
 def parse_pr_ref(ref: str) -> tuple[str, str, int]:

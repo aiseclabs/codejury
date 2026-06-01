@@ -35,6 +35,8 @@ class Task:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Task:
+        if "name" not in data:
+            raise ValueError("task is missing the required 'name' field")
         caps = data.get("capabilities")
         return cls(
             name=data["name"],

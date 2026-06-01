@@ -20,7 +20,11 @@ from typing import Any
 
 import yaml
 
+from typing import get_args
+
 from codejury.domain.observation import Severity
+
+_SEVERITIES = frozenset(get_args(Severity))
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -57,12 +61,18 @@ class AntiPattern:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AntiPattern:
+        severity = data.get("severity", "MEDIUM")
+        if severity not in _SEVERITIES:
+            raise ValueError(
+                f"anti_pattern {data.get('id')!r}: invalid severity {severity!r}; "
+                f"expected one of {', '.join(_SEVERITIES)}"
+            )
         return cls(
             id=data["id"],
             description=data.get("description", ""),
             signals=list(data.get("signals", [])),
             cwe=data.get("cwe", ""),
-            severity=data.get("severity", "MEDIUM"),
+            severity=severity,
             why_bad=data.get("why_bad", ""),
             example_bad=data.get("example_bad", ""),
             example_good=data.get("example_good", ""),
@@ -130,7 +140,10 @@ def load_capability(path: str | Path) -> Capability:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
         raise ValueError(f"{path}: expected a YAML mapping at the top level, got {type(data).__name__}")
-    return Capability.from_dict(data)
+    try:
+        return Capability.from_dict(data)
+    except (KeyError, ValueError) as exc:
+        raise ValueError(f"{path}: {exc}") from exc
 
 
 def load_capabilities(directory: str | Path) -> list[Capability]:

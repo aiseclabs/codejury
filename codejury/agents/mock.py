@@ -2,8 +2,7 @@
 
 It really calls the provider (so the dry-run exercises the agent -> provider
 path), then emits one Verdict per in-scope capability, parking the model's reply
-in ``reasoning``. It does no real parsing or judgement; the Phase 3 VerifierAgent
-will.
+in ``reasoning``. It does no real parsing or judgement; ``VerifierAgent`` does.
 """
 
 from __future__ import annotations

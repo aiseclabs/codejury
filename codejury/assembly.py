@@ -88,7 +88,7 @@ def build_orchestration(
 def provider_tag(provider: Provider) -> str:
     """A stable short name for a provider (unwrapping RetryProvider) for cache keys,
     so two providers that accept the same model string do not share cached verdicts."""
-    return type(getattr(provider, "_inner", provider)).__name__
+    return type(getattr(provider, "inner", provider)).__name__
 
 
 def orchestration_descriptor(provider: Provider, strategy: str, model: str, max_tokens: int) -> str:

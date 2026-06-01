@@ -10,13 +10,18 @@ from __future__ import annotations
 import json
 import re
 
-# Greedy so a fenced block with nested braces is captured whole.
-_FENCE = re.compile(r"```(?:json)?\s*(\{.*\})\s*```", re.DOTALL)
+# Non-greedy so a second code fence later in the text doesn't get swallowed into the
+# captured span; nested braces inside one block are still matched by the {...} anchors.
+_FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
+
+# Defensive ceiling: model output is bounded by max_tokens, but never scan an
+# unbounded string (the balanced-brace pass is superlinear on pathological input).
+_MAX_SCAN = 1_000_000
 
 
 def extract_json_object(text: str) -> dict | None:
     """Return the first JSON object found in `text`, or None if there is none."""
-    text = text.strip()
+    text = text.strip()[:_MAX_SCAN]
 
     try:
         obj = json.loads(text)

@@ -19,15 +19,18 @@ from codejury.agents.parsing import one_of, str_list, to_evidence, to_float
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
-from codejury.domain.observation import Concession, Finding, Observation
+from codejury.domain.observation import Concession, Finding, Observation, Severity
 from codejury.infrastructure.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 
-_SEVERITY = {"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"}
+from typing import get_args
+
+_SEVERITY = set(get_args(Severity))  # single source of truth: the Severity Literal
 
 _FINDING_SHAPE = (
     '{"capability": "id.sub", "title": "...", "severity": "HIGH", "cwe": "CWE-89", '
-    '"description": "...", "evidence": [{"file": "...", "line": 0, "code": "..."}], "confidence": 0.0}'
+    '"description": "...", "recommendation": "...", "matched_anti": ["id"], '
+    '"evidence": [{"file": "...", "line": 0, "code": "..."}], "confidence": 0.0}'
 )
 
 _DEEP_LENS = (

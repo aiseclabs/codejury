@@ -60,10 +60,14 @@ class RepoSource(Source):
 
     def _read_files(self) -> dict[str, str]:
         files: dict[str, str] = {}
+        root = self._root.resolve()
         for path in self._root.rglob("*"):
             if not path.is_file() or path.suffix not in self._extensions:
                 continue
             if any(part in self._skip_dirs for part in path.relative_to(self._root).parts):
+                continue
+            # don't follow a symlink that escapes the repo (e.g. x.py -> /etc/passwd)
+            if not path.resolve().is_relative_to(root):
                 continue
             rel = path.relative_to(self._root).as_posix()
             files[rel] = path.read_text(encoding="utf-8", errors="replace")

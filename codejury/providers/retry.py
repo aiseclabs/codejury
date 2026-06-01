@@ -21,11 +21,18 @@ class RetryProvider(Provider):
         max_attempts: int = 3,
         base_delay: float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
+        retryable: tuple[type[BaseException], ...] = (Exception,),
     ) -> None:
         self._inner = inner
         self._max_attempts = max_attempts
         self._base_delay = base_delay
         self._sleep = sleep
+        self._retryable = retryable
+
+    @property
+    def inner(self) -> Provider:
+        """The wrapped provider (so callers need not reach into a private field)."""
+        return self._inner
 
     def complete(
         self,
@@ -41,7 +48,7 @@ class RetryProvider(Provider):
                 return self._inner.complete(
                     system=system, messages=messages, model=model, max_tokens=max_tokens, cache=cache
                 )
-            except Exception:
+            except self._retryable:
                 if attempt == self._max_attempts:
                     raise
                 self._sleep(self._base_delay * attempt)

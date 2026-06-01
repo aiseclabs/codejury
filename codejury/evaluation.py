@@ -30,6 +30,7 @@ import yaml
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
+from codejury.domain.observation import Observation
 from codejury.providers.base import Provider
 
 
@@ -126,7 +127,12 @@ def load_cases(directory: str | Path, *, split: str | None = None) -> list[Golde
     for path in sorted(Path(directory).glob("*.yaml")):
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
-        case = GoldenCase.from_dict(path.stem, data)
+        if not isinstance(data, dict):
+            raise ValueError(f"{path}: expected a YAML mapping, got {type(data).__name__}")
+        try:
+            case = GoldenCase.from_dict(path.stem, data)
+        except KeyError as exc:
+            raise ValueError(f"{path}: golden case missing required key {exc}") from exc
         if split is None or case.split == split:
             cases.append(case)
     return cases
@@ -166,7 +172,7 @@ def evaluate(
     return report
 
 
-def _predicted_vulnerable(observations: list) -> bool:
+def _predicted_vulnerable(observations: list[Observation]) -> bool:
     """Did the run flag a problem? A Finding (debate/reflexion) or a VULNERABLE
     Verdict (single/pipeline/taint) counts; SECURE verdicts and dismissed
     concessions do not. (A bare Finding has no ``status``, so checking only

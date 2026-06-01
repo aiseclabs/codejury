@@ -19,10 +19,8 @@ from typing import Any
 
 import yaml
 
-from codejury.domain.observation import Finding, Observation, Verdict
+from codejury.domain.observation import Observation, is_problem
 from codejury.domain.result import AnalysisResult
-
-_PROBLEM_STATUSES = ("VULNERABLE", "PARTIAL")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -58,7 +56,11 @@ class Suppression:
 def load_suppressions(path: str | Path) -> list[Suppression]:
     with open(path, encoding="utf-8") as f:
         data = yaml.safe_load(f) or []
-    return [Suppression.from_dict(d) for d in data]
+    rules = [Suppression.from_dict(d) for d in data]
+    for rule in rules:  # a rule with no match_any never fires -- a silent no-op, almost surely a mistake
+        if not rule.match_any:
+            raise ValueError(f"suppression {rule.id!r}: 'match_any' is empty; the rule would match nothing")
+    return rules
 
 
 def filter_results(
@@ -70,17 +72,13 @@ def filter_results(
     for path, result in results:
         kept: list[Observation] = []
         for o in result.observations:
-            rule = _matching_rule(o, path, rules) if _is_problem(o) else None
+            rule = _matching_rule(o, path, rules) if is_problem(o) else None
             if rule is None:
                 kept.append(o)
             else:
                 suppressed.append((path, o, rule.id))
         filtered.append((path, AnalysisResult(observations=kept, error=result.error)))
     return filtered, suppressed
-
-
-def _is_problem(o: Observation) -> bool:
-    return isinstance(o, Finding) or (isinstance(o, Verdict) and o.status in _PROBLEM_STATUSES)
 
 
 def _matching_rule(o: Observation, path: str, rules: list[Suppression]) -> Suppression | None:

@@ -280,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
     scan_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
     scan_p.add_argument("--baseline", default=None, help="a prior JSON report; report only findings new since it")
+    scan_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
     scan_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
@@ -301,9 +302,19 @@ def main(argv: list[str] | None = None) -> int:
     eval_p.add_argument("--model", default=DEFAULT_MODEL)
     eval_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     eval_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
+    eval_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
 
     args = parser.parse_args(argv)
+    try:
+        return _dispatch(args, parser)
+    except Exception as exc:
+        # expected failures (missing diff file, provider auth, malformed input) become
+        # one stderr line, not a traceback. eval's own message is preserved by command name.
+        print(f"{args.command or 'codejury'} failed: {exc}", file=sys.stderr)
+        return 1
 
+
+def _dispatch(args, parser) -> int:
     if args.command == "audit":
         results = audit(
             _read_diff(args.diff),
@@ -326,12 +337,15 @@ def main(argv: list[str] | None = None) -> int:
         capabilities = load_capabilities(args.capabilities)
         if args.only:
             wanted = {x.strip() for x in args.only.split(",")}
+            unknown = wanted - {c.id for c in capabilities}
+            if unknown:
+                print(f"warning: --only names unknown capability id(s): {', '.join(sorted(unknown))}", file=sys.stderr)
             capabilities = [c for c in capabilities if c.id in wanted]
         extensions = tuple(e if e.startswith(".") else "." + e for e in args.ext.split(","))
         results = scan(
             args.directory,
             capabilities,
-            provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base),
+            provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries),
             model=args.model,
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
@@ -359,19 +373,13 @@ def main(argv: list[str] | None = None) -> int:
         return _gate_exit(results, args.fail_on)
 
     if args.command == "eval":
-        try:
-            report = evaluate(
-                load_cases(args.dataset, split=args.split),
-                load_capabilities(args.capabilities),
-                provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base),
-                model=args.model,
-                strategy=args.orchestrator,
-            )
-        except Exception as exc:
-            # e.g. a missing API key surfaces as a provider auth error -- report it
-            # as one line, not a traceback (audit gets this via the orchestrator).
-            print(f"eval failed: {exc}")
-            return 1
+        report = evaluate(
+            load_cases(args.dataset, split=args.split),
+            load_capabilities(args.capabilities),
+            provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries),
+            model=args.model,
+            strategy=args.orchestrator,
+        )
         print(json.dumps(report.to_dict(), indent=2) if args.fmt == "json" else _render_eval(report))
         return 0
 

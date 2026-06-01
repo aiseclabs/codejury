@@ -16,4 +16,12 @@ from codejury.domain.result import AnalysisResult
 
 class Orchestrator(ABC):
     @abstractmethod
-    def run(self, agents: dict[str, Agent], context: AnalysisContext) -> AnalysisResult: ...
+    def run(self, agents: dict[str, Agent], context: AnalysisContext) -> AnalysisResult:
+        """Run the orchestration and return a result.
+
+        Contract: never raise for an agent/provider failure -- record it in
+        ``AnalysisResult.error`` and return the observations produced so far.
+        ``single`` deliberately stops at the first failure; the multi-agent
+        strategies record the error and return their partial ruling.
+        """
+        ...

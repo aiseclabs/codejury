@@ -4,7 +4,9 @@ For a file under review, find where the functions and classes it defines are
 called elsewhere in the repository. Showing those call sites lets the verifier
 trace where an argument comes from -- which is exactly what single-file review
 lacks for taint-style issues (a path/command that is operator-supplied vs
-attacker-controlled). This is a textual usage finder, not a full call graph.
+attacker-controlled). This is a textual usage finder, not a full call graph: the
+call regex also matches a name inside a string, a comment, or a `def`/`class`
+line elsewhere, so treat the result as a hint, not a precise caller set.
 """
 
 from __future__ import annotations

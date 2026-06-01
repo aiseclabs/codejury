@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 
 from codejury import __version__ as _tool_version
-from codejury.domain.observation import Observation, observation_from_dict
+from codejury.domain.observation import Observation, is_problem, observation_from_dict
 from codejury.domain.result import AnalysisResult
 
 Results = list[tuple[str, AnalysisResult]]
@@ -39,8 +39,17 @@ def to_json(results: Results) -> str:
 
 
 def from_json(text: str) -> Results:
-    """Parse a ``to_json`` report back into results (used to load a diff baseline)."""
-    payload = json.loads(text)
+    """Parse a ``to_json`` report back into results (used to load a diff baseline).
+
+    Raises ValueError on a malformed report (it is external, possibly hand-edited,
+    input) rather than an opaque KeyError/TypeError.
+    """
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"baseline report is not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("baseline report must be a JSON object with a 'files' list")
     return [
         (
             f.get("path", ""),
@@ -61,7 +70,7 @@ def to_markdown(results: Results) -> str:
         if result.error:
             lines.append(f"> error: {result.error}")
 
-        problems = sorted((o for o in result.observations if _is_problem(o)), key=_rank)
+        problems = sorted((o for o in result.observations if is_problem(o)), key=_rank)
         cleared = [o for o in result.observations if o.kind == "verdict" and o.status in _CLEARED]
         dismissed = [o for o in result.observations if o.kind == "concession"]
 
@@ -93,14 +102,10 @@ def _summary(results: Results) -> list[str]:
                 dismissed += 1
     return [
         f"- files audited: {len(results)}",
-        f"- issues: {vulnerable} vulnerable verdict(s), {findings} finding(s)",
+        f"- issues: {vulnerable} problem verdict(s) (VULNERABLE/PARTIAL), {findings} finding(s)",
         f"- checked and clear: {cleared}",
         f"- dismissed: {dismissed}",
     ]
-
-
-def _is_problem(o: Observation) -> bool:
-    return o.kind == "finding" or (o.kind == "verdict" and o.status in _PROBLEM_STATUSES)
 
 
 def _rank(o: Observation) -> int:
@@ -146,7 +151,7 @@ def to_sarif(results: Results) -> str:
 
     for _, result in results:
         for o in result.observations:
-            if not _is_problem(o):
+            if not is_problem(o):
                 continue
             locations = _sarif_locations(o)
             if not locations:

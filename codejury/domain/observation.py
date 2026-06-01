@@ -14,6 +14,7 @@ across subclass inheritance.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import asdict, dataclass, field
 from typing import Any, ClassVar, Literal
 
@@ -112,13 +113,33 @@ _OBSERVATION_CLASSES: dict[ObservationKind, type[Observation]] = {
 }
 
 
+_PROBLEM_STATUSES = ("VULNERABLE", "PARTIAL")
+
+
+def is_problem(o: Observation) -> bool:
+    """A reportable problem: a Finding, or a VULNERABLE/PARTIAL Verdict. The single
+    definition shared by reporting, suppression, and the diff baseline."""
+    return isinstance(o, Finding) or (isinstance(o, Verdict) and o.status in _PROBLEM_STATUSES)
+
+
+def _only_known(cls: type, data: dict[str, Any]) -> dict[str, Any]:
+    fields = {f.name for f in dataclasses.fields(cls)}
+    return {k: v for k, v in data.items() if k in fields}
+
+
 def observation_from_dict(data: dict[str, Any]) -> Observation:
     """Reconstruct an observation from its ``to_dict`` form (inverse of it).
 
-    Used by the verdict cache to round-trip results through JSON.
+    Used to round-trip results through JSON (the verdict cache and the diff
+    baseline). On-disk reports are external input, so this fails with a clear
+    error on a missing/unknown ``kind`` and tolerates unknown extra keys (forward
+    compatibility) rather than crashing with KeyError/TypeError.
     """
     data = dict(data)
-    cls = _OBSERVATION_CLASSES[data.pop("kind")]
+    kind = data.pop("kind", None)
+    cls = _OBSERVATION_CLASSES.get(kind)
+    if cls is None:
+        raise ValueError(f"unknown observation kind: {kind!r}")
     if "evidence" in data:
-        data["evidence"] = [Evidence(**e) for e in data["evidence"]]
-    return cls(**data)
+        data["evidence"] = [Evidence(**_only_known(Evidence, e)) for e in data["evidence"]]
+    return cls(**_only_known(cls, data))

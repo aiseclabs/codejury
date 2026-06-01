@@ -15,12 +15,10 @@ NOT_PRESENT verdicts and concessions are always kept.
 
 from __future__ import annotations
 
-from codejury.domain.observation import Concession, Finding, Observation, Verdict
+from codejury.domain.observation import Concession, Finding, Observation, Verdict, is_problem
 from codejury.domain.result import AnalysisResult
 
 Results = list[tuple[str, AnalysisResult]]
-
-_PROBLEM_STATUSES = ("VULNERABLE", "PARTIAL")
 
 
 def finding_key(o: Observation) -> tuple:
@@ -39,13 +37,13 @@ def filter_new(results: Results, baseline: Results) -> tuple[Results, int]:
 
     Returns (filtered_results, dropped_count). Non-problem observations are kept.
     """
-    seen = {finding_key(o) for _, r in baseline for o in r.observations if _is_problem(o)}
+    seen = {finding_key(o) for _, r in baseline for o in r.observations if is_problem(o)}
     filtered: Results = []
     dropped = 0
     for path, result in results:
         kept: list[Observation] = []
         for o in result.observations:
-            if _is_problem(o) and finding_key(o) in seen:
+            if is_problem(o) and finding_key(o) in seen:
                 dropped += 1
             else:
                 kept.append(o)
@@ -53,10 +51,8 @@ def filter_new(results: Results, baseline: Results) -> tuple[Results, int]:
     return filtered, dropped
 
 
-def _is_problem(o: Observation) -> bool:
-    return isinstance(o, Finding) or (isinstance(o, Verdict) and o.status in _PROBLEM_STATUSES)
-
-
 def _evidence_sig(o: Observation) -> str:
+    # fingerprints only the first evidence snippet -- enough to distinguish findings
+    # in practice; two findings differing only in a later snippet would collide.
     evidence = getattr(o, "evidence", [])
     return " ".join(evidence[0].code.split()) if evidence and evidence[0].code else ""
