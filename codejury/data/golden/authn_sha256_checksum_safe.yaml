@@ -1,0 +1,6 @@
+capability: authn
+vulnerable: false
+code: |
+  def file_dedup_key(data: bytes) -> str:
+      # content hash for cache dedup -- NOT a password
+      return hashlib.sha256(data).hexdigest()

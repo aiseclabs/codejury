@@ -1,0 +1,6 @@
+capability: crypto
+vulnerable: true
+code: |
+  def encrypt(data, key):
+      cipher = AES.new(key, AES.MODE_ECB)
+      return cipher.encrypt(pad(data, 16))

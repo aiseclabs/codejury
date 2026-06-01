@@ -1,0 +1,6 @@
+capability: output_encoding
+vulnerable: true
+code: |
+  function render(name) {
+      el.innerHTML = "Hello " + name;
+  }

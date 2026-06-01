@@ -1,0 +1,6 @@
+capability: crypto
+vulnerable: false
+code: |
+  def encrypt(data, key):
+      nonce = os.urandom(12)
+      return nonce, AESGCM(key).encrypt(nonce, data, None)

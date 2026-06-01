@@ -1,0 +1,5 @@
+capability: input_validation
+vulnerable: true
+code: |
+  def find(name):
+      cursor.execute("SELECT * FROM users WHERE name = '{}'".format(name))

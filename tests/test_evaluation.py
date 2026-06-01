@@ -1,7 +1,7 @@
 import json
 
 from codejury import cli
-from codejury.domain.capability import load_capability
+from codejury.domain.capability import load_capabilities
 from codejury.evaluation import Metrics, evaluate, load_cases
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
@@ -38,22 +38,23 @@ def test_golden_cases_load():
     assert vuln.capability == "authn" and vuln.vulnerable is True
 
 
-def _caps():
-    return [load_capability(CAPABILITIES_DIR / "authentication.yaml"),
-            load_capability(CAPABILITIES_DIR / "input_validation.yaml")]
-
-
 def test_evaluate_always_vulnerable_provider():
-    # 2 vulnerable + 2 safe golden cases; a provider that always flags VULNERABLE
-    # -> every positive is right (recall 1.0) but the safe ones are false positives.
-    m = evaluate(load_cases(GOLDEN_DIR), _caps(), provider=MockProvider(default=_VULN), model="m")
-    assert m.tp == 2 and m.fp == 2 and m.fn == 0 and m.tn == 0
-    assert m.recall == 1.0 and m.precision == 0.5
+    # A provider that always flags VULNERABLE: every vulnerable case is a true
+    # positive (recall 1.0), every safe case a false positive.
+    cases = load_cases(GOLDEN_DIR)
+    n_vuln = sum(c.vulnerable for c in cases)
+    n_safe = len(cases) - n_vuln
+    m = evaluate(cases, load_capabilities(CAPABILITIES_DIR), provider=MockProvider(default=_VULN), model="m")
+    assert m.tp == n_vuln and m.fp == n_safe and m.fn == 0 and m.tn == 0
+    assert m.recall == 1.0
 
 
 def test_evaluate_always_secure_provider():
-    m = evaluate(load_cases(GOLDEN_DIR), _caps(), provider=MockProvider(default=_SECURE), model="m")
-    assert m.tp == 0 and m.fn == 2 and m.tn == 2 and m.fp == 0
+    cases = load_cases(GOLDEN_DIR)
+    n_vuln = sum(c.vulnerable for c in cases)
+    n_safe = len(cases) - n_vuln
+    m = evaluate(cases, load_capabilities(CAPABILITIES_DIR), provider=MockProvider(default=_SECURE), model="m")
+    assert m.tp == 0 and m.fp == 0 and m.fn == n_vuln and m.tn == n_safe
     assert m.recall == 0.0
 
 

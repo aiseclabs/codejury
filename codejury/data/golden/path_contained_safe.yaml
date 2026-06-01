@@ -1,0 +1,8 @@
+capability: input_validation
+vulnerable: false
+code: |
+  def read_upload(filename):
+      target = (UPLOAD_DIR / filename).resolve()
+      if not target.is_relative_to(UPLOAD_DIR):
+          raise ValueError("path escapes upload dir")
+      return target.read_text()
