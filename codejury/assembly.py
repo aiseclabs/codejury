@@ -18,6 +18,7 @@ from codejury.domain.context import AnalysisContext
 from codejury.domain.result import AnalysisResult
 from codejury.infrastructure.cache import VerdictCache, verdict_key
 from codejury.orchestrators.base import Orchestrator
+from codejury.orchestrators.adaptive import AdaptiveOrchestrator
 from codejury.orchestrators.challenge import ChallengeOrchestrator
 from codejury.orchestrators.debate import DebateOrchestrator
 from codejury.orchestrators.pipeline import PipelineOrchestrator
@@ -31,7 +32,7 @@ from codejury.providers.openai import OpenAIProvider
 from codejury.providers.retry import RetryProvider
 from codejury.sources.base import Source
 
-STRATEGIES = ("single", "pipeline", "debate", "reflexion", "challenge", "taint")
+STRATEGIES = ("single", "pipeline", "debate", "reflexion", "challenge", "taint", "adaptive")
 PROVIDERS = ("anthropic", "openai", "litellm")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
@@ -59,6 +60,11 @@ def build_orchestration(
         roles = (FinderAgent, ChallengerAgent, JudgeAgent)
         agents = {cls.role: cls(provider=provider, model=model, max_tokens=max_tokens) for cls in roles}
         return agents, DebateOrchestrator()
+    if strategy == "adaptive":
+        roles = (FinderAgent, ChallengerAgent, JudgeAgent)
+        agents = {cls.role: cls(provider=provider, model=model, max_tokens=max_tokens) for cls in roles}
+        agents["verifier"] = VerifierAgent(provider=provider, model=model, max_tokens=max_tokens)
+        return agents, AdaptiveOrchestrator()
     if strategy == "reflexion":
         agents = {
             "actor": FinderAgent(provider=provider, model=model, max_tokens=max_tokens),

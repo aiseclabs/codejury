@@ -53,7 +53,7 @@ git diff | codejury audit --provider anthropic
 | `codejury run <task>` | Run a named task preset (see [Tasks](#tasks)). |
 | `codejury eval` | Score the golden cases; report precision / recall / F1, overall and per capability. |
 
-Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint}`,
+Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint,adaptive}`,
 `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`.
 
@@ -72,6 +72,11 @@ an `input_validation` finding only when static provenance analysis proves the
 value reaching the sink is constant, sanitized, or trusted (using cross-file
 caller/callee context). It downgrades only on positive proof, so it removes false
 positives without dropping real findings.
+
+`--orchestrator adaptive` keeps cost down: it runs the single verifier first and
+escalates to a full debate only for artifacts worth it -- any VULNERABLE verdict
+(verify a flag before reporting) or a low-confidence PARTIAL/UNKNOWN one. Clean,
+confident files pay a single call; only the rest pay for debate.
 
 `--format sarif` emits a SARIF 2.1.0 log (validates against the official schema)
 for CI and security dashboards: each problem with a code location becomes a
