@@ -1,0 +1,16 @@
+capability: excessive_agency
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  Dispatch goes through an allowlist of low-impact tools; an unknown tool name is
+  rejected, so a steered completion cannot reach destructive actions.
+code: |
+  ALLOWED = {"search": search, "summarize": summarize}
+
+  def agent_step(user_msg):
+      call = json.loads(client.complete(messages=[{"role": "user", "content": user_msg}]).text)
+      if call["name"] not in ALLOWED:
+          raise ValueError("tool not permitted")
+      return ALLOWED[call["name"]](**call["args"])

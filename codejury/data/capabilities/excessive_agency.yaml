@@ -1,0 +1,64 @@
+# OWASP LLM Top 10 (2025) -- LLM06: Excessive Agency.
+id: excessive_agency
+name: Excessive Agency
+asvs_chapter: ""   # OWASP LLM06, not an ASVS chapter
+description: >-
+  An LLM-driven agent acts on the world from model output. The risk is too much
+  autonomy or privilege: a completion (which an attacker can steer via prompt
+  injection) triggers a high-impact or irreversible action -- delete, transfer,
+  send, run -- with no allowlist of permitted tools, no human confirmation, and
+  no least-privilege scoping. The fix is to gate actions: allowlist low-impact
+  tools, require human approval for high-impact ones, and scope each tool's
+  authority narrowly. This is about the action and its authority, not about
+  encoding (output_to_markup) or interpreters (output_to_interpreter).
+
+sub_capabilities:
+  unconstrained_action:
+    correct_patterns:
+      - id: AG-OK-1
+        description: >-
+          Dispatch only through an allowlist of low-impact tools; require explicit
+          human approval before any high-impact or irreversible action
+        signals: ["ALLOWED", "in TOOLS", "require_approval", "confirm", "human"]
+        why_ok: A steered completion can only reach pre-approved, low-impact actions
+
+    anti_patterns:
+      - id: AG-BAD-1
+        cwe: CWE-862
+        severity: HIGH
+        description: >-
+          Dispatch a tool or action chosen by the model with no allowlist
+          (getattr/eval of a tool name, or a free function table) so any tool,
+          including destructive ones, can be invoked
+        signals: ["getattr(", "TOOLS[", "globals()[", "tool_name", "call[\"name\"]"]
+        why_bad: A manipulated completion can invoke any tool the process exposes
+        example_bad: |
+          call = json.loads(client.complete(messages=[{"role": "user", "content": msg}]).text)
+          getattr(tools, call["name"])(**call["args"])
+        example_good: |
+          ALLOWED = {"search": search, "summarize": summarize}
+          if call["name"] not in ALLOWED:
+              raise ValueError("tool not permitted")
+          ALLOWED[call["name"]](**call["args"])
+
+      - id: AG-BAD-2
+        cwe: CWE-862
+        severity: HIGH
+        description: >-
+          Perform a high-impact or irreversible operation (delete, transfer, send,
+          deploy) directly on the model's decision, with no human in the loop
+        signals: ["drop_all", "transfer(", "delete(", "send(", "deploy("]
+        why_bad: An autonomous, unconfirmed action turns a wrong/steered output into damage
+        example_bad: |
+          decision = client.complete(messages=[{"role": "user", "content": req}]).text
+          if decision.strip() == "DELETE":
+              db.drop_all()
+        example_good: |
+          decision = client.complete(messages=[{"role": "user", "content": req}]).text
+          if decision.strip() == "DELETE":
+              queue_for_human_approval("DELETE", req)
+
+trigger_signals:
+  - a model completion selects a tool/function that is then invoked
+  - getattr/eval/dict dispatch of a tool name from model output
+  - high-impact actions (delete, transfer, send, deploy) reached from model output

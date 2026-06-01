@@ -133,7 +133,7 @@ what `--only` and a task's `capabilities:` accept:
 `authn` · `authz` · `session` · `input_validation` · `output_encoding` ·
 `crypto` · `secrets` · `data_protection` · `error_logging` ·
 `business_logic` · `dependency_config` · `prompt_injection` ·
-`insecure_output_handling`
+`insecure_output_handling` · `excessive_agency`
 
 To tune for your codebase, edit these files (add patterns / sharpen wording) --
 no code change needed.

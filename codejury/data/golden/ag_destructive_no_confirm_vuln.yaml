@@ -1,0 +1,14 @@
+capability: excessive_agency
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-862
+source: synthetic
+notes: >
+  An irreversible operation (drop all tables) is performed directly on the model's
+  decision with no human in the loop, so a wrong or steered completion causes
+  immediate, unrecoverable damage.
+code: |
+  def handle(request_text):
+      decision = client.complete(messages=[{"role": "user", "content": request_text}]).text
+      if decision.strip() == "DELETE":
+          db.drop_all()

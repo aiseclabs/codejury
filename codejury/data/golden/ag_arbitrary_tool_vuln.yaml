@@ -1,0 +1,13 @@
+capability: excessive_agency
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-862
+source: synthetic
+notes: >
+  The tool name comes from the model and is dispatched with getattr against no
+  allowlist, so a steered completion can invoke any tool the module exposes,
+  including destructive ones. No allowlist, no confirmation.
+code: |
+  def agent_step(user_msg):
+      call = json.loads(client.complete(messages=[{"role": "user", "content": user_msg}]).text)
+      return getattr(tools, call["name"])(**call["args"])
