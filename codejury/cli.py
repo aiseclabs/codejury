@@ -36,7 +36,7 @@ from codejury.infrastructure.cache import VerdictCache
 from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
-from codejury.reporting import to_json, to_markdown
+from codejury.reporting import to_json, to_markdown, to_sarif
 from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, SUPPRESSIONS_FILE, TASKS_DIR
 from codejury.suppression import filter_results, load_suppressions
 from codejury.integrations.github import build_review, parse_pr_ref, post_review
@@ -46,7 +46,7 @@ from codejury.sources.repo import RepoSource
 from codejury.tasks.base import run_task
 from codejury.tasks.registry import load_tasks
 
-_FORMATS = ("text", "markdown", "json")
+_FORMATS = ("text", "markdown", "json", "sarif")
 
 
 def dry_run() -> AnalysisResult:
@@ -153,7 +153,7 @@ def _render_observation(o: Observation) -> str:
 
 
 def _render_results(fmt: str, results: list[tuple[str, AnalysisResult]]) -> str:
-    return {"text": _render_audit, "markdown": to_markdown, "json": to_json}[fmt](results)
+    return {"text": _render_audit, "markdown": to_markdown, "json": to_json, "sarif": to_sarif}[fmt](results)
 
 
 def _maybe_suppress(results: list[tuple[str, AnalysisResult]], enabled: bool) -> list[tuple[str, AnalysisResult]]:

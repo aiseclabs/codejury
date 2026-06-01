@@ -85,6 +85,7 @@ class Verdict(Observation):
     evidence: list[Evidence] = field(default_factory=list)
     matched_correct: list[str] = field(default_factory=list)  # correct_pattern ids hit
     matched_anti: list[str] = field(default_factory=list)      # anti_pattern ids hit
+    cwe: str = ""              # resolved from the matched anti-pattern, when known
     confidence: float = 0.5
 
     kind: ClassVar[ObservationKind] = "verdict"

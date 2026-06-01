@@ -44,7 +44,7 @@ Cross-cutting modules: `assembly.py` (build orchestration + provider factory),
 `dry-run` (mock, no key) · `audit [diff]` · `scan <dir>` · `run <task>` · `eval`.
 Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge}`,
 `--provider {anthropic,openai,litellm}`, `--model`,
-`--format {text,markdown,json}`, `--fail-on {critical,high,medium,low}`.
+`--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`.
 
 ## Conventions
 

@@ -54,7 +54,12 @@ git diff | codejury audit --provider anthropic
 | `codejury eval` | Score the golden cases; report precision / recall / F1, overall and per capability. |
 
 Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge}`,
-`--provider {anthropic,openai,litellm}`, `--model`, `--format {text,markdown,json}`.
+`--provider {anthropic,openai,litellm}`, `--model`,
+`--format {text,markdown,json,sarif}`.
+
+`--format sarif` emits a SARIF 2.1.0 log (validates against the official schema)
+for CI and security dashboards: each problem with a code location becomes a
+result carrying its capability (as the rule id), CWE, and a precise location.
 
 Findings in known-noise categories (availability/DoS, rate limiting, memory safety
 outside C/C++) are dropped by versioned rules in

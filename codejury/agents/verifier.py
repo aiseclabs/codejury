@@ -93,15 +93,27 @@ def _build_prompt(path: str, content: str, cap: Capability, context: str = "") -
     )
 
 
+def _anti_pattern_cwes(cap: Capability) -> dict[str, str]:
+    """Map anti_pattern id -> CWE, so a verdict can inherit the CWE it matched."""
+    return {
+        p.id: p.cwe
+        for sub in cap.sub_capabilities.values()
+        for p in sub.anti_patterns
+        if p.cwe
+    }
+
+
 def _parse_verdicts(text: str, cap: Capability) -> list[Verdict]:
     obj = extract_json_object(text)
     if not obj:
         return []
+    cwe_by_id = _anti_pattern_cwes(cap)
     out: list[Verdict] = []
     for v in obj.get("verdicts", []):
         if not isinstance(v, dict):
             continue
         sub = str(v.get("sub_capability", "")).strip()
+        matched_anti = str_list(v.get("matched_anti"))
         out.append(
             Verdict(
                 capability=f"{cap.id}.{sub}" if sub else cap.id,
@@ -109,7 +121,8 @@ def _parse_verdicts(text: str, cap: Capability) -> list[Verdict]:
                 status=one_of(v.get("status"), _VALID_STATUS, "UNKNOWN"),
                 reasoning=str(v.get("reasoning", "")),
                 matched_correct=str_list(v.get("matched_correct")),
-                matched_anti=str_list(v.get("matched_anti")),
+                matched_anti=matched_anti,
+                cwe=next((cwe_by_id[a] for a in matched_anti if a in cwe_by_id), ""),
                 evidence=to_evidence(v.get("evidence")),
                 confidence=to_float(v.get("confidence"), 0.5),
             )
