@@ -1,0 +1,43 @@
+# Known-noise suppression rules (data-driven false-positive filter).
+# Each drops a flagged finding whose text matches and whose path condition holds.
+# Keep these to out-of-scope / low-signal CATEGORIES -- never key on a real
+# vulnerability class, or you will drop true findings.
+
+- id: SUP-AVAILABILITY
+  reason: availability / DoS / rate-limiting findings are out of scope and low-signal here
+  match_any:
+    - "denial of service"
+    - "denial-of-service"
+    - "rate limit"
+    - "rate-limit"
+    - "rate limiting"
+    - "resource exhaustion"
+    - "unbounded"
+    - "amplification"
+
+- id: SUP-LOGGING-NOISE
+  reason: verbose / insufficient logging is noise unless a secret value is logged
+  match_any:
+    - "verbose logging"
+    - "insufficient logging"
+    - "excessive logging"
+    - "lack of logging"
+    - "log verbosity"
+
+- id: SUP-MEMORY-SAFETY-NON-C
+  reason: memory-safety issues do not apply outside C/C++
+  match_any:
+    - "buffer overflow"
+    - "use after free"
+    - "use-after-free"
+    - "double free"
+    - "memory corruption"
+    - "out-of-bounds"
+  unless_path_ext: [".c", ".cc", ".cpp", ".cxx", ".h", ".hpp"]
+
+- id: SUP-REDOS
+  reason: regex denial-of-service / catastrophic backtracking is low-signal here
+  match_any:
+    - "redos"
+    - "catastrophic backtracking"
+    - "regex denial"

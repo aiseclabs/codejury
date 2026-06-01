@@ -33,7 +33,8 @@ from codejury.orchestrators.single import SingleOrchestrator
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 from codejury.reporting import to_json, to_markdown
-from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, TASKS_DIR
+from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, SUPPRESSIONS_FILE, TASKS_DIR
+from codejury.suppression import filter_results, load_suppressions
 from codejury.sources.chunker import Chunker
 from codejury.sources.diff import DiffSource
 from codejury.sources.repo import RepoSource
@@ -137,6 +138,15 @@ def _render_results(fmt: str, results: list[tuple[str, AnalysisResult]]) -> str:
     return {"text": _render_audit, "markdown": to_markdown, "json": to_json}[fmt](results)
 
 
+def _maybe_suppress(results: list[tuple[str, AnalysisResult]], enabled: bool) -> list[tuple[str, AnalysisResult]]:
+    if not enabled:
+        return results
+    filtered, suppressed = filter_results(results, load_suppressions(SUPPRESSIONS_FILE))
+    if suppressed:
+        print(f"suppressed {len(suppressed)} known-noise finding(s) by rule", file=sys.stderr)
+    return filtered
+
+
 def _render_metrics(m: Metrics) -> str:
     return (
         f"cases: {m.total}  (tp={m.tp} fp={m.fp} tn={m.tn} fn={m.fn})\n"
@@ -168,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
     audit_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     audit_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
+    audit_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
 
     scan_p = sub.add_parser("scan", help="audit a whole directory tree (deep, capability by capability)")
     scan_p.add_argument("directory", help="directory to scan")
@@ -185,6 +196,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     scan_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
+    scan_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
 
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
     run_p.add_argument("task", help="task name")
@@ -192,6 +204,7 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--tasks", default=TASKS_DIR, help="task YAML directory")
     run_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     run_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
+    run_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
 
     eval_p = sub.add_parser("eval", help="score golden cases and report precision/recall")
     eval_p.add_argument("--golden", default=GOLDEN_DIR, help="golden case YAML directory")
@@ -214,6 +227,7 @@ def main(argv: list[str] | None = None) -> int:
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
         )
+        results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))
         return 0
 
@@ -234,6 +248,7 @@ def main(argv: list[str] | None = None) -> int:
             max_chars=args.max_chars,
             with_callers=args.callers,
         )
+        results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))
         return 0
 
@@ -245,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
         results = run_task(
             tasks[args.task], DiffSource(_read_diff(args.diff)), load_capabilities(args.capabilities)
         )
+        results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))
         return 0
 

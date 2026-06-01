@@ -47,8 +47,12 @@ git diff | codejury audit --provider anthropic
 | `codejury run <task>` | Run a named task preset (see [Tasks](#tasks)). |
 | `codejury eval` | Score the golden cases and report precision / recall. |
 
-Shared flags: `--orchestrator {single,pipeline,debate,reflexion}`,
+Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge}`,
 `--provider {anthropic,openai,litellm}`, `--model`, `--format {text,markdown,json}`.
+
+Findings in known-noise categories (availability/DoS, rate limiting, memory safety
+outside C/C++) are dropped by versioned rules in
+`codejury/data/suppressions.yaml`; disable with `--no-suppress`.
 
 ```bash
 # Multi-round adversarial debate, rendered as Markdown
