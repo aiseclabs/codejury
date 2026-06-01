@@ -11,6 +11,7 @@ import os
 from codejury.agents.base import Agent
 from codejury.agents.debate import ChallengerAgent, FinderAgent, JudgeAgent
 from codejury.agents.verifier import VerifierAgent
+from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.result import AnalysisResult
@@ -66,15 +67,24 @@ def build_orchestration(
     return verifier, SingleOrchestrator()
 
 
-def run_over_source(
-    source: Source,
+def run_over_artifacts(
+    artifacts: list[CodeArtifact],
     capabilities: list[Capability],
     agents: dict[str, Agent],
     orchestrator: Orchestrator,
 ) -> list[tuple[str, AnalysisResult]]:
     """Run the orchestration over each artifact, returning (path, result) per artifact."""
     results = []
-    for artifact in source.list_artifacts():
+    for artifact in artifacts:
         ctx = AnalysisContext(artifact=artifact, capabilities=capabilities)
         results.append((artifact.path, orchestrator.run(agents, ctx)))
     return results
+
+
+def run_over_source(
+    source: Source,
+    capabilities: list[Capability],
+    agents: dict[str, Agent],
+    orchestrator: Orchestrator,
+) -> list[tuple[str, AnalysisResult]]:
+    return run_over_artifacts(source.list_artifacts(), capabilities, agents, orchestrator)

@@ -20,6 +20,7 @@ from codejury.assembly import (
     STRATEGIES,
     build_orchestration,
     make_provider,
+    run_over_artifacts,
     run_over_source,
 )
 from codejury.domain.artifact import CodeArtifact
@@ -33,7 +34,9 @@ from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 from codejury.reporting import to_json, to_markdown
 from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, TASKS_DIR
+from codejury.sources.chunker import Chunker
 from codejury.sources.diff import DiffSource
+from codejury.sources.repo import RepoSource
 from codejury.tasks.base import run_task
 from codejury.tasks.registry import load_tasks
 
@@ -67,6 +70,29 @@ def audit(
     """Audit each changed file in `diff_text`, returning (path, result) per file."""
     agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
     return run_over_source(DiffSource(diff_text), capabilities, agents, orchestrator)
+
+
+def scan(
+    directory: str,
+    capabilities: list[Capability],
+    *,
+    provider: Provider,
+    model: str,
+    max_tokens: int = 2048,
+    strategy: str = "pipeline",
+    extensions: tuple[str, ...] = (".py",),
+    max_chars: int = 8000,
+) -> list[tuple[str, AnalysisResult]]:
+    """Audit every matching file in a directory tree, returning (path, result) per artifact."""
+    source = RepoSource(directory, extensions=extensions, chunker=Chunker(max_chars=max_chars))
+    artifacts = source.list_artifacts()
+    calls = len(artifacts) * len(capabilities)
+    print(
+        f"scanning {len(artifacts)} artifacts x {len(capabilities)} capabilities (~{calls} model calls)",
+        file=sys.stderr,
+    )
+    agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
+    return run_over_artifacts(artifacts, capabilities, agents, orchestrator)
 
 
 def _render_dry_run(result: AnalysisResult) -> str:
@@ -140,6 +166,20 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
     audit_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
 
+    scan_p = sub.add_parser("scan", help="audit a whole directory tree (deep, capability by capability)")
+    scan_p.add_argument("directory", help="directory to scan")
+    scan_p.add_argument("--ext", default=".py", help="comma-separated file extensions (default .py)")
+    scan_p.add_argument("--only", default=None, help="comma-separated capability ids to scan (default: all)")
+    scan_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
+    scan_p.add_argument("--orchestrator", choices=STRATEGIES, default="pipeline")
+    scan_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
+    scan_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
+    scan_p.add_argument("--model", default=DEFAULT_MODEL)
+    scan_p.add_argument("--max-tokens", type=int, default=2048)
+    scan_p.add_argument("--max-chars", type=int, default=8000, help="chunk budget for large files")
+    scan_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
+    scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
+
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
     run_p.add_argument("task", help="task name")
     run_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
@@ -167,6 +207,25 @@ def main(argv: list[str] | None = None) -> int:
             model=args.model,
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
+        )
+        print(_render_results(args.fmt, results))
+        return 0
+
+    if args.command == "scan":
+        capabilities = load_capabilities(args.capabilities)
+        if args.only:
+            wanted = {x.strip() for x in args.only.split(",")}
+            capabilities = [c for c in capabilities if c.id in wanted]
+        extensions = tuple(e if e.startswith(".") else "." + e for e in args.ext.split(","))
+        results = scan(
+            args.directory,
+            capabilities,
+            provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base),
+            model=args.model,
+            max_tokens=args.max_tokens,
+            strategy=args.orchestrator,
+            extensions=extensions,
+            max_chars=args.max_chars,
         )
         print(_render_results(args.fmt, results))
         return 0

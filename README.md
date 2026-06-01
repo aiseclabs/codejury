@@ -81,6 +81,20 @@ git diff | codejury audit --provider litellm \
 codejury dry-run
 ```
 
+### Scanning a whole repository
+
+`audit` and `run` look at a diff (cheap, day-to-day). To audit a whole tree, use
+`scan`, which walks the directory, chunks large files, and checks each one:
+
+```bash
+# Deep scan, scoped to a few capabilities to keep the call count down
+codejury scan ./myrepo --provider litellm --only secrets,input_validation,crypto
+```
+
+`scan` defaults to the `pipeline` orchestrator (one capability fails without
+aborting the rest). Cost scales as files x capabilities, so it is a periodic
+deep audit rather than a quick check -- use `--only` to scope it.
+
 `audit` and `run` read a diff from a file argument or stdin (`-`). The provider
 key is read from the environment: `ANTHROPIC_API_KEY` for `--provider anthropic`,
 `OPENAI_API_KEY` for `--provider openai`. Without a key the model providers

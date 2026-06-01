@@ -97,3 +97,20 @@ def test_render_observation_covers_each_kind():
     assert "VULNERABLE" in verdict and "PWD-BAD-1" in verdict
     assert "FINDING" in finding and "weak hash" in finding and "CWE-916" in finding
     assert "DISMISSED" in concession and "just a checksum" in concession
+
+
+def test_scan_audits_each_file_in_a_tree(tmp_path):
+    from codejury.cli import scan
+
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "a.py").write_text("x = hashlib.sha256(pwd)\n", encoding="utf-8")
+    (tmp_path / "pkg" / "b.py").write_text("y = bcrypt.hashpw(pwd, salt)\n", encoding="utf-8")
+    (tmp_path / "notes.md").write_text("ignored\n", encoding="utf-8")  # wrong extension
+
+    cap = Capability(id="authn", name="Authentication")
+    reply = json.dumps({"verdicts": [{"sub_capability": "password_storage", "status": "VULNERABLE"}]})
+
+    results = scan(str(tmp_path), [cap], provider=MockProvider(default=reply), model="m", strategy="pipeline")
+
+    assert [path for path, _ in results] == ["a.py", "pkg/b.py"]  # only .py, sorted, relative
+    assert results[0][1].observations[0].capability == "authn.password_storage"
