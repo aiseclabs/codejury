@@ -9,7 +9,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from codejury.assembly import DEFAULT_MODEL, build_orchestration, make_provider, run_over_source
+from codejury.assembly import (
+    DEFAULT_API_BASE,
+    DEFAULT_API_KEY,
+    DEFAULT_MODEL,
+    build_orchestration,
+    make_provider,
+    run_over_source,
+)
 from codejury.domain.capability import Capability
 from codejury.domain.result import AnalysisResult
 from codejury.sources.base import Source
@@ -24,6 +31,7 @@ class Task:
     capabilities: tuple[str, ...] | None = None  # capability ids to check; None = all
     max_tokens: int = 2048
     retries: int = 0  # provider retry attempts on transient failure
+    api_base: str | None = None  # provider base URL (e.g. a LiteLLM proxy); the key stays in the env
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Task:
@@ -36,6 +44,7 @@ class Task:
             capabilities=tuple(caps) if caps is not None else None,
             max_tokens=int(data.get("max_tokens", 2048)),
             retries=int(data.get("retries", 0)),
+            api_base=data.get("api_base"),
         )
 
     def select(self, capabilities: list[Capability]) -> list[Capability]:
@@ -48,7 +57,13 @@ class Task:
 def run_task(
     task: Task, source: Source, capabilities: list[Capability]
 ) -> list[tuple[str, AnalysisResult]]:
-    provider = make_provider(task.provider, retries=task.retries)
+    # api_base may come from the task (non-secret URL); the key only from the env.
+    provider = make_provider(
+        task.provider,
+        api_key=DEFAULT_API_KEY,
+        api_base=task.api_base or DEFAULT_API_BASE,
+        retries=task.retries,
+    )
     agents, orchestrator = build_orchestration(
         task.orchestrator, provider=provider, model=task.model, max_tokens=task.max_tokens
     )

@@ -16,6 +16,31 @@ def test_from_dict_parses_and_defaults():
     assert task.capabilities == ("authn", "crypto")
     assert task.provider == "anthropic"  # default
     assert task.max_tokens == 2048  # default
+    assert task.api_base is None  # default
+
+
+def test_from_dict_reads_api_base():
+    task = Task.from_dict({"name": "t", "provider": "litellm", "api_base": "https://proxy.example"})
+    assert task.api_base == "https://proxy.example"
+
+
+def test_run_task_forwards_proxy_config_with_key_from_env(monkeypatch):
+    captured = {}
+
+    def fake_make_provider(name, **kwargs):
+        captured["name"] = name
+        captured.update(kwargs)
+        return MockProvider(default='{"verdicts": []}')
+
+    monkeypatch.setattr("codejury.tasks.base.make_provider", fake_make_provider)
+    monkeypatch.setattr("codejury.tasks.base.DEFAULT_API_KEY", "sk-from-env")
+
+    task = Task(name="t", provider="litellm", api_base="https://proxy.example")
+    run_task(task, MockSource(), [Capability(id="authn", name="A")])
+
+    assert captured["name"] == "litellm"
+    assert captured["api_base"] == "https://proxy.example"  # from the task
+    assert captured["api_key"] == "sk-from-env"  # from the environment, not the task
 
 
 def test_select_filters_by_id_and_none_means_all():
