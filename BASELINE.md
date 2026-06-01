@@ -100,3 +100,18 @@ improvements are logged here rather than overwriting them.
   model -- it is saturated. To stay a useful fitness function the golden set
   needs harder cases (more cross-file/taint, adversarial negatives); 1.00 is a
   reason to grow the corpus, not to stop measuring.
+
+- **2026-06-01 -- corpus hardened (golden 37 -> 47), discrimination restored.**
+  Added 10 human-reviewed cases: cross-file pairs decided by provenance (an
+  identical-sink path pair, raw-param vs basename-sanitized caller; an IDOR
+  pair) and adversarial single-file cases (SQL concat split across variables, a
+  bypassable substring SSRF allowlist, `hashlib.new("md5")` for passwords;
+  `ast.literal_eval`, constant-only SQL concat, `textContent`). The eval harness
+  gained a `context` field so cross-file cases feed the caller/callee to the
+  verifier. New overall on 47 cases: **P 0.88 / R 1.00 / F1 0.94** -- recall
+  still perfect, precision down because the model over-flags all three
+  safe-but-scary negatives (`literal_eval_safe`, `sql_constant_concat_safe`, and
+  the cross-file `xfile_path_sanitized_safe`, all `input_validation`). That
+  precision dip is intentional: these are the precision and cross-file
+  provenance gaps P1 targets, now measurable instead of hidden by a saturated
+  corpus.
