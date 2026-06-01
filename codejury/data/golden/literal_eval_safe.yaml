@@ -1,0 +1,14 @@
+# Adversarial negative: ast.literal_eval reads like eval but cannot execute code.
+capability: input_validation
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+split: held-out
+notes: >
+  ast.literal_eval only parses Python literals (numbers, strings, tuples, dicts);
+  it does not evaluate names, calls, or operators, so untrusted input cannot run
+  code. Flagging it as code injection because "eval" appears is a false positive.
+code: |
+  def parse(request):
+      return ast.literal_eval(request.data)

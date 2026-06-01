@@ -1,0 +1,14 @@
+# Adversarial positive: weak password hash hidden behind hashlib.new(variable).
+capability: authn
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-916
+source: synthetic
+notes: >
+  hashlib.new("md5") is the same weak, unsalted, fast hash as hashlib.md5(), just
+  reached through a variable algorithm name. Unsuitable for password storage
+  (needs bcrypt/scrypt/argon2). The indirection should not hide it.
+code: |
+  def hash_pw(pw):
+      algo = "md5"
+      return hashlib.new(algo, pw.encode()).hexdigest()

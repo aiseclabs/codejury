@@ -1,0 +1,21 @@
+capability: authz
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  get_invoice() enforces ownership (owner_id != current_user.id -> Forbidden) and
+  the caller passes the authenticated user, so a user can only read their own
+  invoice. Safe.
+code: |
+  def get_invoice(current_user, invoice_id):
+      inv = db.invoices.find(invoice_id)
+      if inv.owner_id != current_user.id:
+          raise Forbidden()
+      return inv
+context: |
+  # routes.py -- the only caller of get_invoice()
+  @app.route("/invoice/<invoice_id>")
+  @login_required
+  def view(invoice_id):
+      return get_invoice(g.current_user, invoice_id)

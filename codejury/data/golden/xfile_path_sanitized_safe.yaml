@@ -1,0 +1,22 @@
+# Cross-file pair with xfile_path_tainted_vuln: identical `code`, opposite
+# label, decided entirely by `context`.
+capability: input_validation
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+split: held-out
+notes: >
+  serve() is byte-for-byte the vulnerable case, but its only caller strips the
+  directory components with os.path.basename before calling, so serve() can only
+  ever receive a bare filename. Safe -- provable only by reading the caller.
+  Single-file review of serve() alone would (wrongly) flag it.
+code: |
+  def serve(name):
+      return open(os.path.join(STATIC_DIR, name)).read()
+context: |
+  # handlers.py -- the only caller of serve()
+  @app.route("/download")
+  def download():
+      name = os.path.basename(request.args["name"])   # directory components stripped
+      return serve(name)
