@@ -128,3 +128,25 @@ improvements are logged here rather than overwriting them.
   the signed P1 gate (input_validation R >= 0.90 with P >= 0.95). `eval` now
   takes `--orchestrator`, so strategies are measurable against the golden set.
   Caveat: this corpus is single-file/synthetic; P1-05 validates on a real repo.
+
+- **2026-06-01 -- P1-05 real-repo check (python-multipart CVE-2026-24486).**
+  Scanned the vulnerable (0.0.21) and fixed (0.0.22) `multipart.py` -- the fix is
+  exactly `os.path.basename` before `os.path.splitext` of the upload filename --
+  with `--orchestrator single` vs `taint`. Findings:
+  - The taint gate was **inert** on this real file: it dismissed 0 findings in
+    every run. `worst_sink_taint` never reached SAFE because the sink paths are
+    built from instance/config attributes and streaming state, which the
+    one-hop AST engine marks UNKNOWN (UNKNOWN is not SAFE). The gate stayed
+    recall-safe (no false downgrades) but gave no precision gain here.
+  - The verifier under-flagged the CVE on the 1872-line file (PARTIAL at most,
+    never VULNERABLE, for both versions) -- a whole-file-review recall limit on
+    large modules, independent of the gate.
+  - Output drifted between identical-input runs: the proxy is not perfectly
+    temperature 0.
+
+  Conclusion (proposed, human-signed): the gate mechanism is validated on the
+  golden set, but decisive real-world taint precision needs a deeper code graph
+  (multi-hop + attribute/field tracking), not a looser gate -- loosening UNKNOWN
+  to "safe" would trade recall, which is the wrong trade for a security tool. P1
+  ships the provenance engine and the conservative `taint` strategy; the deeper
+  graph is future work. Real-repo thresholds remain unset pending that work.

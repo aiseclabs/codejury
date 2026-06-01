@@ -44,10 +44,17 @@ The executable specs live in a separate planning document. High level:
   keyed on code + capability fingerprint + orchestration) and SARIF output
   (`--format sarif`) are in place; the baseline is recorded and the gate
   thresholds are human-signed (`BASELINE.md`, Thresholds below).
-- **P1 -- Context / code-graph engine.** Cross-file source->sink tracing
-  (tree-sitter / scope + import graph) to give the model provenance (is a value
-  attacker-controlled?). This is the real fix for the taint floor. Start from the
-  existing `scan --callers/--callees` cross-file context.
+- **P1 -- Context / code-graph engine.** Cross-file source->sink tracing to give
+  the model provenance (is a value attacker-controlled?). *Shipped a first
+  engine* (`codejury/analysis/`): a Python-AST value-origin tracer, a signed
+  taint vocabulary (`data/taint.yaml`), an intra-procedural + one-hop cross-file
+  classifier, and the conservative `--orchestrator taint` gate. On the golden set
+  it lifts input_validation precision 0.75 -> 1.00 with recall held (clears the
+  P1 gate). P1-05 measured the real-repo gap (python-multipart CVE-2026-24486):
+  the one-hop AST engine is too shallow for sink paths built from instance/config
+  attributes, so the gate is recall-safe but inert there. *Remaining*: a deeper
+  graph (multi-hop + attribute/field tracking, tree-sitter for other languages)
+  is the real fix; the conservative gate must not be loosened at recall's expense.
 - **P2 -- Verification / proof.** For high-severity VULNERABLE, generate and run a
   PoC in an isolated sandbox to separate "proven exploitable" from "suspected".
   Sandbox never touches real environment / network / credentials.
