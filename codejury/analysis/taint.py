@@ -32,6 +32,7 @@ from codejury.analysis.provenance import (
     access_root,
     assignments,
     callee,
+    find_calls,
     parameters,
 )
 from codejury.resources import TAINT_FILE
@@ -95,36 +96,45 @@ def is_safe_sink(call: ast.Call, vocab: TaintVocab) -> bool:
     return _callee_in(call, vocab.safe_sinks)
 
 
-def taint_of(func: ast.FunctionDef | ast.AsyncFunctionDef, expr: ast.AST, vocab: TaintVocab) -> Taint:
-    """Classify the taint of ``expr`` within ``func`` using the vocabulary."""
-    return _walk(func, expr, vocab, assignments(func), parameters(func), frozenset())
+def taint_of(
+    func: ast.AST,
+    expr: ast.AST,
+    vocab: TaintVocab,
+    *,
+    resolve_param=None,
+) -> Taint:
+    """Classify the taint of ``expr`` within ``func`` using the vocabulary.
+
+    ``resolve_param`` is an optional ``(name) -> Taint`` callback; when given, a
+    value that reaches a parameter is resolved through it (the cross-file caller
+    hop, P1-03b) instead of returning PARAM.
+    """
+    return _walk(func, expr, vocab, assignments(func), parameters(func), frozenset(), resolve_param)
 
 
-def _walk(func, expr, vocab, assigns, params, seen) -> Taint:
+def _walk(func, expr, vocab, assigns, params, seen, resolve) -> Taint:
+    def w(e):
+        return _walk(func, e, vocab, assigns, params, seen, resolve)
+
     if isinstance(expr, ast.Constant):
         return Taint.CONSTANT
     if isinstance(expr, ast.JoinedStr):
-        parts = [Taint.CONSTANT]
-        parts += [_walk(func, v.value, vocab, assigns, params, seen)
-                  for v in expr.values if isinstance(v, ast.FormattedValue)]
-        return _combine(parts)
+        return _combine([Taint.CONSTANT] + [w(v.value) for v in expr.values if isinstance(v, ast.FormattedValue)])
     if isinstance(expr, ast.BinOp):
-        return _combine([_walk(func, expr.left, vocab, assigns, params, seen),
-                         _walk(func, expr.right, vocab, assigns, params, seen)])
+        return _combine([w(expr.left), w(expr.right)])
     if isinstance(expr, ast.BoolOp):
-        return _combine([_walk(func, v, vocab, assigns, params, seen) for v in expr.values])
+        return _combine([w(v) for v in expr.values])
     if isinstance(expr, ast.IfExp):
-        return _combine([_walk(func, expr.body, vocab, assigns, params, seen),
-                         _walk(func, expr.orelse, vocab, assigns, params, seen)])
+        return _combine([w(expr.body), w(expr.orelse)])
     if isinstance(expr, (ast.List, ast.Tuple, ast.Set)):
-        return _combine([_walk(func, e, vocab, assigns, params, seen) for e in expr.elts] or [Taint.CONSTANT])
+        return _combine([w(e) for e in expr.elts] or [Taint.CONSTANT])
     if isinstance(expr, ast.Call):
         if _callee_in(expr, vocab.sanitizers):
             return Taint.SANITIZED            # a sanitizer cleans its result regardless of input
         if _callee_in(expr, vocab.sources):
             return Taint.EXTERNAL             # e.g. input()
         if _callee_in(expr, vocab.propagators) or _callee_in(expr, vocab.safe_sinks):
-            return _combine([_walk(func, a, vocab, assigns, params, seen) for a in expr.args] or [Taint.CONSTANT])
+            return _combine([w(a) for a in expr.args] or [Taint.CONSTANT])
         return Taint.UNKNOWN                  # unknown call -- a cross-file hop may resolve it later
     if isinstance(expr, (ast.Attribute, ast.Subscript)):
         path = access_path(expr)
@@ -132,16 +142,18 @@ def _walk(func, expr, vocab, assigns, params, seen) -> Taint:
             return Taint.EXTERNAL
         if path and _access_in(path, vocab.trusted):
             return Taint.TRUSTED
-        if access_root(expr) in params:
-            return Taint.PARAM                # attribute of a parameter -- resolve at call site
+        root = access_root(expr)
+        if root in params:                    # attribute of a parameter -- resolve at call site
+            return resolve(root) if resolve else Taint.PARAM
         return Taint.UNKNOWN                  # unknown object attribute (e.g. self.x): not provably safe
     if isinstance(expr, ast.Name):
         if expr.id in seen:
             return Taint.CONSTANT             # assignment cycle: no new information
         if expr.id in params:
-            return Taint.PARAM
+            return resolve(expr.id) if resolve else Taint.PARAM
         if expr.id in assigns:
-            return _combine([_walk(func, r, vocab, assigns, params, seen | {expr.id}) for r in assigns[expr.id]])
+            return _combine([_walk(func, r, vocab, assigns, params, seen | {expr.id}, resolve)
+                             for r in assigns[expr.id]])
         return Taint.TRUSTED                  # free module global / builtin -- conventionally a constant
     return Taint.UNKNOWN
 
@@ -164,3 +176,70 @@ def _callee_in(call: ast.Call, names: tuple[str, ...]) -> bool:
 def _access_in(path: str, prefixes: tuple[str, ...]) -> bool:
     # "request.args" matches the source "request.args" and also "request.args.get"
     return any(path == p or path.startswith(p + ".") for p in prefixes)
+
+
+# --- cross-file one-hop resolution (P1-03b) ---------------------------------
+
+def taint_in_repo(
+    func: ast.FunctionDef | ast.AsyncFunctionDef,
+    expr: ast.AST,
+    vocab: TaintVocab,
+    files: dict[str, str],
+) -> Taint:
+    """Classify ``expr`` in ``func``, resolving a value that reaches a parameter by
+    looking one hop up at how ``func`` is called across ``files``.
+
+    Combines all call sites: if any caller passes an attacker-controlled value the
+    result is EXTERNAL; if every caller passes a sanitized/constant/trusted value it
+    is safe. With no caller found, the parameter stays UNKNOWN (not assumed safe).
+    """
+    return taint_of(func, expr, vocab, resolve_param=_caller_resolver(func, files, vocab))
+
+
+def _caller_resolver(func, files, vocab):
+    def resolve(param_name: str) -> Taint:
+        index = _param_index(func, param_name)
+        results = []
+        for scope, call in _call_sites(func.name, files):
+            arg = _arg_for_param(call, index, param_name)
+            # one hop only: classify the caller's argument without recursing further
+            results.append(taint_of(scope, arg, vocab) if arg is not None else Taint.UNKNOWN)
+        return _combine(results) if results else Taint.UNKNOWN
+    return resolve
+
+
+def _param_index(func, name: str) -> int | None:
+    positional = [*func.args.posonlyargs, *func.args.args]
+    for i, arg in enumerate(positional):
+        if arg.arg == name:
+            return i
+    return None  # keyword-only or *args: matched by keyword at the call site instead
+
+
+def _arg_for_param(call: ast.Call, index: int | None, name: str) -> ast.AST | None:
+    if index is not None and index < len(call.args):
+        return call.args[index]
+    for kw in call.keywords:
+        if kw.arg == name:
+            return kw.value
+    return None
+
+
+def _call_sites(name: str, files: dict[str, str]) -> list[tuple[ast.AST, ast.Call]]:
+    sites = []
+    for source in files.values():
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            continue
+        funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        for call in find_calls(tree, name):
+            sites.append((_enclosing_scope(funcs, call) or tree, call))
+    return sites
+
+
+def _enclosing_scope(funcs: list[ast.AST], call: ast.Call) -> ast.AST | None:
+    containing = [f for f in funcs if any(node is call for node in ast.walk(f))]
+    if not containing:
+        return None  # module-level call site
+    return min(containing, key=lambda f: sum(1 for _ in ast.walk(f)))  # innermost

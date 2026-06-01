@@ -147,8 +147,10 @@ def _merge_all(exprs: list[ast.AST], params, assigns, seen) -> Origin:
     return origin
 
 
-def _params(func: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
-    a = func.args
+def _params(func: ast.AST) -> set[str]:
+    a = getattr(func, "args", None)
+    if a is None:  # a module-level scope has no parameters
+        return set()
     names = {arg.arg for arg in (*a.posonlyargs, *a.args, *a.kwonlyargs)}
     if a.vararg:
         names.add(a.vararg.arg)
