@@ -125,6 +125,11 @@ independently.
 - **Prompts are a first pass.** Expect false positives and misses on real code.
   Tune by editing the capability YAML and growing the golden set; measure the
   effect with `codejury eval`.
+- **Local-pattern checks are sharper than data-flow ones.** Capabilities judged
+  from one spot (weak crypto, hardcoded secrets) are reliable; taint / data-flow
+  ones like path traversal over-flag in single-file review because the verifier
+  can't see whether a value is attacker-controlled. Scope them out with `--only`,
+  or use `--orchestrator debate` to challenge findings.
 - **`scan` cost scales as files x capabilities.** It is a periodic deep audit,
   not a quick check -- scope it with `--only`. Day to day, audit the diff.
 
