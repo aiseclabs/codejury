@@ -1,0 +1,120 @@
+"""Render a list of Findings as text, markdown, JSON, or SARIF, and gate on
+severity for CI.
+"""
+
+from __future__ import annotations
+
+import json
+
+from codejury.domain.finding import Finding
+
+_SARIF_LEVEL = {"CRITICAL": "error", "HIGH": "error", "MEDIUM": "warning", "LOW": "note"}
+_SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+_GATE_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+
+def _loc(f: Finding) -> str:
+    return f"{f.file}:{f.line}" if f.line else f.file
+
+
+def _sorted(findings: list[Finding]) -> list[Finding]:
+    return sorted(findings, key=lambda f: (_SEVERITY_ORDER.get(f.severity, 4), f.file, f.line or 0))
+
+
+def severity_breakdown(findings: list[Finding]) -> dict[str, int]:
+    out = {s: 0 for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")}
+    for f in findings:
+        out[f.severity] = out.get(f.severity, 0) + 1
+    return out
+
+
+def to_text(findings: list[Finding]) -> str:
+    if not findings:
+        return "no findings"
+    lines = []
+    for f in _sorted(findings):
+        cat = f" {f.category}" if f.category else ""
+        lines.append(f"[{f.severity}]{cat} {_loc(f)}  (confidence {f.confidence:.2f})")
+        if f.description:
+            lines.append(f"  {f.description}")
+        if f.exploit_scenario:
+            lines.append(f"  exploit: {f.exploit_scenario}")
+    return "\n".join(lines)
+
+
+def to_markdown(findings: list[Finding]) -> str:
+    if not findings:
+        return "## Security review\n\nNo findings.\n"
+    b = severity_breakdown(findings)
+    out = ["## Security review", "",
+           f"{b['CRITICAL']} critical, {b['HIGH']} high, {b['MEDIUM']} medium, {b['LOW']} low.", ""]
+    for f in _sorted(findings):
+        cat = f" ({f.category})" if f.category else ""
+        out.append(f"### {f.severity}{cat} — `{_loc(f)}`")
+        if f.description:
+            out.append(f"\n{f.description}")
+        if f.exploit_scenario:
+            out.append(f"\n**Exploit:** {f.exploit_scenario}")
+        if f.recommendation:
+            out.append(f"\n**Fix:** {f.recommendation}")
+        out.append("")
+    return "\n".join(out)
+
+
+def to_json(findings: list[Finding]) -> str:
+    return json.dumps(
+        {"findings": [f.to_dict() for f in _sorted(findings)], "summary": severity_breakdown(findings)},
+        indent=2, ensure_ascii=False,
+    )
+
+
+def to_sarif(findings: list[Finding]) -> str:
+    rules: list[dict] = []
+    rule_index: dict[str, int] = {}
+    results = []
+    for f in _sorted(findings):
+        if not f.file:
+            continue  # a finding needs a location to be reportable
+        rule_id = f.category or "security"
+        if rule_id not in rule_index:
+            rule_index[rule_id] = len(rules)
+            rules.append({"id": rule_id, "name": rule_id,
+                          "shortDescription": {"text": f"codejury: {rule_id}"}})
+        region: dict = {}
+        if f.line:
+            region = {"startLine": f.line}
+        physical = {"artifactLocation": {"uri": f.file}}
+        if region:
+            physical["region"] = region
+        results.append({
+            "ruleId": rule_id,
+            "ruleIndex": rule_index[rule_id],
+            "level": _SARIF_LEVEL.get(f.severity, "warning"),
+            "message": {"text": f.description or f.category or "security finding"},
+            "locations": [{"physicalLocation": physical}],
+            "properties": {"severity": f.severity, "category": f.category,
+                           "confidence": f.confidence, "exploitScenario": f.exploit_scenario},
+        })
+    log = {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [{"tool": {"driver": {"name": "codejury",
+                                      "informationUri": "https://github.com/aiseclabs/codejury",
+                                      "rules": rules}},
+                  "results": results}],
+    }
+    return json.dumps(log, indent=2, ensure_ascii=False)
+
+
+def render(fmt: str, findings: list[Finding]) -> str:
+    return {"text": to_text, "markdown": to_markdown, "json": to_json, "sarif": to_sarif}[fmt](findings)
+
+
+def gate(findings: list[Finding], fail_on: str | None) -> bool:
+    """True if any finding is at or above ``fail_on`` (critical|high|medium|low)."""
+    if not fail_on:
+        return False
+    threshold = _GATE_RANK.get(fail_on.lower())
+    if threshold is None:
+        return False
+    return any(_GATE_RANK.get(f.severity.lower(), 9) <= threshold for f in findings)
