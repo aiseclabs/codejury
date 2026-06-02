@@ -19,6 +19,7 @@ from codejury.diff.debate_prompts import (
     finder_prompt,
     judge_prompt,
 )
+from codejury.diff.rules import rules_for_diff
 from codejury.domain.finding import Finding, findings_from_list
 from codejury.infrastructure.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
@@ -58,6 +59,8 @@ class AdversarialAuditRunner:
         return extract_json_object(result.text) or {}
 
     def run(self, diff: str, *, rules: str = "", context: str = "", max_rounds: int = 3) -> AdversarialResult:
+        if not rules:
+            rules = rules_for_diff(diff)  # inject the rules relevant to this diff
         prior: list[dict] = []
         prev_keys: set | None = None
         judged = AdversarialResult(findings=[])
