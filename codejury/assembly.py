@@ -12,6 +12,8 @@ from codejury.agents.base import Agent
 from codejury.agents.debate import ChallengerAgent, FinderAgent, JudgeAgent
 from codejury.agents.refuter import RefuterAgent
 from codejury.agents.skill_runner import SkillRunner
+from codejury.analysis.attack_path import attach_suspected_paths
+from codejury.analysis.taint import load_vocab
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.context import AnalysisContext
 from codejury.domain.result import AnalysisResult
@@ -115,6 +117,7 @@ def run_over_artifacts_with_skills(
     applies_to filter, then the optional router). verdict_key duck-types on each
     skill's id and fingerprint, so the determinism cache works unchanged."""
     results = []
+    vocab = load_vocab()  # once: the attack-path synthesizer reuses it per artifact
     for artifact in artifacts:
         skills = selector.select(artifact, router=router)
         if cache is not None:
@@ -125,6 +128,7 @@ def run_over_artifacts_with_skills(
                 continue
         ctx = AnalysisContext(artifact=artifact, skills=skills)
         result = orchestrator.run(agents, ctx)
+        result = attach_suspected_paths(result, artifact, vocab=vocab)
         if cache is not None:
             cache.put(key, result)
         results.append((artifact.path, result))

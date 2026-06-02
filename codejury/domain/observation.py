@@ -41,6 +41,21 @@ class Evidence:
     code: str = ""
 
 
+PathRole = Literal["source", "propagation", "sink"]
+
+
+@dataclass(frozen=True, kw_only=True)
+class PathStep:
+    """One hop of an attack path: where untrusted input enters (source), passes
+    through (propagation), or reaches the dangerous operation (sink). Every step
+    is anchored to a real code location, so a path is never pure narration."""
+
+    file: str
+    line: int | None = None
+    role: PathRole = "propagation"
+    note: str = ""
+
+
 @dataclass(kw_only=True)
 class Observation:
     """Base class carrying provenance shared by every observation."""
@@ -69,6 +84,10 @@ class Finding(Observation):
     recommendation: str = ""
     matched_anti: list[str] = field(default_factory=list)  # anti_pattern ids hit
     confidence: float = 0.5
+    # source -> sink hops; empty unless synthesized. suspected (proven=False) until
+    # a real data-flow graph confirms it (P6-05).
+    attack_path: list[PathStep] = field(default_factory=list)
+    attack_path_proven: bool = False
 
     kind: ClassVar[ObservationKind] = "finding"
 
@@ -88,6 +107,10 @@ class Verdict(Observation):
     matched_anti: list[str] = field(default_factory=list)      # anti_pattern ids hit
     cwe: str = ""              # resolved from the matched anti-pattern, when known
     confidence: float = 0.5
+    # source -> sink hops; empty unless synthesized. suspected (proven=False) until
+    # a real data-flow graph confirms it (P6-05).
+    attack_path: list[PathStep] = field(default_factory=list)
+    attack_path_proven: bool = False
 
     kind: ClassVar[ObservationKind] = "verdict"
 
@@ -142,4 +165,6 @@ def observation_from_dict(data: dict[str, Any]) -> Observation:
         raise ValueError(f"unknown observation kind: {kind!r}")
     if "evidence" in data:
         data["evidence"] = [Evidence(**_only_known(Evidence, e)) for e in data["evidence"]]
+    if "attack_path" in data:
+        data["attack_path"] = [PathStep(**_only_known(PathStep, s)) for s in data["attack_path"]]
     return cls(**_only_known(cls, data))

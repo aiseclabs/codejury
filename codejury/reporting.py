@@ -160,16 +160,19 @@ def to_sarif(results: Results) -> str:
             if rule_id not in rule_index:
                 rule_index[rule_id] = len(rules)
                 rules.append(_sarif_rule(rule_id, cwe))
-            sarif_results.append(
-                {
-                    "ruleId": rule_id,
-                    "ruleIndex": rule_index[rule_id],
-                    "level": _sarif_level(o),
-                    "message": {"text": _sarif_message(o)},
-                    "locations": locations,
-                    "properties": {"capability": o.capability, "cwe": cwe, "confidence": o.confidence},
-                }
-            )
+            sarif_result = {
+                "ruleId": rule_id,
+                "ruleIndex": rule_index[rule_id],
+                "level": _sarif_level(o),
+                "message": {"text": _sarif_message(o)},
+                "locations": locations,
+                "properties": {"capability": o.capability, "cwe": cwe, "confidence": o.confidence},
+            }
+            code_flows = _sarif_code_flows(o)
+            if code_flows:
+                sarif_result["codeFlows"] = code_flows
+                sarif_result["properties"]["attackPathProven"] = getattr(o, "attack_path_proven", False)
+            sarif_results.append(sarif_result)
 
     log = {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
@@ -213,6 +216,22 @@ def _sarif_message(o: Observation) -> str:
     if o.kind == "finding":
         return o.title + (f": {o.description}" if o.description else "")
     return f"{o.status} {o.capability}" + (f": {o.reasoning}" if o.reasoning else "")
+
+
+def _sarif_code_flows(o: Observation) -> list[dict] | None:
+    """Map a synthesized attack path onto a SARIF codeFlow: one threadFlow whose
+    locations are the source -> sink hops, each tagged with its role."""
+    steps = getattr(o, "attack_path", None)
+    if not steps:
+        return None
+    tf_locations = []
+    for s in steps:
+        physical: dict = {"artifactLocation": {"uri": s.file}}
+        if s.line:
+            physical["region"] = {"startLine": s.line}
+        message = f"{s.role}: {s.note}" if s.note else s.role
+        tf_locations.append({"location": {"physicalLocation": physical, "message": {"text": message}}})
+    return [{"threadFlows": [{"locations": tf_locations}]}]
 
 
 def _sarif_locations(o: Observation) -> list[dict]:
