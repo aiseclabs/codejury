@@ -79,12 +79,17 @@ class AdversarialAuditRunner:
         """Returns (parsed object, ok). ok is False when the response could not be
         parsed into a JSON object (a provider error page, a blocked request, prose),
         so the caller can avoid treating an unusable reply as an empty result."""
-        result = self._provider.complete(
-            system=system,
-            messages=[Message(role="user", content=prompt)],
-            model=model,
-            max_tokens=self._max_tokens,
-        )
+        try:
+            result = self._provider.complete(
+                system=system,
+                messages=[Message(role="user", content=prompt)],
+                model=model,
+                max_tokens=self._max_tokens,
+            )
+        except Exception:
+            # a provider error (exhausted retries, blank body, transport failure)
+            # is an unusable reply, not an empty result; degrade gracefully
+            return {}, False
         obj = extract_json_object(result.text)
         return (obj or {}), bool(obj)
 

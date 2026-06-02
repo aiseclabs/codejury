@@ -134,6 +134,28 @@ def test_unusable_judge_includes_challenger_independent_findings():
     assert [f.category for f in out.findings] == ["idor"] and out.degraded is True
 
 
+def test_provider_exception_degrades_rather_than_crashes():
+    # a raising provider (exhausted retries, transport error) on the judge call
+    # must degrade to the unjudged finder set, not propagate and abort the run.
+    from codejury.providers.base import CompletionResult, Provider
+
+    class _RaiseOnJudge(Provider):
+        def __init__(self):
+            self.calls = 0
+
+        def complete(self, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return CompletionResult(text=_finder([_VULN]))
+            if self.calls == 2:
+                return CompletionResult(text=_challenger())
+            raise RuntimeError("provider down")
+
+    out = AdversarialAuditRunner(provider=_RaiseOnJudge(), model="m").run(_DIFF, max_rounds=1)
+    assert [f.category for f in out.findings] == ["sql_injection"]
+    assert out.degraded is True
+
+
 def test_per_role_models_are_used():
     provider = MockProvider(responses=[_finder([]), _challenger(), _judge([])], default="{}")
     AdversarialAuditRunner(

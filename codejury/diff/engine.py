@@ -14,6 +14,15 @@ from codejury.infrastructure.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 
 
+class AuditError(RuntimeError):
+    """The model reply could not be parsed into an audit result.
+
+    Raised instead of returning an empty findings list, so a failed or blank
+    call is never reported as a clean audit. The prompt requires a JSON object
+    (an empty ``{"findings": []}`` when there is nothing to report), so a reply
+    that yields no object is a failure, not a pass."""
+
+
 class AuditRunner:
     def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096) -> None:
         self._provider = provider
@@ -29,5 +38,10 @@ class AuditRunner:
             model=self._model,
             max_tokens=self._max_tokens,
         )
-        obj = extract_json_object(result.text) or {}
+        obj = extract_json_object(result.text)
+        if obj is None:
+            raise AuditError(
+                "could not parse a JSON audit result from the model reply; "
+                "treating it as a failed audit rather than a clean pass"
+            )
         return findings_from_list(obj.get("findings"))

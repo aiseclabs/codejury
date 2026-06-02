@@ -60,8 +60,17 @@ def test_engine_empty_on_no_findings():
     assert AuditRunner(provider=MockProvider(default='{"findings": []}'), model="m").run(_DIFF) == []
 
 
-def test_engine_tolerates_garbage_reply():
-    assert AuditRunner(provider=MockProvider(default="not json"), model="m").run(_DIFF) == []
+def test_engine_raises_on_unparseable_reply():
+    # an unusable reply (provider error page, blank body, prose) must not be
+    # reported as a clean audit; it is a failure
+    import pytest
+
+    from codejury.diff.engine import AuditError
+
+    with pytest.raises(AuditError):
+        AuditRunner(provider=MockProvider(default="not json"), model="m").run(_DIFF)
+    with pytest.raises(AuditError):
+        AuditRunner(provider=MockProvider(default=""), model="m").run(_DIFF)
 
 
 def test_prompt_carries_diff_focus_and_do_not_report():

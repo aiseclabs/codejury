@@ -1,7 +1,7 @@
 import pytest
 
 from codejury.providers.base import CompletionResult, Message, Provider
-from codejury.providers.retry import RetryProvider
+from codejury.providers.retry import EmptyResponseError, RetryProvider
 
 
 class _Flaky(Provider):
@@ -47,3 +47,30 @@ def test_no_retry_on_first_success():
     )
     assert inner.calls == 1
     assert slept == []
+
+
+class _Blank(Provider):
+    """Returns a blank body `blank_times` times, then a real reply."""
+
+    def __init__(self, blank_times):
+        self._blank_times = blank_times
+        self.calls = 0
+
+    def complete(self, **kwargs):
+        self.calls += 1
+        return CompletionResult(text="" if self.calls <= self._blank_times else "ok")
+
+
+def test_retries_blank_body_then_succeeds():
+    inner = _Blank(blank_times=1)
+    provider = RetryProvider(inner, max_attempts=3, sleep=lambda _: None)
+    assert _call(provider).text == "ok"      # the blank 200 is retried, not passed through
+    assert inner.calls == 2
+
+
+def test_raises_when_body_blank_every_attempt():
+    inner = _Blank(blank_times=5)
+    provider = RetryProvider(inner, max_attempts=3, sleep=lambda _: None)
+    with pytest.raises(EmptyResponseError):
+        _call(provider)
+    assert inner.calls == 3
