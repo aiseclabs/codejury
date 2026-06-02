@@ -21,7 +21,7 @@ Built and shipped:
 - **Engine**: 5 orchestrators (single, pipeline, debate, reflexion, challenge);
   4 providers (anthropic, openai, litellm, mock) + opt-in retry; sources for
   diff, function, and repo (chunking + cross-file caller/callee context).
-- **Knowledge as data**: 16 skills (11 ASVS areas + OWASP LLM Top 10), each a
+- **Knowledge as data**: 15 skills (11 ASVS areas + OWASP LLM Top 10), each a
   manifest plus a prose playbook, with a data-driven suppression filter and a
   deterministic-plus-model skill selector.
 - **Delivery**: CLI (`dry-run / audit / scan / run / eval`), reports in

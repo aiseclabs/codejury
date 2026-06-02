@@ -120,11 +120,14 @@ def test_skill_is_frozen_and_hashable():
 # --- shipped skills (the migrated security knowledge base) ---
 
 _EXPECTED_SKILLS = {
-    "api_design", "architecture", "authn", "authz", "business_logic", "crypto",
-    "data_protection", "dependency_config", "error_logging", "excessive_agency",
-    "input_validation", "insecure_output_handling", "model_supply_chain",
-    "output_encoding", "prompt_injection", "secrets", "session",
+    "authn", "authz", "business_logic", "crypto", "data_protection",
+    "dependency_config", "error_logging", "excessive_agency", "input_validation",
+    "insecure_output_handling", "model_supply_chain", "output_encoding",
+    "prompt_injection", "secrets", "session",
 }
+# The 15 migrated skills. architecture and api_design were taken down pending a
+# clearer boundary and signed golden; the full-review design and api stages stay
+# wired and resume when signed skills ship.
 
 
 def test_shipped_skills_are_the_full_set():
