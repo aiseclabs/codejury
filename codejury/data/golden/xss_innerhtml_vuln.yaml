@@ -1,7 +1,0 @@
-skill: output_encoding
-split: held-out
-vulnerable: true
-code: |
-  function render(name) {
-      el.innerHTML = "Hello " + name;
-  }

@@ -1,87 +1,43 @@
 # codejury Roadmap
 
 The strategy and the "why". Companion: `CLAUDE.md` (invariants / commands /
-boundaries, loaded every session). Detailed, executable specs that turn this
-roadmap into self-checkable work units (closed by `codejury eval`) are kept in a
-separate planning document.
+architecture, loaded every session).
 
 ## Why
 
-LLM code-security review usually fails because the security knowledge is buried
-in prompts: unversioned, unshareable, untunable by non-engineers, and drifting on
-every edit. codejury makes the knowledge **data**: one versioned skill per OWASP
-ASVS area or LLM-Top-10 risk (a manifest plus a prose playbook), and keeps the
-engine small and composable (selection / orchestration / model / input axes mix
-freely). Quality is governed by an evaluation harness, not by vibes.
+LLM code-security review fails in practice for predictable reasons: a single
+pass is weak, thin rule schemas give the model little real guidance, and a
+whole-repo audit is too large for one call. codejury answers each:
 
-## Current status (0.5.1)
+- **Knowledge as rich rules.** Per-class markdown with per-language
+  vulnerable/secure examples (`data/rules/`), injected into the prompt, beats a
+  rendered checklist.
+- **Adversarial diff review.** Finder (red team, exhaustive, no self-filter),
+  Challenger (rebut false positives and independently re-scan), Judge (cross
+  validate) raises coverage and cuts false positives versus a single pass.
+- **Agent-driven whole-repo review.** Traversing a codebase from its API
+  entrypoints, following call chains, and verifying with a real PoC needs an
+  interactive agent over multiple rounds, not a per-chunk LLM call. codejury
+  ships the methodology and scaffolds the workspace.
+- **Sharp scope + human-in-the-loop.** A do-not-report list and a false-positive
+  filter keep noise down; the full-review agent confirms issues with a PoC and a
+  persistent memory of confirmed false positives.
 
-Built and shipped:
+## Capability boundaries (honest)
 
-- **Engine**: 5 orchestrators (single, pipeline, debate, reflexion, challenge);
-  4 providers (anthropic, openai, litellm, mock) + opt-in retry; sources for
-  diff, function, and repo (chunking + cross-file caller/callee context).
-- **Knowledge as data**: 17 skills (11 ASVS areas + OWASP LLM Top 10 + an
-  api_design skill for cross-endpoint concerns + an architecture skill for the
-  attack surface), each a manifest plus a prose playbook, with a data-driven
-  suppression filter and a deterministic-plus-model skill selector.
-- **Delivery**: CLI (`dry-run / audit / scan / run / eval`), reports in
-  text / markdown / json, GitHub PR inline reviews, `--fail-on` CI gate, on PyPI
-  via OIDC Trusted Publishing.
+Static AI review reliably covers code-visible classes (injection, crypto/secret
+misuse, direct auth flaws, unsafe deserialization, data-leak, bad config). It has
+limited, context-dependent coverage of authorization/IDOR, business logic, race
+conditions, second-order and cross-file flows, SSRF, XSS, and session handling,
+which need cross-file tracing or human confirmation. It does not replace
+dependency scanning, dynamic testing, pentest, or runtime defense.
 
-Known limitation (measured): taint-class detection (path traversal, SSRF) over-
-flags in single-file LLM review and cannot be fixed by prompt/context tuning
-alone; it needs real data-flow analysis (P1). Local-pattern detection (weak
-crypto, hardcoded secrets, IDOR, etc.) is reliable.
+## Direction
 
-## Phases
-
-The executable specs live in a separate planning document. High level:
-
-- **P0: Trustworthy, measurable, reproducible.** Per-capability precision /
-  recall / F1 eval with negatives and held-out split; a versioned, human-signed
-  golden set; determinism (temperature 0 + verdict cache); SARIF output; a
-  human-set baseline. *Gate to unlock P1.* Status: eval and golden exist in basic
-  form and need upgrading to spec; determinism (temperature 0 + a verdict cache
-  keyed on code + capability fingerprint + orchestration) and SARIF output
-  (`--format sarif`) are in place; the baseline is recorded and the gate
-  thresholds are human-signed (`BASELINE.md`, Thresholds below).
-- **P1: Context / code-graph engine.** Cross-file source->sink tracing to give
-  the model provenance (is a value attacker-controlled?). *Shipped a first
-  engine* (`codejury/analysis/`): a Python-AST value-origin tracer, a signed
-  taint vocabulary (`data/taint.yaml`), an intra-procedural + one-hop cross-file
-  classifier, and the conservative `--orchestrator taint` gate. On the golden set
-  it lifts input_validation precision 0.75 -> 1.00 with recall held (clears the
-  P1 gate). P1-05 measured the real-repo gap (python-multipart CVE-2026-24486):
-  the one-hop AST engine is too shallow for sink paths built from instance/config
-  attributes, so the gate is recall-safe but inert there. *Remaining*: a deeper
-  graph (multi-hop + attribute/field tracking, tree-sitter for other languages)
-  is the real fix; the conservative gate must not be loosened at recall's expense.
-- **P2: Verification / proof.** For high-severity VULNERABLE, generate and run a
-  PoC in an isolated sandbox to separate "proven exploitable" from "suspected".
-  Sandbox never touches real environment / network / credentials.
-- **P3: AI-era capabilities.** New capability YAML for the OWASP LLM Top 10
-  (prompt_injection, insecure_output_handling, excessive_agency, rag_poisoning,
-  mcp_security, prompt_secret_leak, model_supply_chain), each with golden samples.
-- **P4: Workflow & scale.** PR bot (inline review + gate, *done*: GitHub
-  review, `--fail-on`, `--baseline` diff baseline, and `--orchestrator adaptive`
-  that escalates to debate only for VULNERABLE or low-confidence verdicts);
-  *remaining*: autofix; cheap static pre-filter + tiered models for cost.
-- **P5: Self-improvement loop.** Mine missed CVEs into new capability patterns,
-  propose as PRs, merge only when eval passes. Guardrail: never edit the golden
-  set or scoring to "pass" (see CLAUDE.md invariant 5).
-
-## Thresholds
-
-Calibrated from the P0-05 baseline (`BASELINE.md`, 2026-06-01) and human-signed.
-The baseline reframed the P1 gate from precision to recall: on the current
-corpus `input_validation` precision is 1.00 but recall is 0.67; the verifier
-misses SSRF / insecure-deserialization sinks, so recall is the real taint gap.
-
-| Gate | Metric | Baseline | Threshold |
-|---|---|---|---|
-| Unlock P1 | per-capability P/R/F1 baseline recorded | overall F1 0.91 | recorded (see `BASELINE.md`) |
-| P1 accept | taint-class (`input_validation`) recall uplift, precision held | R 0.67 / P 1.00 | R >= 0.90 with P >= 0.95 |
-| P2 accept | proven-exploitable rate on high-severity VULNERABLE | none yet | >= 0.80 get a passing PoC |
-| P3 accept | new (LLM Top 10) capability parity with ASVS capabilities | ASVS F1 0.91 | per-capability F1 >= 0.85 |
-| P4 accept | adaptive-orchestration cost cut at no quality loss | none yet | >= 40% fewer model calls vs always-debate, F1 not lower |
+- **Diff engine**: standard + adversarial shipped. Next: tune prompts on real
+  diffs, measure precision/recall on real PRs (not a synthetic corpus).
+- **Rules**: grow `data/rules/` coverage and per-language depth; it is data.
+- **Full review**: refine the methodology, the API-inventory seeding, and the
+  review-memory loop from real audits.
+- **Validation**: the real measure is efficacy on real repositories with a real
+  provider; that drives prompt and rule changes.

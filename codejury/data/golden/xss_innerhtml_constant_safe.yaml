@@ -1,7 +1,0 @@
-skill: output_encoding
-vulnerable: false
-code: |
-  function render() {
-      // static markup, no untrusted input
-      el.innerHTML = "<b>Welcome back</b>";
-  }

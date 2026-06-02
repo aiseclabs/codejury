@@ -1,8 +1,0 @@
-id: architecture
-name: Attack Surface
-version: "1"
-applies_to: [repo_design]
-standard: OWASP ASVS V14
-cwe: CWE-668
-severity: MEDIUM
-tags: [architecture, attack-surface, debug, exposure]

@@ -1,5 +1,0 @@
-skill: input_validation
-vulnerable: true
-code: |
-  def ping(host):
-      os.system("ping -c 1 " + host)

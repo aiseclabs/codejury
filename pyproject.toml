@@ -1,7 +1,7 @@
 [project]
 name = "codejury"
-version = "0.11.0"
-description = "General-purpose Application Security AI audit framework: skills as first-class data, whole-repo full-review, attack paths with PoC verification"
+version = "0.12.0"
+description = "AI code security review: an adversarial diff-audit engine and an agent-driven whole-repo review methodology, with security knowledge as rich rules"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

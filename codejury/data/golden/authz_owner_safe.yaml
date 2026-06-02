@@ -1,5 +1,0 @@
-skill: authz
-vulnerable: false
-code: |
-  def get_invoice(request):
-      return Invoice.objects.get(id=request.GET["id"], owner=request.user)

@@ -1,5 +1,0 @@
-skill: input_validation
-vulnerable: true
-code: |
-  def read_upload(filename):
-      return open(os.path.join(UPLOAD_DIR, filename)).read()

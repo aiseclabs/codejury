@@ -1,4 +1,0 @@
-name: quick_scan_single
-orchestrator: single
-provider: anthropic
-skills: [authn, input_validation, secrets]

@@ -1,4 +1,0 @@
-name: audit_diff_debate
-orchestrator: debate
-provider: anthropic
-# skills omitted -> check all of them

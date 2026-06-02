@@ -1,6 +1,0 @@
-skill: authz
-split: held-out
-vulnerable: true
-code: |
-  def get_invoice(request):
-      return Invoice.objects.get(id=request.GET["id"])

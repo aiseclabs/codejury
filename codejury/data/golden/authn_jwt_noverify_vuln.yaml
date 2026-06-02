@@ -1,6 +1,0 @@
-skill: authn
-vulnerable: true
-code: |
-  def user_id(token):
-      claims = jwt.decode(token, options={"verify_signature": False})
-      return claims["sub"]

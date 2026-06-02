@@ -1,9 +1,9 @@
-"""codejury: a general-purpose Application Security AI audit framework.
+"""codejury: an AI code security review tool.
 
-Layers: Task, then Skill plus Selector plus Orchestrator plus Source plus Agent,
-then Provider, then Infrastructure. Domain knowledge lives in skill directories
-(a manifest plus a prose playbook) as a first-class citizen, aligned with OWASP
-ASVS and the OWASP LLM Top 10.
+Two paths matched to their nature: a coded diff-audit engine (standard single
+call or adversarial Finder/Challenger/Judge), and a whole-repo review run as a
+methodology by an interactive agent. Security knowledge lives in rich markdown
+rules (data/rules) injected into the audit prompt, not in a rendered schema.
 """
 
 from importlib.metadata import PackageNotFoundError, version

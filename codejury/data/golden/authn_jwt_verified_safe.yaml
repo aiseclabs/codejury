@@ -1,6 +1,0 @@
-skill: authn
-vulnerable: false
-code: |
-  def user_id(token):
-      claims = jwt.decode(token, KEY, algorithms=["RS256"], audience=AUD, issuer=ISS)
-      return claims["sub"]

@@ -51,12 +51,30 @@ def load_entrypoint_signatures(path: str | Path = ENTRYPOINTS_FILE) -> _Signatur
     return _Signatures(decorators=tuple(data.get("decorators", [])), calls=tuple(data.get("calls", [])))
 
 
-def build_repo_model_from_dir(root: str | Path, *, signatures: _Signatures | None = None) -> RepoModel:
-    """Build a RepoModel by reading a directory. Reuses RepoSource's safe walk."""
-    from codejury.sources.repo import RepoSource
+_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache"})
 
-    files = RepoSource(root, extensions=(".py",)).read_files()
-    return build_repo_model(root, files, signatures=signatures)
+
+def _read_python_files(root: Path) -> dict[str, str]:
+    """{relative path: content} for .py files under root, skipping noise dirs and
+    symlinks that escape the tree."""
+    root = root.resolve()
+    files: dict[str, str] = {}
+    for path in root.rglob("*.py"):
+        rel = path.relative_to(root)
+        if any(part in _SKIP_DIRS for part in rel.parts):
+            continue
+        try:
+            if not path.resolve().is_relative_to(root):
+                continue  # symlink escaping the tree
+            files[str(rel)] = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError, ValueError):
+            continue
+    return files
+
+
+def build_repo_model_from_dir(root: str | Path, *, signatures: _Signatures | None = None) -> RepoModel:
+    """Build a RepoModel by reading the .py files under a directory."""
+    return build_repo_model(root, _read_python_files(Path(root)), signatures=signatures)
 
 
 def build_repo_model(root: str | Path, files: dict[str, str], *, signatures: _Signatures | None = None) -> RepoModel:
