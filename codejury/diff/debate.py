@@ -56,6 +56,28 @@ def _dedup(items: list[dict]) -> list[dict]:
     return out
 
 
+_DISMISS_VERDICTS = frozenset({"dismiss", "dismissed", "false_positive", "reject", "rejected"})
+
+
+def _loc(d: dict) -> str:
+    line = d.get("line")
+    return f"{d.get('file')}:{line}" if line else str(d.get("file") or "")
+
+
+def _apply_dismissals(findings: list[dict], rebuttals: list[dict]) -> list[dict]:
+    """Drop findings the challenger dismissed. The challenger is recall-safe (it
+    dismisses only when the diff shows a safe pattern: a parameterized query,
+    basename, an allowlist, shell=False), so honoring its dismissals is sound even
+    when the judge is unavailable."""
+    dismissed = {
+        str(r.get("target")) for r in rebuttals
+        if str(r.get("verdict", "")).strip().lower() in _DISMISS_VERDICTS
+    }
+    if not dismissed:
+        return findings
+    return [f for f in findings if _loc(f) not in dismissed and str(f.get("file") or "") not in dismissed]
+
+
 class AdversarialAuditRunner:
     def __init__(
         self,
@@ -116,16 +138,19 @@ class AdversarialAuditRunner:
             rebuttals = _dicts(challenger.get("rebuttals"))
             new_findings = _dicts(challenger.get("new_findings"))
 
-            verdict, judge_ok = self._ask(
-                JUDGE_SYSTEM,
-                judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context),
-                self._judge_model,
-            )
+            jp = judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context)
+            verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge_model)
             if not judge_ok:
-                # the judge reply was unusable (provider error, blocked request,
-                # prose): do not let that silently drop the candidate findings;
-                # fall back to the unjudged finder + challenger set, flagged degraded
-                fallback = _dedup(finder_findings + new_findings)
+                # the judge is the filter that controls false positives, and an
+                # unusable reply is often transient (a flaky proxy, a blocked
+                # request); re-ask once before giving up on it
+                verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge_model)
+            if not judge_ok:
+                # judge still unusable: degrade, but apply the recall-safe
+                # challenger's dismissals so a transient judge outage does not pass
+                # through findings the challenger already showed are safe (this is
+                # what otherwise inflates false positives in degraded runs)
+                fallback = _dedup(_apply_dismissals(finder_findings, rebuttals) + new_findings)
                 judged = AdversarialResult(findings=findings_from_list(fallback), rounds=rounds, degraded=True)
                 degraded = True
                 break

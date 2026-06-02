@@ -156,6 +156,29 @@ def test_provider_exception_degrades_rather_than_crashes():
     assert out.degraded is True
 
 
+def test_judge_retry_recovers_from_a_transient_unusable_reply():
+    # the judge's first reply is unusable, the retry succeeds: not degraded,
+    # and the judge verdict is applied normally
+    _, out = _run([_finder([_VULN]), _challenger(), "blocked by waf", _judge([_VULN])], max_rounds=1)
+    assert out.degraded is False
+    assert [f.category for f in out.findings] == ["sql_injection"]
+
+
+def test_degraded_fallback_drops_challenger_dismissed_findings():
+    # judge stays unusable (both the call and its retry); the degraded fallback
+    # must still honor the challenger's recall-safe dismissals rather than pass
+    # every finder finding through, which is what inflates false positives
+    second = {**_VULN, "line": 5, "category": "xss"}
+    _, out = _run(
+        [_finder([_VULN, second]),
+         _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "output is escaped"}]),
+         "blocked", "blocked"],   # judge call + its one retry both unusable
+        max_rounds=1,
+    )
+    assert out.degraded is True
+    assert [f.category for f in out.findings] == ["sql_injection"]   # the dismissed xss at app.py:5 is dropped
+
+
 def test_per_role_models_are_used():
     provider = MockProvider(responses=[_finder([]), _challenger(), _judge([])], default="{}")
     AdversarialAuditRunner(
