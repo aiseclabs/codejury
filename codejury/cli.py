@@ -30,7 +30,7 @@ from codejury.domain.finding import Finding
 # A diff larger than this is audited file-by-file so a big PR does not overflow
 # the model's context and silently truncate the reply.
 _MAX_DIFF_CHARS = 60_000
-from codejury.fullreview.scaffold import scaffold
+from codejury.repo.scaffold import scaffold
 from codejury.providers.factory import (
     DEFAULT_API_BASE,
     DEFAULT_API_KEY,

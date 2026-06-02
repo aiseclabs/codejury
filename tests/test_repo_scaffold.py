@@ -2,7 +2,7 @@
 analysis + memory + seeded entrypoints) and returns the methodology. It does not
 run an LLM pipeline."""
 
-from codejury.fullreview.scaffold import scaffold
+from codejury.repo.scaffold import scaffold
 
 APP = '''
 from flask import Flask

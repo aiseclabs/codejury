@@ -1,10 +1,11 @@
-"""Full-review scaffold: set up the agent's workspace, do not run a pipeline.
+"""Whole-repo review scaffold: set up the agent's workspace, do not run a pipeline.
 
-Whole-repo review is too large for a single LLM call, so codejury does not run it
-as a pipeline. Instead it scaffolds a workspace for an interactive agent (Claude
-Code, Codex) and hands over the methodology: it creates the api/issues/analysis
-directories, copies the review-memory template, seeds the API inventory from a
-deterministic RepoModel scan, and returns the methodology text to print.
+The `review repo` path. Whole-repo review is too large for a single LLM call, so
+codejury does not run it as a pipeline. Instead it scaffolds a workspace for an
+interactive agent (Claude Code, Codex) and hands over the methodology: it creates
+the api/issues/analysis directories, copies the review-memory template, seeds the
+API inventory from a deterministic RepoModel scan, and returns the methodology
+text to print.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from codejury.analysis.repo_model import build_repo_model_from_dir
+from codejury.repo.model import build_repo_model_from_dir
 from codejury.resources import AGENT_DIR
 
 _METHODOLOGY = AGENT_DIR / "full-review.md"

@@ -1,6 +1,6 @@
 """P6-01: the RepoModel entrypoint detection is deterministic and data-driven."""
 
-from codejury.analysis.repo_model import (
+from codejury.repo.model import (
     Entrypoint,
     build_repo_model,
     build_repo_model_from_dir,

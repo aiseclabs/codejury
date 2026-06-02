@@ -38,8 +38,8 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Diff engine | standard `AuditRunner` (one call) + adversarial `AdversarialAuditRunner` (Finder/Challenger/Judge) | `codejury/diff/` |
 | Rules | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/rules/`, `diff/rules.py` |
 | Finding + report | flat `Finding`; text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `diff/report.py` |
-| Full review | agent methodology + memory template + workspace scaffold (no pipeline) | `codejury/data/agent/`, `fullreview/scaffold.py` |
-| RepoModel | deterministic AST entrypoint scan, seeds the API inventory | `codejury/analysis/repo_model.py` |
+| Full review | agent methodology + memory template + workspace scaffold (no pipeline) | `codejury/data/agent/`, `repo/scaffold.py` |
+| RepoModel | deterministic AST entrypoint scan, seeds the API inventory | `codejury/repo/model.py` |
 | Provider | anthropic · openai · litellm · mock (+ retry), via a factory | `codejury/providers/` |
 | Infrastructure | JSON parsing | `codejury/infrastructure/` |
 
