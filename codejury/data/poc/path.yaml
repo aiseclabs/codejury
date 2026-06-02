@@ -1,0 +1,12 @@
+id: path
+name: Path Traversal
+cwe: [CWE-22]
+# The marker sits in a traversal payload. A sanitizer such as os.path.basename
+# strips the traversal and the marker with it, so it only reaches open() when the
+# input flows to the file sink unsanitized.
+payload: "../../CJPOCMARK/etc/passwd"
+marker: CJPOCMARK
+sinks:
+  - {call: "open"}
+  - {call: "io.open"}
+  - {call: "os.open"}
