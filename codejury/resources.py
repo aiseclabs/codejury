@@ -10,6 +10,7 @@ _DATA = Path(__file__).resolve().parent / "data"
 
 SKILLS_DIR = _DATA / "skills"
 RULES_DIR = _DATA / "rules"
+AGENT_DIR = _DATA / "agent"
 POC_DIR = _DATA / "poc"
 TASKS_DIR = _DATA / "tasks"
 GOLDEN_DIR = _DATA / "golden"
