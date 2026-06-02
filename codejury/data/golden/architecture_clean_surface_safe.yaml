@@ -1,0 +1,19 @@
+skill: architecture
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  Every exposed route is a documented product route; no debug, test, or internal
+  route is reachable. A minimal, intentional surface.
+code: |
+  Repository: /repo
+  Files (2):
+    - app.py
+    - orders.py
+
+  Entrypoints (3):
+    HTTP routes:
+      - GET /users  app.py::list_users  [flask]
+      - POST /orders  orders.py::create_order  [flask]
+      - GET /orders/<oid>  orders.py::get_order  [flask]

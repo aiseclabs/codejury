@@ -1,0 +1,19 @@
+skill: architecture
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  Boundary discriminator. A normal admin route is something the product is meant
+  to expose, so attack_surface must NOT flag it just for being privileged. Whether
+  that admin route is properly authorized is authz / api_design, not this skill.
+code: |
+  Repository: /repo
+  Files (1):
+    - app.py
+
+  Entrypoints (3):
+    HTTP routes:
+      - GET /users  app.py::list_users  [flask]
+      - GET /admin/users  app.py::admin_list_users  [flask]
+      - POST /admin/users  app.py::admin_create_user  [flask]
