@@ -1,0 +1,21 @@
+skill: api_design
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-915
+source: synthetic
+notes: >
+  The signup handler spreads the whole request body into the User model, so a
+  client can set internal fields such as is_admin that the API never offered.
+code: |
+  from flask import Flask, request, jsonify
+  app = Flask(__name__)
+
+  @app.route("/signup", methods=["POST"])
+  def signup():
+      user = User(**request.get_json())
+      db.add(user)
+      return jsonify(id=user.id)
+
+  @app.route("/health")
+  def health():
+      return "ok"

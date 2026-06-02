@@ -29,7 +29,7 @@ precedence over default behavior. Strategy and phased plan: see `ROADMAP.md`.
 | Layer | Implementations | Location |
 |---|---|---|
 | Task | YAML presets (skills + orchestrator + provider + model) | `codejury/tasks/`, `codejury/data/tasks/` |
-| Skill | 15 skills (11 OWASP ASVS areas + OWASP LLM Top 10), each a `skill.yaml` manifest + `SKILL.md` prose playbook | `codejury/data/skills/<id>/` |
+| Skill | 16 skills (11 OWASP ASVS areas + OWASP LLM Top 10 + api_design), each a `skill.yaml` manifest + `SKILL.md` prose playbook | `codejury/data/skills/<id>/` |
 | Selector | applies_to filter + temperature-0 model router (which skills to run) | `codejury/selection.py` |
 | Orchestrator | single · pipeline · debate · reflexion · challenge · taint · adaptive | `codejury/orchestrators/` |
 | Source | mock · diff · function · repo · api_surface (chunker, callers/callees context) | `codejury/sources/` |

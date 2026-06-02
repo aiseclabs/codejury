@@ -1,0 +1,23 @@
+skill: api_design
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-862
+source: synthetic
+split: held-out
+notes: >
+  Cross-endpoint inconsistency: the GET admin route is gated with requires_admin,
+  the DELETE sibling on the same blueprint drops it. The guarded sibling is what
+  makes this an api_design finding rather than a single-point authz one.
+code: |
+  from flask import Blueprint, jsonify
+  admin = Blueprint("admin", __name__)
+
+  @admin.route("/admin/users", methods=["GET"])
+  @requires_admin
+  def list_users():
+      return jsonify(load_users())
+
+  @admin.route("/admin/users/<uid>", methods=["DELETE"])
+  def delete_user(uid):
+      delete(uid)
+      return "", 204

@@ -1,0 +1,8 @@
+id: api_design
+name: API Design
+version: "1"
+applies_to: [api_endpoint]
+standard: OWASP ASVS V13
+cwe: CWE-942
+severity: HIGH
+tags: [api, authorization, cors, mass-assignment]
