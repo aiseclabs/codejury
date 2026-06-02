@@ -119,6 +119,78 @@ def scan(
     )
 
 
+FULL_REVIEW_STAGES = ("design", "api", "security")
+
+
+def _repo_summary(model) -> str:
+    """A deterministic, code-free design summary of a RepoModel: its files and
+    its entrypoints, the input the architecture skill reviews in stage one."""
+    lines = [f"Repository: {model.root}", f"Files ({len(model.files)}):"]
+    lines += [f"  - {f}" for f in model.files]
+    http = [e for e in model.entrypoints if e.kind == "http"]
+    cli_eps = [e for e in model.entrypoints if e.kind == "cli"]
+    lines.append(f"\nEntrypoints ({len(model.entrypoints)}):")
+    if http:
+        lines.append("  HTTP routes:")
+        lines += [f"    - {e.method or '-'} {e.route or '-'}  {e.file}::{e.function}  [{e.framework}]" for e in http]
+    if cli_eps:
+        lines.append("  CLI commands:")
+        lines += [f"    - {e.file}::{e.function}  [{e.framework}]" for e in cli_eps]
+    if not model.entrypoints:
+        lines.append("  (none detected)")
+    return "\n".join(lines)
+
+
+def full_review(
+    directory: str,
+    skills: list[Skill],
+    *,
+    provider: Provider,
+    model: str,
+    max_tokens: int = 2048,
+    strategy: str = "single",
+    cache: VerdictCache | None = None,
+    stages: tuple[str, ...] = FULL_REVIEW_STAGES,
+) -> list[tuple[str, AnalysisResult]]:
+    """Three-stage whole-repo audit, returning (path, result) per artifact:
+
+    1. design: the architecture skill over a RepoModel design summary.
+    2. api: the api_design skill over each HTTP handler.
+    3. security: the standard security skills over each HTTP handler.
+
+    Stages are partitioned by applies_to, so a skill lands in exactly one stage.
+    """
+    from codejury.analysis.repo_model import build_repo_model_from_dir
+    from codejury.sources.api_surface import ApiSurfaceSource
+
+    agents, orchestrator = build_skill_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
+    descr = orchestration_descriptor(provider, strategy, model, max_tokens)
+    results: list[tuple[str, AnalysisResult]] = []
+
+    def _run(artifacts, subset):
+        if subset and artifacts:
+            results.extend(run_over_artifacts_with_skills(
+                artifacts, Selector(tuple(subset)), agents, orchestrator, cache=cache, orchestration=descr,
+            ))
+
+    if "design" in stages:
+        design_skills = [s for s in skills if "repo_design" in s.applies_to]
+        if design_skills:
+            summary = CodeArtifact(
+                kind="repo_design", path=str(directory), content=_repo_summary(build_repo_model_from_dir(directory))
+            )
+            _run([summary], design_skills)
+
+    if "api" in stages or "security" in stages:
+        endpoints = ApiSurfaceSource.from_dir(directory).list_artifacts()
+        print(f"full-review: {len(endpoints)} HTTP handlers", file=sys.stderr)
+        if "api" in stages:
+            _run(endpoints, [s for s in skills if "api_endpoint" in s.applies_to])
+        if "security" in stages:
+            _run(endpoints, [s for s in skills if not s.applies_to])
+    return results
+
+
 def _render_dry_run(result: AnalysisResult) -> str:
     lines = [f"observations: {len(result.observations)}"]
     for o in result.observations:
@@ -284,6 +356,25 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
     scan_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
+    fr_p = sub.add_parser("full-review", help="three-stage whole-repo audit: design, API, per-API security")
+    fr_p.add_argument("directory", help="directory to review")
+    fr_p.add_argument("--only", default=None, help="comma-separated skill ids (default: all)")
+    fr_p.add_argument("--stages", default=",".join(FULL_REVIEW_STAGES),
+                      help="comma-separated stages to run: design, api, security")
+    fr_p.add_argument("--skills", default=SKILLS_DIR, help="skill directory")
+    fr_p.add_argument("--orchestrator", choices=STRATEGIES, default="single")
+    fr_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
+    fr_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
+    fr_p.add_argument("--model", default=DEFAULT_MODEL)
+    fr_p.add_argument("--max-tokens", type=int, default=2048)
+    fr_p.add_argument("--api-base", default=DEFAULT_API_BASE, help="provider base URL (env: CODEJURY_API_BASE)")
+    fr_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
+    fr_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
+    fr_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
+    fr_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
+    fr_p.add_argument("--baseline", default=None, help="a prior JSON report; report only findings new since it")
+    fr_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
+
     run_p = sub.add_parser("run", help="run a named task preset against a unified diff")
     run_p.add_argument("task", help="task name")
     run_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
@@ -356,6 +447,30 @@ def _dispatch(args, parser) -> int:
             with_callers=args.callers,
             with_callees=args.callees,
             cache=None if args.no_cache else VerdictCache(),
+        )
+        results = _maybe_suppress(results, not args.no_suppress)
+        results = _maybe_baseline(results, args.baseline)
+        print(_render_results(args.fmt, results))
+        return _gate_exit(results, args.fail_on)
+
+    if args.command == "full-review":
+        skills = load_skills(args.skills)
+        if args.only:
+            wanted = {x.strip() for x in args.only.split(",")}
+            unknown = wanted - {s.id for s in skills}
+            if unknown:
+                print(f"warning: --only names unknown skill id(s): {', '.join(sorted(unknown))}", file=sys.stderr)
+            skills = [s for s in skills if s.id in wanted]
+        stages = tuple(s.strip() for s in args.stages.split(",") if s.strip())
+        results = full_review(
+            args.directory,
+            skills,
+            provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries),
+            model=args.model,
+            max_tokens=args.max_tokens,
+            strategy=args.orchestrator,
+            cache=None if args.no_cache else VerdictCache(),
+            stages=stages,
         )
         results = _maybe_suppress(results, not args.no_suppress)
         results = _maybe_baseline(results, args.baseline)

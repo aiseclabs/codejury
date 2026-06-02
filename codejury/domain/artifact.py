@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-ArtifactKind = Literal["diff", "file", "function", "repo", "api_endpoint"]
+ArtifactKind = Literal["diff", "file", "function", "repo", "api_endpoint", "repo_design"]
 
 
 @dataclass(frozen=True, kw_only=True)
