@@ -1,8 +1,8 @@
 # Full Security Review — Agent Methodology
 
 A whole-repository security audit, run by an interactive coding agent (Claude
-Code, Codex, etc.), not a one-shot LLM call. It traverses the codebase from its
-API entrypoints, reasons across files, verifies issues with a real PoC, and
+Code, Codex, etc.), not a one-shot LLM call. It maps the attack surface, traces
+inputs to sinks across files, verifies issues with a real PoC, and
 iterates over multiple rounds with a persistent memory. One round is roughly
 30 minutes; run as many rounds as needed.
 
@@ -18,15 +18,34 @@ Workspace: `<workspace>/<project>/` (created for you), holding `api/`,
    - skip every pattern under "Confirmed false positives";
    - do not re-report anything under "Fixed";
    - weight the files under "High-risk areas" more heavily.
-2. Read `api/_entrypoints.md` (seeded for you from a deterministic scan) as the
-   starting map of HTTP routes and CLI commands.
+2. Read `api/_entrypoints.md` (seeded for you from a deterministic AST scan) as a
+   *starting* map of the attack surface. It lists HTTP routes and CLI commands
+   only, so it is a subset, not the whole surface (see "Map the attack surface").
 3. Read the relevant rule files under the shipped `rules/` for the target's stack
    (sql-injection, idor, ssrf, authentication-jwt, insecure-deserialization, ...).
 
-## Analysis
+## Map the attack surface
 
-Start from the API entrypoints and read the implementation of each one. For every
-endpoint ask:
+The seeded inventory lists HTTP routes and CLI commands only. Before analysing,
+complete the surface: untrusted input enters at more than HTTP. Enumerate every
+source the attacker can influence and add it to `api/`:
+
+- HTTP routes, GraphQL resolvers, gRPC / RPC handlers, WebSocket handlers;
+- CLI commands, scheduled jobs / cron, queue and topic consumers, webhooks and
+  third-party callbacks;
+- deserialization points (pickle, yaml.load, marshal), file and document parsers
+  (XML / XXE, YAML, CSV, zip, image / office), template rendering of user input;
+- file uploads, archive extraction, and any filesystem path built from user input;
+- headers, cookies, environment, and config read as trusted, and inbound
+  inter-service calls.
+
+`pickle.loads(cookie)` and `yaml.load(upload)` are entrypoints just as much as a
+route is. Record the inventory in `api/` (one file per module: source + auth
+method + review status ✅/⚠️/❌).
+
+## Analyse each source
+
+Read the implementation reachable from each source. For every one ask:
 
 - What inputs can the attacker control?
 - Is authentication, authorization, signature verification, tenant isolation, or
@@ -38,9 +57,24 @@ endpoint ask:
 - Mass assignment: is a user-controlled body bound wholesale into a model?
 - Signature: is a caller-supplied key trusted as the trust anchor?
 
-Record the API inventory in `api/` (one file per module: route + auth method +
-review status ✅/⚠️/❌). Record architecture understanding and high-risk paths in
-`analysis/`.
+## Trace attack paths (the core work)
+
+A whole-repo review earns its keep by reasoning *across files*: a flaw is usually
+a source in one file reaching a dangerous sink in another, past a control defined
+in a third (a route that trusts a helper which skips signature checks; an id that
+reaches a query with no ownership check). For each promising source, trace the
+path and record it in `analysis/`:
+
+- **Source**: the entrypoint and the attacker-controlled value.
+- **Sink**: the dangerous operation it reaches (query, shell, file path, fetch,
+  deserialize, template, redirect), with `file:line`.
+- **Controls on the path**: every auth / authz / validation / sanitization /
+  signature / tenant check between source and sink, and crucially which are
+  missing or bypassable.
+
+The vulnerability is a path with a reachable sink and no adequate control. Record
+the system's trust boundaries and auth/authz model in `analysis/` once, so every
+trace can refer to it instead of restating it.
 
 ## Scope
 
@@ -59,7 +93,7 @@ confirm with high confidence. Each must have:
 
 - Risk: HIGH | CRITICAL
 - Type: IDOR | auth bypass | signature flaw | business logic | ...
-- Endpoint: `<METHOD> <path>`
+- Source: `<METHOD> <path>` or the non-HTTP entrypoint (queue, deserializer, ...)
 
 ## Analysis
 (cite exact file paths and line numbers)
@@ -92,7 +126,7 @@ destructive action without the operator's explicit go-ahead.
 
 Each round, read the workspace history first and do not repeat finished work.
 Process leftover TODOs; otherwise pick an unreviewed (❌) or to-deepen (⚠️)
-endpoint from the API inventory. When every endpoint is ✅ and there are no TODOs,
+source from the inventory. When every source is ✅ and there are no TODOs,
 report the review complete.
 
 ## On finish
