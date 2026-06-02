@@ -18,10 +18,11 @@ def _challenger(rebuttals=None, new_findings=None):
     return json.dumps({"rebuttals": rebuttals or [], "new_findings": new_findings or []})
 
 
-def _judge(findings, dismissed=None, unresolved=None, investigate=None):
+def _judge(findings, dismissed=None, unresolved=None, investigate=None, downgraded=None, converged=False):
     return json.dumps({
         "findings": findings, "dismissed": dismissed or [],
         "unresolved": unresolved or [], "investigate": investigate or [],
+        "downgraded": downgraded or [], "converged": converged,
     })
 
 
@@ -62,6 +63,28 @@ def test_challenger_independent_finding_can_survive():
         max_rounds=1,
     )
     assert [f.category for f in out.findings] == ["idor"]   # finder missed it, challenger caught it
+
+
+def test_judge_converged_flag_stops_early():
+    # the Judge declares converged in round 1 (no investigate) -> stop after one round
+    provider, out = _run([_finder([_VULN]), _challenger(), _judge([_VULN], converged=True)], max_rounds=5)
+    assert out.converged is True and out.rounds == 1
+    assert len(provider.calls) == 3
+
+
+def test_converged_flag_ignored_while_investigate_pending():
+    # even if the Judge says converged, an open investigate item forces another round
+    r1 = [_finder([_VULN]), _challenger(), _judge([_VULN], converged=True,
+                                                  investigate=[{"target": "x", "reason": "runtime check"}])]
+    provider, out = _run(r1 + r1, max_rounds=2)
+    assert out.rounds == 2 and len(provider.calls) == 6
+
+
+def test_downgraded_is_carried():
+    dg = [{"target": "app.py:3", "from": "CRITICAL", "to": "MEDIUM", "reason": "needs an unlikely precondition"}]
+    _, out = _run([_finder([_VULN]), _challenger(), _judge([{**_VULN, "severity": "MEDIUM"}], downgraded=dg)], max_rounds=1)
+    assert out.downgraded and out.downgraded[0]["to"] == "MEDIUM"
+    assert out.findings[0].severity == "MEDIUM"
 
 
 def test_unresolved_and_investigate_are_carried():

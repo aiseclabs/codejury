@@ -86,17 +86,23 @@ def challenger_prompt(diff: str, finder_findings: list, *, rules: str = "", cont
 def judge_prompt(diff: str, finder_findings: list, rebuttals: list, new_findings: list, *, context: str = "") -> str:
     context_block = f"Surrounding code (not under review):\n```\n{context}\n```\n\n" if context else ""
     return (
-        "Rule on the candidate findings using the two independent reviews below. Keep the "
-        "findings the evidence supports (a finder finding the rebuttals do not disprove, or a "
-        "challenger finding that holds up), with calibrated severity. Dismiss the rest. Flag "
-        "as unresolved anything you cannot decide from the code, and as investigate anything "
-        "that needs a dynamic check to confirm.\n\n"
+        "Rule on each candidate finding from the two independent reviews below, assigning one verdict:\n"
+        "- CONFIRMED: real and exploitable -> put it in `findings` at its severity.\n"
+        "- DOWNGRADED: real but lower impact than claimed -> put it in `findings` at the lower severity, "
+        "and record it in `downgraded`.\n"
+        "- DISMISSED: a false positive the rebuttals disprove -> put it in `dismissed`.\n"
+        "- UNRESOLVED: cannot decide from the code shown -> put it in `unresolved`.\n"
+        "- INVESTIGATE: needs a dynamic/runtime check to confirm -> put it in `investigate`.\n"
+        "Set `converged` to true when this round surfaced no new confirmed finding and nothing is left to "
+        "investigate; false if another round could still change the ruling.\n\n"
         f"Code change (unified diff):\n```diff\n{diff}\n```\n\n{context_block}"
         f"Finder findings:\n{json.dumps(finder_findings, ensure_ascii=False)}\n\n"
         f"Challenger rebuttals:\n{json.dumps(rebuttals, ensure_ascii=False)}\n\n"
         f"Challenger independent findings:\n{json.dumps(new_findings, ensure_ascii=False)}\n\n"
         'Respond with a single JSON object exactly like: {"findings": [' + _FINDING_FIELDS + "], "
+        '"downgraded": [{"target": "...", "from": "HIGH", "to": "MEDIUM", "reason": "..."}], '
         '"dismissed": [{"target": "...", "reason": "..."}], '
         '"unresolved": [{"target": "...", "reason": "..."}], '
-        '"investigate": [{"target": "...", "reason": "..."}]}'
+        '"investigate": [{"target": "...", "reason": "..."}], '
+        '"converged": true}'
     )

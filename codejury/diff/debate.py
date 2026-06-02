@@ -28,6 +28,7 @@ from codejury.providers.base import Message, Provider
 @dataclass(frozen=True, kw_only=True)
 class AdversarialResult:
     findings: list[Finding]
+    downgraded: list[dict] = field(default_factory=list)
     dismissed: list[dict] = field(default_factory=list)
     unresolved: list[dict] = field(default_factory=list)
     investigate: list[dict] = field(default_factory=list)
@@ -100,14 +101,19 @@ class AdversarialAuditRunner:
             )
             judged = AdversarialResult(
                 findings=findings_from_list(verdict.get("findings")),
+                downgraded=_dicts(verdict.get("downgraded")),
                 dismissed=_dicts(verdict.get("dismissed")),
                 unresolved=_dicts(verdict.get("unresolved")),
                 investigate=_dicts(verdict.get("investigate")),
                 rounds=rounds,
             )
 
+            # converge when the Judge says so, or the confirmed set is unchanged
+            # since last round, but only once nothing is left to investigate
             keys = {_key(f) for f in judged.findings}
-            if prev_keys is not None and keys == prev_keys:
+            judge_converged = bool(verdict.get("converged", False))
+            stable = prev_keys is not None and keys == prev_keys
+            if (judge_converged or stable) and not judged.investigate:
                 converged = True
                 break
             prev_keys = keys
@@ -115,6 +121,7 @@ class AdversarialAuditRunner:
 
         return AdversarialResult(
             findings=judged.findings,
+            downgraded=judged.downgraded,
             dismissed=judged.dismissed,
             unresolved=judged.unresolved,
             investigate=judged.investigate,
