@@ -44,16 +44,29 @@ def _key(f: Finding) -> tuple:
 
 
 class AdversarialAuditRunner:
-    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096) -> None:
+    def __init__(
+        self,
+        *,
+        provider: Provider,
+        model: str,
+        max_tokens: int = 4096,
+        finder_model: str | None = None,
+        challenger_model: str | None = None,
+        judge_model: str | None = None,
+    ) -> None:
         self._provider = provider
-        self._model = model
         self._max_tokens = max_tokens
+        # each role can run on its own model (a strong finder, a skeptical
+        # challenger, a careful judge); each defaults to the base model.
+        self._finder_model = finder_model or model
+        self._challenger_model = challenger_model or model
+        self._judge_model = judge_model or model
 
-    def _ask(self, system: str, prompt: str) -> dict:
+    def _ask(self, system: str, prompt: str, model: str) -> dict:
         result = self._provider.complete(
             system=system,
             messages=[Message(role="user", content=prompt)],
-            model=self._model,
+            model=model,
             max_tokens=self._max_tokens,
         )
         return extract_json_object(result.text) or {}
@@ -67,17 +80,23 @@ class AdversarialAuditRunner:
         rounds = 0
         converged = False
         for rounds in range(1, max_rounds + 1):
-            finder = self._ask(FINDER_SYSTEM, finder_prompt(diff, rules=rules, context=context, prior=prior))
+            finder = self._ask(
+                FINDER_SYSTEM, finder_prompt(diff, rules=rules, context=context, prior=prior), self._finder_model
+            )
             finder_findings = _dicts(finder.get("findings"))
 
             challenger = self._ask(
-                CHALLENGER_SYSTEM, challenger_prompt(diff, finder_findings, rules=rules, context=context)
+                CHALLENGER_SYSTEM,
+                challenger_prompt(diff, finder_findings, rules=rules, context=context),
+                self._challenger_model,
             )
             rebuttals = _dicts(challenger.get("rebuttals"))
             new_findings = _dicts(challenger.get("new_findings"))
 
             verdict = self._ask(
-                JUDGE_SYSTEM, judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context)
+                JUDGE_SYSTEM,
+                judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context),
+                self._judge_model,
             )
             judged = AdversarialResult(
                 findings=findings_from_list(verdict.get("findings")),

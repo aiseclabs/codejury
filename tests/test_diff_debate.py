@@ -96,6 +96,21 @@ def test_garbage_replies_yield_no_findings_not_an_error():
     assert out.findings == []
 
 
+def test_per_role_models_are_used():
+    provider = MockProvider(responses=[_finder([]), _challenger(), _judge([])], default="{}")
+    AdversarialAuditRunner(
+        provider=provider, model="base",
+        finder_model="finder-m", challenger_model="challenger-m", judge_model="judge-m",
+    ).run(_DIFF, max_rounds=1)
+    assert [c["model"] for c in provider.calls] == ["finder-m", "challenger-m", "judge-m"]
+
+
+def test_role_models_default_to_base():
+    provider = MockProvider(responses=[_finder([]), _challenger(), _judge([])], default="{}")
+    AdversarialAuditRunner(provider=provider, model="base").run(_DIFF, max_rounds=1)
+    assert [c["model"] for c in provider.calls] == ["base", "base", "base"]
+
+
 def test_prompts_carry_role_context():
     assert "red-team" not in finder_prompt(_DIFF)          # role is in the system prompt
     assert "SELECT * FROM u" in finder_prompt(_DIFF)

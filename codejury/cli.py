@@ -26,6 +26,9 @@ from codejury.fullreview.scaffold import scaffold
 from codejury.providers.factory import (
     DEFAULT_API_BASE,
     DEFAULT_API_KEY,
+    DEFAULT_CHALLENGER_MODEL,
+    DEFAULT_FINDER_MODEL,
+    DEFAULT_JUDGE_MODEL,
     DEFAULT_MODEL,
     PROVIDERS,
     make_provider,
@@ -44,10 +47,17 @@ def audit_diff(
     mode: str = "standard",
     max_rounds: int = 3,
     filter_findings: bool = True,
+    finder_model: str | None = None,
+    challenger_model: str | None = None,
+    judge_model: str | None = None,
 ) -> tuple[list[Finding], list[tuple[Finding, str]]]:
     """Audit a diff and return (kept findings, dropped (finding, reason))."""
     if mode == "adversarial":
-        findings = AdversarialAuditRunner(provider=provider, model=model).run(diff, max_rounds=max_rounds).findings
+        runner = AdversarialAuditRunner(
+            provider=provider, model=model,
+            finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
+        )
+        findings = runner.run(diff, max_rounds=max_rounds).findings
     else:
         findings = AuditRunner(provider=provider, model=model).run(diff)
     if filter_findings:
@@ -85,6 +95,9 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--rounds", type=int, default=3, help="adversarial debate rounds")
     a.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     a.add_argument("--model", default=DEFAULT_MODEL)
+    a.add_argument("--finder-model", default=DEFAULT_FINDER_MODEL, help="adversarial: finder role model (default: --model)")
+    a.add_argument("--challenger-model", default=DEFAULT_CHALLENGER_MODEL, help="adversarial: challenger role model")
+    a.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL, help="adversarial: judge role model")
     a.add_argument("--api-base", default=DEFAULT_API_BASE)
     a.add_argument("--api-key", default=DEFAULT_API_KEY)
     a.add_argument("--retries", type=int, default=0)
@@ -110,6 +123,7 @@ def _dispatch(args, parser) -> int:
         kept, _ = audit_diff(
             _read_diff(args), provider=provider, model=args.model,
             mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
+            finder_model=args.finder_model, challenger_model=args.challenger_model, judge_model=args.judge_model,
         )
         print(render(args.fmt, kept))
         return 1 if gate(kept, args.fail_on) else 0
