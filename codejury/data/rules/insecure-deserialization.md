@@ -1,7 +1,8 @@
 ---
+id: insecure-deserialization
 title: Insecure Deserialization
 impact: CRITICAL
-tags: [deserialization, rce, cwe-502, owasp-a08]
+tags: [cwe-502, owasp-a08, rce]
 triggers: ["pickle.loads", "pickle.load", "yaml.load", "marshal.loads", "jsonpickle", "ObjectInputStream", "torch.load"]
 ---
 

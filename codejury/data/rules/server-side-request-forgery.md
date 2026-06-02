@@ -1,13 +1,14 @@
 ---
-title: Server-Side Request Forgery (SSRF)
+id: server-side-request-forgery
+title: Server-Side Request Forgery
 impact: HIGH
-tags: [ssrf, cwe-918, owasp-a10]
+tags: [cwe-918, owasp-a10]
 triggers: ["requests.get", "requests.post", "urlopen", "httpx", "fetch(", "url =", "request.args", "webhook", "callback"]
 ---
 
 ## Server-Side Request Forgery (SSRF)
 
-A server fetches a URL taken from untrusted input without restricting the destination, so an attacker reaches internal targets: cloud metadata, localhost admin ports, internal APIs. Validate the host against an allowlist before fetching; reject internal/link-local addresses.
+A server fetches a URL taken from untrusted input without restricting the destination, so an attacker reaches internal targets: cloud metadata (169.254.169.254), localhost admin ports, internal APIs. Validate the host against an allowlist before fetching and reject internal/link-local addresses.
 
 ### Python
 Vulnerable:

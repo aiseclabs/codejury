@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 
-from codejury.diff.prompts import DO_NOT_REPORT, FOCUS
+from codejury.diff.prompts import DO_NOT_REPORT, FOCUS, category_block
 
 _FINDING_FIELDS = (
     '{"file": "path", "line": 0, "severity": "CRITICAL|HIGH|MEDIUM|LOW", '
@@ -61,7 +61,7 @@ def finder_prompt(diff: str, *, rules: str = "", context: str = "", prior: list 
         )
     return (
         "Find every exploitable vulnerability in this code change.\n\n"
-        f"{FOCUS}\n{DO_NOT_REPORT}\n"
+        f"{FOCUS}\n{DO_NOT_REPORT}\n{category_block()}"
         f"{_diff_block(diff, rules, context)}{prior_block}"
         'Respond with a single JSON object exactly like: {"findings": [' + _FINDING_FIELDS + "]}"
     )
@@ -74,7 +74,7 @@ def challenger_prompt(diff: str, finder_findings: list, *, rules: str = "", cont
         "with concrete reasoning (the value is not attacker-controlled, the sink is not "
         "reachable, a guard exists, etc.).\n"
         "2. Independently scan the diff yourself and report any real issue the finder missed.\n\n"
-        f"{FOCUS}\n{DO_NOT_REPORT}\n"
+        f"{FOCUS}\n{DO_NOT_REPORT}\n{category_block()}"
         f"{_diff_block(diff, rules, context)}"
         f"Reported findings:\n{json.dumps(finder_findings, ensure_ascii=False)}\n\n"
         'Respond with a single JSON object exactly like: '

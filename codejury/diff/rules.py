@@ -64,6 +64,12 @@ def select_rules(diff: str, rules: list[Rule], *, limit: int = 6) -> list[Rule]:
     return matched[:limit]
 
 
+def allowed_categories(directory: str | Path = RULES_DIR) -> list[str]:
+    """The closed set of finding categories: every rule id. A finding's category
+    must be one of these (or 'other'), so findings tie back to a rule."""
+    return [r.id for r in load_rules(directory)]
+
+
 def rules_for_diff(diff: str, *, directory: str | Path = RULES_DIR, limit: int = 6) -> str:
     """The concatenated bodies of the rules relevant to the diff, for the prompt.
     Empty when nothing matches, so the prompt simply omits the rules block."""

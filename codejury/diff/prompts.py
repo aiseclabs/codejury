@@ -39,9 +39,22 @@ argument is not attacker-controlled.
 
 _JSON_SHAPE = (
     '{"findings": [{"file": "path", "line": 0, "severity": "CRITICAL|HIGH|MEDIUM|LOW", '
-    '"category": "sql_injection|idor|auth_bypass|...", "description": "...", '
+    '"category": "<one id from the category set>", "description": "...", '
     '"exploit_scenario": "end to end steps", "recommendation": "...", "confidence": 0.0}]}'
 )
+
+
+def category_block() -> str:
+    """The closed category set the model must choose from, derived from the rules."""
+    from codejury.diff.rules import allowed_categories
+
+    cats = allowed_categories()
+    return (
+        "Each finding's `category` must be exactly one of these ids "
+        "(use `other` only if none fit):\n" + ", ".join(cats) + "\n\n"
+        if cats
+        else ""
+    )
 
 
 def standard_audit_prompt(diff: str, *, rules: str = "", context: str = "") -> str:
@@ -55,6 +68,7 @@ def standard_audit_prompt(diff: str, *, rules: str = "", context: str = "") -> s
     return (
         "Review the following code change for security vulnerabilities.\n\n"
         f"{FOCUS}\n{DO_NOT_REPORT}\n"
+        f"{category_block()}"
         f"{rules_block}"
         f"Code change (unified diff):\n```diff\n{diff}\n```\n\n"
         f"{context_block}"

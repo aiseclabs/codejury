@@ -1,13 +1,14 @@
 ---
+id: sql-injection
 title: SQL Injection
 impact: CRITICAL
-tags: [injection, sql, cwe-89, owasp-a03]
+tags: [cwe-89, owasp-a03, injection]
 triggers: ["execute(", "executemany", ".raw(", "cursor", "SELECT ", "INSERT ", "f\"SELECT", "+ name", ".format(", "% (", "query ="]
 ---
 
 ## SQL Injection
 
-Untrusted input concatenated or interpolated into a SQL statement lets an attacker change the query's meaning. Use parameterized queries / bound parameters; never build SQL from input. Table and column names cannot be parameterized, so validate them against an allowlist.
+Untrusted input concatenated or interpolated into a SQL statement lets an attacker change the query. Use parameterized queries / bound parameters; never build SQL from input. Identifiers (table/column names) cannot be parameterized, so validate them against an allowlist.
 
 ### Python
 Vulnerable:
@@ -22,4 +23,4 @@ cursor.execute("SELECT * FROM users WHERE name = %s", (name,))
 
 ### Java
 Vulnerable: `stmt.executeQuery("SELECT * FROM u WHERE n='" + name + "'")`
-Secure: `PreparedStatement ps = con.prepareStatement("SELECT * FROM u WHERE n=?"); ps.setString(1, name);`
+Secure: `PreparedStatement ps = con.prepareStatement("... WHERE n=?"); ps.setString(1, name);`

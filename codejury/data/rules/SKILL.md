@@ -1,41 +1,58 @@
 ---
 name: code-security-review
-description: "Application security rules for reviewing code for exploitable vulnerabilities. Use when reviewing a diff or a codebase for security issues, or when writing code that handles untrusted input, authentication, authorization, file paths, database queries, network requests, deserialization, or cryptography. Consult the relevant rule file before judging whether code is vulnerable."
+description: "Application security rules for reviewing code for exploitable vulnerabilities. Use when reviewing a diff or a codebase for security issues, or when writing code that handles untrusted input, authentication, authorization, file paths, database queries, network requests, deserialization, or cryptography. Read the matching rule before judging whether code is vulnerable."
 ---
 
 # Code Security Review Rules
 
-Generic application-security rules, one file per vulnerability class under `rules/`.
-Each rule states the impact, the patterns to hunt, and vulnerable-vs-secure code
-examples. Used both by the diff-audit engine (the relevant rules are injected into
-the prompt) and by the full-review agent (read the rules for the target's stack).
+Application-security rules, one file per weakness class under `rules/`, named by
+the specific weakness (CWE-style). Each rule states impact, the markers to hunt
+(`triggers`), and vulnerable-vs-secure examples. The diff-audit engine injects the
+rules relevant to a change into the prompt; the full-review agent reads them for
+the target's stack. A finding's `category` is one of these ids.
 
-## How to use
+## Rules by OWASP category
 
-1. Identify what the code does: handle input, query a DB, read files, fetch URLs,
-   authenticate, authorize, deserialize, render output?
-2. Read the matching rule files below, Critical and High first.
-3. Apply the secure pattern when writing; flag the vulnerable pattern when reviewing.
-4. Report only real, exploitable, high-confidence issues with a concrete exploit
-   path. Do not report dependency CVEs, style, speculation, or config-leak-only risks.
+### A01 Broken Access Control
+- `missing-authorization` (CWE-862)
+- `insecure-direct-object-reference` (CWE-639)
+- `cross-site-request-forgery` (CWE-352)
+- `path-traversal` (CWE-22)
+- `open-redirect` (CWE-601)
 
-## Rules
+### A02 Cryptographic Failures
+- `insecure-cryptography` (CWE-327)
+- `insecure-transport` (CWE-319)
+- `hardcoded-secrets` (CWE-798)
+- `information-exposure` (CWE-200/532)
 
-### Critical
-- SQL Injection — `rules/sql-injection.md`
-- Command Injection — `rules/command-injection.md`
-- Insecure Deserialization — `rules/insecure-deserialization.md`
+### A03 Injection
+- `sql-injection` (CWE-89)
+- `command-injection` (CWE-78)
+- `code-injection` (CWE-94)
+- `cross-site-scripting` (CWE-79)
+- `xml-external-entity` (CWE-611)
+- `server-side-template-injection` (CWE-1336)
+- `http-response-splitting` (CWE-113)
 
-### High
-- IDOR / object-level access — `rules/idor.md`
-- Broken Access Control / function-level authz — `rules/broken-access-control.md`
-- JWT / Authentication — `rules/authentication-jwt.md`
-- SSRF — `rules/ssrf.md`
-- Path Traversal — `rules/path-traversal.md`
-- XSS — `rules/xss.md`
-- Mass Assignment — `rules/mass-assignment.md`
-- Insecure Cryptography — `rules/insecure-crypto.md`
-- Hardcoded Secrets — `rules/secrets.md`
+### A04 Insecure Design / Business Logic
+- `business-logic` (CWE-840)
+- `replay-attack` (CWE-294)
+- `race-condition` (CWE-362)
+- `mass-assignment` (CWE-915)
 
-The set is data: add a rule by dropping a new `rules/<class>.md` with the same
-frontmatter (title, impact, tags, triggers) and vulnerable/secure examples.
+### A07 Identification and Authentication
+- `improper-authentication` (CWE-287)
+- `jwt-validation` (CWE-347)
+- `session-fixation` (CWE-384)
+
+### A08 Software and Data Integrity
+- `insecure-deserialization` (CWE-502)
+
+### A10 Server-Side Request Forgery
+- `server-side-request-forgery` (CWE-918)
+
+Report only real, exploitable, high-confidence issues with a concrete exploit
+path. Do not report dependency CVEs, style, speculation, or config-leak-only
+risks. The set is data: add a class by dropping a new `rules/<id>.md` with the
+same frontmatter (id, title, impact, tags, triggers) and examples.

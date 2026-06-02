@@ -1,8 +1,20 @@
 """RW-3: the rich rule library loads, and trigger-based selection picks the
 on-topic rules for a diff to inject into the audit prompt."""
 
-from codejury.diff.rules import Rule, load_rules, rules_for_diff, select_rules
+from codejury.diff.rules import Rule, allowed_categories, load_rules, rules_for_diff, select_rules
 from codejury.resources import RULES_DIR
+
+# The frozen 25-class application-security set (id = category = SARIF ruleId).
+_EXPECTED_IDS = {
+    "missing-authorization", "insecure-direct-object-reference", "cross-site-request-forgery",
+    "path-traversal", "open-redirect", "insecure-cryptography", "insecure-transport",
+    "hardcoded-secrets", "information-exposure", "sql-injection", "command-injection",
+    "code-injection", "cross-site-scripting", "xml-external-entity",
+    "server-side-template-injection", "http-response-splitting", "business-logic",
+    "replay-attack", "race-condition", "mass-assignment", "improper-authentication",
+    "jwt-validation", "session-fixation", "insecure-deserialization",
+    "server-side-request-forgery",
+}
 
 _RULES = load_rules()
 _BY_ID = {r.id: r for r in _RULES}
@@ -11,13 +23,18 @@ _SQL_DIFF = "+    cursor.execute('SELECT * FROM users WHERE n=' + name)\n"
 _CMDI_DIFF = "+    os.system('ping ' + host)\n"
 
 
+def test_rules_are_exactly_the_frozen_set():
+    assert set(_BY_ID) == _EXPECTED_IDS
+    assert allowed_categories() == sorted(_EXPECTED_IDS)
+
+
 def test_rules_load_with_frontmatter():
-    assert {"sql-injection", "idor", "ssrf", "command-injection", "mass-assignment"} <= set(_BY_ID)
     sqli = _BY_ID["sql-injection"]
     assert sqli.impact == "CRITICAL"
     assert "cwe-89" in sqli.tags
     assert sqli.triggers and "Parameterized" not in sqli.triggers  # triggers, not prose
     assert "parameterized queries" in sqli.body.lower()           # body carries the guidance
+    assert _BY_ID["insecure-direct-object-reference"].impact == "HIGH"  # renamed from idor (B convention)
 
 
 def test_shipped_rules_are_well_formed():
@@ -30,7 +47,7 @@ def test_shipped_rules_are_well_formed():
 def test_select_matches_by_trigger():
     sel = select_rules(_SQL_DIFF, _RULES)
     assert "sql-injection" in [r.id for r in sel]
-    assert "ssrf" not in [r.id for r in sel]            # unrelated rule not pulled in
+    assert "server-side-request-forgery" not in [r.id for r in sel]   # unrelated rule not pulled in
 
 
 def test_select_is_capped_and_severity_ordered():

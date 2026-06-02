@@ -1,8 +1,9 @@
 ---
+id: mass-assignment
 title: Mass Assignment
 impact: HIGH
-tags: [mass-assignment, overposting, cwe-915, owasp-a08]
-triggers: ["(**request", "update(**", "setattr(", "Object.assign", ".save()", "create(**", "request.get_json"]
+tags: [cwe-915, owasp-a04, owasp-a08]
+triggers: ["(**request", "update(**", "setattr(", "Object.assign", "create(**", "request.get_json", ".save()"]
 ---
 
 ## Mass Assignment

@@ -1,13 +1,14 @@
 ---
+id: path-traversal
 title: Path Traversal
 impact: HIGH
-tags: [path-traversal, cwe-22, owasp-a01]
-triggers: ["open(", "os.path.join", "sendfile", "send_file", "readFile", "filename", "../", "upload"]
+tags: [cwe-22, owasp-a01]
+triggers: ["open(", "os.path.join", "send_file", "sendfile", "readFile", "filename", "../", "upload"]
 ---
 
 ## Path Traversal
 
-Building a filesystem path from untrusted input without containing it lets `../` escape the intended directory. Resolve the path and confirm it stays within an allowed base, or use the basename only.
+A filesystem path built from untrusted input without containment lets `../` escape the intended directory. Resolve the path and confirm it stays within an allowed base, or use only the basename.
 
 ### Python
 Vulnerable:
