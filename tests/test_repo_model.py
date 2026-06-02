@@ -59,6 +59,19 @@ urlpatterns = [
 ]
 '''
 
+# include() mounts and class-based views resolve to no handler function: noise
+DJANGO_NOISE = '''
+from django.urls import path, include
+from .views import DashboardView
+
+urlpatterns = [
+    path("", include("app.urls")),
+    path("accounts/", include("allauth.urls")),
+    path("profile/", views.profile),
+    path("dash/", DashboardView.as_view()),
+]
+'''
+
 PLAIN = '''
 def helper(x):
     return x + 1
@@ -100,6 +113,14 @@ def test_django_path_calls_capture_view_and_route():
         ("http", "django", "home", "home/", ""),
         ("http", "django", "about_view", "about/", ""),
     }
+
+
+def test_django_include_and_cbv_with_no_resolvable_function_are_dropped():
+    # include() mounts and an unresolved .as_view() carry no handler function;
+    # only the plain function-based view survives, no empty `- -` noise entries
+    model = _model({"urls.py": DJANGO_NOISE})
+    assert _routes(model) == {("http", "django", "profile", "profile/", "")}
+    assert all(e.function for e in model.entrypoints)
 
 
 def test_plain_module_has_no_entrypoints():

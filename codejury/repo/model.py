@@ -86,7 +86,10 @@ def build_repo_model(root: str | Path, files: dict[str, str], *, signatures: _Si
             tree = ast.parse(content)
         except SyntaxError:
             continue
-        entrypoints.extend(_entrypoints_in(path, tree, sigs))
+        # an entrypoint must name a reviewable handler function; drop entries
+        # with no resolvable function (a Django include() mount, or a view the
+        # AST scan cannot resolve) so the seeded inventory stays clean
+        entrypoints.extend(e for e in _entrypoints_in(path, tree, sigs) if e.function)
     return RepoModel(root=str(root), files=tuple(sorted(files)), entrypoints=tuple(entrypoints))
 
 
