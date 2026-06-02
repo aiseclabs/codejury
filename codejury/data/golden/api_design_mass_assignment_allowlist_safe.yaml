@@ -1,0 +1,22 @@
+capability: api_design
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  The signup handler binds only an explicit allowlist of fields from the body,
+  so client-controlled internal fields cannot reach the model.
+code: |
+  from flask import Flask, request, jsonify
+  app = Flask(__name__)
+
+  @app.route("/signup", methods=["POST"])
+  def signup():
+      body = request.get_json()
+      user = User(name=body["name"], email=body["email"])
+      db.add(user)
+      return jsonify(id=user.id)
+
+  @app.route("/health")
+  def health():
+      return "ok"

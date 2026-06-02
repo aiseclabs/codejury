@@ -1,0 +1,22 @@
+capability: api_design
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  The profile endpoint serializes through an explicit field allowlist, so new
+  internal fields on the model do not leak into the response.
+code: |
+  from flask import Flask, jsonify
+  app = Flask(__name__)
+
+  PUBLIC_FIELDS = ("id", "name", "email")
+
+  @app.route("/users/<uid>")
+  def get_user(uid):
+      user = User.query.get(uid)
+      return jsonify({f: getattr(user, f) for f in PUBLIC_FIELDS})
+
+  @app.route("/ping")
+  def ping():
+      return "pong"

@@ -1,0 +1,21 @@
+capability: api_design
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-213
+source: synthetic
+split: held-out
+notes: >
+  The profile endpoint serializes the whole ORM row, so internal fields such as
+  password_hash ship to the client.
+code: |
+  from flask import Flask, jsonify
+  app = Flask(__name__)
+
+  @app.route("/users/<uid>")
+  def get_user(uid):
+      user = User.query.get(uid)
+      return jsonify(user.__dict__)
+
+  @app.route("/ping")
+  def ping():
+      return "pong"
