@@ -15,10 +15,12 @@ from codejury.assembly import (
     DEFAULT_MODEL,
     build_orchestration,
     make_provider,
+    orchestration_descriptor,
     run_over_source,
 )
 from codejury.domain.capability import Capability
 from codejury.domain.result import AnalysisResult
+from codejury.infrastructure.cache import VerdictCache
 from codejury.sources.base import Source
 
 
@@ -57,7 +59,7 @@ class Task:
 
 
 def run_task(
-    task: Task, source: Source, capabilities: list[Capability]
+    task: Task, source: Source, capabilities: list[Capability], *, cache: VerdictCache | None = None
 ) -> list[tuple[str, AnalysisResult]]:
     # api_base may come from the task as a non-secret URL; the key only from the env.
     provider = make_provider(
@@ -69,4 +71,11 @@ def run_task(
     agents, orchestrator = build_orchestration(
         task.orchestrator, provider=provider, model=task.model, max_tokens=task.max_tokens
     )
-    return run_over_source(source, task.select(capabilities), agents, orchestrator)
+    return run_over_source(
+        source,
+        task.select(capabilities),
+        agents,
+        orchestrator,
+        cache=cache,
+        orchestration=orchestration_descriptor(provider, task.orchestrator, task.model, task.max_tokens),
+    )

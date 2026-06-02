@@ -98,3 +98,29 @@ def test_suppression_rejects_empty_match_any(tmp_path):
     f.write_text("- {id: noop, path_ext: ['.py']}\n")
     with pytest.raises(ValueError):
         load_suppressions(f)
+
+
+def test_challenge_surfaces_verifier_error_not_traceback():
+    # a provider failure in challenge must become AnalysisResult.error, not raise
+    from codejury.domain.artifact import CodeArtifact
+    from codejury.domain.capability import Capability
+    from codejury.domain.context import AnalysisContext
+    from codejury.orchestrators.challenge import ChallengeOrchestrator
+
+    class _Boom:
+        def run(self, ctx):
+            raise RuntimeError("provider down")
+
+    ctx = AnalysisContext(
+        artifact=CodeArtifact(kind="file", path="a.py", content="x"),
+        capabilities=[Capability(id="input_validation", name="iv")],
+    )
+    result = ChallengeOrchestrator().run({"verifier": _Boom(), "refuter": _Boom()}, ctx)
+    assert result.error and "verifier" in result.error
+
+
+def test_cache_get_tolerates_corrupt_entry(tmp_path):
+    from codejury.infrastructure.cache import VerdictCache
+    (tmp_path / "k.json").write_text("{ not valid json")
+    assert VerdictCache(tmp_path).get("k") is None  # treated as a miss, not a crash
+

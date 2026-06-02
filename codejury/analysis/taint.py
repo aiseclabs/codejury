@@ -130,7 +130,15 @@ def taint_of(
             if func_path and _access_in(func_path, vocab.trusted):
                 return Taint.TRUSTED
             if _callee_in(node, vocab.propagators) or _callee_in(node, vocab.safe_sinks):
-                return _combine([recurse(a) for a in node.args])
+                parts = [recurse(a) for a in node.args]
+                # a method-form propagator carries the receiver's taint too, e.g.
+                # request.args.get("id").strip(). Recurse the receiver when it is a
+                # value (Name/Call/Subscript), not a module path like os.path.join.
+                if isinstance(node.func, ast.Attribute) and isinstance(
+                    node.func.value, (ast.Name, ast.Call, ast.Subscript)
+                ):
+                    parts.append(recurse(node.func.value))
+                return _combine(parts)
             return Taint.UNKNOWN              # unknown call; a cross-file hop may resolve it later
         if isinstance(node, (ast.Attribute, ast.Subscript)):
             path = access_path(node)
@@ -242,17 +250,26 @@ def _call_sites(name: str, files: dict[str, str]) -> list[tuple[ast.AST, ast.Cal
         tree = _parse(source)
         if tree is None:
             continue
-        funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+        scopes = _scope_index(tree)
         for call in find_calls(tree, name):
-            sites.append((_enclosing_scope(funcs, call) or tree, call))
+            sites.append((scopes.get(id(call), tree), call))
     return sites
 
 
-def _enclosing_scope(funcs: list[ast.AST], call: ast.Call) -> ast.AST | None:
-    containing = [f for f in funcs if any(node is call for node in ast.walk(f))]
-    if not containing:
-        return None  # module-level call site
-    return min(containing, key=lambda f: sum(1 for _ in ast.walk(f)))  # innermost
+@functools.lru_cache(maxsize=256)
+def _scope_index(tree: ast.Module) -> dict[int, ast.AST]:
+    """Map id(node) to its innermost enclosing function (or the module tree) in one
+    pass, so a call's scope is an O(1) lookup instead of an O(functions) re-walk."""
+    mapping: dict[int, ast.AST] = {}
+
+    def walk(node: ast.AST, scope: ast.AST) -> None:
+        inner = node if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else scope
+        for child in ast.iter_child_nodes(node):
+            mapping[id(child)] = inner
+            walk(child, inner)
+
+    walk(tree, tree)
+    return mapping
 
 
 def worst_sink_taint(content: str, files: dict[str, str], vocab: TaintVocab) -> Taint | None:
@@ -272,7 +289,7 @@ def worst_sink_taint(content: str, files: dict[str, str], vocab: TaintVocab) -> 
     tree = _parse(content)
     if tree is None:
         return None
-    funcs = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    scopes = _scope_index(tree)
     taints: list[Taint] = []
     for call in [n for n in ast.walk(tree) if isinstance(n, ast.Call)]:
         if is_safe_sink(call, vocab):
@@ -280,7 +297,7 @@ def worst_sink_taint(content: str, files: dict[str, str], vocab: TaintVocab) -> 
             continue
         if _callee_in(call, vocab.sanitizers) or _callee_in(call, vocab.propagators):
             continue  # not a sink itself; counted via the enclosing sink's argument
-        scope = _enclosing_scope(funcs, call) or tree
+        scope = scopes.get(id(call), tree)
         for arg in (*call.args, *(kw.value for kw in call.keywords)):
             taints.append(taint_in_repo(scope, arg, vocab, files))
     return _combine(taints) if taints else Taint.UNKNOWN

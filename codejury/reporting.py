@@ -11,14 +11,13 @@ from __future__ import annotations
 import json
 
 from codejury import __version__ as _tool_version
-from codejury.domain.observation import Observation, is_problem, observation_from_dict
+from codejury.domain.observation import _PROBLEM_STATUSES, Observation, is_problem, observation_from_dict
 from codejury.domain.result import AnalysisResult
 
 Results = list[tuple[str, AnalysisResult]]
 
 _SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
 _CLEARED = ("SECURE", "NOT_PRESENT")
-_PROBLEM_STATUSES = ("VULNERABLE", "PARTIAL")
 
 # Finding severity -> SARIF result level; VULNERABLE verdict is error, PARTIAL warning.
 _SARIF_LEVEL = {"CRITICAL": "error", "HIGH": "error", "MEDIUM": "warning", "LOW": "note", "INFO": "note"}

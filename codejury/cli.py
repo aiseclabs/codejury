@@ -290,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
     run_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     run_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
+    run_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
     run_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
     eval_p = sub.add_parser("eval", help="score golden cases and report precision/recall")
@@ -366,7 +367,10 @@ def _dispatch(args, parser) -> int:
             print(f"unknown task {args.task!r}; available: {', '.join(sorted(tasks)) or '(none)'}")
             return 1
         results = run_task(
-            tasks[args.task], DiffSource(_read_diff(args.diff)), load_capabilities(args.capabilities)
+            tasks[args.task],
+            DiffSource(_read_diff(args.diff)),
+            load_capabilities(args.capabilities),
+            cache=None if args.no_cache else VerdictCache(),
         )
         results = _maybe_suppress(results, not args.no_suppress)
         print(_render_results(args.fmt, results))

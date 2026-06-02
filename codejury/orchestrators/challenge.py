@@ -38,7 +38,10 @@ class ChallengeOrchestrator(Orchestrator):
         if missing:
             return AnalysisResult(error=f"challenge requires agents: {', '.join(missing)}")
 
-        verdicts = agents["verifier"].run(context)
+        try:
+            verdicts = agents["verifier"].run(context)
+        except Exception as exc:
+            return AnalysisResult(error=f"agent 'verifier' failed: {exc}")
         flagged = [
             v
             for v in verdicts
@@ -49,7 +52,11 @@ class ChallengeOrchestrator(Orchestrator):
         if not flagged:
             return AnalysisResult(observations=verdicts)
 
-        refutations = agents["refuter"].run(dataclasses.replace(context, history=flagged))
+        try:
+            refutations = agents["refuter"].run(dataclasses.replace(context, history=flagged))
+        except Exception as exc:
+            # a refuter failure must not lose the verdicts already produced
+            return AnalysisResult(observations=verdicts, error=f"agent 'refuter' failed: {exc}")
         reasons = {c.target: c.reason for c in refutations if isinstance(c, Concession)}
         # the refuter targets a capability, not an individual verdict; if a capability
         # has more than one flagged verdict the refutation is ambiguous, so leave them

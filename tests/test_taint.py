@@ -121,3 +121,15 @@ def test_worst_sink_taint_safe_sink_only_is_sanitized():
     # a safe parser consuming external data is provably safe
     code = "def f(request):\n    return ast.literal_eval(request.data)\n"
     assert worst_sink_taint(code, {"m.py": code}, VOCAB) is Taint.SANITIZED
+
+
+def test_method_form_propagator_keeps_receiver_taint():
+    # request.args.get("id").strip() must stay EXTERNAL, not collapse to CONSTANT
+    src = "def f(request):\n    return open(request.args.get('id').strip())\n"
+    assert _taint(src, "f", "open") is Taint.EXTERNAL
+
+
+def test_module_function_propagator_not_polluted_by_receiver():
+    # os.path.join's receiver is a module path, not a value; taint comes from the args
+    src = "def f(request):\n    return open(os.path.join(BASE, request.args['p']))\n"
+    assert _taint(src, "f", "open") is Taint.EXTERNAL  # not UNKNOWN from the os.path receiver
