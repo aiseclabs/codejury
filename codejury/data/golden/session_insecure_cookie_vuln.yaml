@@ -1,0 +1,11 @@
+capability: session
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-614
+source: synthetic
+notes: >
+  The session cookie is set without Secure, HttpOnly, or SameSite, so it is
+  readable by JavaScript and sent over plaintext.
+code: |
+  def set_session(response, sid):
+      response.set_cookie("session", sid)

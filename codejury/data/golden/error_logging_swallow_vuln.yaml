@@ -1,0 +1,14 @@
+capability: error_logging
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-390
+source: synthetic
+notes: >
+  The bare except discards every error, including security-relevant failures, so
+  a failed charge looks like a success and nothing is logged.
+code: |
+  def charge(card):
+      try:
+          gateway.charge(card)
+      except Exception:
+          pass

@@ -1,4 +1,5 @@
 capability: authz
+split: held-out
 vulnerable: true
 code: |
   def get_invoice(request):

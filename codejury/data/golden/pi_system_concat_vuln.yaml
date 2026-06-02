@@ -1,4 +1,5 @@
 capability: prompt_injection
+split: held-out
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-1427

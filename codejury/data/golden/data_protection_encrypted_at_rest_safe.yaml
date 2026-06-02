@@ -1,0 +1,11 @@
+capability: data_protection
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  The SSN is encrypted before it is stored, so no plaintext PII is persisted.
+code: |
+  def save(user):
+      ciphertext = AESGCM(KEY).encrypt(os.urandom(12), user.ssn.encode(), None)
+      db.store(user.id, ciphertext)

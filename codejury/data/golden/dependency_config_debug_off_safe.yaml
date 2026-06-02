@@ -1,0 +1,12 @@
+capability: dependency_config
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+split: held-out
+notes: >
+  An ordinary run with the debugger left at its safe default. A normal app.run
+  must not be flagged.
+code: |
+  def main():
+      app.run(host="127.0.0.1")

@@ -1,0 +1,11 @@
+capability: dependency_config
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-489
+source: synthetic
+notes: >
+  Running with the debugger enabled in production exposes an interactive console
+  that can execute code on the server.
+code: |
+  def main():
+      app.run(host="0.0.0.0", debug=True)

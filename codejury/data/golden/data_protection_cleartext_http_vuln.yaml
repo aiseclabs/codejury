@@ -1,0 +1,11 @@
+capability: data_protection
+vulnerable: true
+expected_verdict: VULNERABLE
+cwe: CWE-319
+source: synthetic
+notes: >
+  PII is posted over plaintext http, so it can be read by anyone on the network
+  path. It must travel over TLS.
+code: |
+  def sync(user):
+      requests.post("http://crm.internal/contacts", json={"ssn": user.ssn, "email": user.email})

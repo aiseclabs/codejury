@@ -1,4 +1,5 @@
 capability: output_encoding
+split: held-out
 vulnerable: true
 code: |
   function render(name) {

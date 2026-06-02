@@ -1,0 +1,15 @@
+capability: business_logic
+vulnerable: false
+expected_verdict: SECURE
+cwe: ""
+source: synthetic
+notes: >
+  A single atomic conditional update debits only when the balance suffices, so
+  there is no check-then-act race.
+code: |
+  def withdraw(account, amount):
+      result = db.execute(
+          "UPDATE accounts SET balance = balance - %s WHERE id = %s AND balance >= %s",
+          (amount, account.id, amount),
+      )
+      return result.rowcount == 1
