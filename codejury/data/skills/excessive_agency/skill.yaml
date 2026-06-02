@@ -1,0 +1,11 @@
+id: excessive_agency
+name: Excessive Agency
+version: '1'
+standard: OWASP LLM06 Excessive Agency
+cwe: CWE-862
+severity: HIGH
+tags:
+- llm
+- agent
+- tools
+- agency

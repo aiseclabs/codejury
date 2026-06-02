@@ -1,0 +1,11 @@
+id: business_logic
+name: Business Logic
+version: '1'
+standard: OWASP ASVS V11
+cwe: CWE-362
+severity: HIGH
+tags:
+- business-logic
+- race
+- replay
+- workflow

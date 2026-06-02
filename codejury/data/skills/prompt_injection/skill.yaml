@@ -1,0 +1,10 @@
+id: prompt_injection
+name: Prompt Injection
+version: '1'
+standard: OWASP LLM01 Prompt Injection
+cwe: CWE-1427
+severity: HIGH
+tags:
+- llm
+- prompt-injection
+- rag

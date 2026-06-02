@@ -1,0 +1,12 @@
+id: crypto
+name: Cryptography
+version: '1'
+standard: OWASP ASVS V6
+cwe: CWE-329
+severity: HIGH
+tags:
+- cryptography
+- cipher
+- key
+- nonce
+- randomness

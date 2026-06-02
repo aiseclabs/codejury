@@ -1,0 +1,11 @@
+id: model_supply_chain
+name: Model Supply Chain
+version: '1'
+standard: OWASP LLM03 Supply Chain
+cwe: CWE-494
+severity: CRITICAL
+tags:
+- llm
+- model
+- supply-chain
+- pickle

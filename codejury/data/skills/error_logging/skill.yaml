@@ -1,0 +1,11 @@
+id: error_logging
+name: Error Handling and Logging
+version: '1'
+standard: OWASP ASVS V7
+cwe: CWE-778
+severity: MEDIUM
+tags:
+- error-handling
+- logging
+- audit
+- debug

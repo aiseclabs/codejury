@@ -41,7 +41,7 @@ build-backend = "setuptools.build_meta"
 include = ["codejury*"]
 
 [tool.setuptools.package-data]
-codejury = ["data/**/*.yaml"]
+codejury = ["data/**/*.yaml", "data/**/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

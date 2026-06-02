@@ -1,0 +1,11 @@
+id: output_encoding
+name: Output Encoding
+version: '1'
+standard: OWASP ASVS V5
+cwe: CWE-79
+severity: HIGH
+tags:
+- xss
+- encoding
+- headers
+- logs

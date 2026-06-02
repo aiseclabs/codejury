@@ -5,6 +5,7 @@ no audit logic."""
 import pytest
 
 from codejury.domain.skill import Skill, load_skill, load_skills
+from codejury.resources import CAPABILITIES_DIR, SKILLS_DIR
 
 MANIFEST = """\
 id: sql_injection
@@ -114,3 +115,21 @@ def test_skill_is_frozen_and_hashable():
     assert s in {s}
     with pytest.raises(Exception):
         s.id = "y"  # frozen
+
+
+# --- shipped skills (R2 migration of the capability set) ---
+
+def test_shipped_skills_load_and_cover_the_capabilities():
+    from codejury.domain.capability import load_capabilities
+
+    skill_ids = {s.id for s in load_skills(SKILLS_DIR)}
+    # capability filenames and ids differ for a few (authn/authz), so compare by id
+    cap_ids = {c.id for c in load_capabilities(CAPABILITIES_DIR)}
+    assert skill_ids == cap_ids, "every capability must have a 1:1 skill after R2"
+
+
+def test_shipped_skills_carry_a_playbook_and_valid_metadata():
+    for s in load_skills(SKILLS_DIR):
+        assert s.instructions.strip(), f"{s.id}: empty playbook"
+        assert s.cwe.startswith("CWE-"), f"{s.id}: missing CWE fallback"
+        assert s.standard, f"{s.id}: missing standard reference"

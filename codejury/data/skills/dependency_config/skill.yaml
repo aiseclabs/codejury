@@ -1,0 +1,11 @@
+id: dependency_config
+name: Dependencies and Configuration
+version: '1'
+standard: OWASP ASVS V14
+cwe: CWE-295
+severity: HIGH
+tags:
+- dependencies
+- configuration
+- tls
+- permissions

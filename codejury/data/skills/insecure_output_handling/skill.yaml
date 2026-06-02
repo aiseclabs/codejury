@@ -1,0 +1,11 @@
+id: insecure_output_handling
+name: Insecure Output Handling
+version: '1'
+standard: OWASP LLM05 Improper Output Handling
+cwe: CWE-94
+severity: CRITICAL
+tags:
+- llm
+- output
+- xss
+- code-execution
