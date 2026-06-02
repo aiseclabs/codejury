@@ -19,8 +19,9 @@ class AuditError(RuntimeError):
 
     Raised instead of returning an empty findings list, so a failed or blank
     call is never reported as a clean audit. The prompt requires a JSON object
-    (an empty ``{"findings": []}`` when there is nothing to report), so a reply
-    that yields no object is a failure, not a pass."""
+    carrying a ``findings`` key (an empty ``{"findings": []}`` when there is
+    nothing to report), so a reply that yields no object, or an object without
+    that key, is a failure, not a pass."""
 
 
 class AuditRunner:
@@ -39,9 +40,10 @@ class AuditRunner:
             max_tokens=self._max_tokens,
         )
         obj = extract_json_object(result.text)
-        if obj is None:
+        if obj is None or "findings" not in obj:
             raise AuditError(
-                "could not parse a JSON audit result from the model reply; "
-                "treating it as a failed audit rather than a clean pass"
+                "the model reply was not a valid audit result (no JSON object, or a "
+                "JSON object without a `findings` key); treating it as a failed "
+                "audit rather than a clean pass"
             )
         return findings_from_list(obj.get("findings"))

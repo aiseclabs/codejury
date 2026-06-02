@@ -73,6 +73,17 @@ def test_engine_raises_on_unparseable_reply():
         AuditRunner(provider=MockProvider(default=""), model="m").run(_DIFF)
 
 
+def test_engine_raises_on_wrong_shape_json():
+    # valid JSON but no `findings` key is a malformed reply, not a clean audit
+    import pytest
+
+    from codejury.diff.engine import AuditError
+
+    for bad in ("{}", '{"result": "ok"}'):
+        with pytest.raises(AuditError):
+            AuditRunner(provider=MockProvider(default=bad), model="m").run(_DIFF)
+
+
 def test_prompt_carries_diff_focus_and_do_not_report():
     p = standard_audit_prompt(_DIFF, rules="RULE-X", context="def caller(): ...")
     assert "SELECT * FROM u" in p          # the diff
