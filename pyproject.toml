@@ -1,7 +1,7 @@
 [project]
 name = "codejury"
-version = "0.10.6"
-description = "General-purpose Application Security AI audit framework: five-layer architecture, capabilities as first-class data"
+version = "0.11.0"
+description = "General-purpose Application Security AI audit framework: skills as first-class data, whole-repo full-review, attack paths with PoC verification"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
