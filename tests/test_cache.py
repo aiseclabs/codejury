@@ -2,18 +2,21 @@ import json
 
 from codejury.cli import audit
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability
 from codejury.domain.observation import Concession, Evidence, Finding, Verdict
 from codejury.domain.result import AnalysisResult
+from codejury.domain.skill import Skill
 from codejury.infrastructure.cache import VerdictCache, verdict_key
 from codejury.providers.mock import MockProvider
 
-_VULN = json.dumps({"verdicts": [{"sub_capability": "x", "status": "VULNERABLE"}]})
-_SECURE = json.dumps({"verdicts": [{"sub_capability": "x", "status": "SECURE"}]})
+# SkillRunner drops a VULNERABLE verdict with no location, so the mock carries one.
+_VULN = json.dumps(
+    {"verdicts": [{"dimension": "x", "status": "VULNERABLE", "evidence": [{"file": "auth.py", "line": 1, "code": "c"}]}]}
+)
+_SECURE = json.dumps({"verdicts": [{"dimension": "x", "status": "SECURE"}]})
 
 # A minimal one-file diff; DiffSource takes the path from the +++ line.
 _DIFF = "+++ b/auth.py\n@@ -0,0 +1 @@\n+password = sha256(p)\n"
-_CAPS = [Capability(id="authn", name="Authentication")]
+_SKILLS = [Skill(id="authn", name="Authentication", instructions="check auth")]
 
 
 def _statuses(results):
@@ -29,8 +32,8 @@ def test_repeated_audit_reuses_cached_verdicts(tmp_path):
     provider = MockProvider(responses=[_VULN, _SECURE])
     kw = dict(provider=provider, model="m", max_tokens=8, strategy="single", cache=cache)
 
-    first = audit(_DIFF, _CAPS, **kw)
-    second = audit(_DIFF, _CAPS, **kw)
+    first = audit(_DIFF, _SKILLS, **kw)
+    second = audit(_DIFF, _SKILLS, **kw)
 
     assert len(provider.calls) == 1               # model queried once, not twice
     assert _statuses(first) == _statuses(second) == ["VULNERABLE"]
@@ -40,8 +43,8 @@ def test_no_cache_reruns_the_model(tmp_path):
     provider = MockProvider(responses=[_VULN, _SECURE])
     kw = dict(provider=provider, model="m", max_tokens=8, strategy="single")
 
-    first = audit(_DIFF, _CAPS, cache=None, **kw)
-    second = audit(_DIFF, _CAPS, cache=None, **kw)
+    first = audit(_DIFF, _SKILLS, cache=None, **kw)
+    second = audit(_DIFF, _SKILLS, cache=None, **kw)
 
     assert len(provider.calls) == 2               # no cache: queried both times
     assert _statuses(first) == ["VULNERABLE"]
@@ -50,26 +53,26 @@ def test_no_cache_reruns_the_model(tmp_path):
 
 # --- acceptance (2): editing a capability invalidates the cache ---------------
 
-def test_capability_version_bump_invalidates_cache(tmp_path):
+def test_skill_version_bump_invalidates_cache(tmp_path):
     cache = VerdictCache(tmp_path)
     provider = MockProvider(responses=[_VULN, _SECURE])
-    caps_v1 = [Capability(id="authn", name="Authentication", version="1")]
-    caps_v2 = [Capability(id="authn", name="Authentication", version="2")]
+    skills_v1 = [Skill(id="authn", name="Authentication", version="1", instructions="check")]
+    skills_v2 = [Skill(id="authn", name="Authentication", version="2", instructions="check")]
 
-    first = audit(_DIFF, caps_v1, provider=provider, model="m", max_tokens=8, cache=cache)
-    second = audit(_DIFF, caps_v2, provider=provider, model="m", max_tokens=8, cache=cache)
+    first = audit(_DIFF, skills_v1, provider=provider, model="m", max_tokens=8, cache=cache)
+    second = audit(_DIFF, skills_v2, provider=provider, model="m", max_tokens=8, cache=cache)
 
     assert len(provider.calls) == 2               # bumped version is a cache miss
     assert _statuses(first) == ["VULNERABLE"]
     assert _statuses(second) == ["SECURE"]
 
 
-def test_capability_content_change_invalidates_cache():
+def test_skill_content_change_invalidates_cache():
     art = CodeArtifact(kind="file", path="x.py", content="a = 1")
-    c1 = [Capability(id="authn", name="Authentication", description="old wording")]
-    c2 = [Capability(id="authn", name="Authentication", description="new wording")]
+    s1 = [Skill(id="authn", name="Authentication", instructions="old wording")]
+    s2 = [Skill(id="authn", name="Authentication", instructions="new wording")]
     # no manual bump: a content edit alone changes the fingerprint, hence the key.
-    assert verdict_key(art, c1, orchestration="s") != verdict_key(art, c2, orchestration="s")
+    assert verdict_key(art, s1, orchestration="s") != verdict_key(art, s2, orchestration="s")
 
 
 # --- key composition ----------------------------------------------------------
@@ -77,13 +80,13 @@ def test_capability_content_change_invalidates_cache():
 def test_verdict_key_ignores_cosmetic_whitespace():
     a = CodeArtifact(kind="file", path="x.py", content="a = 1\nb = 2")
     b = CodeArtifact(kind="file", path="x.py", content="a = 1  \r\nb = 2\n\n")
-    assert verdict_key(a, _CAPS, orchestration="s") == verdict_key(b, _CAPS, orchestration="s")
+    assert verdict_key(a, _SKILLS, orchestration="s") == verdict_key(b, _SKILLS, orchestration="s")
 
 
 def test_verdict_key_changes_with_orchestration():
     art = CodeArtifact(kind="file", path="x.py", content="a = 1")
-    assert verdict_key(art, _CAPS, orchestration="single|m|8") != verdict_key(
-        art, _CAPS, orchestration="debate|m|8"
+    assert verdict_key(art, _SKILLS, orchestration="single|m|8") != verdict_key(
+        art, _SKILLS, orchestration="debate|m|8"
     )
 
 

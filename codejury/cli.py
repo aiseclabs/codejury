@@ -21,15 +21,18 @@ from codejury.assembly import (
     PROVIDERS,
     STRATEGIES,
     build_orchestration,
+    build_skill_orchestration,
     make_provider,
     orchestration_descriptor,
     run_over_artifacts,
+    run_over_artifacts_with_skills,
     run_over_source,
 )
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability, load_capabilities
 from codejury.domain.context import AnalysisContext
-from codejury.domain.skill import load_skills
+from codejury.domain.skill import Skill, load_skills
+from codejury.selection import Selector, SkillRouter
 from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
 from codejury.evaluation import EvalReport, evaluate, load_cases
@@ -55,38 +58,39 @@ def dry_run() -> AnalysisResult:
     provider = MockProvider(default="[mock] no real backend was called")
     agent = MockAgent(provider=provider, role="verifier")
     orchestrator = SingleOrchestrator()
-    capabilities = [
-        Capability(id="authn", name="Authentication"),
-        Capability(id="crypto", name="Cryptography"),
+    skills = [
+        Skill(id="authn", name="Authentication"),
+        Skill(id="crypto", name="Cryptography"),
     ]
     ctx = AnalysisContext(
         artifact=CodeArtifact(kind="diff", path="auth.py", content="+ hashlib.sha256(pwd)"),
-        capabilities=capabilities,
+        skills=skills,
     )
     return orchestrator.run({"verifier": agent}, ctx)
 
 
 def audit(
     diff_text: str,
-    capabilities: list[Capability],
+    skills: list[Skill],
     *,
     provider: Provider,
     model: str,
     max_tokens: int = 2048,
     strategy: str = "single",
     cache: VerdictCache | None = None,
+    router: SkillRouter | None = None,
 ) -> list[tuple[str, AnalysisResult]]:
-    """Audit each changed file in `diff_text`, returning (path, result) per file."""
-    agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
-    return run_over_source(
-        DiffSource(diff_text), capabilities, agents, orchestrator,
-        cache=cache, orchestration=orchestration_descriptor(provider, strategy, model, max_tokens),
+    """Audit each changed file in `diff_text` on its selected skills, (path, result) per file."""
+    agents, orchestrator = build_skill_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
+    return run_over_artifacts_with_skills(
+        DiffSource(diff_text).list_artifacts(), Selector(tuple(skills)), agents, orchestrator,
+        router=router, cache=cache, orchestration=orchestration_descriptor(provider, strategy, model, max_tokens),
     )
 
 
 def scan(
     directory: str,
-    capabilities: list[Capability],
+    skills: list[Skill],
     *,
     provider: Provider,
     model: str,
@@ -97,8 +101,9 @@ def scan(
     with_callers: bool = False,
     with_callees: bool = False,
     cache: VerdictCache | None = None,
+    router: SkillRouter | None = None,
 ) -> list[tuple[str, AnalysisResult]]:
-    """Audit every matching file in a directory tree, returning (path, result) per artifact."""
+    """Audit every matching file in a directory tree on its selected skills, (path, result) per artifact."""
     source = RepoSource(
         directory,
         extensions=extensions,
@@ -107,14 +112,13 @@ def scan(
         with_callees=with_callees,
     )
     artifacts = source.list_artifacts()
-    calls = len(artifacts) * len(capabilities)
     print(
-        f"scanning {len(artifacts)} artifacts x {len(capabilities)} capabilities (~{calls} model calls)",
+        f"scanning {len(artifacts)} artifacts x up to {len(skills)} skills",
         file=sys.stderr,
     )
-    agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
-    return run_over_artifacts(
-        artifacts, capabilities, agents, orchestrator,
+    agents, orchestrator = build_skill_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
+    return run_over_artifacts_with_skills(
+        artifacts, Selector(tuple(skills)), agents, orchestrator,
         cache=cache, orchestration=orchestration_descriptor(provider, strategy, model, max_tokens),
     )
 
@@ -242,9 +246,9 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("dry-run", help="run the mock pipeline end to end")
 
-    audit_p = sub.add_parser("audit", help="audit a unified diff against the capability library")
+    audit_p = sub.add_parser("audit", help="audit a unified diff against the skill library")
     audit_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
-    audit_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
+    audit_p.add_argument("--skills", default=SKILLS_DIR, help="skill directory")
     audit_p.add_argument("--orchestrator", choices=STRATEGIES, default="single")
     audit_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     audit_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
@@ -259,11 +263,11 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
     audit_p.add_argument("--github", default=None, help="post a PR review: owner/repo#number (needs GITHUB_TOKEN)")
 
-    scan_p = sub.add_parser("scan", help="audit a whole directory tree (deep, capability by capability)")
+    scan_p = sub.add_parser("scan", help="audit a whole directory tree, skill by skill")
     scan_p.add_argument("directory", help="directory to scan")
     scan_p.add_argument("--ext", default=".py", help="comma-separated file extensions (default .py)")
-    scan_p.add_argument("--only", default=None, help="comma-separated capability ids to scan (default: all)")
-    scan_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
+    scan_p.add_argument("--only", default=None, help="comma-separated skill ids to scan (default: all)")
+    scan_p.add_argument("--skills", default=SKILLS_DIR, help="skill directory")
     scan_p.add_argument("--orchestrator", choices=STRATEGIES, default="pipeline")
     scan_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     scan_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
@@ -288,7 +292,7 @@ def main(argv: list[str] | None = None) -> int:
     run_p.add_argument("task", help="task name")
     run_p.add_argument("diff", nargs="?", default="-", help="unified diff file, or - for stdin")
     run_p.add_argument("--tasks", default=TASKS_DIR, help="task YAML directory")
-    run_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
+    run_p.add_argument("--skills", default=SKILLS_DIR, help="skill directory")
     run_p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     run_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
     run_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
@@ -320,7 +324,7 @@ def _dispatch(args, parser) -> int:
     if args.command == "audit":
         results = audit(
             _read_diff(args.diff),
-            load_capabilities(args.capabilities),
+            load_skills(args.skills),
             provider=make_provider(
                 args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries
             ),
@@ -336,17 +340,17 @@ def _dispatch(args, parser) -> int:
         return _gate_exit(results, args.fail_on)
 
     if args.command == "scan":
-        capabilities = load_capabilities(args.capabilities)
+        skills = load_skills(args.skills)
         if args.only:
             wanted = {x.strip() for x in args.only.split(",")}
-            unknown = wanted - {c.id for c in capabilities}
+            unknown = wanted - {s.id for s in skills}
             if unknown:
-                print(f"warning: --only names unknown capability id(s): {', '.join(sorted(unknown))}", file=sys.stderr)
-            capabilities = [c for c in capabilities if c.id in wanted]
+                print(f"warning: --only names unknown skill id(s): {', '.join(sorted(unknown))}", file=sys.stderr)
+            skills = [s for s in skills if s.id in wanted]
         extensions = tuple(e if e.startswith(".") else "." + e for e in args.ext.split(","))
         results = scan(
             args.directory,
-            capabilities,
+            skills,
             provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries),
             model=args.model,
             max_tokens=args.max_tokens,
@@ -370,7 +374,7 @@ def _dispatch(args, parser) -> int:
         results = run_task(
             tasks[args.task],
             DiffSource(_read_diff(args.diff)),
-            load_capabilities(args.capabilities),
+            load_skills(args.skills),
             cache=None if args.no_cache else VerdictCache(),
         )
         results = _maybe_suppress(results, not args.no_suppress)

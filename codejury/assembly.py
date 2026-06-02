@@ -18,6 +18,7 @@ from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.result import AnalysisResult
 from codejury.infrastructure.cache import VerdictCache, verdict_key
+from codejury.selection import Selector, SkillRouter
 from codejury.orchestrators.base import Orchestrator
 from codejury.orchestrators.adaptive import AdaptiveOrchestrator
 from codejury.orchestrators.challenge import ChallengeOrchestrator
@@ -25,6 +26,7 @@ from codejury.orchestrators.debate import DebateOrchestrator
 from codejury.orchestrators.pipeline import PipelineOrchestrator
 from codejury.orchestrators.reflexion import ReflexionOrchestrator
 from codejury.orchestrators.single import SingleOrchestrator
+from codejury.orchestrators.skill_pipeline import SkillPipelineOrchestrator
 from codejury.orchestrators.taint_gate import TaintGateOrchestrator
 from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Provider
@@ -98,11 +100,14 @@ def build_skill_orchestration(
     agents = {"verifier": SkillRunner(provider=provider, model=model, max_tokens=max_tokens)}
     if strategy in ("single", ""):
         return agents, SingleOrchestrator()
+    if strategy == "pipeline":
+        return agents, SkillPipelineOrchestrator()
     if strategy == "taint":
         return agents, TaintGateOrchestrator()
     raise NotImplementedError(
         f"skill orchestration for strategy {strategy!r} is not wired yet; "
-        "single and taint are available, the rest arrive with R5"
+        "single, pipeline, and taint are available, the multi-agent strategies "
+        "(debate, reflexion, challenge, adaptive) arrive with R5b"
     )
 
 
@@ -160,3 +165,35 @@ def run_over_source(
         source.list_artifacts(), capabilities, agents, orchestrator,
         cache=cache, orchestration=orchestration,
     )
+
+
+def run_over_artifacts_with_skills(
+    artifacts: list[CodeArtifact],
+    selector: Selector,
+    agents: dict[str, Agent],
+    orchestrator: Orchestrator,
+    *,
+    router: SkillRouter | None = None,
+    cache: VerdictCache | None = None,
+    orchestration: str = "",
+) -> list[tuple[str, AnalysisResult]]:
+    """Run the orchestration over each artifact on its selected skills.
+
+    The selector picks, per artifact, which skills apply (the deterministic
+    applies_to filter, then the optional router). verdict_key duck-types on each
+    skill's id and fingerprint, so the determinism cache works unchanged."""
+    results = []
+    for artifact in artifacts:
+        skills = selector.select(artifact, router=router)
+        if cache is not None:
+            key = verdict_key(artifact, skills, orchestration=orchestration)
+            hit = cache.get(key)
+            if hit is not None:
+                results.append((artifact.path, hit))
+                continue
+        ctx = AnalysisContext(artifact=artifact, skills=skills)
+        result = orchestrator.run(agents, ctx)
+        if cache is not None:
+            cache.put(key, result)
+        results.append((artifact.path, result))
+    return results

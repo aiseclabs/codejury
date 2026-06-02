@@ -3,14 +3,12 @@ import json
 import pytest
 
 from codejury.cli import _render_audit, _render_observation, audit, make_provider
-from codejury.domain.capability import Capability, load_capability
 from codejury.domain.observation import Concession, Finding, Verdict
+from codejury.domain.skill import Skill
 from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.litellm import LiteLLMProvider
 from codejury.providers.mock import MockProvider
 from codejury.providers.openai import OpenAIProvider
-
-from codejury.resources import CAPABILITIES_DIR
 
 _TWO_FILE_DIFF = """\
 diff --git a/auth.py b/auth.py
@@ -25,28 +23,29 @@ diff --git a/safe.py b/safe.py
 +    return bcrypt.hashpw(pwd, bcrypt.gensalt())
 """
 
+_AUTHN = Skill(id="authn", name="Authentication", cwe="CWE-916", instructions="check password hashing")
+
+# SkillRunner drops a VULNERABLE verdict with no location, so the mock carries one.
 _REPLY = json.dumps(
-    {"verdicts": [{"sub_capability": "password_storage", "status": "VULNERABLE", "matched_anti": ["PWD-BAD-1"]}]}
+    {"verdicts": [{"dimension": "password_storage", "status": "VULNERABLE",
+                   "evidence": [{"file": "auth.py", "line": 1, "code": "sha256"}]}]}
 )
 
 
 def test_audit_runs_per_changed_file():
-    cap = load_capability(CAPABILITIES_DIR / "authentication.yaml")
-    results = audit(_TWO_FILE_DIFF, [cap], provider=MockProvider(default=_REPLY), model="mock")
+    results = audit(_TWO_FILE_DIFF, [_AUTHN], provider=MockProvider(default=_REPLY), model="mock")
 
     assert [path for path, _ in results] == ["auth.py", "safe.py"]
-    first_path, first_result = results[0]
+    _, first_result = results[0]
     assert first_result.observations[0].capability == "authn.password_storage"
     assert first_result.observations[0].status == "VULNERABLE"
 
 
-def test_render_groups_by_file_and_shows_matched_patterns():
-    cap = load_capability(CAPABILITIES_DIR / "authentication.yaml")
-    results = audit(_TWO_FILE_DIFF, [cap], provider=MockProvider(default=_REPLY), model="mock")
+def test_render_groups_by_file_and_shows_the_verdict():
+    results = audit(_TWO_FILE_DIFF, [_AUTHN], provider=MockProvider(default=_REPLY), model="mock")
     rendered = _render_audit(results)
     assert "== auth.py ==" in rendered
     assert "VULNERABLE" in rendered
-    assert "PWD-BAD-1" in rendered
 
 
 def test_render_handles_empty_diff():
@@ -62,24 +61,11 @@ diff --git a/auth.py b/auth.py
 """
 
 
-def test_debate_strategy_wires_finder_challenger_judge():
-    # Two identical rounds -> debate converges; each round is finder, challenger, judge.
-    rounds = []
-    for _ in range(2):
-        rounds += [
-            json.dumps({"findings": [{"title": "weak hash", "severity": "HIGH"}]}),
-            json.dumps({"rebuttals": [], "new_findings": []}),
-            json.dumps({"surviving": [{"title": "weak hash", "severity": "HIGH"}], "dismissed": []}),
-        ]
-    provider = MockProvider(responses=rounds, default="{}")
-    cap = Capability(id="authn", name="Authentication")
-
-    results = audit(_ONE_FILE_DIFF, [cap], provider=provider, model="m", strategy="debate")
-
-    _, result = results[0]
-    findings = [o for o in result.observations if isinstance(o, Finding)]
-    assert [f.title for f in findings] == ["weak hash"]
-    assert len(provider.calls) == 6  # 2 rounds * 3 roles
+def test_multi_agent_strategy_not_yet_wired_for_skills():
+    # debate/reflexion/challenge/adaptive on skills arrive with R5b; until then a
+    # skill audit with such a strategy fails loudly rather than silently.
+    with pytest.raises(NotImplementedError):
+        audit(_ONE_FILE_DIFF, [_AUTHN], provider=MockProvider(default="{}"), model="m", strategy="debate")
 
 
 @pytest.mark.parametrize(
@@ -107,10 +93,11 @@ def test_scan_audits_each_file_in_a_tree(tmp_path):
     (tmp_path / "pkg" / "b.py").write_text("y = bcrypt.hashpw(pwd, salt)\n", encoding="utf-8")
     (tmp_path / "notes.md").write_text("ignored\n", encoding="utf-8")  # wrong extension
 
-    cap = Capability(id="authn", name="Authentication")
-    reply = json.dumps({"verdicts": [{"sub_capability": "password_storage", "status": "VULNERABLE"}]})
-
-    results = scan(str(tmp_path), [cap], provider=MockProvider(default=reply), model="m", strategy="pipeline")
+    reply = json.dumps(
+        {"verdicts": [{"dimension": "password_storage", "status": "VULNERABLE",
+                       "evidence": [{"file": "a.py", "line": 1, "code": "sha256"}]}]}
+    )
+    results = scan(str(tmp_path), [_AUTHN], provider=MockProvider(default=reply), model="m", strategy="pipeline")
 
     assert [path for path, _ in results] == ["a.py", "pkg/b.py"]  # only .py, sorted, relative
     assert results[0][1].observations[0].capability == "authn.password_storage"

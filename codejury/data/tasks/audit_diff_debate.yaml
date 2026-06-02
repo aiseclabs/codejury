@@ -1,4 +1,6 @@
 name: audit_diff_debate
-orchestrator: debate
+# debate over skills is not wired yet (R5b); using taint, an available skill
+# strategy, until the multi-agent skill orchestration lands.
+orchestrator: taint
 provider: anthropic
-# capabilities omitted -> check all of them
+# skills omitted -> check all of them
