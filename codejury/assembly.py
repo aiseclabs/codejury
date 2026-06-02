@@ -110,14 +110,21 @@ def run_over_artifacts_with_skills(
     router: SkillRouter | None = None,
     cache: VerdictCache | None = None,
     orchestration: str = "",
+    verify: bool = False,
 ) -> list[tuple[str, AnalysisResult]]:
     """Run the orchestration over each artifact on its selected skills.
 
     The selector picks, per artifact, which skills apply (the deterministic
     applies_to filter, then the optional router). verdict_key duck-types on each
-    skill's id and fingerprint, so the determinism cache works unchanged."""
+    skill's id and fingerprint, so the determinism cache works unchanged. When
+    ``verify`` is set, high-severity findings are PoC-checked in the sandbox and
+    upgraded to proven; the verify flag is folded into the cache key."""
+    from codejury.sandbox import load_poc_templates, verify_result
+
     results = []
     vocab = load_vocab()  # once: the attack-path synthesizer reuses it per artifact
+    templates = load_poc_templates() if verify else []
+    orchestration = orchestration + ("|verify" if verify else "")
     for artifact in artifacts:
         skills = selector.select(artifact, router=router)
         if cache is not None:
@@ -129,6 +136,8 @@ def run_over_artifacts_with_skills(
         ctx = AnalysisContext(artifact=artifact, skills=skills)
         result = orchestrator.run(agents, ctx)
         result = attach_suspected_paths(result, artifact, vocab=vocab)
+        if verify:
+            result = verify_result(result, artifact.content, templates)
         if cache is not None:
             cache.put(key, result)
         results.append((artifact.path, result))

@@ -4,17 +4,22 @@ never proves."""
 
 import pytest
 
+from codejury.domain.observation import Evidence, Finding, Verdict
+from codejury.domain.result import AnalysisResult
 from codejury.resources import POC_DIR
 from codejury.sandbox import (
     PocTemplate,
     load_poc_templates,
     prove,
     template_for_cwe,
+    verify_result,
 )
 
 _T = {t.id: t for t in load_poc_templates()}
 CMDI = _T["cmdi"]
 PATH = _T["path"]
+SQLI = _T["sqli"]
+SSRF = _T["ssrf"]
 
 
 # --- command injection ---
@@ -58,6 +63,41 @@ def test_path_basename_sanitized_is_not_proven():
         "    return open(os.path.join(STATIC_DIR, safe))\n"
     )
     assert prove(code, PATH).proven is False
+
+
+# --- sql injection (method sink on a free receiver) ---
+
+def test_sqli_concat_query_is_proven():
+    code = "def get(name):\n    cursor.execute(\"SELECT * FROM u WHERE n='\" + name + \"'\")\n"
+    r = prove(code, SQLI)
+    assert r.proven is True
+    assert ".execute" in r.hits
+
+
+def test_sqli_parameterized_is_not_proven():
+    # the marker lands in the params tuple, not the query string -> first_str_arg misses it
+    code = "def get(name):\n    cursor.execute('SELECT * FROM u WHERE n=%s', (name,))\n"
+    assert prove(code, SQLI).proven is False
+
+
+# --- ssrf ---
+
+def test_ssrf_user_url_is_proven():
+    code = "def fetch(request):\n    import requests\n    return requests.get(request.args['url'])\n"
+    assert prove(code, SSRF).proven is True
+
+
+def test_ssrf_host_allowlist_is_not_proven():
+    code = (
+        "def fetch(request):\n"
+        "    import requests\n"
+        "    from urllib.parse import urlparse\n"
+        "    url = request.args['url']\n"
+        "    if urlparse(url).hostname not in ALLOWED_HOSTS:\n"
+        "        raise ValueError('host not allowed')\n"
+        "    return requests.get(url)\n"
+    )
+    assert prove(code, SSRF).proven is False
 
 
 # --- the real sink never runs ---
@@ -104,3 +144,52 @@ def test_template_for_cwe():
     assert template_for_cwe("CWE-78", [CMDI, PATH]) is CMDI
     assert template_for_cwe("CWE-22", [CMDI, PATH]) is PATH
     assert template_for_cwe("CWE-999", [CMDI, PATH]) is None
+
+
+# --- verify_result: upgrade a finding to proven ---
+
+_TEMPLATES = load_poc_templates()
+_CMDI_CODE = "def run(host):\n    import os\n    os.system('ping ' + host)\n"
+
+
+def test_verify_result_proves_high_severity_finding():
+    result = AnalysisResult(observations=[
+        Finding(capability="input_validation.command_injection", title="cmdi", severity="CRITICAL",
+                cwe="CWE-78", evidence=[Evidence(file="m.py", line=3, code="os.system(...)")]),
+    ])
+    out = verify_result(result, _CMDI_CODE, _TEMPLATES)
+    o = out.observations[0]
+    assert o.attack_path_proven is True
+    assert any("PoC proven" in e.code for e in o.evidence)
+
+
+def test_verify_result_recall_safe_when_not_provable():
+    # a safe argv subprocess is not proven; the finding is kept, just not upgraded
+    safe = "def run(host):\n    import subprocess\n    subprocess.run(['ping', host], shell=False)\n"
+    result = AnalysisResult(observations=[
+        Finding(capability="iv.cmdi", title="cmdi", severity="HIGH", cwe="CWE-78",
+                evidence=[Evidence(file="m.py", line=3)]),
+    ])
+    out = verify_result(result, safe, _TEMPLATES)
+    assert out.observations[0].attack_path_proven is False
+    assert out is result  # unchanged -> same object
+
+
+def test_verify_result_skips_low_severity_and_unmapped_cwe():
+    result = AnalysisResult(observations=[
+        Finding(capability="x", title="low", severity="LOW", cwe="CWE-78",
+                evidence=[Evidence(file="m.py", line=3)]),                       # below threshold
+        Finding(capability="y", title="other", severity="CRITICAL", cwe="CWE-1",
+                evidence=[Evidence(file="m.py", line=3)]),                       # no template
+    ])
+    out = verify_result(result, _CMDI_CODE, _TEMPLATES)
+    assert all(o.attack_path_proven is False for o in out.observations)
+
+
+def test_verify_result_proves_vulnerable_verdict():
+    result = AnalysisResult(observations=[
+        Verdict(capability="input_validation.command_injection", status="VULNERABLE", cwe="CWE-78",
+                evidence=[Evidence(file="m.py", line=3)]),
+    ])
+    out = verify_result(result, _CMDI_CODE, _TEMPLATES)
+    assert out.observations[0].attack_path_proven is True

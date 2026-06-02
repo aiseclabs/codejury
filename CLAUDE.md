@@ -44,10 +44,12 @@ Cross-cutting modules: `assembly.py` (build orchestration + provider factory),
 
 ## Commands
 
-`dry-run` (mock, no key) · `audit [diff]` · `scan <dir>` · `run <task>` · `eval`.
+`dry-run` (mock, no key) · `audit [diff]` · `scan <dir>` · `full-review <dir>`
+(3 stages: design + API + per-API security) · `run <task>` · `eval`.
 Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint,adaptive}`,
 `--provider {anthropic,openai,litellm}`, `--model`,
-`--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`.
+`--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`,
+`--verify` (opt-in: PoC-verify high-severity findings in the sandbox, executes code under test).
 
 ## Conventions
 

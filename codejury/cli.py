@@ -75,12 +75,14 @@ def audit(
     strategy: str = "single",
     cache: VerdictCache | None = None,
     router: SkillRouter | None = None,
+    verify: bool = False,
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit each changed file in `diff_text` on its selected skills, (path, result) per file."""
     agents, orchestrator = build_skill_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
     return run_over_artifacts_with_skills(
         DiffSource(diff_text).list_artifacts(), Selector(tuple(skills)), agents, orchestrator,
         router=router, cache=cache, orchestration=orchestration_descriptor(provider, strategy, model, max_tokens),
+        verify=verify,
     )
 
 
@@ -98,6 +100,7 @@ def scan(
     with_callees: bool = False,
     cache: VerdictCache | None = None,
     router: SkillRouter | None = None,
+    verify: bool = False,
 ) -> list[tuple[str, AnalysisResult]]:
     """Audit every matching file in a directory tree on its selected skills, (path, result) per artifact."""
     source = RepoSource(
@@ -116,6 +119,7 @@ def scan(
     return run_over_artifacts_with_skills(
         artifacts, Selector(tuple(skills)), agents, orchestrator,
         cache=cache, orchestration=orchestration_descriptor(provider, strategy, model, max_tokens),
+        verify=verify,
     )
 
 
@@ -151,6 +155,7 @@ def full_review(
     strategy: str = "single",
     cache: VerdictCache | None = None,
     stages: tuple[str, ...] = FULL_REVIEW_STAGES,
+    verify: bool = False,
 ) -> list[tuple[str, AnalysisResult]]:
     """Three-stage whole-repo audit, returning (path, result) per artifact:
 
@@ -171,6 +176,7 @@ def full_review(
         if subset and artifacts:
             results.extend(run_over_artifacts_with_skills(
                 artifacts, Selector(tuple(subset)), agents, orchestrator, cache=cache, orchestration=descr,
+                verify=verify,
             ))
 
     if "design" in stages:
@@ -213,14 +219,20 @@ def _render_audit(results: list[tuple[str, AnalysisResult]]) -> str:
     return "\n".join(lines)
 
 
+def _path_tag(o: Observation) -> str:
+    if not getattr(o, "attack_path", None):
+        return ""
+    return " [proven-exploitable]" if getattr(o, "attack_path_proven", False) else " [suspected path]"
+
+
 def _render_observation(o: Observation) -> str:
     if o.kind == "verdict":
         matched = o.matched_anti or o.matched_correct
         suffix = f" [{', '.join(matched)}]" if matched else ""
-        return f"{o.status:<11} {o.capability}{suffix}"
+        return f"{o.status:<11} {o.capability}{suffix}{_path_tag(o)}"
     if o.kind == "finding":
         cwe = f" {o.cwe}" if o.cwe else ""
-        return f"{'FINDING':<11} [{o.severity}{cwe}] {o.title}"
+        return f"{'FINDING':<11} [{o.severity}{cwe}] {o.title}{_path_tag(o)}"
     if o.kind == "concession":
         return f"{'DISMISSED':<11} {o.target}: {o.reason}"
     return f"{o.kind}: {o.capability}"
@@ -327,6 +339,7 @@ def main(argv: list[str] | None = None) -> int:
     audit_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     audit_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
     audit_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
+    audit_p.add_argument("--verify", action="store_true", help="PoC-verify high-severity findings in an isolated sandbox (opt-in, executes code under test)")
     audit_p.add_argument("--baseline", default=None, help="a prior JSON report; report only findings new since it")
     audit_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
     audit_p.add_argument("--github", default=None, help="post a PR review: owner/repo#number (needs GITHUB_TOKEN)")
@@ -352,6 +365,7 @@ def main(argv: list[str] | None = None) -> int:
     scan_p.add_argument("--api-key", default=DEFAULT_API_KEY, help="provider API key (env: CODEJURY_API_KEY)")
     scan_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
     scan_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
+    scan_p.add_argument("--verify", action="store_true", help="PoC-verify high-severity findings in an isolated sandbox (opt-in, executes code under test)")
     scan_p.add_argument("--baseline", default=None, help="a prior JSON report; report only findings new since it")
     scan_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
     scan_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
@@ -372,6 +386,7 @@ def main(argv: list[str] | None = None) -> int:
     fr_p.add_argument("--retries", type=int, default=0, help="provider retry attempts on failure")
     fr_p.add_argument("--no-suppress", action="store_true", help="disable the known-noise suppression filter")
     fr_p.add_argument("--no-cache", action="store_true", help="bypass the verdict cache (always re-query the model)")
+    fr_p.add_argument("--verify", action="store_true", help="PoC-verify high-severity findings in an isolated sandbox (opt-in, executes code under test)")
     fr_p.add_argument("--baseline", default=None, help="a prior JSON report; report only findings new since it")
     fr_p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on", help="exit 1 if a finding at/above this severity is found")
 
@@ -419,6 +434,7 @@ def _dispatch(args, parser) -> int:
             max_tokens=args.max_tokens,
             strategy=args.orchestrator,
             cache=None if args.no_cache else VerdictCache(),
+            verify=args.verify,
         )
         results = _maybe_suppress(results, not args.no_suppress)
         results = _maybe_baseline(results, args.baseline)
@@ -447,6 +463,7 @@ def _dispatch(args, parser) -> int:
             with_callers=args.callers,
             with_callees=args.callees,
             cache=None if args.no_cache else VerdictCache(),
+            verify=args.verify,
         )
         results = _maybe_suppress(results, not args.no_suppress)
         results = _maybe_baseline(results, args.baseline)
@@ -471,6 +488,7 @@ def _dispatch(args, parser) -> int:
             strategy=args.orchestrator,
             cache=None if args.no_cache else VerdictCache(),
             stages=stages,
+            verify=args.verify,
         )
         results = _maybe_suppress(results, not args.no_suppress)
         results = _maybe_baseline(results, args.baseline)

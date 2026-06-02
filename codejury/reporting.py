@@ -116,16 +116,30 @@ def _rank(o: Observation) -> int:
 def _render_problem(o: Observation) -> list[str]:
     if o.kind == "finding":
         cwe = f" ({o.cwe})" if o.cwe else ""
-        out = [f"- **{o.severity}**{cwe} {o.title}"]
+        out = [f"- **{o.severity}**{cwe} {o.title}{_path_tag(o)}"]
         if o.description:
             out.append(f"  - {o.description}")
     else:
         matched = ", ".join(o.matched_anti)
         tag = f" [{matched}]" if matched else ""
-        out = [f"- **{o.status}** `{o.capability}`{tag}"]
+        out = [f"- **{o.status}** `{o.capability}`{tag}{_path_tag(o)}"]
         if o.reasoning:
             out.append(f"  - {o.reasoning}")
-    return out + _evidence_lines(o.evidence)
+    return out + _attack_path_lines(o) + _evidence_lines(o.evidence)
+
+
+def _path_tag(o: Observation) -> str:
+    if not getattr(o, "attack_path", None):
+        return ""
+    return " _(proven-exploitable)_" if getattr(o, "attack_path_proven", False) else " _(suspected path)_"
+
+
+def _attack_path_lines(o: Observation) -> list[str]:
+    steps = getattr(o, "attack_path", None)
+    if not steps:
+        return []
+    hops = " -> ".join(f"{s.role} {s.file}:{s.line}" for s in steps)
+    return [f"  - attack path: {hops}"]
 
 
 def _evidence_lines(evidence) -> list[str]:

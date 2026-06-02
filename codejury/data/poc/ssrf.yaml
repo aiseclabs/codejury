@@ -1,0 +1,15 @@
+id: ssrf
+name: Server-Side Request Forgery
+cwe: [CWE-918]
+# The marker is the host of the fetched URL. If it reaches the fetch call, the
+# attacker controls the destination. A host allowlist check rejects it first, so
+# it never reaches the sink in the safe case.
+payload: "http://CJPOCMARK.evil.example/x"
+marker: CJPOCMARK
+sinks:
+  - {call: "requests.get"}
+  - {call: "requests.post"}
+  - {call: "requests.request"}
+  - {call: "urllib.request.urlopen"}
+  - {call: "httpx.get"}
+  - {call: "httpx.post"}

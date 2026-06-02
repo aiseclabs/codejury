@@ -23,6 +23,7 @@ in ``data/poc/<class>.yaml``; this module is the generic mechanism.
 from __future__ import annotations
 
 import ast
+import dataclasses
 import json
 import subprocess
 import sys
@@ -32,7 +33,11 @@ from pathlib import Path
 
 import yaml
 
+from codejury.domain.observation import Evidence, Observation, is_problem
+from codejury.domain.result import AnalysisResult
 from codejury.resources import POC_DIR
+
+_PROVABLE_FINDING_SEVERITY = frozenset({"CRITICAL", "HIGH"})
 
 _MEM_LIMIT_BYTES = 256 * 1024 * 1024
 _CPU_LIMIT_SECONDS = 5
@@ -46,7 +51,9 @@ class PocTemplate:
     cwe: tuple[str, ...]
     payload: str
     marker: str
-    sinks: tuple[dict, ...]
+    sinks: tuple[dict, ...] = ()          # module/builtin sinks, e.g. os.system, open
+    method_sinks: tuple[dict, ...] = ()   # method sinks on any receiver, e.g. .execute
+    match: str = "any_str_arg"            # or "first_str_arg" (the query, not the params)
 
     @classmethod
     def from_dict(cls, data: dict) -> PocTemplate:
@@ -57,6 +64,8 @@ class PocTemplate:
             payload=data["payload"],
             marker=data["marker"],
             sinks=tuple(data.get("sinks", [])),
+            method_sinks=tuple(data.get("method_sinks", [])),
+            match=data.get("match", "any_str_arg"),
         )
 
 
@@ -109,6 +118,8 @@ def prove(code: str, template: PocTemplate, *, target: str | None = None, line: 
         "payload": template.payload,
         "target": target,
         "sinks": [dict(s) for s in template.sinks],
+        "method_sinks": [dict(s) for s in template.method_sinks],
+        "match": template.match,
     }
     with tempfile.TemporaryDirectory(prefix="codejury-poc-") as workdir:
         wd = Path(workdir)
@@ -116,6 +127,45 @@ def prove(code: str, template: PocTemplate, *, target: str | None = None, line: 
         (wd / "config.json").write_text(json.dumps(config), encoding="utf-8")
         (wd / "driver.py").write_text(_DRIVER, encoding="utf-8")
         return _run(wd, template.id)
+
+
+def verify_result(result: AnalysisResult, code: str, templates: list[PocTemplate]) -> AnalysisResult:
+    """Try to prove each high-severity flagged problem whose CWE maps to a PoC
+    template, by running its code unit in the sandbox. A proof sets
+    ``attack_path_proven=True`` and records the PoC observation as evidence.
+    Recall-safe: never removes or downgrades a finding."""
+    if result.error or not code or not templates:
+        return result
+    out: list[Observation] = []
+    changed = False
+    for o in result.observations:
+        new = _maybe_prove(o, code, templates)
+        changed = changed or new is not o
+        out.append(new)
+    return AnalysisResult(observations=out, error=result.error) if changed else result
+
+
+def _maybe_prove(o: Observation, code: str, templates: list[PocTemplate]) -> Observation:
+    if not is_problem(o) or getattr(o, "attack_path_proven", False):
+        return o
+    template = template_for_cwe(getattr(o, "cwe", ""), templates)
+    if template is None:
+        return o
+    if o.kind == "finding" and getattr(o, "severity", None) not in _PROVABLE_FINDING_SEVERITY:
+        return o
+    sink = next((e for e in getattr(o, "evidence", []) if e.line is not None), None)
+    line = sink.line if sink else None
+    proof = prove(code, template, line=line)
+    if not proof.proven:
+        return o
+    evidence = list(getattr(o, "evidence", [])) + [
+        Evidence(
+            file=(sink.file if sink else "") or "<sandbox>",
+            line=line,
+            code=f"PoC proven: payload marker reached {', '.join(proof.hits)}",
+        )
+    ]
+    return dataclasses.replace(o, attack_path_proven=True, evidence=evidence)
 
 
 def _run(workdir: Path, template_id: str) -> ProofResult:
@@ -164,7 +214,8 @@ _DRIVER = r'''
 import ast, builtins, importlib, inspect, json, socket, sys
 
 cfg = json.load(open("config.json", encoding="utf-8"))
-MARKER, PAYLOAD, TARGET, SINKS = cfg["marker"], cfg["payload"], cfg["target"], cfg["sinks"]
+MARKER, PAYLOAD, TARGET = cfg["marker"], cfg["payload"], cfg["target"]
+SINKS, METHOD_SINKS, MATCH = cfg["sinks"], cfg.get("method_sinks", []), cfg.get("match", "any_str_arg")
 HITS = []
 
 
@@ -173,14 +224,21 @@ def _hit(name):
         HITS.append(name)
 
 
+def _marker_in(args, rule):
+    strs = [a for a in args if isinstance(a, (str, bytes, bytearray))]
+    candidates = strs[:1] if rule == "first_str_arg" else strs
+    for a in candidates:
+        if isinstance(a, str) and MARKER in a:
+            return True
+        if isinstance(a, (bytes, bytearray)) and MARKER.encode() in bytes(a):
+            return True
+    return False
+
+
 def _recorder(name, req):
     def rec(*args, **kwargs):
-        if all(kwargs.get(k) == v for k, v in req.items()):
-            for a in args:
-                if isinstance(a, str) and MARKER in a:
-                    _hit(name); break
-                if isinstance(a, (bytes, bytearray)) and MARKER.encode() in bytes(a):
-                    _hit(name); break
+        if all(kwargs.get(k) == v for k, v in req.items()) and _marker_in(args, MATCH):
+            _hit(name)
         return None  # the real dangerous operation never runs
     return rec
 
@@ -191,13 +249,23 @@ def _blocked(*a, **k):
 socket.socket = _blocked
 
 # patch only the named sinks; everything else stays real
+import types
 patched_builtins = dict(vars(builtins))
 for s in SINKS:
     call, req = s["call"], s.get("requires_kwarg", {})
     if "." in call:
         mod_name, attr = call.rsplit(".", 1)
         try:
-            setattr(importlib.import_module(mod_name), attr, _recorder(call, req))
+            mod = importlib.import_module(mod_name)
+        except Exception:
+            # an optional dependency (requests, httpx) may be absent; inject a stub
+            # module so the code under test still resolves the sink to a recorder
+            mod = types.ModuleType(mod_name)
+            sys.modules[mod_name] = mod
+            top = mod_name.split(".")[0]
+            sys.modules.setdefault(top, sys.modules[mod_name] if top == mod_name else types.ModuleType(top))
+        try:
+            setattr(mod, attr, _recorder(call, req))
         except Exception:
             pass
     else:
@@ -208,11 +276,21 @@ src = open("target.py", encoding="utf-8").read()
 
 class _Any:
     """A permissive stand-in for an undefined free name (a config global, a db
-    handle): callable, indexable, attribute-accessible, and path-like."""
-    def __call__(self, *a, **k): return self
-    def __getattr__(self, n): return self
+    handle): callable, indexable, attribute-accessible, and path-like. It also
+    records method-sink calls (e.g. cursor.execute) so a sink that is a method on
+    a runtime object is detected without patching that object."""
+    def __init__(self, path=""): self._path = path
+    def __getattr__(self, n): return _Any(self._path + "." + n if self._path else n)
+    def __call__(self, *a, **k):
+        attr = self._path.rsplit(".", 1)[-1]
+        for ms in METHOD_SINKS:
+            if ms.get("method") == attr and all(k.get(kk) == vv for kk, vv in ms.get("requires_kwarg", {}).items()):
+                if _marker_in(a, ms.get("match", MATCH)):
+                    _hit("." + attr)
+        return self
     def __getitem__(self, k): return self
     def __iter__(self): return iter(())
+    def __contains__(self, k): return False
     def __fspath__(self): return "CJSTUB"
     def __str__(self): return "CJSTUB"
 
@@ -241,7 +319,7 @@ def _result(reached, **extra):
 
 g = {"__builtins__": patched_builtins}
 for name in _free_names(src):
-    g[name] = _Any()
+    g[name] = _Any(name)
 try:
     exec(compile(src, "target.py", "exec"), g)
 except Exception as e:
