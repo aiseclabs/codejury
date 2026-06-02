@@ -1,4 +1,4 @@
-capability: authn
+skill: authn
 vulnerable: false
 code: |
   def file_dedup_key(data: bytes) -> str:

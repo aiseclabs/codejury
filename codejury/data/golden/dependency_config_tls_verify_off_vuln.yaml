@@ -1,4 +1,4 @@
-capability: dependency_config
+skill: dependency_config
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-295

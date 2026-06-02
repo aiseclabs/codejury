@@ -1,4 +1,4 @@
-capability: crypto
+skill: crypto
 vulnerable: true
 code: |
   def encrypt(data, key):

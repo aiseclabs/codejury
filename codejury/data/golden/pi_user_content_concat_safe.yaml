@@ -1,6 +1,6 @@
 # Adversarial negative: user input IS concatenated, but into the user-role
 # content with a constant system prompt, so it stays in the data channel.
-capability: prompt_injection
+skill: prompt_injection
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

@@ -1,4 +1,4 @@
-capability: input_validation
+skill: input_validation
 vulnerable: true
 code: |
   def find(name):

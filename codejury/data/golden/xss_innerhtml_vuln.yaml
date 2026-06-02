@@ -1,4 +1,4 @@
-capability: output_encoding
+skill: output_encoding
 split: held-out
 vulnerable: true
 code: |

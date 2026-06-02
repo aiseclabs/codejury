@@ -1,15 +1,19 @@
 import json
 
 from codejury import cli
-from codejury.domain.capability import Capability, load_capabilities
+from codejury.domain.skill import Skill, load_skills
 from codejury.evaluation import EvalReport, GoldenCase, Metrics, evaluate, load_cases
 from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 
-from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR
+from codejury.resources import GOLDEN_DIR, SKILLS_DIR
 
-_VULN = json.dumps({"verdicts": [{"sub_capability": "x", "status": "VULNERABLE"}]})
-_SECURE = json.dumps({"verdicts": [{"sub_capability": "x", "status": "SECURE"}]})
+# SkillRunner enforces invariant 3, so a VULNERABLE verdict needs a code location
+# or it is dropped; the always-vulnerable mock therefore carries evidence.
+_VULN = json.dumps(
+    {"verdicts": [{"dimension": "x", "status": "VULNERABLE", "evidence": [{"file": "f", "line": 1, "code": "c"}]}]}
+)
+_SECURE = json.dumps({"verdicts": [{"dimension": "x", "status": "SECURE"}]})
 
 
 def test_metrics_math():
@@ -82,7 +86,7 @@ def test_golden_cases_load():
     names = {c.name for c in cases}
     assert {"authn_sha256_password", "sqli_parameterized_query"} <= names
     vuln = next(c for c in cases if c.name == "authn_sha256_password")
-    assert vuln.capability == "authn" and vuln.vulnerable is True
+    assert vuln.skill == "authn" and vuln.vulnerable is True
 
 
 def test_load_cases_filters_by_split():
@@ -102,7 +106,7 @@ def test_evaluate_always_vulnerable_provider():
     cases = load_cases(GOLDEN_DIR)
     n_vuln = sum(c.vulnerable for c in cases)
     n_safe = len(cases) - n_vuln
-    report = evaluate(cases, load_capabilities(CAPABILITIES_DIR), provider=MockProvider(default=_VULN), model="m")
+    report = evaluate(cases, load_skills(SKILLS_DIR), provider=MockProvider(default=_VULN), model="m")
     o = report.overall
     assert o.tp == n_vuln and o.fp == n_safe and o.fn == 0 and o.tn == 0
     assert o.recall == 1.0
@@ -112,32 +116,32 @@ def test_evaluate_always_secure_provider():
     cases = load_cases(GOLDEN_DIR)
     n_vuln = sum(c.vulnerable for c in cases)
     n_safe = len(cases) - n_vuln
-    report = evaluate(cases, load_capabilities(CAPABILITIES_DIR), provider=MockProvider(default=_SECURE), model="m")
+    report = evaluate(cases, load_skills(SKILLS_DIR), provider=MockProvider(default=_SECURE), model="m")
     o = report.overall
     assert o.tp == 0 and o.fp == 0 and o.fn == n_vuln and o.tn == n_safe
     assert o.recall == 0.0
 
 
-def test_evaluate_feeds_cross_file_context_to_verifier():
+def test_evaluate_feeds_cross_file_context_to_skill_runner():
     # A cross-file golden case carries its caller/callee code in `context`; eval
-    # must hand that to the verifier so it can judge provenance.
+    # must hand that to the skill runner so it can judge provenance.
     case = GoldenCase(
-        name="xfile", capability="authn", vulnerable=True,
+        name="xfile", skill="authn", vulnerable=True,
         code="store(user_token)",
         context="def handler(req):\n    store(req.args['token'])  # attacker-controlled",
     )
     provider = MockProvider(default=_SECURE)
-    evaluate([case], [Capability(id="authn", name="Authentication")], provider=provider, model="m")
+    evaluate([case], [Skill(id="authn", name="Authentication", instructions="check auth")], provider=provider, model="m")
     prompt = provider.calls[0]["messages"][0].content
-    assert "attacker-controlled" in prompt  # the cross-file context reached the verifier
+    assert "attacker-controlled" in prompt  # the cross-file context reached the runner
 
 
-def test_evaluate_breaks_down_by_capability():
+def test_evaluate_breaks_down_by_skill():
     cases = load_cases(GOLDEN_DIR)
-    report = evaluate(cases, load_capabilities(CAPABILITIES_DIR), provider=MockProvider(default=_VULN), model="m")
-    # every capability exercised by a case appears in the breakdown, and the
-    # per-capability totals sum back to the overall case count.
-    assert set(report.by_capability) == {c.capability for c in cases}
+    report = evaluate(cases, load_skills(SKILLS_DIR), provider=MockProvider(default=_VULN), model="m")
+    # every skill exercised by a case appears in the breakdown, and the
+    # per-skill totals sum back to the overall case count.
+    assert set(report.by_capability) == {c.skill for c in cases}
     assert sum(m.total for m in report.by_capability.values()) == report.overall.total
 
 
@@ -145,12 +149,12 @@ def test_evaluate_taint_strategy_gates_constant_sink():
     # Same always-VULNERABLE provider, a safe constant sink: single scores a false
     # positive, the taint gate clears it (eval -> orchestrator -> provenance wiring).
     case = GoldenCase(
-        name="const_sink", capability="input_validation", vulnerable=False,
+        name="const_sink", skill="input_validation", vulnerable=False,
         code="def q():\n    cursor.execute('SELECT 1')\n",
     )
-    caps = load_capabilities(CAPABILITIES_DIR)
-    single = evaluate([case], caps, provider=MockProvider(default=_VULN), model="m", strategy="single")
-    taint = evaluate([case], caps, provider=MockProvider(default=_VULN), model="m", strategy="taint")
+    skills = load_skills(SKILLS_DIR)
+    single = evaluate([case], skills, provider=MockProvider(default=_VULN), model="m", strategy="single")
+    taint = evaluate([case], skills, provider=MockProvider(default=_VULN), model="m", strategy="taint")
     assert single.overall.fp == 1                       # over-flagged the safe constant
     assert taint.overall.fp == 0 and taint.overall.tn == 1  # gate cleared it
 

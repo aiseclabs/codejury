@@ -1,6 +1,6 @@
 # Adversarial positive: the injection is real but split across variables instead
 # of a single obvious execute(f"...") line.
-capability: input_validation
+skill: input_validation
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-89

@@ -1,6 +1,6 @@
 # Adversarial negative: assigning user input to a DOM property looks like the
 # innerHTML XSS, but textContent does not parse HTML.
-capability: output_encoding
+skill: output_encoding
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

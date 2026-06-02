@@ -1,5 +1,5 @@
 # Adversarial negative: SQL built by concatenation, but only from constants.
-capability: input_validation
+skill: input_validation
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

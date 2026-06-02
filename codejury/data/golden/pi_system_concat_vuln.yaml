@@ -1,4 +1,4 @@
-capability: prompt_injection
+skill: prompt_injection
 split: held-out
 vulnerable: true
 expected_verdict: VULNERABLE

@@ -1,4 +1,4 @@
-capability: data_protection
+skill: data_protection
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

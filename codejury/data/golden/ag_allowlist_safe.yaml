@@ -1,4 +1,4 @@
-capability: excessive_agency
+skill: excessive_agency
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

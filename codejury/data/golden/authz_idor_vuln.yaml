@@ -1,4 +1,4 @@
-capability: authz
+skill: authz
 split: held-out
 vulnerable: true
 code: |

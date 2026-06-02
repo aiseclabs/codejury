@@ -1,4 +1,4 @@
-capability: authz
+skill: authz
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

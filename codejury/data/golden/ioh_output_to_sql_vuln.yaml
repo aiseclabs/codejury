@@ -1,6 +1,6 @@
 # Adversarial positive: model output reaches a sink other than the obvious
 # exec/innerHTML; here it is concatenated into SQL.
-capability: insecure_output_handling
+skill: insecure_output_handling
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-89

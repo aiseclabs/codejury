@@ -1,4 +1,4 @@
-capability: authn
+skill: authn
 vulnerable: false
 code: |
   def user_id(token):

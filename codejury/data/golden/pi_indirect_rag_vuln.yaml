@@ -1,4 +1,4 @@
-capability: prompt_injection
+skill: prompt_injection
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-1427

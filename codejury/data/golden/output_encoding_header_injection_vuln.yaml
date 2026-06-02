@@ -1,4 +1,4 @@
-capability: output_encoding
+skill: output_encoding
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-113

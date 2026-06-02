@@ -1,4 +1,4 @@
-capability: model_supply_chain
+skill: model_supply_chain
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

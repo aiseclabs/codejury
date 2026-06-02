@@ -1,6 +1,6 @@
 """Evaluation harness: measure detection quality against labelled golden cases.
 
-A golden case is a code snippet labelled vulnerable or not for one capability.
+A golden case is a code snippet labelled vulnerable or not for one skill.
 ``evaluate`` runs the verifier over each case and scores predictions into a
 confusion matrix, aggregated overall and per capability. Negative cases, labelled
 not-vulnerable and expected SECURE/NOT_PRESENT, count into TN/FP, so the false-
@@ -28,16 +28,16 @@ from typing import Any
 import yaml
 
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Observation
+from codejury.domain.skill import Skill
 from codejury.providers.base import Provider
 
 
 @dataclass(frozen=True, kw_only=True)
 class GoldenCase:
     name: str
-    capability: str  # capability id this case exercises
+    skill: str  # skill id this case exercises
     vulnerable: bool  # the ground-truth label
     code: str
     context: str = ""  # cross-file context (callers/callees) shown but not under review
@@ -47,7 +47,7 @@ class GoldenCase:
     def from_dict(cls, name: str, data: dict[str, Any]) -> GoldenCase:
         return cls(
             name=name,
-            capability=data["capability"],
+            skill=data["skill"],
             vulnerable=bool(data["vulnerable"]),
             code=data["code"],
             context=str(data.get("context", "")),
@@ -140,35 +140,35 @@ def load_cases(directory: str | Path, *, split: str | None = None) -> list[Golde
 
 def evaluate(
     cases: list[GoldenCase],
-    capabilities: list[Capability],
+    skills: list[Skill],
     *,
     provider: Provider,
     model: str,
     max_tokens: int = 2048,
     strategy: str = "single",
 ) -> EvalReport:
-    # build_orchestration is imported lazily to avoid importing the provider/agent
-    # graph at module load (and any import cycle through assembly).
-    from codejury.assembly import build_orchestration
+    # build_skill_orchestration is imported lazily to avoid importing the
+    # provider/agent graph at module load (and any import cycle through assembly).
+    from codejury.assembly import build_skill_orchestration
 
-    by_id = {c.id: c for c in capabilities}
-    agents, orchestrator = build_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
+    by_id = {s.id: s for s in skills}
+    agents, orchestrator = build_skill_orchestration(strategy, provider=provider, model=model, max_tokens=max_tokens)
     report = EvalReport()
     for case in cases:
-        capability = by_id.get(case.capability)
-        if capability is None:
-            raise ValueError(f"golden case {case.name!r} references unknown capability {case.capability!r}")
+        skill = by_id.get(case.skill)
+        if skill is None:
+            raise ValueError(f"golden case {case.name!r} references unknown skill {case.skill!r}")
         ctx = AnalysisContext(
             artifact=CodeArtifact(
                 kind="file", path=case.name, content=case.code, context=case.context
             ),
-            capabilities=[capability],
+            skills=[skill],
         )
         result = orchestrator.run(agents, ctx)
         if result.error:  # e.g. a provider auth failure: surface it with the case, don't score blanks
             raise RuntimeError(f"case {case.name!r}: {result.error}")
         predicted = _predicted_vulnerable(result.observations)
-        report.record(case.capability, actual=case.vulnerable, predicted=predicted)
+        report.record(case.skill, actual=case.vulnerable, predicted=predicted)
     return report
 
 

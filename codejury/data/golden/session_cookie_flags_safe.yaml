@@ -1,4 +1,4 @@
-capability: session
+skill: session
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

@@ -1,5 +1,5 @@
 # Adversarial negative: ast.literal_eval reads like eval but cannot execute code.
-capability: input_validation
+skill: input_validation
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

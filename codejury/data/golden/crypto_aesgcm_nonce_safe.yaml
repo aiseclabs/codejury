@@ -1,4 +1,4 @@
-capability: crypto
+skill: crypto
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

@@ -1,4 +1,4 @@
-capability: business_logic
+skill: business_logic
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

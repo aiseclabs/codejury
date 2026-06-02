@@ -1,4 +1,4 @@
-capability: session
+skill: session
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-614

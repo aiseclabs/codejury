@@ -1,4 +1,4 @@
-capability: data_protection
+skill: data_protection
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-319

@@ -29,6 +29,7 @@ from codejury.assembly import (
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability, load_capabilities
 from codejury.domain.context import AnalysisContext
+from codejury.domain.skill import load_skills
 from codejury.domain.observation import Observation
 from codejury.domain.result import AnalysisResult
 from codejury.evaluation import EvalReport, evaluate, load_cases
@@ -38,7 +39,7 @@ from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 from codejury.baseline import filter_new
 from codejury.reporting import from_json, to_json, to_markdown, to_sarif
-from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, SUPPRESSIONS_FILE, TASKS_DIR
+from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, SKILLS_DIR, SUPPRESSIONS_FILE, TASKS_DIR
 from codejury.suppression import filter_results, load_suppressions
 from codejury.integrations.github import build_review, parse_pr_ref, post_review
 from codejury.sources.chunker import Chunker
@@ -297,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
     eval_p.add_argument("--dataset", default=GOLDEN_DIR, help="golden case YAML directory")
     eval_p.add_argument("--split", default=None, help="only score cases whose 'split' matches (e.g. held-out)")
     eval_p.add_argument("--orchestrator", choices=STRATEGIES, default="single")
-    eval_p.add_argument("--capabilities", default=CAPABILITIES_DIR, help="capability YAML directory")
+    eval_p.add_argument("--skills", default=SKILLS_DIR, help="skill directory")
     eval_p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
     eval_p.add_argument("--format", choices=("text", "json"), default="text", dest="fmt")
     eval_p.add_argument("--model", default=DEFAULT_MODEL)
@@ -379,7 +380,7 @@ def _dispatch(args, parser) -> int:
     if args.command == "eval":
         report = evaluate(
             load_cases(args.dataset, split=args.split),
-            load_capabilities(args.capabilities),
+            load_skills(args.skills),
             provider=make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries),
             model=args.model,
             strategy=args.orchestrator,

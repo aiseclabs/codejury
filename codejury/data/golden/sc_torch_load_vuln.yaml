@@ -1,4 +1,4 @@
-capability: model_supply_chain
+skill: model_supply_chain
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-502

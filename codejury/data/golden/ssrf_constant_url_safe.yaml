@@ -1,6 +1,6 @@
 # False-positive-prone negative: requests.get is a classic SSRF sink, but here
 # the URL is a constant, so no untrusted input reaches it.
-capability: input_validation
+skill: input_validation
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

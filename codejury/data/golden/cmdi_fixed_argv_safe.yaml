@@ -1,7 +1,7 @@
 # False-positive-prone negative: a subprocess call driven by a request value
 # looks like command injection, but the value only selects a fixed argv from a
 # table and never reaches a shell.
-capability: input_validation
+skill: input_validation
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

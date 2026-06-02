@@ -1,4 +1,4 @@
-capability: insecure_output_handling
+skill: insecure_output_handling
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

@@ -1,6 +1,6 @@
 # Cross-file pair with xfile_path_tainted_vuln: identical `code`, opposite
 # label, decided entirely by `context`.
-capability: input_validation
+skill: input_validation
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

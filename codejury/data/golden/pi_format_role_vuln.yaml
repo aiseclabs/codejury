@@ -1,6 +1,6 @@
 # Adversarial positive: injection reaches the system prompt via .format, not a
 # visible "system + user_input" concatenation.
-capability: prompt_injection
+skill: prompt_injection
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-1427

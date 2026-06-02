@@ -11,6 +11,7 @@ import os
 from codejury.agents.base import Agent
 from codejury.agents.debate import ChallengerAgent, FinderAgent, JudgeAgent
 from codejury.agents.refuter import RefuterAgent
+from codejury.agents.skill_runner import SkillRunner
 from codejury.agents.verifier import VerifierAgent
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
@@ -83,6 +84,26 @@ def build_orchestration(
     if strategy == "taint":
         return verifier, TaintGateOrchestrator()
     return verifier, SingleOrchestrator()
+
+
+def build_skill_orchestration(
+    strategy: str, *, provider: Provider, model: str, max_tokens: int
+) -> tuple[dict[str, Agent], Orchestrator]:
+    """Skill-based orchestration: SkillRunner under the verifier role.
+
+    The taint gate keys on ``capability.split('.')[0]``, which a skill verdict
+    (``input_validation.<dimension>``) still satisfies, so the provenance gate
+    works unchanged. Multi-agent strategies (debate, reflexion, adaptive) need
+    skill-aware finder/challenger/judge agents and arrive with R5."""
+    agents = {"verifier": SkillRunner(provider=provider, model=model, max_tokens=max_tokens)}
+    if strategy in ("single", ""):
+        return agents, SingleOrchestrator()
+    if strategy == "taint":
+        return agents, TaintGateOrchestrator()
+    raise NotImplementedError(
+        f"skill orchestration for strategy {strategy!r} is not wired yet; "
+        "single and taint are available, the rest arrive with R5"
+    )
 
 
 def provider_tag(provider: Provider) -> str:

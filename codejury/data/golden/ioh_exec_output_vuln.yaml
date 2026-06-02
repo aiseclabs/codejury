@@ -1,4 +1,4 @@
-capability: insecure_output_handling
+skill: insecure_output_handling
 split: held-out
 vulnerable: true
 expected_verdict: VULNERABLE

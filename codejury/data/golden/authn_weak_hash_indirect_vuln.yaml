@@ -1,5 +1,5 @@
 # Adversarial positive: weak password hash hidden behind hashlib.new(variable).
-capability: authn
+skill: authn
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-916

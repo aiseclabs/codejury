@@ -1,5 +1,5 @@
 # Adversarial positive: an allowlist that looks like a fix but is bypassable.
-capability: input_validation
+skill: input_validation
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-918

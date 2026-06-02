@@ -1,4 +1,4 @@
-capability: business_logic
+skill: business_logic
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-602

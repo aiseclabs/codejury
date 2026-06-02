@@ -1,4 +1,4 @@
-capability: prompt_injection
+skill: prompt_injection
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

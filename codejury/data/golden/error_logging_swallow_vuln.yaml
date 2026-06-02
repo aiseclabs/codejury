@@ -1,4 +1,4 @@
-capability: error_logging
+skill: error_logging
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-390

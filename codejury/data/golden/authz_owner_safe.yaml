@@ -1,4 +1,4 @@
-capability: authz
+skill: authz
 vulnerable: false
 code: |
   def get_invoice(request):

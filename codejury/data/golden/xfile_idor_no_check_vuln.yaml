@@ -1,4 +1,4 @@
-capability: authz
+skill: authz
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-639

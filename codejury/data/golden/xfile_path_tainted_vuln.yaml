@@ -1,6 +1,6 @@
 # Cross-file pair with xfile_path_sanitized_safe: identical `code`, opposite
 # label, decided entirely by `context`.
-capability: input_validation
+skill: input_validation
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-22

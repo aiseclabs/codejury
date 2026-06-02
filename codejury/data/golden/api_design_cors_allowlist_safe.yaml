@@ -1,4 +1,4 @@
-capability: api_design
+skill: api_design
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

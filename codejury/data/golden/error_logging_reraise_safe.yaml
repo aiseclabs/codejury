@@ -1,4 +1,4 @@
-capability: error_logging
+skill: error_logging
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""

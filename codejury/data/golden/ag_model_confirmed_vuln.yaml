@@ -1,6 +1,6 @@
 # Adversarial positive: looks gated, but the "confirmation" is set by the model
 # itself, not a human, so it is no gate at all.
-capability: excessive_agency
+skill: excessive_agency
 vulnerable: true
 expected_verdict: VULNERABLE
 cwe: CWE-862

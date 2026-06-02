@@ -1,4 +1,4 @@
-capability: dependency_config
+skill: dependency_config
 vulnerable: false
 expected_verdict: SECURE
 cwe: ""
