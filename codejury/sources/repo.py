@@ -35,6 +35,11 @@ class RepoSource(Source):
         self._with_callers = with_callers
         self._with_callees = with_callees
 
+    def read_files(self) -> dict[str, str]:
+        """The repo's whole files as {relative path: content}, before chunking.
+        Shared with the RepoModel builder so the safe walk lives in one place."""
+        return self._read_files()
+
     def list_artifacts(self) -> list[CodeArtifact]:
         files = self._read_files()
         artifacts: list[CodeArtifact] = []
