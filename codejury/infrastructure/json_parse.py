@@ -1,8 +1,12 @@
 """Best-effort extraction of a JSON object from model output.
 
-Models often wrap JSON in prose or code fences despite instructions. This
-recovers the object with no third-party dependency: try a direct parse, then a
-fenced ```json block, then the first balanced-brace span in the text.
+Models often wrap JSON in prose or code fences, and sometimes emit slightly
+malformed JSON (an unescaped quote, a trailing comma, a reply truncated at the
+token limit). This recovers the object: a direct parse, then a fenced ```json
+block, then the first balanced-brace span (string-aware, so braces inside string
+values do not throw off the count), then a json-repair fallback for malformed or
+truncated output. The repair step keeps a single bad character from silently
+dropping an entire findings list.
 """
 
 from __future__ import annotations
@@ -10,8 +14,6 @@ from __future__ import annotations
 import json
 import re
 
-# Non-greedy so a second code fence later in the text doesn't get swallowed into the
-# captured span; nested braces inside one block are still matched by the {...} anchors.
 _FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
 # Defensive ceiling: model output is bounded by max_tokens, but never scan an
@@ -38,13 +40,33 @@ def extract_json_object(text: str) -> dict | None:
         except json.JSONDecodeError:
             pass
 
-    return _first_balanced_object(text)
+    balanced = _first_balanced_object(text)
+    if balanced is not None:
+        return balanced
+
+    return _repair(text)
 
 
 def _first_balanced_object(text: str) -> dict | None:
+    """The first complete top-level {...} span, counting braces only outside of
+    string literals so braces inside a value (code in a description, "{x}") do not
+    corrupt the depth count."""
     depth = 0
     start = -1
+    in_str = False
+    escaped = False
     for i, ch in enumerate(text):
+        if in_str:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+            continue
         if ch == "{":
             if depth == 0:
                 start = i
@@ -60,3 +82,17 @@ def _first_balanced_object(text: str) -> dict | None:
                 if isinstance(obj, dict):
                     return obj
     return None
+
+
+def _repair(text: str) -> dict | None:
+    """Last resort: repair malformed or truncated JSON (unescaped quotes, trailing
+    commas, an unterminated reply). Optional dependency; a no-op if absent."""
+    try:
+        from json_repair import repair_json
+    except ImportError:
+        return None
+    try:
+        obj = repair_json(text, return_objects=True)
+    except Exception:
+        return None
+    return obj if isinstance(obj, dict) else None

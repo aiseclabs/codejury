@@ -1,7 +1,14 @@
 """RW-3: the rich rule library loads, and trigger-based selection picks the
 on-topic rules for a diff to inject into the audit prompt."""
 
-from codejury.diff.rules import Rule, allowed_categories, load_rules, rules_for_diff, select_rules
+from codejury.diff.rules import (
+    Rule,
+    allowed_categories,
+    load_rules,
+    normalize_category,
+    rules_for_diff,
+    select_rules,
+)
 from codejury.resources import RULES_DIR
 
 # The frozen 25-class application-security set (id = category = SARIF ruleId).
@@ -26,6 +33,15 @@ _CMDI_DIFF = "+    os.system('ping ' + host)\n"
 def test_rules_are_exactly_the_frozen_set():
     assert set(_BY_ID) == _EXPECTED_IDS
     assert allowed_categories() == sorted(_EXPECTED_IDS)
+
+
+def test_normalize_category_maps_onto_rule_id_set():
+    allowed = set(allowed_categories())
+    assert normalize_category("sql_injection", allowed) == "sql-injection"   # underscore -> hyphen
+    assert normalize_category("SQL Injection", allowed) == "sql-injection"   # case + space
+    assert normalize_category("sql-injection", allowed) == "sql-injection"   # already canonical
+    assert normalize_category("buffer overflow", allowed) == "other"         # not in the closed set
+    assert normalize_category("", allowed) == ""                             # empty stays empty
 
 
 def test_rules_load_with_frontmatter():

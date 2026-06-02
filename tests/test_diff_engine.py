@@ -82,7 +82,28 @@ def _f(file, conf=0.9):
 def test_filter_drops_test_paths():
     kept, dropped = FindingsFilter().filter([_f("app/views.py"), _f("tests/test_views.py")])
     assert [k.file for k in kept] == ["app/views.py"]
-    assert dropped[0][0].file == "tests/test_views.py" and "non-production" in dropped[0][1]
+    assert dropped[0][0].file == "tests/test_views.py" and "test path" in dropped[0][1]
+
+
+def test_filter_drops_test_file_naming_outside_test_dir():
+    # a test-file naming convention is enough, even in a non-test directory
+    kept, dropped = FindingsFilter().filter([_f("app/views_test.go"), _f("app/conftest.py")])
+    assert kept == [] and len(dropped) == 2
+
+
+def test_filter_keeps_production_file_with_sampleish_name():
+    # the old over-broad regex dropped these; a bare sample_/mock_ prefix is production
+    kept, dropped = FindingsFilter().filter(
+        [_f("app/sample_rate.py"), _f("app/mock_billing.py"), _f("app/example_config.py")]
+    )
+    assert len(kept) == 3 and dropped == []
+
+
+def test_filter_honors_operator_exclude_paths():
+    flt = FindingsFilter(exclude_paths=("vendor/", "generated/"))
+    kept, dropped = flt.filter([_f("vendor/lib.py"), _f("app/real.py")])
+    assert [k.file for k in kept] == ["app/real.py"]
+    assert "excluded path (vendor/)" in dropped[0][1]
 
 
 def test_filter_drops_low_confidence():

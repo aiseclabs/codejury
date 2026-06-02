@@ -70,6 +70,16 @@ def allowed_categories(directory: str | Path = RULES_DIR) -> list[str]:
     return [r.id for r in load_rules(directory)]
 
 
+def normalize_category(category: str, allowed: set[str]) -> str:
+    """Map a model-emitted category onto the closed rule-id set: lowercase and
+    hyphenate (so `sql_injection` -> `sql-injection`), keep it if it is a rule id,
+    else `other`. Empty stays empty."""
+    if not category:
+        return ""
+    slug = category.strip().lower().replace("_", "-").replace(" ", "-")
+    return slug if slug in allowed else "other"
+
+
 def rules_for_diff(diff: str, *, directory: str | Path = RULES_DIR, limit: int = 6) -> str:
     """The concatenated bodies of the rules relevant to the diff, for the prompt.
     Empty when nothing matches, so the prompt simply omits the rules block."""
