@@ -1,14 +1,15 @@
-"""codejury CLI.
+"""codejury CLI: thin argument parsing and dispatch.
 
-Two entry points matched to their nature:
+Two paths matched to their nature:
 
-- ``audit`` runs the coded diff engine over a unified diff: a single balanced
-  call (standard) or the adversarial Finder/Challenger/Judge pass.
-- ``full-review`` scaffolds a workspace and prints the methodology for an
+- ``review diff`` runs the coded diff engine over a unified diff: a single
+  balanced call (standard) or the adversarial Finder/Challenger/Judge pass.
+- ``review repo`` scaffolds a workspace and prints the methodology for an
   interactive agent to run a whole-repo review (it does not run an LLM pipeline,
   which a single call cannot do for a whole codebase).
 
-``dry-run`` exercises the diff engine with a mock provider and no API key.
+``review diff --dry-run`` exercises the engine with a mock provider and no key.
+The audit orchestration itself lives in ``codejury.diff.runner``.
 """
 
 from __future__ import annotations
@@ -17,20 +18,9 @@ import argparse
 import subprocess
 import sys
 
-import dataclasses
-
 from codejury import __version__
-from codejury.diff.debate import AdversarialAuditRunner
-from codejury.diff.engine import AuditRunner
-from codejury.diff.findings_filter import FindingsFilter
-from codejury.diff.report import gate, render
-from codejury.diff.rules import allowed_categories, normalize_category
-from codejury.domain.finding import Finding
-
-# A diff larger than this is audited file-by-file so a big PR does not overflow
-# the model's context and silently truncate the reply.
-_MAX_DIFF_CHARS = 60_000
-from codejury.repo.scaffold import scaffold
+from codejury.report import gate, render
+from codejury.diff.runner import audit_diff
 from codejury.providers.factory import (
     DEFAULT_API_BASE,
     DEFAULT_API_KEY,
@@ -42,73 +32,10 @@ from codejury.providers.factory import (
     make_provider,
 )
 from codejury.providers.mock import MockProvider
+from codejury.repo.scaffold import scaffold
 
 _FORMATS = ("text", "markdown", "json", "sarif")
 _FAIL_ON = ("critical", "high", "medium", "low")
-
-
-def _split_diff_by_file(diff: str) -> list[str]:
-    """Split a unified diff into one diff per file (`diff --git ...` boundaries)."""
-    chunks: list[str] = []
-    cur: list[str] = []
-    for line in diff.splitlines(keepends=True):
-        if line.startswith("diff --git ") and cur:
-            chunks.append("".join(cur))
-            cur = []
-        cur.append(line)
-    if cur:
-        chunks.append("".join(cur))
-    return chunks or ([diff] if diff.strip() else [])
-
-
-def _dedup_findings(findings: list[Finding]) -> list[Finding]:
-    seen: set = set()
-    out: list[Finding] = []
-    for f in findings:
-        k = (f.file, f.line, f.category, f.description)
-        if k not in seen:
-            seen.add(k)
-            out.append(f)
-    return out
-
-
-def audit_diff(
-    diff: str,
-    *,
-    provider,
-    model: str,
-    mode: str = "standard",
-    max_rounds: int = 3,
-    filter_findings: bool = True,
-    finder_model: str | None = None,
-    challenger_model: str | None = None,
-    judge_model: str | None = None,
-    exclude_paths: tuple[str, ...] = (),
-) -> tuple[list[Finding], list[tuple[Finding, str]]]:
-    """Audit a diff and return (kept findings, dropped (finding, reason)).
-
-    A diff over the size budget is audited one file at a time so it does not
-    overflow the context. Finding categories are normalized to the rule-id set.
-    ``exclude_paths`` are operator-supplied path substrings to drop."""
-    def _run_one(d: str) -> list[Finding]:
-        if mode == "adversarial":
-            return AdversarialAuditRunner(
-                provider=provider, model=model,
-                finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
-            ).run(d, max_rounds=max_rounds).findings
-        return AuditRunner(provider=provider, model=model).run(d)
-
-    if len(diff) > _MAX_DIFF_CHARS:
-        chunks = _split_diff_by_file(diff)
-        findings = _dedup_findings([f for c in chunks for f in _run_one(c)])
-    else:
-        findings = _run_one(diff)
-
-    allowed = set(allowed_categories())
-    findings = [dataclasses.replace(f, category=normalize_category(f.category, allowed)) for f in findings]
-    if filter_findings:
-        return FindingsFilter(exclude_paths=exclude_paths).filter(findings)
-    return findings, []
 
 
 def _read_diff(args) -> str:

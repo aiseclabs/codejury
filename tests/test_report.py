@@ -5,7 +5,7 @@ from pathlib import Path
 
 import jsonschema
 
-from codejury.diff.report import (
+from codejury.report import (
     gate,
     render,
     severity_breakdown,

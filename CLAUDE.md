@@ -35,13 +35,13 @@ default behavior. Strategy: see `ROADMAP.md`.
 
 | Layer | Implementation | Location |
 |---|---|---|
-| Diff engine | standard `AuditRunner` (one call) + adversarial `AdversarialAuditRunner` (Finder/Challenger/Judge) | `codejury/diff/` |
+| Diff engine | standard `AuditRunner` (one call) + adversarial `AdversarialAuditRunner` (Finder/Challenger/Judge); `audit_diff` orchestration (chunk, normalize, filter) | `codejury/diff/`, `diff/runner.py` |
 | Rules | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/rules/`, `diff/rules.py` |
-| Finding + report | flat `Finding`; text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `diff/report.py` |
+| Finding + report | flat `Finding`; text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
 | Full review | agent methodology + memory template + workspace scaffold (no pipeline) | `codejury/data/agent/`, `repo/scaffold.py` |
 | RepoModel | deterministic AST entrypoint scan, seeds the API inventory | `codejury/repo/model.py` |
 | Provider | anthropic · openai · litellm · mock (+ retry), via a factory | `codejury/providers/` |
-| Infrastructure | JSON parsing | `codejury/infrastructure/` |
+| JSON parsing | best-effort extraction of a JSON object from model output | `codejury/json_parse.py` |
 
 ## Commands
 

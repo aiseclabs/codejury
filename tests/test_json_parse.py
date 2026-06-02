@@ -1,6 +1,6 @@
 import pytest
 
-from codejury.infrastructure.json_parse import extract_json_object
+from codejury.json_parse import extract_json_object
 
 
 def test_direct_object():

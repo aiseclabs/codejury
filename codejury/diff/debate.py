@@ -21,7 +21,7 @@ from codejury.diff.debate_prompts import (
 )
 from codejury.diff.rules import rules_for_diff
 from codejury.domain.finding import Finding, findings_from_list
-from codejury.infrastructure.json_parse import extract_json_object
+from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 
 
