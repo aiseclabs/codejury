@@ -16,11 +16,15 @@ from dataclasses import dataclass, field
 from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
 from codejury.domain.observation import Observation
+from codejury.domain.skill import Skill
 
 
 @dataclass(frozen=True, kw_only=True)
 class AnalysisContext:
     artifact: CodeArtifact
-    capabilities: list[Capability]
+    # capabilities is the legacy check unit, skills is its replacement; during the
+    # skill refactor both can be present, and an agent reads whichever it consumes.
+    capabilities: list[Capability] = field(default_factory=list)
+    skills: list[Skill] = field(default_factory=list)
     history: list[Observation] = field(default_factory=list)
     round_num: int = 0
