@@ -36,7 +36,10 @@ DEFAULT_CACHE_DIR = Path.home() / ".cache" / "codejury" / "verdicts"
 _SCHEMA = "1"
 
 
-def _normalize(code: str) -> str:
+def normalize_code(code: str) -> str:
+    """Line-ending and trailing-whitespace normalized code, so cosmetic
+    reformatting alone does not miss a content-addressed cache. Shared by the
+    verdict cache and the selection cache."""
     lines = code.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     return "\n".join(line.rstrip() for line in lines).strip("\n")
 
@@ -48,8 +51,8 @@ def verdict_key(
         "schema": _SCHEMA,
         "kind": artifact.kind,
         "path": artifact.path,
-        "code": _normalize(artifact.content),
-        "context": _normalize(artifact.context),
+        "code": normalize_code(artifact.content),
+        "context": normalize_code(artifact.context),
         "capabilities": sorted(f"{c.id}@{c.fingerprint()}" for c in capabilities),
         "orchestration": orchestration,
     }
