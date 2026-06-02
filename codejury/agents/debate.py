@@ -20,6 +20,7 @@ from codejury.domain.artifact import CodeArtifact
 from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Concession, Finding, Observation, Severity
+from codejury.domain.skill import Skill
 from codejury.infrastructure.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 
@@ -77,7 +78,7 @@ class FinderAgent(_DebateAgent):
     )
 
     def run(self, ctx: AnalysisContext) -> list[Observation]:
-        parts = ["Review the code for security vulnerabilities.", _hints(ctx.capabilities), _DEEP_LENS, _code(ctx.artifact)]
+        parts = ["Review the code for security vulnerabilities.", _hints(ctx), _DEEP_LENS, _code(ctx.artifact)]
         if ctx.round_num > 1 and ctx.history:
             parts.append(_render_history(ctx.history))
             parts.append("Concede findings the rebuttals refute, keep the valid ones, and add any you missed.")
@@ -140,7 +141,23 @@ def _code(artifact: CodeArtifact) -> str:
     return f"Code under review ({artifact.path}):\n```\n{artifact.content}\n```"
 
 
-def _hints(capabilities: list[Capability]) -> str:
+def _hints(ctx: AnalysisContext) -> str:
+    """What to look for: the skill playbooks in scope, or the legacy capability
+    anti-patterns. Skills are the unit; capabilities linger until R6."""
+    if ctx.skills:
+        return _skill_hints(ctx.skills)
+    return _capability_hints(ctx.capabilities)
+
+
+def _skill_hints(skills: list[Skill]) -> str:
+    blocks = []
+    for s in skills:
+        standard = f" ({s.standard})" if s.standard else ""
+        blocks.append(f"## {s.id}: {s.name}{standard}\n{s.instructions}")
+    return "Apply these security skills:\n\n" + "\n\n".join(blocks) if blocks else ""
+
+
+def _capability_hints(capabilities: list[Capability]) -> str:
     lines = []
     for cap in capabilities:
         for sub_name, sub in cap.sub_capabilities.items():

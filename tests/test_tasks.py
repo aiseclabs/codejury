@@ -52,8 +52,7 @@ def test_select_filters_by_id_and_none_means_all():
 def test_shipped_tasks_load():
     tasks = load_tasks(TASKS_DIR)
     assert {"quick_scan_single", "audit_diff_debate"} <= set(tasks)
-    # debate over skills is not wired yet (R5b); the preset uses taint until then.
-    assert tasks["audit_diff_debate"].orchestrator == "taint"
+    assert tasks["audit_diff_debate"].orchestrator == "debate"
     assert tasks["audit_diff_debate"].skills is None  # all skills
 
 

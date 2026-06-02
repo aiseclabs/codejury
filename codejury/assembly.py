@@ -91,24 +91,37 @@ def build_orchestration(
 def build_skill_orchestration(
     strategy: str, *, provider: Provider, model: str, max_tokens: int
 ) -> tuple[dict[str, Agent], Orchestrator]:
-    """Skill-based orchestration: SkillRunner under the verifier role.
+    """Skill-based orchestration. SkillRunner takes the verifier role; the debate
+    agents are skill-aware (FinderAgent reads the skill playbooks), so every
+    strategy build_orchestration offers is available here too.
 
-    The taint gate keys on ``capability.split('.')[0]``, which a skill verdict
-    (``input_validation.<dimension>``) still satisfies, so the provenance gate
-    works unchanged. Multi-agent strategies (debate, reflexion, adaptive) need
-    skill-aware finder/challenger/judge agents and arrive with R5."""
-    agents = {"verifier": SkillRunner(provider=provider, model=model, max_tokens=max_tokens)}
-    if strategy in ("single", ""):
-        return agents, SingleOrchestrator()
+    The taint and challenge gates key on ``capability.split('.')[0]``, which a
+    skill verdict (``input_validation.<dimension>``) still satisfies."""
+    def runner() -> SkillRunner:
+        return SkillRunner(provider=provider, model=model, max_tokens=max_tokens)
+
+    if strategy == "debate":
+        roles = (FinderAgent, ChallengerAgent, JudgeAgent)
+        agents = {cls.role: cls(provider=provider, model=model, max_tokens=max_tokens) for cls in roles}
+        return agents, DebateOrchestrator()
+    if strategy == "adaptive":
+        roles = (FinderAgent, ChallengerAgent, JudgeAgent)
+        agents = {cls.role: cls(provider=provider, model=model, max_tokens=max_tokens) for cls in roles}
+        agents["verifier"] = runner()
+        return agents, AdaptiveOrchestrator()
+    if strategy == "reflexion":
+        agents = {
+            "actor": FinderAgent(provider=provider, model=model, max_tokens=max_tokens),
+            "critic": ChallengerAgent(provider=provider, model=model, max_tokens=max_tokens),
+        }
+        return agents, ReflexionOrchestrator()
+    if strategy == "challenge":
+        return {"verifier": runner(), "refuter": RefuterAgent(provider=provider, model=model)}, ChallengeOrchestrator()
     if strategy == "pipeline":
-        return agents, SkillPipelineOrchestrator()
+        return {"verifier": runner()}, SkillPipelineOrchestrator()
     if strategy == "taint":
-        return agents, TaintGateOrchestrator()
-    raise NotImplementedError(
-        f"skill orchestration for strategy {strategy!r} is not wired yet; "
-        "single, pipeline, and taint are available, the multi-agent strategies "
-        "(debate, reflexion, challenge, adaptive) arrive with R5b"
-    )
+        return {"verifier": runner()}, TaintGateOrchestrator()
+    return {"verifier": runner()}, SingleOrchestrator()
 
 
 def provider_tag(provider: Provider) -> str:

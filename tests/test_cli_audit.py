@@ -61,11 +61,24 @@ diff --git a/auth.py b/auth.py
 """
 
 
-def test_multi_agent_strategy_not_yet_wired_for_skills():
-    # debate/reflexion/challenge/adaptive on skills arrive with R5b; until then a
-    # skill audit with such a strategy fails loudly rather than silently.
-    with pytest.raises(NotImplementedError):
-        audit(_ONE_FILE_DIFF, [_AUTHN], provider=MockProvider(default="{}"), model="m", strategy="debate")
+def test_debate_strategy_wires_finder_challenger_judge_on_skills():
+    # Two identical rounds -> debate converges; each round is finder, challenger, judge.
+    rounds = []
+    for _ in range(2):
+        rounds += [
+            json.dumps({"findings": [{"title": "weak hash", "severity": "HIGH"}]}),
+            json.dumps({"rebuttals": [], "new_findings": []}),
+            json.dumps({"surviving": [{"title": "weak hash", "severity": "HIGH"}], "dismissed": []}),
+        ]
+    provider = MockProvider(responses=rounds, default="{}")
+    results = audit(_ONE_FILE_DIFF, [_AUTHN], provider=provider, model="m", strategy="debate")
+
+    _, result = results[0]
+    findings = [o for o in result.observations if isinstance(o, Finding)]
+    assert [f.title for f in findings] == ["weak hash"]
+    assert len(provider.calls) == 6  # 2 rounds * 3 roles
+    # the finder saw the skill playbook
+    assert "check password hashing" in provider.calls[0]["messages"][0].content
 
 
 @pytest.mark.parametrize(
