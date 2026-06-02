@@ -9,6 +9,7 @@ from pathlib import Path
 _DATA = Path(__file__).resolve().parent / "data"
 
 CAPABILITIES_DIR = _DATA / "capabilities"
+SKILLS_DIR = _DATA / "skills"
 TASKS_DIR = _DATA / "tasks"
 GOLDEN_DIR = _DATA / "golden"
 SUPPRESSIONS_FILE = _DATA / "suppressions.yaml"
