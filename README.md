@@ -26,29 +26,30 @@ pip install "codejury[anthropic]"    # or [openai] / [litellm] for a backend
 
 ```bash
 # audit a diff file
-codejury audit --diff-file changes.diff
+codejury review diff --diff-file changes.diff
 
 # audit a git range in a repo
-codejury audit --repo /path/to/app --git-range origin/main...HEAD
+codejury review diff --repo /path/to/app --git-range origin/main...HEAD
 
 # from stdin
-git diff HEAD~1 | codejury audit
+git diff HEAD~1 | codejury review diff
 
 # adversarial mode: Finder + Challenger + Judge (higher coverage, lower FP, ~3x cost)
-codejury audit --diff-file changes.diff --mode adversarial
+codejury review diff --diff-file changes.diff --mode adversarial
 
 # CI gate + SARIF
-codejury audit --diff-file changes.diff --format sarif --fail-on high
+codejury review diff --diff-file changes.diff --format sarif --fail-on high
 ```
 
 Configure a backend with `--provider`/`--model`/`--api-key`/`--api-base` or the
 `CODEJURY_API_KEY` / `CODEJURY_MODEL` / `CODEJURY_API_BASE` environment variables.
-`codejury dry-run` exercises the engine with a mock provider and no key.
+`codejury review diff --dry-run` exercises the engine with a mock provider and
+no key (it uses a built-in demo diff when you do not pass one).
 
 ## Whole-repo review
 
 ```bash
-codejury full-review /path/to/your/repo
+codejury review repo /path/to/your/repo
 ```
 
 This scaffolds a review workspace (`api/`, `issues/`, `analysis/`, and a

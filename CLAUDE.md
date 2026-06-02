@@ -45,12 +45,14 @@ default behavior. Strategy: see `ROADMAP.md`.
 
 ## Commands
 
-`dry-run` (mock, no key) · `audit` (a unified diff via `--diff-file` / `--repo
---git-range` / stdin; `--mode {standard,adversarial}`) · `full-review <dir>`
-(scaffold a workspace and print the methodology for an interactive agent).
-Shared `audit` flags: `--provider {anthropic,openai,litellm}`, `--model`,
+One verb, `review`, split by scope: `review diff` (a unified diff via
+`--diff-file` / `--repo --git-range` / stdin; `--mode {standard,adversarial}`)
+and `review repo <dir>` (scaffold a workspace and print the methodology for an
+interactive agent). `codejury --version` prints the version.
+Shared `review diff` flags: `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`,
-`--no-filter`.
+`--no-filter`, `--exclude PATH` (repeatable), `--dry-run` (mock provider, no
+key; a built-in demo diff when none is supplied).
 
 ## Conventions
 

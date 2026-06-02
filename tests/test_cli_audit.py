@@ -5,7 +5,9 @@ big PR does not overflow the model context and silently truncate the reply; the
 per-file findings are then de-duplicated.
 """
 
-from codejury.cli import _dedup_findings, _split_diff_by_file, audit_diff
+import pytest
+
+from codejury.cli import _dedup_findings, _split_diff_by_file, audit_diff, main
 from codejury.domain.finding import Finding
 from codejury.providers.mock import MockProvider
 
@@ -43,3 +45,39 @@ def test_large_diff_is_audited_per_file(monkeypatch):
     assert len(provider.calls) == 2
     # category normalized onto the rule-id set
     assert all(f.category == "sql-injection" for f in kept)
+
+
+def test_audit_diff_honors_exclude_paths():
+    resp = ('{"findings": [{"file": "vendor/lib.py", "line": 1, "severity": "HIGH", '
+            '"category": "sql_injection", "description": "x", "confidence": 0.9}]}')
+    kept, dropped = audit_diff(
+        _FILE_A, provider=MockProvider(default=resp), model="mock", exclude_paths=("vendor/",)
+    )
+    assert kept == [] and dropped and "excluded path" in dropped[0][1]
+
+
+# --- CLI surface ---
+
+def test_version_flag_exits_zero(capsys):
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert "codejury" in capsys.readouterr().out
+
+
+def test_review_diff_dry_run_is_zero_config(capsys):
+    # no diff input, no key: the built-in demo diff runs through the mock provider
+    rc = main(["review", "diff", "--dry-run"])
+    assert rc == 0
+    assert "sql-injection" in capsys.readouterr().out
+
+
+def test_review_diff_dry_run_respects_exclude(capsys):
+    rc = main(["review", "diff", "--dry-run", "--exclude", "app.py"])
+    assert rc == 0
+    assert "no findings" in capsys.readouterr().out
+
+
+def test_old_audit_command_is_gone(capsys):
+    with pytest.raises(SystemExit):   # argparse rejects the removed command
+        main(["audit", "--dry-run"])
