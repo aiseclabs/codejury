@@ -115,6 +115,54 @@ def test_django_path_calls_capture_view_and_route():
     }
 
 
+DJANGO_ROOT = '''
+from django.urls import path, include
+urlpatterns = [
+    path("", include("introduction.urls")),
+    path("api/", include("api.urls")),
+    path("health/", views.health),
+]
+'''
+DJANGO_INTRO = '''
+from django.urls import path
+from . import views
+urlpatterns = [
+    path("home/", views.home),
+    path("xss", views.xss),
+]
+'''
+DJANGO_API = '''
+from django.urls import path, include
+urlpatterns = [
+    path("v1/", include("api.v1.urls")),
+]
+'''
+DJANGO_API_V1 = '''
+from django.urls import path
+urlpatterns = [
+    path("users", views.users),
+]
+'''
+
+
+def test_django_include_mounts_subroutes_under_prefix():
+    model = _model({
+        "urls.py": DJANGO_ROOT,
+        "introduction/urls.py": DJANGO_INTRO,
+        "api/urls.py": DJANGO_API,
+        "api/v1/urls.py": DJANGO_API_V1,
+    })
+    routes = {(e.function, e.route) for e in model.entrypoints}
+    assert routes == {
+        ("health", "health/"),     # direct route on the root urlconf
+        ("home", "home/"),         # included at "" prefix
+        ("xss", "xss"),
+        ("users", "api/v1/users"),  # nested include: "api/" + "v1/" + "users"
+    }
+    # the included sub-urlconfs are not also emitted standalone (no bare "users")
+    assert all(e.route != "users" for e in model.entrypoints)
+
+
 def test_django_include_and_cbv_with_no_resolvable_function_are_dropped():
     # include() mounts and an unresolved .as_view() carry no handler function;
     # only the plain function-based view survives, no empty `- -` noise entries
