@@ -9,10 +9,10 @@ separate planning document.
 
 LLM code-security review usually fails because the security knowledge is buried
 in prompts: unversioned, unshareable, untunable by non-engineers, and drifting on
-every edit. codejury makes the knowledge **data**: one versioned YAML capability
-per OWASP ASVS area, and keeps the engine small and composable (orchestration /
-model / input axes mix freely). Quality is governed by an evaluation harness, not
-by vibes.
+every edit. codejury makes the knowledge **data**: one versioned skill per OWASP
+ASVS area or LLM-Top-10 risk (a manifest plus a prose playbook), and keeps the
+engine small and composable (selection / orchestration / model / input axes mix
+freely). Quality is governed by an evaluation harness, not by vibes.
 
 ## Current status (0.5.1)
 
@@ -21,8 +21,9 @@ Built and shipped:
 - **Engine**: 5 orchestrators (single, pipeline, debate, reflexion, challenge);
   4 providers (anthropic, openai, litellm, mock) + opt-in retry; sources for
   diff, function, and repo (chunking + cross-file caller/callee context).
-- **Knowledge as data**: 11 ASVS capabilities + a data-driven suppression filter,
-  all YAML.
+- **Knowledge as data**: 16 skills (11 ASVS areas + OWASP LLM Top 10), each a
+  manifest plus a prose playbook, with a data-driven suppression filter and a
+  deterministic-plus-model skill selector.
 - **Delivery**: CLI (`dry-run / audit / scan / run / eval`), reports in
   text / markdown / json, GitHub PR inline reviews, `--fail-on` CI gate, on PyPI
   via OIDC Trusted Publishing.

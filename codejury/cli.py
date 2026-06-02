@@ -1,9 +1,9 @@
 """Command-line entry point.
 
 ``dry-run`` wires every mock layer together with no API key, proving the
-contracts compose. ``audit`` runs the real pipeline against the capability
-library, backed by the Anthropic provider, under a chosen orchestration strategy
-(single verifier, or finder/challenger/judge debate).
+contracts compose. ``audit`` runs the real pipeline against the skill library,
+backed by the Anthropic provider, under a chosen orchestration strategy
+(single skill runner, or finder/challenger/judge debate).
 """
 
 from __future__ import annotations
@@ -20,16 +20,12 @@ from codejury.assembly import (
     DEFAULT_MODEL,
     PROVIDERS,
     STRATEGIES,
-    build_orchestration,
     build_skill_orchestration,
     make_provider,
     orchestration_descriptor,
-    run_over_artifacts,
     run_over_artifacts_with_skills,
-    run_over_source,
 )
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability, load_capabilities
 from codejury.domain.context import AnalysisContext
 from codejury.domain.skill import Skill, load_skills
 from codejury.selection import Selector, SkillRouter
@@ -42,7 +38,7 @@ from codejury.providers.base import Provider
 from codejury.providers.mock import MockProvider
 from codejury.baseline import filter_new
 from codejury.reporting import from_json, to_json, to_markdown, to_sarif
-from codejury.resources import CAPABILITIES_DIR, GOLDEN_DIR, SKILLS_DIR, SUPPRESSIONS_FILE, TASKS_DIR
+from codejury.resources import GOLDEN_DIR, SKILLS_DIR, SUPPRESSIONS_FILE, TASKS_DIR
 from codejury.suppression import filter_results, load_suppressions
 from codejury.integrations.github import build_review, parse_pr_ref, post_review
 from codejury.sources.chunker import Chunker

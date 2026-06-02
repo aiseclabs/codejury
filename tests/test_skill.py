@@ -5,7 +5,7 @@ no audit logic."""
 import pytest
 
 from codejury.domain.skill import Skill, load_skill, load_skills
-from codejury.resources import CAPABILITIES_DIR, SKILLS_DIR
+from codejury.resources import SKILLS_DIR
 
 MANIFEST = """\
 id: sql_injection
@@ -117,15 +117,18 @@ def test_skill_is_frozen_and_hashable():
         s.id = "y"  # frozen
 
 
-# --- shipped skills (R2 migration of the capability set) ---
+# --- shipped skills (the migrated security knowledge base) ---
 
-def test_shipped_skills_load_and_cover_the_capabilities():
-    from codejury.domain.capability import load_capabilities
+_EXPECTED_SKILLS = {
+    "api_design", "authn", "authz", "business_logic", "crypto", "data_protection",
+    "dependency_config", "error_logging", "excessive_agency", "input_validation",
+    "insecure_output_handling", "model_supply_chain", "output_encoding",
+    "prompt_injection", "secrets", "session",
+}
 
-    skill_ids = {s.id for s in load_skills(SKILLS_DIR)}
-    # capability filenames and ids differ for a few (authn/authz), so compare by id
-    cap_ids = {c.id for c in load_capabilities(CAPABILITIES_DIR)}
-    assert skill_ids == cap_ids, "every capability must have a 1:1 skill after R2"
+
+def test_shipped_skills_are_the_full_set():
+    assert {s.id for s in load_skills(SKILLS_DIR)} == _EXPECTED_SKILLS
 
 
 def test_shipped_skills_carry_a_playbook_and_valid_metadata():

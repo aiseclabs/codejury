@@ -1,15 +1,15 @@
 import dataclasses
 
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Finding
+from codejury.domain.skill import Skill
 
 
 def _ctx(**overrides):
     base = dict(
         artifact=CodeArtifact(kind="file", path="x.py", content="..."),
-        capabilities=[Capability(id="authn", name="Authentication")],
+        skills=[Skill(id="authn", name="Authentication")],
     )
     base.update(overrides)
     return AnalysisContext(**base)

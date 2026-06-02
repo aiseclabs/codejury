@@ -1,8 +1,9 @@
 """codejury: a general-purpose Application Security AI audit framework.
 
-Five layers: Task, then Capability plus Orchestrator plus Source plus Agent, then Provider, then Infrastructure.
-Domain knowledge lives in YAML capability files as a first-class citizen,
-aligned with OWASP ASVS.
+Layers: Task, then Skill plus Selector plus Orchestrator plus Source plus Agent,
+then Provider, then Infrastructure. Domain knowledge lives in skill directories
+(a manifest plus a prose playbook) as a first-class citizen, aligned with OWASP
+ASVS and the OWASP LLM Top 10.
 """
 
 from importlib.metadata import PackageNotFoundError, version

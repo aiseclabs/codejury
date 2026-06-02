@@ -3,21 +3,22 @@ from types import SimpleNamespace
 import pytest
 
 from codejury.assembly import (
-    build_orchestration,
+    build_skill_orchestration,
     make_provider,
     orchestration_descriptor,
     provider_tag,
-    run_over_source,
+    run_over_artifacts_with_skills,
 )
 from codejury.providers.retry import RetryProvider
-from codejury.domain.capability import Capability
+from codejury.domain.skill import Skill
 from codejury.orchestrators.debate import DebateOrchestrator
-from codejury.orchestrators.pipeline import PipelineOrchestrator
 from codejury.orchestrators.reflexion import ReflexionOrchestrator
 from codejury.orchestrators.single import SingleOrchestrator
+from codejury.orchestrators.skill_pipeline import SkillPipelineOrchestrator
 from codejury.providers.base import Message
 from codejury.providers.litellm import LiteLLMProvider
 from codejury.providers.mock import MockProvider
+from codejury.selection import Selector
 from codejury.sources.mock import MockSource
 
 
@@ -25,13 +26,13 @@ from codejury.sources.mock import MockSource
     "strategy,orch_cls,roles",
     [
         ("single", SingleOrchestrator, {"verifier"}),
-        ("pipeline", PipelineOrchestrator, {"verifier"}),
+        ("pipeline", SkillPipelineOrchestrator, {"verifier"}),
         ("debate", DebateOrchestrator, {"finder", "challenger", "judge"}),
         ("reflexion", ReflexionOrchestrator, {"actor", "critic"}),
     ],
 )
-def test_build_orchestration_maps_strategy(strategy, orch_cls, roles):
-    agents, orchestrator = build_orchestration(strategy, provider=MockProvider(), model="m", max_tokens=8)
+def test_build_skill_orchestration_maps_strategy(strategy, orch_cls, roles):
+    agents, orchestrator = build_skill_orchestration(strategy, provider=MockProvider(), model="m", max_tokens=8)
     assert isinstance(orchestrator, orch_cls)
     assert set(agents) == roles
 
@@ -61,12 +62,13 @@ def test_provider_tag_unwraps_retry():
     assert provider_tag(RetryProvider(MockProvider())) == "MockProvider"
 
 
-def test_run_over_source_runs_each_artifact():
-    provider = MockProvider(default='{"verdicts": [{"sub_capability": "x", "status": "SECURE"}]}')
-    agents, orchestrator = build_orchestration("single", provider=provider, model="m", max_tokens=8)
-    source = MockSource()  # one default artifact
-    caps = [Capability(id="authn", name="Authentication")]
+def test_run_over_artifacts_with_skills_runs_each_artifact():
+    provider = MockProvider(default='{"verdicts": [{"dimension": "x", "status": "SECURE"}]}')
+    agents, orchestrator = build_skill_orchestration("single", provider=provider, model="m", max_tokens=8)
+    skills = [Skill(id="authn", name="Authentication", instructions="check")]
 
-    results = run_over_source(source, caps, agents, orchestrator)
+    results = run_over_artifacts_with_skills(
+        MockSource().list_artifacts(), Selector(tuple(skills)), agents, orchestrator
+    )
     assert [path for path, _ in results] == ["auth.py"]
     assert results[0][1].observations[0].capability == "authn.x"

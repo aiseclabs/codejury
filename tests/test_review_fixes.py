@@ -32,18 +32,6 @@ def test_is_problem_shared_predicate():
     assert not is_problem(Verdict(capability="a", status="SECURE"))
 
 
-def test_capability_rejects_bad_severity(tmp_path):
-    from codejury.domain.capability import load_capability
-    bad = tmp_path / "c.yaml"
-    bad.write_text(
-        "id: x\nname: X\nsub_capabilities:\n  s:\n    anti_patterns:\n"
-        "      - {id: A, severity: Hihg}\n"
-    )
-    with pytest.raises(ValueError) as e:
-        load_capability(bad)
-    assert "severity" in str(e.value) and str(bad) in str(e.value)
-
-
 def test_from_json_rejects_malformed_baseline():
     from codejury.reporting import from_json
     with pytest.raises(ValueError):
@@ -56,7 +44,7 @@ def test_challenge_keeps_both_when_capability_collides():
     # two VULNERABLE verdicts for the same capability + a single refutation -> keep both
     from codejury.domain.context import AnalysisContext
     from codejury.domain.artifact import CodeArtifact
-    from codejury.domain.capability import Capability
+    from codejury.domain.skill import Skill
     from codejury.domain.observation import Concession
     from codejury.orchestrators.challenge import ChallengeOrchestrator
 
@@ -71,7 +59,7 @@ def test_challenge_keeps_both_when_capability_collides():
 
     ctx = AnalysisContext(
         artifact=CodeArtifact(kind="file", path="a.py", content="x"),
-        capabilities=[Capability(id="input_validation", name="iv")],
+        skills=[Skill(id="input_validation", name="iv", instructions="check")],
     )
     result = ChallengeOrchestrator().run({"verifier": _Verifier(), "refuter": _Refuter()}, ctx)
     vulns = [o for o in result.observations if o.kind == "verdict" and o.status == "VULNERABLE"]
@@ -103,7 +91,7 @@ def test_suppression_rejects_empty_match_any(tmp_path):
 def test_challenge_surfaces_verifier_error_not_traceback():
     # a provider failure in challenge must become AnalysisResult.error, not raise
     from codejury.domain.artifact import CodeArtifact
-    from codejury.domain.capability import Capability
+    from codejury.domain.skill import Skill
     from codejury.domain.context import AnalysisContext
     from codejury.orchestrators.challenge import ChallengeOrchestrator
 
@@ -113,7 +101,7 @@ def test_challenge_surfaces_verifier_error_not_traceback():
 
     ctx = AnalysisContext(
         artifact=CodeArtifact(kind="file", path="a.py", content="x"),
-        capabilities=[Capability(id="input_validation", name="iv")],
+        skills=[Skill(id="input_validation", name="iv", instructions="check")],
     )
     result = ChallengeOrchestrator().run({"verifier": _Boom(), "refuter": _Boom()}, ctx)
     assert result.error and "verifier" in result.error

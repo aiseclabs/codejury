@@ -1,8 +1,8 @@
 """Orchestrator ABC.
 
 An orchestrator decides how agents run over a context: one pass, an
-adversarial debate, capability-by-capability, etc. Capabilities are read from
-``context.capabilities``, so they are not a separate argument.
+adversarial debate, skill-by-skill, etc. The in-scope skills are read from
+``context.skills``, so they are not a separate argument.
 """
 
 from __future__ import annotations

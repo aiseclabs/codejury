@@ -2,19 +2,19 @@ import json
 
 from codejury.agents.debate import ChallengerAgent, FinderAgent, JudgeAgent
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import load_capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Concession, Finding
+from codejury.domain.skill import load_skill
 from codejury.providers.mock import MockProvider
 
-from codejury.resources import CAPABILITIES_DIR
+from codejury.resources import SKILLS_DIR
 
 
 def _ctx(*, history=None, round_num=1, content="hashlib.sha256(pwd)"):
-    cap = load_capability(CAPABILITIES_DIR / "authentication.yaml")
+    skill = load_skill(SKILLS_DIR / "authn")
     return AnalysisContext(
         artifact=CodeArtifact(kind="diff", path="auth.py", content=content),
-        capabilities=[cap],
+        skills=[skill],
         history=history or [],
         round_num=round_num,
     )

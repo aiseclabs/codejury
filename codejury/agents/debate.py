@@ -1,6 +1,6 @@
 """Finder / Challenger / Judge agents for the debate orchestrator.
 
-Each reads the artifact, the capability hints, and the accumulated history
+Each reads the artifact, the skill playbooks, and the accumulated history
 (prior findings and rebuttals) from the context, calls the provider once, and
 maps its JSON reply onto observations:
 
@@ -17,7 +17,6 @@ from __future__ import annotations
 from codejury.agents.base import Agent
 from codejury.agents.parsing import one_of, str_list, to_evidence, to_float
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Concession, Finding, Observation, Severity
 from codejury.domain.skill import Skill
@@ -142,29 +141,12 @@ def _code(artifact: CodeArtifact) -> str:
 
 
 def _hints(ctx: AnalysisContext) -> str:
-    """What to look for: the skill playbooks in scope, or the legacy capability
-    anti-patterns. Skills are the unit; capabilities linger until R6."""
-    if ctx.skills:
-        return _skill_hints(ctx.skills)
-    return _capability_hints(ctx.capabilities)
-
-
-def _skill_hints(skills: list[Skill]) -> str:
+    """What to look for: the skill playbooks in scope."""
     blocks = []
-    for s in skills:
+    for s in ctx.skills:
         standard = f" ({s.standard})" if s.standard else ""
         blocks.append(f"## {s.id}: {s.name}{standard}\n{s.instructions}")
     return "Apply these security skills:\n\n" + "\n\n".join(blocks) if blocks else ""
-
-
-def _capability_hints(capabilities: list[Capability]) -> str:
-    lines = []
-    for cap in capabilities:
-        for sub_name, sub in cap.sub_capabilities.items():
-            for ap in sub.anti_patterns:
-                tag = f"{ap.cwe} {ap.severity}" if ap.cwe else ap.severity
-                lines.append(f"- {cap.id}.{sub_name} [{tag}]: {ap.description}")
-    return "Look especially for:\n" + "\n".join(lines) if lines else ""
 
 
 def _render_history(history: list[Observation]) -> str:

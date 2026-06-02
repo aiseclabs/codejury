@@ -1,23 +1,23 @@
 import json
 
-from codejury.agents.verifier import VerifierAgent
+from codejury.agents.skill_runner import SkillRunner
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
+from codejury.domain.skill import Skill
 from codejury.orchestrators.taint_gate import TaintGateOrchestrator
 from codejury.providers.mock import MockProvider
 
-# The verifier always returns VULNERABLE here, so the gate is the only thing that
+# The runner always returns VULNERABLE here, so the gate is the only thing that
 # can clear a finding: exactly what we want to test.
-_VULN = json.dumps({"verdicts": [{"sub_capability": "x", "status": "VULNERABLE",
+_VULN = json.dumps({"verdicts": [{"dimension": "x", "status": "VULNERABLE",
                                   "evidence": [{"file": "m.py", "line": 2}]}]})
 
 
-def _run(content, *, capability="input_validation", context=""):
-    agents = {"verifier": VerifierAgent(provider=MockProvider(default=_VULN), model="m")}
+def _run(content, *, skill="input_validation", context=""):
+    agents = {"verifier": SkillRunner(provider=MockProvider(default=_VULN), model="m")}
     ctx = AnalysisContext(
         artifact=CodeArtifact(kind="file", path="m.py", content=content, context=context),
-        capabilities=[Capability(id=capability, name=capability)],
+        skills=[Skill(id=skill, name=skill, instructions="check")],
     )
     return TaintGateOrchestrator().run(agents, ctx)
 
@@ -76,7 +76,7 @@ def test_cross_file_sanitized_caller_clears_finding():
 def test_non_taint_capability_is_not_gated():
     # an authn verdict must never be touched by the taint gate, even on clean code.
     src = "def login():\n    return hashlib.md5(b'const').hexdigest()\n"
-    assert _statuses(_run(src, capability="authn")) == ["VULNERABLE"]
+    assert _statuses(_run(src, skill="authn")) == ["VULNERABLE"]
 
 
 def test_unparseable_code_keeps_verdicts():
@@ -97,10 +97,11 @@ def test_tainted_value_without_call_sink_is_kept():
 
 def test_partial_verdict_is_not_downgraded():
     # the gate downgrades only VULNERABLE; PARTIAL ("incomplete validation") is kept
-    partial = json.dumps({"verdicts": [{"sub_capability": "x", "status": "PARTIAL"}]})
-    agents = {"verifier": VerifierAgent(provider=MockProvider(default=partial), model="m")}
+    partial = json.dumps({"verdicts": [{"dimension": "x", "status": "PARTIAL",
+                                        "evidence": [{"file": "m.py", "line": 2}]}]})
+    agents = {"verifier": SkillRunner(provider=MockProvider(default=partial), model="m")}
     ctx = AnalysisContext(
         artifact=CodeArtifact(kind="file", path="m.py", content="def q():\n    cursor.execute('SELECT 1')\n"),
-        capabilities=[Capability(id="input_validation", name="input_validation")],
+        skills=[Skill(id="input_validation", name="input_validation", instructions="check")],
     )
     assert _statuses(TaintGateOrchestrator().run(agents, ctx)) == ["PARTIAL"]

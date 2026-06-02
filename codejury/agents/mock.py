@@ -1,9 +1,8 @@
 """MockAgent: a minimal Agent for the dry-run and tests.
 
 It really calls the provider (so the dry-run exercises the agent -> provider
-path), then emits one Verdict per in-scope unit (skill, or capability during the
-refactor), parking the model's reply in ``reasoning``. It does no real parsing or
-judgement; ``SkillRunner`` does.
+path), then emits one Verdict per in-scope skill, parking the model's reply in
+``reasoning``. It does no real parsing or judgement; ``SkillRunner`` does.
 """
 
 from __future__ import annotations
@@ -27,13 +26,12 @@ class MockAgent(Agent):
             model=self._model,
             max_tokens=256,
         )
-        units = ctx.skills or ctx.capabilities  # skills are the unit; capabilities linger until R6
         return [
             Verdict(
-                capability=unit.id,
+                capability=skill.id,
                 produced_by=self._role,
                 status="UNKNOWN",
                 reasoning=result.text,
             )
-            for unit in units
+            for skill in ctx.skills
         ]

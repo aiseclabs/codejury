@@ -1,15 +1,17 @@
 import json
 
-from codejury.assembly import build_orchestration
+from codejury.assembly import build_skill_orchestration
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
+from codejury.domain.skill import Skill
 from codejury.orchestrators.adaptive import AdaptiveOrchestrator
 from codejury.providers.mock import MockProvider
 
 
 def _verdict(status, confidence=0.9):
-    return json.dumps({"verdicts": [{"sub_capability": "x", "status": status, "confidence": confidence}]})
+    # evidence is included so a VULNERABLE/PARTIAL verdict survives invariant 3 in SkillRunner
+    return json.dumps({"verdicts": [{"dimension": "x", "status": status, "confidence": confidence,
+                                     "evidence": [{"file": "a.py", "line": 1, "code": "c"}]}]})
 
 
 # A finder/judge JSON so an escalated debate produces a recognizable Finding.
@@ -19,12 +21,12 @@ _FINDING = json.dumps({"findings": [{"title": "deep issue", "severity": "HIGH"}]
 def _ctx():
     return AnalysisContext(
         artifact=CodeArtifact(kind="file", path="a.py", content="code"),
-        capabilities=[Capability(id="input_validation", name="input_validation")],
+        skills=[Skill(id="input_validation", name="input_validation", instructions="check")],
     )
 
 
 def _build(provider):
-    return build_orchestration("adaptive", provider=provider, model="m", max_tokens=8)
+    return build_skill_orchestration("adaptive", provider=provider, model="m", max_tokens=8)
 
 
 def test_clean_artifact_does_not_escalate():

@@ -2,11 +2,11 @@ import json
 
 from codejury.agents.base import Agent
 from codejury.agents.refuter import RefuterAgent
-from codejury.assembly import build_orchestration
+from codejury.assembly import build_skill_orchestration
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Concession, Verdict
+from codejury.domain.skill import Skill
 from codejury.orchestrators.challenge import ChallengeOrchestrator
 from codejury.providers.mock import MockProvider
 
@@ -14,7 +14,7 @@ from codejury.providers.mock import MockProvider
 def _ctx(history=None):
     return AnalysisContext(
         artifact=CodeArtifact(kind="file", path="x.py", content="..."),
-        capabilities=[Capability(id="authn", name="A")],
+        skills=[Skill(id="authn", name="A", instructions="check")],
         history=history or [],
     )
 
@@ -99,7 +99,7 @@ def test_challenge_missing_role_errors():
     assert "refuter" in result.error
 
 
-def test_build_orchestration_wires_challenge():
-    agents, orch = build_orchestration("challenge", provider=MockProvider(), model="m", max_tokens=8)
+def test_build_skill_orchestration_wires_challenge():
+    agents, orch = build_skill_orchestration("challenge", provider=MockProvider(), model="m", max_tokens=8)
     assert isinstance(orch, ChallengeOrchestrator)
     assert set(agents) == {"verifier", "refuter"}

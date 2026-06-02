@@ -1,7 +1,6 @@
 """SkillRunner: execute a skill's playbook against a piece of code.
 
-The generic successor to VerifierAgent. Where the verifier rendered a
-capability's structured patterns, the runner hands the model the skill's
+The agent that rules code against a skill. It hands the model the skill's
 SKILL.md playbook verbatim and asks it to rule on each dimension the playbook
 names. One provider call per skill.
 

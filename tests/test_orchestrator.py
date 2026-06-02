@@ -1,15 +1,15 @@
 from codejury.agents.base import Agent
 from codejury.domain.artifact import CodeArtifact
-from codejury.domain.capability import Capability
 from codejury.domain.context import AnalysisContext
 from codejury.domain.observation import Verdict
+from codejury.domain.skill import Skill
 from codejury.orchestrators.single import SingleOrchestrator
 
 
 def _ctx():
     return AnalysisContext(
         artifact=CodeArtifact(kind="file", path="x.py", content="..."),
-        capabilities=[Capability(id="authn", name="Authentication")],
+        skills=[Skill(id="authn", name="Authentication")],
     )
 
 

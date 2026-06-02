@@ -6,13 +6,14 @@ precedence over default behavior. Strategy and phased plan: see `ROADMAP.md`.
 
 ## Invariants (never violate; a change that breaks one is rejected even if `eval` passes)
 
-1. **Knowledge is data.** Security knowledge lives in `codejury/data/` YAML
-   (capabilities, suppressions, golden), reviewable in a PR, editable by
-   non-engineers. Detection *logic* is generic; *what* to detect is data. Do not
-   hardcode vulnerability knowledge in prompts or Python.
+1. **Knowledge is data.** Security knowledge lives in `codejury/data/`
+   (skills as `data/skills/<id>/{skill.yaml, SKILL.md}`, plus suppressions and
+   golden), reviewable in a PR, editable by non-engineers. Detection *logic* is
+   generic; *what* to detect is data. Do not hardcode vulnerability knowledge in
+   prompts or Python.
 2. **Determinism & reproducibility.** Same input must give the same verdicts.
    Providers run at temperature 0; verdicts are cached on
-   `hash(normalized code + capability version + orchestration)`; `--no-cache`
+   `hash(normalized code + skill fingerprint + orchestration)`; `--no-cache`
    bypasses. (Determinism work is tracked under ROADMAP P0.)
 3. **Every finding has evidence.** A Verdict/Finding must carry a code location
    (file + line). No location -> not reportable.
@@ -27,16 +28,18 @@ precedence over default behavior. Strategy and phased plan: see `ROADMAP.md`.
 
 | Layer | Implementations | Location |
 |---|---|---|
-| Task | YAML presets (capabilities + orchestrator + provider + model) | `codejury/tasks/`, `codejury/data/tasks/` |
-| Capability | 11 OWASP ASVS areas + OWASP LLM Top 10 (prompt_injection, ...), YAML | `codejury/data/capabilities/` |
+| Task | YAML presets (skills + orchestrator + provider + model) | `codejury/tasks/`, `codejury/data/tasks/` |
+| Skill | 16 skills (11 OWASP ASVS areas + OWASP LLM Top 10), each a `skill.yaml` manifest + `SKILL.md` prose playbook | `codejury/data/skills/<id>/` |
+| Selector | applies_to filter + temperature-0 model router (which skills to run) | `codejury/selection.py` |
 | Orchestrator | single · pipeline · debate · reflexion · challenge · taint · adaptive | `codejury/orchestrators/` |
-| Source | mock · diff · function · repo (chunker, callers/callees context) | `codejury/sources/` |
-| Agent | verifier · finder · challenger · judge · refuter · mock | `codejury/agents/` |
+| Source | mock · diff · function · repo · api_surface (chunker, callers/callees context) | `codejury/sources/` |
+| Agent | skill_runner · finder · challenger · judge · refuter · mock | `codejury/agents/` |
 | Provider | anthropic · openai · litellm · mock (+ retry wrapper) | `codejury/providers/` |
-| Infrastructure | json parsing, ... | `codejury/infrastructure/` |
+| Infrastructure | json parsing, verdict + selection cache, ... | `codejury/infrastructure/` |
 
 Cross-cutting modules: `assembly.py` (build orchestration + provider factory),
-`reporting.py`, `evaluation.py`, `suppression.py`, `resources.py`, `cli.py`,
+`selection.py`, `analysis/` (provenance/taint + RepoModel), `reporting.py`,
+`evaluation.py`, `suppression.py`, `resources.py`, `cli.py`,
 `integrations/github.py`.
 
 ## Commands
@@ -53,9 +56,9 @@ Shared flags: `--orchestrator {single,pipeline,debate,reflexion,challenge,taint,
 - Provider keys come from the environment (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
   or generic `CODEJURY_API_BASE` / `CODEJURY_API_KEY` / `CODEJURY_MODEL`).
   codejury does NOT auto-load `.env`; `source` it.
-- Data ships via `[tool.setuptools.package-data] codejury = ["data/**/*.yaml"]`.
-- Capability ids (`authn`, `authz`, `input_validation`, ...) are what `--only`
-  and a task's `capabilities:` accept.
+- Data ships via `[tool.setuptools.package-data] codejury = ["data/**/*.yaml", "data/**/*.md"]`.
+- Skill ids (`authn`, `authz`, `input_validation`, ...) are what `--only`
+  and a task's `skills:` accept.
 - Release: bump `pyproject.toml` version -> GitHub Release `vX.Y.Z` -> OIDC
   Trusted Publishing pushes to PyPI (no token stored).
 
