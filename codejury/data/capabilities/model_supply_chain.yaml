@@ -1,0 +1,59 @@
+# OWASP LLM Top 10 (2025), LLM03: Supply Chain.
+id: model_supply_chain
+name: Model Supply Chain
+asvs_chapter: ""   # OWASP LLM03, not an ASVS chapter
+description: >-
+  Loading a model, its code, or its weights from an untrusted or unverified
+  source. The high-impact cases run code at load time: executing code shipped
+  with a third-party model, or deserializing weights through pickle. Pin and
+  verify artifacts, and do not enable remote code execution for a model you do
+  not control.
+
+sub_capabilities:
+  remote_code:
+    correct_patterns:
+      - id: SC-OK-1
+        description: Load a model with remote code execution off and a pinned revision
+        signals: ["trust_remote_code=False", "revision="]
+        why_ok: The third-party repo cannot run code at load time and the artifact is pinned
+
+    anti_patterns:
+      - id: SC-BAD-1
+        cwe: CWE-494
+        severity: CRITICAL
+        description: >-
+          Load a model with trust_remote_code=True, which executes code shipped in
+          the model repository at load time
+        signals: ["trust_remote_code=True", "from_pretrained"]
+        why_bad: A malicious or compromised model repo runs arbitrary code in your process
+        example_bad: |
+          model = AutoModel.from_pretrained("vendor/model", trust_remote_code=True)
+        example_good: |
+          model = AutoModel.from_pretrained("vendor/model", revision="a1b2c3d")
+
+  artifact_integrity:
+    correct_patterns:
+      - id: SC-OK-2
+        description: Load weights from a data-only format such as safetensors
+        signals: ["safetensors", "load_file"]
+        why_ok: A data-only weights format cannot execute code on load
+
+    anti_patterns:
+      - id: SC-BAD-2
+        cwe: CWE-502
+        severity: HIGH
+        description: >-
+          Deserialize model weights or a checkpoint through pickle, for example
+          torch.load or joblib.load on a downloaded file, which can run code on load
+        signals: ["torch.load", "pickle.load", "joblib.load"]
+        why_bad: Pickle-based loaders execute code embedded in the file during deserialization
+        example_bad: |
+          state = torch.load(downloaded_checkpoint)
+        example_good: |
+          from safetensors.torch import load_file
+          state = load_file("model.safetensors")
+
+trigger_signals:
+  - from_pretrained or a model or dataset download call
+  - trust_remote_code set on a model load
+  - torch.load, pickle.load, or joblib.load of model weights

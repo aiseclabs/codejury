@@ -156,7 +156,7 @@ what `--only` and a task's `capabilities:` accept:
 `authn`, `authz`, `session`, `input_validation`, `output_encoding`, `crypto`,
 `secrets`, `data_protection`, `error_logging`, `business_logic`,
 `dependency_config`, `prompt_injection`, `insecure_output_handling`,
-`excessive_agency`.
+`excessive_agency`, `model_supply_chain`.
 
 To tune for your codebase, edit these files, adding patterns or sharpening
 wording. No code change is needed.
