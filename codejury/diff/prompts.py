@@ -12,7 +12,7 @@ SYSTEM = (
     "style notes or speculation. Respond with a single JSON object and nothing else."
 )
 
-_FOCUS = """\
+FOCUS = """\
 Hunt especially for high-impact, exploitable problems:
 - Business logic flaws: approval/state-machine bypass, skipped steps, replay of a
   privileged action with no nonce or time window.
@@ -25,7 +25,7 @@ Hunt especially for high-impact, exploitable problems:
 - Secrets and crypto: hardcoded credentials, weak or misused crypto.
 """
 
-_DO_NOT_REPORT = """\
+DO_NOT_REPORT = """\
 Do NOT report, regardless of severity:
 - Dependency or component CVEs.
 - Style, naming, or general best-practice suggestions.
@@ -54,7 +54,7 @@ def standard_audit_prompt(diff: str, *, rules: str = "", context: str = "") -> s
     )
     return (
         "Review the following code change for security vulnerabilities.\n\n"
-        f"{_FOCUS}\n{_DO_NOT_REPORT}\n"
+        f"{FOCUS}\n{DO_NOT_REPORT}\n"
         f"{rules_block}"
         f"Code change (unified diff):\n```diff\n{diff}\n```\n\n"
         f"{context_block}"
