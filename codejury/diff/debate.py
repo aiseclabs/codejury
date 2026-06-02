@@ -34,6 +34,7 @@ class AdversarialResult:
     investigate: list[dict] = field(default_factory=list)
     rounds: int = 0
     converged: bool = False
+    degraded: bool = False  # the judge response was unusable; findings are the unjudged fallback
 
 
 def _dicts(items: object) -> list[dict]:
@@ -42,6 +43,17 @@ def _dicts(items: object) -> list[dict]:
 
 def _key(f: Finding) -> tuple:
     return (f.file, f.line, f.category)
+
+
+def _dedup(items: list[dict]) -> list[dict]:
+    seen: set = set()
+    out: list[dict] = []
+    for d in items:
+        k = (d.get("file"), d.get("line"), d.get("category"))
+        if k not in seen:
+            seen.add(k)
+            out.append(d)
+    return out
 
 
 class AdversarialAuditRunner:
@@ -63,14 +75,18 @@ class AdversarialAuditRunner:
         self._challenger_model = challenger_model or model
         self._judge_model = judge_model or model
 
-    def _ask(self, system: str, prompt: str, model: str) -> dict:
+    def _ask(self, system: str, prompt: str, model: str) -> tuple[dict, bool]:
+        """Returns (parsed object, ok). ok is False when the response could not be
+        parsed into a JSON object (a provider error page, a blocked request, prose),
+        so the caller can avoid treating an unusable reply as an empty result."""
         result = self._provider.complete(
             system=system,
             messages=[Message(role="user", content=prompt)],
             model=model,
             max_tokens=self._max_tokens,
         )
-        return extract_json_object(result.text) or {}
+        obj = extract_json_object(result.text)
+        return (obj or {}), bool(obj)
 
     def run(self, diff: str, *, rules: str = "", context: str = "", max_rounds: int = 3) -> AdversarialResult:
         if not rules:
@@ -80,13 +96,14 @@ class AdversarialAuditRunner:
         judged = AdversarialResult(findings=[])
         rounds = 0
         converged = False
+        degraded = False
         for rounds in range(1, max_rounds + 1):
-            finder = self._ask(
+            finder, _ = self._ask(
                 FINDER_SYSTEM, finder_prompt(diff, rules=rules, context=context, prior=prior), self._finder_model
             )
             finder_findings = _dicts(finder.get("findings"))
 
-            challenger = self._ask(
+            challenger, _ = self._ask(
                 CHALLENGER_SYSTEM,
                 challenger_prompt(diff, finder_findings, rules=rules, context=context),
                 self._challenger_model,
@@ -94,11 +111,20 @@ class AdversarialAuditRunner:
             rebuttals = _dicts(challenger.get("rebuttals"))
             new_findings = _dicts(challenger.get("new_findings"))
 
-            verdict = self._ask(
+            verdict, judge_ok = self._ask(
                 JUDGE_SYSTEM,
                 judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context),
                 self._judge_model,
             )
+            if not judge_ok:
+                # the judge reply was unusable (provider error, blocked request,
+                # prose): do not let that silently drop the candidate findings;
+                # fall back to the unjudged finder + challenger set, flagged degraded
+                fallback = _dedup(finder_findings + new_findings)
+                judged = AdversarialResult(findings=findings_from_list(fallback), rounds=rounds, degraded=True)
+                degraded = True
+                break
+
             judged = AdversarialResult(
                 findings=findings_from_list(verdict.get("findings")),
                 downgraded=_dicts(verdict.get("downgraded")),
@@ -121,6 +147,7 @@ class AdversarialAuditRunner:
 
         return AdversarialResult(
             findings=judged.findings,
+            degraded=degraded,
             downgraded=judged.downgraded,
             dismissed=judged.dismissed,
             unresolved=judged.unresolved,

@@ -21,3 +21,14 @@ target = (UPLOAD_DIR / filename).resolve()
 if not target.is_relative_to(UPLOAD_DIR):
     raise ValueError("path escapes base dir")
 ```
+
+### Not a finding (do not flag)
+
+If the input is neutralized before the file operation there is no traversal:
+- `os.path.basename(name)` is applied (strips `../` and any directory parts),
+- the resolved path is confirmed within a base (`is_relative_to`, `realpath` under base),
+- the value is from an allowlist, or is a constant / trusted-config path.
+
+`open(os.path.join(BASE, os.path.basename(name)))` is safe: basename removes the
+traversal. Do not report it.
+

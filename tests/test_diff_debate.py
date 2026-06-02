@@ -119,6 +119,21 @@ def test_garbage_replies_yield_no_findings_not_an_error():
     assert out.findings == []
 
 
+def test_unusable_judge_falls_back_to_finder_findings_not_empty():
+    # finder finds a real issue, but the judge reply is unparseable (provider error,
+    # blocked request): the finding must survive as a degraded result, not vanish.
+    _, out = _run([_finder([_VULN]), _challenger(), "<html>blocked by WAF</html>"], max_rounds=1)
+    assert [f.category for f in out.findings] == ["sql_injection"]   # finder finding preserved
+    assert out.degraded is True
+    assert out.converged is False
+
+
+def test_unusable_judge_includes_challenger_independent_findings():
+    missed = {"file": "a.py", "line": 9, "severity": "HIGH", "category": "idor", "confidence": 0.8}
+    _, out = _run([_finder([]), _challenger(new_findings=[missed]), "not json"], max_rounds=1)
+    assert [f.category for f in out.findings] == ["idor"] and out.degraded is True
+
+
 def test_per_role_models_are_used():
     provider = MockProvider(responses=[_finder([]), _challenger(), _judge([])], default="{}")
     AdversarialAuditRunner(
