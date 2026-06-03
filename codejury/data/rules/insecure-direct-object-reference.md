@@ -10,7 +10,7 @@ triggers: ["objects.get(", "findById", "get_object_or_404", "/<id>", "/:id", "re
 
 A record is fetched or mutated by a user-supplied id without checking the caller owns or may access it, so an authenticated user reaches another user's, tenant's, or service's data by changing the id. Scope every object lookup to the caller's identity or tenant.
 
-### Python (Django)
+### Python, Django
 Vulnerable:
 ```python
 account = Account.objects.get(id=request.GET["account_id"])
@@ -20,6 +20,6 @@ Secure:
 account = get_object_or_404(Account, id=request.GET["account_id"], owner=request.user)
 ```
 
-### Node.js (Express)
+### Node.js, Express
 Vulnerable: `const doc = await Document.findById(req.params.id)`
 Secure: `const doc = await Document.findOne({ _id: req.params.id, userId: req.user.id })`

@@ -8,7 +8,7 @@ triggers: ["(**request", "update(**", "setattr(", "Object.assign", "create(**", 
 
 ## Mass Assignment
 
-Binding a whole request body into a model or update lets a client set internal fields it was never offered (is_admin, balance, role). Bind only an explicit allowlist of fields.
+Binding a whole request body into a model or update lets a client set internal fields it was never offered such as is_admin, balance, or role. Bind only an explicit allowlist of fields.
 
 ### Python
 Vulnerable:

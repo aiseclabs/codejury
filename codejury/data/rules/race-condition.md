@@ -1,6 +1,6 @@
 ---
 id: race-condition
-title: Race Condition (TOCTOU)
+title: Race Condition / TOCTOU
 impact: HIGH
 tags: [cwe-362, cwe-367, owasp-a04]
 triggers: ["if balance", "balance -=", "select_for_update", "get(...).save", "check", "transaction", "lock", "atomic"]
@@ -8,9 +8,9 @@ triggers: ["if balance", "balance -=", "select_for_update", "get(...).save", "ch
 
 ## Race Condition / TOCTOU
 
-A check and the action it guards run on shared state without a lock or atomic update, so two concurrent requests both pass the check (double-spend, double-redeem, limit bypass). Use a row lock, an atomic conditional update, or a transaction.
+A check and the action it guards run on shared state without a lock or atomic update, so two concurrent requests both pass the check, enabling double-spend, double-redeem, or a limit bypass. Use a row lock, an atomic conditional update, or a transaction.
 
-### Python (Django)
+### Python, Django
 Vulnerable:
 ```python
 acct = Account.objects.get(pk=pk)

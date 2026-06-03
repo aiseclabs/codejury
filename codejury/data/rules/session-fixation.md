@@ -8,9 +8,9 @@ triggers: ["session", "set_cookie", "httponly", "secure=", "samesite", "session_
 
 ## Insecure Session Management
 
-The session id is not rotated at login (fixation), the session cookie lacks HttpOnly/Secure/SameSite, or sessions never expire. Regenerate the session id on authentication, set HttpOnly + Secure + SameSite on the session cookie, and enforce idle and absolute timeouts.
+The session id is not rotated at login, also called fixation, the session cookie lacks HttpOnly/Secure/SameSite, or sessions never expire. Regenerate the session id on authentication, set HttpOnly + Secure + SameSite on the session cookie, and enforce idle and absolute timeouts.
 
-### Python (Flask)
+### Python, Flask
 Vulnerable:
 ```python
 resp.set_cookie("sid", token)        # no HttpOnly/Secure/SameSite

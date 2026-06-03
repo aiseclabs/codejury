@@ -22,11 +22,11 @@ if not target.is_relative_to(UPLOAD_DIR):
     raise ValueError("path escapes base dir")
 ```
 
-### Not a finding (do not flag)
+### Not a Finding
 
 If the input is neutralized before the file operation there is no traversal:
-- `os.path.basename(name)` is applied (strips `../` and any directory parts),
-- the resolved path is confirmed within a base (`is_relative_to`, `realpath` under base),
+- `os.path.basename(name)` is applied and strips `../` and any directory parts,
+- the resolved path is confirmed within a base using `is_relative_to` or `realpath` under base,
 - the value is from an allowlist, or is a constant / trusted-config path.
 
 `open(os.path.join(BASE, os.path.basename(name)))` is safe: basename removes the

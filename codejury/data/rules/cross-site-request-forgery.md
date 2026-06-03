@@ -8,7 +8,7 @@ triggers: ["@app.route", "methods=[\"POST\"", "csrf", "SameSite", "csrf_exempt",
 
 ## Cross-Site Request Forgery
 
-A state-changing request is accepted using only ambient credentials (a session cookie) with no anti-CSRF token or SameSite protection, so a malicious site can make the victim's browser perform the action. Require a CSRF token (or SameSite=strict/lax cookies + origin check) on every state-changing endpoint.
+A state-changing request is accepted using only ambient credentials such as a session cookie with no anti-CSRF token or SameSite protection, so a malicious site can make the victim's browser perform the action. Require a CSRF token, or SameSite=strict/lax cookies plus an origin check, on every state-changing endpoint.
 
 ### Python
 Vulnerable:

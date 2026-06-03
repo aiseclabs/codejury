@@ -7,28 +7,28 @@ PoC, and iterates over multiple rounds with a persistent memory. One round is
 roughly 30 minutes. Run as many rounds as needed.
 
 Target repository: the directory you were given.
-Workspace: `<workspace>/<project>/` (created for you), holding `entrypoints/`,
+Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
 `issues/`, `analysis/`, and `security-review-memory.md`.
 
 ---
 
-## On start
+## On Start
 
 1. Read `security-review-memory.md` in the workspace if it exists:
    - skip every pattern under "Confirmed false positives".
    - do not re-report anything under "Fixed".
    - weight the files under "High-risk areas" more heavily.
-2. Read `entrypoints/_entrypoints.md` (seeded): the files the detected stack
+2. Read `entrypoints/_entrypoints.md`, the seeded list of files the detected stack
    flags as likely to define entrypoints. Open them to find the actual
-   entrypoints. It is a *starting* subset, not the whole surface (see "Map the
-   attack surface").
-3. Read `_stack.md` (seeded): the detected languages and frameworks and review
+   entrypoints. It is a *starting* subset, not the whole surface. See "Map the
+   attack surface".
+3. Read `_stack.md`, the seeded detected languages and frameworks plus review
    notes for them, so you know where this stack's entrypoints, sinks, and auth
    checks live. If it matched nothing, lean on your own knowledge of the stack.
 4. Read the relevant rule files under the shipped `rules/` for the target's stack
-   (sql-injection, idor, ssrf, authentication-jwt, insecure-deserialization, ...).
+   such as sql-injection, idor, ssrf, authentication-jwt, or insecure-deserialization.
 
-## Map the attack surface
+## Map the Attack Surface
 
 The seeded inventory lists HTTP routes and CLI commands only. Before analysing,
 complete the surface: untrusted input enters at more than HTTP. Enumerate every
@@ -37,17 +37,17 @@ source the attacker can influence and add it to `entrypoints/`:
 - HTTP routes, GraphQL resolvers, gRPC / RPC handlers, WebSocket handlers.
 - CLI commands, scheduled jobs / cron, queue and topic consumers, webhooks and
   third-party callbacks.
-- deserialization points (pickle, yaml.load, marshal), file and document parsers
-  (XML / XXE, YAML, CSV, zip, image / office), template rendering of user input.
+- deserialization points such as pickle, yaml.load, or marshal, file and document parsers
+  for XML / XXE, YAML, CSV, zip, image / office, and template rendering of user input.
 - file uploads, archive extraction, and any filesystem path built from user input.
 - headers, cookies, environment, and config read as trusted, and inbound
   inter-service calls.
 
 `pickle.loads(cookie)` and `yaml.load(upload)` are entrypoints just as much as a
-route is. Record the inventory in `entrypoints/` (one file per module: source +
-auth method + review status ✅/⚠️/❌).
+route is. Record the inventory in `entrypoints/`, one file per module: source +
+auth method + review status ✅/⚠️/❌.
 
-## Analyse each source
+## Analyse Each Source
 
 Read the implementation reachable from each source. For every one ask:
 
@@ -56,22 +56,22 @@ Read the implementation reachable from each source. For every one ask:
   a business-state check bypassed or missing?
 - IDOR: can a user reach another user's, tenant's, or service's resource by a
   supplied id?
-- Do privileged operations (payment, signing, approval, state change) allow state
-  bypass or replay (no nonce / time window)?
+- Do privileged operations such as payment, signing, approval, or state change allow state
+  bypass or replay with no nonce or time window?
 - Mass assignment: is a user-controlled body bound wholesale into a model?
 - Signature: is a caller-supplied key trusted as the trust anchor?
 
-## Trace attack paths, the core work
+## Trace Attack Paths, the Core Work
 
 A whole-repo review earns its keep by reasoning *across files*: a flaw is usually
 a source in one file reaching a dangerous sink in another, past a control defined
-in a third (a route that trusts a helper which skips signature checks, an id that
-reaches a query with no ownership check). For each promising source, trace the
+in a third, for example a route that trusts a helper which skips signature checks, or an id that
+reaches a query with no ownership check. For each promising source, trace the
 path and record it in `analysis/`:
 
 - **Source**: the entrypoint and the attacker-controlled value.
-- **Sink**: the dangerous operation it reaches (query, shell, file path, fetch,
-  deserialize, template, redirect), with `file:line`.
+- **Sink**: the dangerous operation it reaches such as a query, shell, file path, fetch,
+  deserialize, template, or redirect, with `file:line`.
 - **Controls on the path**: every auth / authz / validation / sanitization /
   signature / tenant check between source and sink, and crucially which are
   missing or bypassable.
@@ -83,11 +83,11 @@ trace can refer to it instead of restating it.
 ## Scope
 
 Report only HIGH / CRITICAL, exploitable, high-confidence issues. **Do not report**
-(regardless of severity): dependency CVEs, style or best-practice notes,
+regardless of severity, dependency CVEs, style or best-practice notes,
 speculative issues you cannot tie to a concrete exploit, and risks that only
 matter if production config is leaked.
 
-## Recording an issue
+## Recording an Issue
 
 Write one `issues/<name>.md` per confirmed issue. Do not write an issue you cannot
 confirm with high confidence. Each must have:
@@ -102,7 +102,7 @@ confirm with high confidence. Each must have:
 ## Analysis
 (cite exact file paths and line numbers)
 
-## Attack path
+## Attack Path
 (end-to-end, actionable steps)
 
 ## PoC
@@ -114,7 +114,7 @@ confirm with high confidence. Each must have:
 ## Fix
 ```
 
-## PoC verification (human in the loop)
+## PoC Verification, Human in the Loop
 
 Confirm each issue by running the PoC against a sandbox / dev environment. When
 you need something only the operator has, stop and ask:
@@ -129,11 +129,11 @@ destructive action without the operator's explicit go-ahead.
 ## Iteration
 
 Each round, read the workspace history first and do not repeat finished work.
-Process leftover TODOs, otherwise pick an unreviewed (❌) or to-deepen (⚠️)
+Process leftover TODOs, otherwise pick an unreviewed ❌ or to-deepen ⚠️
 source from the inventory. When every source is ✅ and there are no TODOs,
 report the review complete.
 
-## On finish
+## On Finish
 
 Append a row to the audit history in `security-review-memory.md`, and ask the
 operator which findings were false positives. Record those under "Confirmed false

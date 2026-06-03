@@ -6,9 +6,9 @@ tags: [cwe-918, owasp-a10]
 triggers: ["requests.get", "requests.post", "urlopen", "httpx", "fetch(", "url =", "request.args", "webhook", "callback"]
 ---
 
-## Server-Side Request Forgery (SSRF)
+## Server-Side Request Forgery
 
-A server fetches a URL taken from untrusted input without restricting the destination, so an attacker reaches internal targets: cloud metadata (169.254.169.254), localhost admin ports, internal APIs. Validate the host against an allowlist before fetching and reject internal/link-local addresses.
+A server fetches a URL taken from untrusted input without restricting the destination, so an attacker reaches internal targets such as cloud metadata at 169.254.169.254, localhost admin ports, or internal APIs. Validate the host against an allowlist before fetching and reject internal/link-local addresses.
 
 ### Python
 Vulnerable:

@@ -8,7 +8,7 @@ triggers: ["http://", "verify=False", "CERT_NONE", "check_hostname", "_create_un
 
 ## Insecure Transport
 
-Sending sensitive data over cleartext HTTP, or disabling TLS certificate/hostname verification, exposes it to interception and man-in-the-middle. Use HTTPS and leave certificate verification on (the secure default).
+Sending sensitive data over cleartext HTTP, or disabling TLS certificate/hostname verification, exposes it to interception and man-in-the-middle. Use HTTPS and leave certificate verification on, the secure default.
 
 ### Python
 Vulnerable:

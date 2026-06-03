@@ -8,7 +8,7 @@ triggers: ["set_header", "add_header", "Location", "Set-Cookie", "response.heade
 
 ## HTTP Response Splitting / Header Injection
 
-Putting untrusted input into a response header (or redirect Location, Set-Cookie) without stripping CR/LF lets an attacker inject headers or split the response. Strip or reject newline characters in any header value built from input. Frameworks often do this, but manual header construction may not.
+Putting untrusted input into a response header such as a redirect Location or Set-Cookie without stripping CR/LF lets an attacker inject headers or split the response. Strip or reject newline characters in any header value built from input. Frameworks often do this, but manual header construction may not.
 
 ### Python
 Vulnerable:

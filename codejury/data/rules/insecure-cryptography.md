@@ -8,7 +8,7 @@ triggers: ["hashlib.md5", "hashlib.sha1", "DES", "ECB", "MODE_ECB", "random.rand
 
 ## Insecure Cryptography
 
-Weak algorithms (MD5, SHA-1, DES, RC4), ECB mode, fast hashes for passwords, static or reused IVs, and non-cryptographic randomness for security values are exploitable. Use AES-GCM or ChaCha20-Poly1305, bcrypt/scrypt/argon2 for passwords, a fresh random nonce per message, and a CSPRNG (secrets / os.urandom).
+Weak algorithms such as MD5, SHA-1, DES, or RC4, ECB mode, fast hashes for passwords, static or reused IVs, and non-cryptographic randomness for security values are exploitable. Use AES-GCM or ChaCha20-Poly1305, bcrypt/scrypt/argon2 for passwords, a fresh random nonce per message, and a CSPRNG such as secrets or os.urandom.
 
 ### Python
 Vulnerable:

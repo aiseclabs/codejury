@@ -4,7 +4,7 @@
 > updated at the end. It skips confirmed false positives, avoids re-reporting
 > fixed issues, and focuses on historically risky areas.
 
-## Confirmed false positives (skip, do not report)
+## Confirmed False Positives
 
 <!-- FP-001 <short description>
 - Date: YYYY-MM-DD
@@ -13,18 +13,18 @@
 - Why not a real issue: <reason>
 -->
 
-## Fixed (do not report again)
+## Fixed
 
 <!-- FIXED-001 <issue title>
 - Date / commit: YYYY-MM-DD / abc1234
 - Original issue: <summary>
 -->
 
-## High-risk areas (weight every round)
+## High-Risk Areas
 
 <!-- - `<path>`: <reason, for example a past auth bypass> -->
 
-## Audit history
+## Audit History
 
 | Date | Mode | HIGH | MEDIUM | Notes |
 |------|------|------|--------|-------|

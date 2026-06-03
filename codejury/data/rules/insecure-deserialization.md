@@ -8,7 +8,7 @@ triggers: ["pickle.loads", "pickle.load", "yaml.load", "marshal.loads", "jsonpic
 
 ## Insecure Deserialization
 
-Deserializing untrusted bytes with an object-constructing deserializer (pickle, yaml.load, marshal, Java ObjectInputStream) reconstructs arbitrary objects and can run code. Use a data-only parser (json.loads, yaml.safe_load) for untrusted input.
+Deserializing untrusted bytes with an object-constructing deserializer such as pickle, yaml.load, marshal, or Java ObjectInputStream reconstructs arbitrary objects and can run code. Use a data-only parser such as json.loads or yaml.safe_load for untrusted input.
 
 ### Python
 Vulnerable:

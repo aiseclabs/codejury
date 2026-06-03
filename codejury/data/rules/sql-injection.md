@@ -8,7 +8,7 @@ triggers: ["execute(", "executemany", ".raw(", "cursor", "SELECT ", "INSERT ", "
 
 ## SQL Injection
 
-Untrusted input concatenated or interpolated into a SQL statement lets an attacker change the query. Use parameterized queries / bound parameters. Never build SQL from input. Identifiers (table/column names) cannot be parameterized, so validate them against an allowlist.
+Untrusted input concatenated or interpolated into a SQL statement lets an attacker change the query. Use parameterized queries / bound parameters. Never build SQL from input. Identifiers such as table and column names cannot be parameterized, so validate them against an allowlist.
 
 ### Python
 Vulnerable:

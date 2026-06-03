@@ -9,17 +9,17 @@
 
 > AI code security review for diffs and whole repositories.
 
-codejury runs two paths matched to their nature.
+It runs two paths matched to their nature.
 
-- **Diff review** is coded. It audits a pull request diff for newly introduced
+- **Diff Review** is coded. It audits a pull request diff for newly introduced
   exploitable risk, as a single balanced LLM call or an adversarial Finder,
   Challenger, and Judge pass that trades roughly 3x the cost for extra recall on
   subtle flaws that span files.
-- **Repo review** is agent driven. It is a methodology an interactive agent such
+- **Repo Review** is agent driven. It is a methodology an interactive agent such
   as Claude Code or Codex runs to map a codebase attack surface, trace inputs to
   sinks across files, verify issues with a real PoC, and iterate over rounds with
-  a persistent memory. A whole repository is too large for one LLM call, so
-  codejury ships the methodology and scaffolds the workspace instead of running a
+  a persistent memory. A whole repository is too large for one LLM call, so it
+  ships the methodology and scaffolds the workspace instead of running a
   pipeline.
 
 Security knowledge lives in rich rules under `codejury/data/rules/*.md`, with a
@@ -33,7 +33,7 @@ pip install codejury                 # core
 pip install "codejury[anthropic]"    # add a backend, also openai or litellm
 ```
 
-## Diff review
+## Diff Review
 
 ```bash
 # audit a diff file
@@ -57,7 +57,7 @@ the `CODEJURY_API_KEY`, `CODEJURY_MODEL`, and `CODEJURY_API_BASE` environment
 variables. `codejury review diff --dry-run` exercises the engine with a mock
 provider and no key, and falls back to a built in demo diff when you pass none.
 
-### Choosing a model and mode
+### Choosing a Model and Mode
 
 Detection quality is dominated by the model first, then the mode. On real diff
 probes:
@@ -87,7 +87,7 @@ The job makes one model call per pull request in standard mode. The SARIF is
 uploaded even when the gate fails, so findings always show up on the pull
 request.
 
-## Repo review
+## Repo Review
 
 ```bash
 codejury review repo /path/to/your/repo

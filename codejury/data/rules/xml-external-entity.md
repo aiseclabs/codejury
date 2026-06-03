@@ -6,9 +6,9 @@ tags: [cwe-611, owasp-a05, injection]
 triggers: ["etree", "lxml", "xml.dom", "minidom", "sax", "resolve_entities", "DocumentBuilderFactory", "XMLReader"]
 ---
 
-## XML External Entity (XXE)
+## XML External Entity
 
-An XML parser that resolves external entities on untrusted input lets an attacker read local files, perform SSRF, or cause DoS via entity expansion. Disable external entity and DTD processing, or use a parser that does so by default (defusedxml).
+An XML parser that resolves external entities on untrusted input lets an attacker read local files, perform SSRF, or cause DoS via entity expansion. Disable external entity and DTD processing, or use a parser that does so by default such as defusedxml.
 
 ### Python
 Vulnerable:

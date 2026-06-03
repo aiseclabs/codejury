@@ -8,7 +8,7 @@ triggers: ["eval(", "exec(", "compile(", "pickle.loads", "new Function", "setTim
 
 ## Code Injection
 
-Passing untrusted input to a language evaluation primitive (eval, exec, compile, dynamic import, JS Function) lets an attacker execute arbitrary code. Never evaluate untrusted input. Parse it with a data-only parser or dispatch through an allowlist.
+Passing untrusted input to a language evaluation primitive such as eval, exec, compile, dynamic import, or JS Function lets an attacker execute arbitrary code. Never evaluate untrusted input. Parse it with a data-only parser or dispatch through an allowlist.
 
 ### Python
 Vulnerable:

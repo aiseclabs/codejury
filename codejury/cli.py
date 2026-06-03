@@ -1,4 +1,4 @@
-"""codejury CLI: thin argument parsing and dispatch.
+"""Command line interface: thin argument parsing and dispatch.
 
 Two paths matched to their nature:
 

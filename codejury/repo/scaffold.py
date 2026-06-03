@@ -1,7 +1,7 @@
 """Whole-repo review scaffold: set up the agent's workspace, do not run a pipeline.
 
 The `review repo` path. Whole-repo review is too large for a single LLM call, so
-codejury does not run it as a pipeline. Instead it scaffolds a workspace for an
+it does not run as a pipeline. Instead it scaffolds a workspace for an
 interactive agent (Claude Code, Codex) and hands over the methodology: it creates
 the entrypoints/issues/analysis directories, copies the review-memory template,
 seeds the detected stack guides and the candidate entrypoint files, and returns

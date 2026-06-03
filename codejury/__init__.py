@@ -1,4 +1,4 @@
-"""codejury: an AI code security review tool.
+"""AI code security review tool.
 
 Two paths matched to their nature: a coded diff-audit engine (standard single
 call or adversarial Finder/Challenger/Judge), and a whole-repo review run as a

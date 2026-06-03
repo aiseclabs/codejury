@@ -8,7 +8,7 @@ triggers: ["nonce", "timestamp", "signature", "verify_sig", "idempotency", "webh
 
 ## Replay Attack
 
-A signed or privileged request (payment, signature, webhook, login) is accepted again because it carries no nonce, no timestamp window, and no single-use check, so an attacker who captures one replays it. Bind each sensitive request to a one-time nonce or a short timestamp window, and reject reuse.
+A signed or privileged request such as a payment, signature, webhook, or login is accepted again because it carries no nonce, no timestamp window, and no single-use check, so an attacker who captures one replays it. Bind each sensitive request to a one-time nonce or a short timestamp window, and reject reuse.
 
 ### Python
 Vulnerable:

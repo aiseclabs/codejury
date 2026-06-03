@@ -8,7 +8,7 @@ detect:
   imports: ["from django", "import django"]
 entrypoint_files: ["*urls.py"]
 ---
-# Django review notes
+# Django Review Notes
 
 ## Entrypoints
 - Routes live in `urls.py`: `path()` / `re_path()` map a URL to a view.
@@ -18,13 +18,13 @@ entrypoint_files: ["*urls.py"]
   signals, and middleware.
 
 ## Authorization / IDOR
-- Auth is enforced by decorators (`@login_required`), DRF permission classes, or
+- Auth is enforced by decorators such as `@login_required`, DRF permission classes, or
   middleware. Note where it is and where it is missing.
-- Classic IDOR shape: `Model.objects.get(pk=<user input>)` (or `filter(id=...)`)
+- Classic IDOR shape: `Model.objects.get(pk=<user input>)` or `filter(id=...)`
   with no owner/tenant scoping, then returned to the caller. Inspect every object
   fetch keyed by a user-supplied id.
 
-## Common sinks / gotchas
+## Common Sinks / Gotchas
 - SQL: `.raw()`, `.extra()`, `RawSQL`, or string-built SQL via `connection.cursor()`.
 - Templates: `mark_safe`, `|safe`, `format_html` on unescaped user input, autoescape off.
 - `pickle` / `yaml.load` on a cookie or upload, `DEBUG=True` leaking internals,
