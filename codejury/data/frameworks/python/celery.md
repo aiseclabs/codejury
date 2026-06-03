@@ -2,6 +2,7 @@
 id: celery
 title: Celery
 kind: framework
+language: python
 detect:
   imports: ["celery", "shared_task"]
 entrypoint_files: ["*tasks.py", "*/tasks/*.py"]

@@ -2,6 +2,7 @@
 id: django
 title: Django
 kind: framework
+language: python
 detect:
   files: ["*urls.py", "manage.py", "*settings.py"]
   manifest: ["django"]

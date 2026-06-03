@@ -86,11 +86,13 @@ def _stack_md(guides: list[Guide]) -> str:
                 "No language or framework guide matched. Rely on the methodology and "
                 "your own knowledge of the stack.\n")
     langs = [g.id for g in guides if g.kind == "language"]
-    fws = [g.id for g in guides if g.kind == "framework"]
+    fws = [g for g in guides if g.kind == "framework"]
     protocols = [g.id for g in guides if g.kind == "protocol"]
+    # a framework is shown under the language it belongs to, for example django (python)
+    fw_labels = [f"{g.id} ({g.language})" if g.language else g.id for g in fws]
     lines = ["# Detected stack", "",
              f"Languages: {', '.join(langs) or '-'}",
-             f"Frameworks: {', '.join(fws) or '-'}",
+             f"Frameworks: {', '.join(fw_labels) or '-'}",
              f"Protocols: {', '.join(protocols) or '-'}", ""]
     for g in guides:
         lines += ["---", "", g.body, ""]

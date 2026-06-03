@@ -9,6 +9,7 @@ def test_shipped_guides_load():
     assert {"python", "django", "oauth"} <= set(by_id)
     assert by_id["python"].kind == "language"
     assert by_id["django"].kind == "framework"
+    assert by_id["django"].language == "python"   # a framework belongs to a language
     assert by_id["oauth"].kind == "protocol"
     assert "IDOR" in by_id["django"].body or "idor" in by_id["django"].body.lower()
 
@@ -42,7 +43,7 @@ def test_no_signal_no_match():
 
 
 def test_select_respects_injected_pool():
-    only = [Guide(id="x", kind="framework", title="X", detect_files=("*.xyz",),
+    only = [Guide(id="x", kind="framework", language="", title="X", detect_files=("*.xyz",),
                   detect_manifest=(), detect_imports=(), detect_content=(), entrypoint_files=(),
                   entrypoint_markers=(), body="b")]
     assert [g.id for g in select_guides(["a.xyz"], guides=only)] == ["x"]

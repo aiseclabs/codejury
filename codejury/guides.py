@@ -24,7 +24,8 @@ from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR, PROTOCOLS_DIR
 @dataclass(frozen=True, kw_only=True)
 class Guide:
     id: str
-    kind: str            # "language" or "framework"
+    kind: str            # "language", "framework", or "protocol"
+    language: str        # for a framework, the language it belongs to, for example "python"; else ""
     title: str
     detect_files: tuple[str, ...]
     detect_manifest: tuple[str, ...]
@@ -40,6 +41,7 @@ def _guide(path, meta: dict, body: str) -> Guide:
     return Guide(
         id=str(meta.get("id", path.stem)),
         kind=str(meta.get("kind", "")).strip().lower(),
+        language=str(meta.get("language", "")).strip().lower(),
         title=str(meta.get("title", path.stem)),
         detect_files=tuple(str(f) for f in detect.get("files", [])),
         detect_manifest=tuple(str(m).lower() for m in detect.get("manifest", [])),

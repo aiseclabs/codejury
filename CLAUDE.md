@@ -14,8 +14,10 @@ default behavior. Strategy: see `ROADMAP.md`.
    *what* to detect is data, reviewable in a PR. Knowledge is split by axis and
    stays decoupled: vulnerability classes name the weakness, languages and frameworks carry the
    concrete idioms and the entrypoint markers, and protocols and the methodology
-   stay language-neutral. Adding a language or framework is a drop-in guide, no
-   code change.
+   stay language-neutral. A framework belongs to a language, so it lives under
+   that language, for example `data/frameworks/python/django.md`, and declares
+   `language:` in its frontmatter as the source of truth. Adding a language or
+   framework is a drop-in guide, no code change.
 2. **Findings are real and evidenced.** Report only real, exploitable,
    high-confidence problems, each with a file location and a concrete exploit
    scenario. No location means not reportable.

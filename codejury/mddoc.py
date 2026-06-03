@@ -26,12 +26,14 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
 
 
 def iter_md_docs(directory: str | Path) -> Iterator[tuple[Path, dict, str]]:
-    """Yield (path, meta, body) for each `*.md` in `directory`, skipping `SKILL.md`.
-    Yields nothing if the directory does not exist. Sorted by path for determinism."""
+    """Yield (path, meta, body) for each `*.md` under `directory`, recursively,
+    skipping `SKILL.md`. This lets a guide axis group files into subdirectories,
+    for example frameworks by language. Yields nothing if the directory does not
+    exist. Sorted by path for determinism."""
     root = Path(directory)
     if not root.is_dir():
         return
-    for path in sorted(root.glob("*.md")):
+    for path in sorted(root.rglob("*.md")):
         if path.name == "SKILL.md":
             continue
         meta, body = parse_frontmatter(path.read_text(encoding="utf-8"))
