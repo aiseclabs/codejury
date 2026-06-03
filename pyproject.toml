@@ -1,6 +1,6 @@
 [project]
 name = "codejury"
-version = "0.17.1"
+version = "0.18.0"
 description = "AI code security review: an adversarial diff-audit engine and an agent-driven whole-repo review methodology, with security knowledge as rich rules"
 readme = "README.md"
 requires-python = ">=3.12"
