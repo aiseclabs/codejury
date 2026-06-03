@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from codejury.repo.guides import Guide, select_guides
+from codejury.guides import Guide, select_guides
 from codejury.repo.model import build_repo_model_from_dir
 from codejury.resources import AGENT_DIR
 
@@ -105,7 +105,7 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
     (ws / "entrypoints" / "_entrypoints.md").write_text(_entrypoints_md(model), encoding="utf-8")
 
     # detect the stack and seed its review guides (languages + frameworks)
-    guides = select_guides(model.files, manifest_text=_read_manifests(target))
+    guides = select_guides(model.files, text=_read_manifests(target))
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
 
     return ScaffoldResult(

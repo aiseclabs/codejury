@@ -57,7 +57,8 @@ def category_block() -> str:
     )
 
 
-def standard_audit_prompt(diff: str, *, rules: str = "", context: str = "") -> str:
+def standard_audit_prompt(diff: str, *, rules: str = "", context: str = "", stack: str = "") -> str:
+    stack_block = f"Conventions of the target's language/framework:\n{stack}\n\n" if stack else ""
     rules_block = f"Relevant security rules for reference:\n{rules}\n\n" if rules else ""
     context_block = (
         f"Surrounding code for tracing where values come from (not under review):\n"
@@ -69,6 +70,7 @@ def standard_audit_prompt(diff: str, *, rules: str = "", context: str = "") -> s
         "Review the following code change for security vulnerabilities.\n\n"
         f"{FOCUS}\n{DO_NOT_REPORT}\n"
         f"{category_block()}"
+        f"{stack_block}"
         f"{rules_block}"
         f"Code change (unified diff):\n```diff\n{diff}\n```\n\n"
         f"{context_block}"

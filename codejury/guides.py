@@ -13,12 +13,15 @@ code change, which keeps the unbounded language/framework axis out of code.
 from __future__ import annotations
 
 import fnmatch
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR
+
+_DIFF_PATH = re.compile(r"^(?:\+\+\+ b/|diff --git a/\S+ b/)(\S+)", re.MULTILINE)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -62,18 +65,33 @@ def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR) -> l
     return out
 
 
-def _matches(guide: Guide, files: list[str], manifest: str) -> bool:
+def _matches(guide: Guide, files: list[str], text: str) -> bool:
     if any(fnmatch.fnmatch(f, pat) for pat in guide.detect_files for f in files):
         return True
-    if any(m in manifest for m in guide.detect_manifest):
+    if any(m in text for m in guide.detect_manifest):
+        return True
+    if any(i in text for i in guide.detect_imports):
         return True
     return False
 
 
-def select_guides(files, *, manifest_text: str = "", guides: list[Guide] | None = None) -> list[Guide]:
-    """The guides whose detect signals fire on the repo (its file paths and the
-    concatenated text of its dependency manifests), languages first then frameworks."""
+def select_guides(files, *, text: str = "", guides: list[Guide] | None = None) -> list[Guide]:
+    """The guides whose detect signals fire on the target, languages first then
+    frameworks. `files` are the target's file paths; `text` is content to scan for
+    manifest substrings and import markers (a repo's manifests, or a diff body)."""
     pool = load_guides() if guides is None else guides
     file_list = list(files)
-    manifest = manifest_text.lower()
-    return [g for g in pool if _matches(g, file_list, manifest)]
+    blob = text.lower()
+    return [g for g in pool if _matches(g, file_list, blob)]
+
+
+def _changed_paths(diff: str) -> list[str]:
+    """The file paths touched by a unified diff (from its `+++ b/` / `diff --git` headers)."""
+    return _DIFF_PATH.findall(diff)
+
+
+def guides_for_diff(diff: str, *, guides: list[Guide] | None = None) -> str:
+    """Concatenated bodies of the language/framework guides relevant to a diff, by
+    its changed paths and its content. Empty when nothing matches."""
+    selected = select_guides(_changed_paths(diff), text=diff, guides=guides)
+    return "\n\n---\n\n".join(g.body for g in selected)

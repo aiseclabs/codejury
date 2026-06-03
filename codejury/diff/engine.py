@@ -12,6 +12,7 @@ from codejury.diff.prompts import SYSTEM, standard_audit_prompt
 from codejury.diff.rules import rules_for_diff
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
+from codejury.guides import guides_for_diff
 
 
 class AuditError(RuntimeError):
@@ -33,9 +34,10 @@ class AuditRunner:
     def run(self, diff: str, *, rules: str = "", context: str = "") -> list[Finding]:
         if not rules:
             rules = rules_for_diff(diff)  # inject the rules relevant to this diff
+        stack = guides_for_diff(diff)     # inject the target's language/framework conventions
         result = self._provider.complete(
             system=SYSTEM,
-            messages=[Message(role="user", content=standard_audit_prompt(diff, rules=rules, context=context))],
+            messages=[Message(role="user", content=standard_audit_prompt(diff, rules=rules, context=context, stack=stack))],
             model=self._model,
             max_tokens=self._max_tokens,
         )
