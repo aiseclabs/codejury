@@ -63,6 +63,19 @@ Default to **standard mode with a strong model** (set it with `--model` or
 `CODEJURY_MODEL`). False positives are held down by the do-not-report list and
 the post-filter, not by the mode.
 
+### Use in CI (GitHub Actions)
+
+Audit every pull request and surface findings in the code scanning tab. Copy
+[`examples/codejury-pr-review.yml`](examples/codejury-pr-review.yml) into
+`.github/workflows/`, add a `CODEJURY_API_KEY` repo secret, and it will:
+
+1. diff the PR against its base (`--git-range origin/<base>...HEAD`),
+2. write SARIF and upload it with `github/codeql-action/upload-sarif`,
+3. fail the check on a HIGH or CRITICAL finding (`--fail-on high`).
+
+The job makes one model call per PR (standard mode); the SARIF is uploaded even
+when the gate fails, so findings always show up on the PR.
+
 ## Whole-repo review
 
 ```bash

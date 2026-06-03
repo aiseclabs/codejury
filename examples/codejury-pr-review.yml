@@ -1,0 +1,57 @@
+# codejury PR security review — copy into .github/workflows/ in your repo.
+#
+# Audits the pull request's diff, uploads findings to GitHub code scanning as
+# SARIF, and fails the check on a HIGH or CRITICAL finding. Set a provider key
+# in the repo secrets first (Settings -> Secrets and variables -> Actions):
+#   CODEJURY_API_KEY   your model API key
+# and, if you go through a gateway, CODEJURY_API_BASE.
+
+name: codejury security review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write   # required to upload the SARIF report
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # need the base ref to diff the PR against
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install "codejury[anthropic]"
+
+      - name: Audit the PR diff
+        id: review
+        env:
+          CODEJURY_API_KEY: ${{ secrets.CODEJURY_API_KEY }}
+          CODEJURY_API_BASE: ${{ secrets.CODEJURY_API_BASE }}   # optional: for a gateway
+          CODEJURY_MODEL: claude-sonnet-4-6                     # a strong model matters most
+        run: |
+          set +e
+          codejury review diff \
+            --provider anthropic \
+            --repo . \
+            --git-range "origin/${{ github.base_ref }}...HEAD" \
+            --format sarif --fail-on high > codejury.sarif
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: codejury.sarif
+
+      - name: Fail on high or critical findings
+        if: always() && steps.review.outputs.rc != '0'
+        run: |
+          echo "codejury found HIGH or CRITICAL severity issues; see the code scanning tab."
+          exit 1
