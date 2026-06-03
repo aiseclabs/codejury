@@ -239,6 +239,12 @@ from the inventory, trace it through the downstream layers, and log the round in
 bugs. The hard classes such as authorization, replay, and broken business state
 usually appear only after several rounds, so keep going.
 
+Run the rounds to the Completeness Gate on your own. Do not pause between rounds
+to ask whether to continue, and do not stop early because a round was productive.
+The one place to stop and ask the operator is PoC verification, when a PoC needs a
+credential, test data, or go-ahead for a destructive action. While a PoC is
+blocked on the operator, keep reviewing other sources rather than waiting.
+
 ## Completeness Gate
 
 Do not report the review complete until all of the following hold. A short run

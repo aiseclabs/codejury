@@ -18,10 +18,17 @@ Run a codejury whole-repo security review of: $ARGUMENTS
    targets, the Authorization Model pass, the dependency-control checks, the round
    ledger, and the Completeness Gate. Do not improvise a different process.
 
-3. Verify each issue with a real PoC, human in the loop. Ask me for any
-   credential, test account, or MFA step you need. Never touch production, never
-   use real credentials, and never run a destructive action without my go-ahead.
-   Only a reproduced PoC is a confirmed finding.
+   Run every round to the Completeness Gate on your own. Do not pause between
+   rounds to ask whether to continue, do not stop early because a round felt
+   productive, and do not report the review done until the gate passes. The only
+   reasons to stop and ask me are in step 3.
+
+3. Verify each issue with a real PoC, human in the loop. Stop and ask me only for
+   what the PoC genuinely needs: a credential, a test account, an MFA step, or
+   go-ahead before a destructive action. Never touch production, never use real
+   credentials, and never run a destructive action without my go-ahead. Only a
+   reproduced PoC is a confirmed finding, so keep reviewing while a PoC is blocked
+   on me rather than waiting.
 
 4. Report confirmed findings, the ones with a reproduced PoC, separately from
    suspected ones still blocked on verification, as a table: title, class,
