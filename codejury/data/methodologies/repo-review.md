@@ -147,8 +147,10 @@ exploitable exposure, so it is in scope. See "Controls That Live in a Library".
 
 ## Recording an Issue
 
-Write one `issues/<name>.md` per confirmed issue. Do not write an issue you cannot
-confirm with high confidence. Each must have:
+Write one `issues/<name>.md` per issue, and save its PoC as a real runnable file
+`issues/poc_<name>.<ext>`, a script or an `.http` file, not a sketch in prose. If
+you cannot write a concrete runnable PoC, the finding is most likely a false
+positive, so do not report it. Each issue file must have:
 
 ```markdown
 # <title>
@@ -156,6 +158,7 @@ confirm with high confidence. Each must have:
 - Risk: HIGH | CRITICAL
 - Type: IDOR | auth bypass | signature flaw | business logic | ...
 - Source: `<METHOD> <path>` or the non-HTTP entrypoint (queue, deserializer, ...)
+- Verification: reproduced | blocked, needs <what> | not run
 
 ## Analysis
 (cite exact file paths and line numbers)
@@ -164,22 +167,29 @@ confirm with high confidence. Each must have:
 (end-to-end, actionable steps)
 
 ## PoC
-(a curl command or script that actually triggers it)
+(the path to `issues/poc_<name>.<ext>` and how to run it)
 
 ## Verification
-(result of actually running the PoC in a sandbox / dev environment)
+(the actual output of running the PoC, or the exact blocker)
 
 ## Fix
 ```
 
-## PoC Verification, Human in the Loop
+## PoC Verification, the False-Positive Gate
 
-Confirm each issue by running the PoC against a sandbox / dev environment. When
-you need something only the operator has, stop and ask:
+A finding is a hypothesis until a PoC proves it. The tool, and you, can be
+confident and still wrong, so the PoC is what separates a real vulnerability from
+a plausible misread. Confirm each issue by running its PoC against a sandbox or
+dev environment, and gate reporting on the result:
 
-- an auth cookie or token,
-- an MFA step,
-- specific test data or an account.
+- **Reproduced**: the PoC ran and triggered the issue. Only these are reported as
+  confirmed HIGH / CRITICAL.
+- **Blocked**: the PoC is written and correct but you need something only the
+  operator has, so stop and ask, for an auth cookie or token, an MFA step, or
+  specific test data or an account. Report these separately as suspected and
+  needing verification, with the exact blocker, never mixed into the confirmed
+  set.
+- **Not run with no concrete PoC**: do not report. It is a guess.
 
 Never run a PoC against production, and never use real credentials or perform a
 destructive action without the operator's explicit go-ahead.
@@ -212,6 +222,8 @@ If any item fails, run another round. State which items pass when you report.
 
 ## On Finish
 
+Report the confirmed findings, the ones with a reproduced PoC, separately from
+the suspected ones still blocked on verification, so the two are never conflated.
 Append a row to the audit history in `security-review-memory.md`, and ask the
 operator which findings were false positives. Record those under "Confirmed false
 positives" so future rounds skip them.
