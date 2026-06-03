@@ -11,7 +11,11 @@ default behavior. Strategy: see `ROADMAP.md`.
    `codejury/data/rules/*.md`, with rich per-language vulnerable and secure examples, and
    in the prompts that reference them, not hardcoded in Python. The agent
    methodology lives in `codejury/data/methodology/`. Detection *logic* is generic,
-   *what* to detect is data, reviewable in a PR.
+   *what* to detect is data, reviewable in a PR. Knowledge is split by axis and
+   stays decoupled: rules name the weakness, languages and frameworks carry the
+   concrete idioms and the entrypoint markers, and topics and the methodology
+   stay language-neutral. Adding a language or framework is a drop-in guide, no
+   code change.
 2. **Findings are real and evidenced.** Report only real, exploitable,
    high-confidence problems, each with a file location and a concrete exploit
    scenario. No location means not reportable.

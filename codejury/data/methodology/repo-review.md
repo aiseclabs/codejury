@@ -67,6 +67,27 @@ Read the implementation reachable from each source. For every one ask:
 - Mass assignment: is a user-controlled body bound wholesale into a model?
 - Signature: is a caller-supplied key trusted as the trust anchor?
 
+## Authorization Model
+
+The missing-authorization and IDOR classes are not local to one function, so they
+need their own pass. This step is language and framework agnostic. The access
+gate looks different per stack, a decorator, a middleware, a permission class, a
+filter, a guard, or an annotation, but every protected endpoint must authenticate
+the caller and authorize the specific resource.
+
+First map how this codebase enforces access control, then record on each
+inventory entry which gate it applies and which identity and resource it checks.
+Then hunt three shapes:
+
+- A peer that dropped a check. Compare sibling endpoints such as a v1 and a v2, a
+  batch and a single, or an admin and a public variant. When one applies an
+  ownership or permission check that a sibling omits, the sibling is a likely
+  flaw.
+- IDOR. An endpoint acts on a resource named by a client-supplied id with no
+  owner or tenant check, however the id arrives.
+- An unauthenticated privileged path. A state-changing or sensitive endpoint is
+  reachable without the gate its peers require.
+
 ## Trace Attack Paths, the Core Work
 
 A whole-repo review earns its keep by reasoning *across files*: a flaw is usually
