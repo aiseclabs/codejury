@@ -35,11 +35,11 @@ class Guide:
     body: str
 
 
-def _guide(path, meta: dict, body: str, kind: str) -> Guide:
+def _guide(path, meta: dict, body: str) -> Guide:
     detect = meta.get("detect", {}) or {}
     return Guide(
         id=str(meta.get("id", path.stem)),
-        kind=kind,
+        kind=str(meta.get("kind", "")).strip().lower(),
         title=str(meta.get("title", path.stem)),
         detect_files=tuple(str(f) for f in detect.get("files", [])),
         detect_manifest=tuple(str(m).lower() for m in detect.get("manifest", [])),
@@ -70,9 +70,12 @@ def entrypoint_markers(guides: list[Guide]) -> tuple[str, ...]:
 
 
 def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR, topics_dir=TOPICS_DIR) -> list[Guide]:
+    # kind comes from each guide's frontmatter, the single source of truth. The
+    # directories are a convenience for humans and never decide kind, so the two
+    # cannot drift.
     out: list[Guide] = []
-    for directory, kind in ((languages_dir, "language"), (frameworks_dir, "framework"), (topics_dir, "topic")):
-        out += [_guide(path, meta, body, kind) for path, meta, body in iter_md_docs(directory)]
+    for directory in (languages_dir, frameworks_dir, topics_dir):
+        out += [_guide(path, meta, body) for path, meta, body in iter_md_docs(directory)]
     return out
 
 
