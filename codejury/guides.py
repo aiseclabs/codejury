@@ -27,7 +27,8 @@ class Guide:
     detect_files: tuple[str, ...]
     detect_manifest: tuple[str, ...]
     detect_imports: tuple[str, ...]
-    entrypoint_files: tuple[str, ...]   # globs for files likely to define entrypoints
+    entrypoint_files: tuple[str, ...]     # globs for files likely to define entrypoints
+    entrypoint_markers: tuple[str, ...]   # content markers for files that define entrypoints
     body: str
 
 
@@ -41,6 +42,7 @@ def _guide(path, meta: dict, body: str, kind: str) -> Guide:
         detect_manifest=tuple(str(m).lower() for m in detect.get("manifest", [])),
         detect_imports=tuple(str(i) for i in detect.get("imports", [])),
         entrypoint_files=tuple(str(g) for g in meta.get("entrypoint_files", [])),
+        entrypoint_markers=tuple(str(m) for m in meta.get("entrypoint_markers", [])),
         body=body,
     )
 
@@ -51,6 +53,15 @@ def entrypoint_globs(guides: list[Guide]) -> tuple[str, ...]:
     for g in guides:
         for pat in g.entrypoint_files:
             seen.setdefault(pat, None)
+    return tuple(seen)
+
+
+def entrypoint_markers(guides: list[Guide]) -> tuple[str, ...]:
+    """The entrypoint content markers declared by a set of guides, deduplicated."""
+    seen: dict[str, None] = {}
+    for g in guides:
+        for m in g.entrypoint_markers:
+            seen.setdefault(m, None)
     return tuple(seen)
 
 

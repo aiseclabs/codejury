@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from codejury.guides import Guide, entrypoint_globs, select_guides
+from codejury.guides import Guide, entrypoint_globs, entrypoint_markers, select_guides
 from codejury.repo.model import build_repo_model_from_dir, candidate_entrypoint_files
 from codejury.resources import METHODOLOGY_DIR
 
@@ -102,8 +102,12 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
     guides = select_guides(model.files, text=_read_manifests(target))
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
 
-    # flag candidate entrypoint files via the matched guides' declared globs
-    candidates = candidate_entrypoint_files(model.files, entrypoint_globs(guides))
+    # flag candidate entrypoint files via the matched guides' globs and by
+    # scanning content for their entrypoint markers, for example a DRF ViewSet
+    candidates = candidate_entrypoint_files(
+        model.files, root=target,
+        globs=entrypoint_globs(guides), markers=entrypoint_markers(guides),
+    )
     (ws / "entrypoints" / "_entrypoints.md").write_text(_entrypoints_md(candidates), encoding="utf-8")
 
     return ScaffoldResult(

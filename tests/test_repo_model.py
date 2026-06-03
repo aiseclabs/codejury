@@ -16,9 +16,20 @@ def test_build_lists_files_sorted():
 
 def test_candidate_entrypoint_files_by_glob():
     files = ["app/urls.py", "app/views.py", "manage.py", "README.md"]
-    assert candidate_entrypoint_files(files, ["*urls.py"]) == ["app/urls.py"]
-    assert candidate_entrypoint_files(files, ["*urls.py", "manage.py"]) == ["app/urls.py", "manage.py"]
-    assert candidate_entrypoint_files(files, []) == []
+    assert candidate_entrypoint_files(files, globs=["*urls.py"]) == ["app/urls.py"]
+    assert candidate_entrypoint_files(files, globs=["*urls.py", "manage.py"]) == ["app/urls.py", "manage.py"]
+    assert candidate_entrypoint_files(files, globs=[]) == []
+
+
+def test_candidate_entrypoint_files_by_content_markers(tmp_path):
+    # a DRF viewset in an oddly named file no glob would catch, flagged by marker
+    (tmp_path / "handlers.py").write_text("class TokenViewSet(ViewSet):\n    pass\n")
+    (tmp_path / "notes.md").write_text("ViewSet mentioned in prose, not code\n")
+    (tmp_path / "util.py").write_text("def helper():\n    return 1\n")
+    got = candidate_entrypoint_files(
+        ["handlers.py", "notes.md", "util.py"], root=tmp_path, markers=["ViewSet"]
+    )
+    assert got == ["handlers.py"]   # .md is not scanned, util has no marker
 
 
 def test_build_from_dir_walks_tree_and_skips_noise(tmp_path):

@@ -6,7 +6,8 @@ detect:
   files: ["*urls.py", "manage.py", "*settings.py"]
   manifest: ["django"]
   imports: ["from django", "import django"]
-entrypoint_files: ["*urls.py"]
+entrypoint_files: ["*urls.py", "*views.py", "*viewsets.py", "*/views/*.py", "*serializers.py", "*api.py", "*consumers.py"]
+entrypoint_markers: ["APIView", "ViewSet", "@api_view", "@action", "router.register", "path(", "re_path(", "as_view("]
 ---
 # Django Review Notes
 
