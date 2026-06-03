@@ -31,7 +31,9 @@ default behavior. Strategy: see `ROADMAP.md`.
 4. **Two paths, matched to nature.** Diff review is coded, a single LLM call or the
    adversarial Finder/Challenger/Judge pass. Whole-repo review is too large for a
    single call, so it ships as a methodology an interactive agent runs, not a
-   pipeline.
+   pipeline. The `/codejury-review-repo` slash command is a convenience that has
+   the agent run that same methodology, it does not reimplement the review as a
+   coded pipeline.
 5. **PoC verification is human-in-the-loop and safe.** The repo-review agent
    confirms an issue with a real PoC against a sandbox/dev environment, asking the
    operator for credentials/test-data. It never touches production or real
@@ -57,8 +59,11 @@ default behavior. Strategy: see `ROADMAP.md`.
 
 One verb, `review`, split by scope. `review diff` audits a unified diff via
 `--diff-file`, `--repo --git-range`, or stdin, with `--mode {standard,adversarial}`.
-`review repo <dir>` scaffolds a workspace and prints the methodology for an
-interactive agent. `codejury --version` prints the version.
+`review repo <dir>` scaffolds a workspace, writes the methodology to
+`<workspace>/METHODOLOGY.md`, and prints a short pointer, it does not run the
+review itself. The `/codejury-review-repo` slash command in `.claude/commands/`
+runs it inside Claude Code, so the agent scaffolds then follows `METHODOLOGY.md`
+interactively, which keeps PoC verification human-in-the-loop. `codejury --version` prints the version.
 Shared `review diff` flags: `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`,
 `--no-filter`, `--exclude PATH` repeatable, `--dry-run` for a mock provider with no

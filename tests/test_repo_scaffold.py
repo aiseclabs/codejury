@@ -32,7 +32,7 @@ def test_scaffold_creates_workspace(tmp_path):
 
     assert res.project == "myservice"
     assert res.workspace == ws_root / "myservice"
-    for sub in ("entrypoints", "issues", "analysis"):
+    for sub in ("entrypoints", "issues", "pocs", "analysis"):
         assert (res.workspace / sub).is_dir()
     assert res.memory_path.is_file()
     assert "Security Review Memory" in res.memory_path.read_text()

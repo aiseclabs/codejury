@@ -151,7 +151,7 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
     project = target.name
     ws = Path(workspace) / project
     created: list[str] = []
-    for sub in ("entrypoints", "issues", "analysis"):
+    for sub in ("entrypoints", "issues", "pocs", "analysis"):
         d = ws / sub
         if not d.exists():
             d.mkdir(parents=True, exist_ok=True)

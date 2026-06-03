@@ -147,10 +147,12 @@ exploitable exposure, so it is in scope. See "Controls That Live in a Library".
 
 ## Recording an Issue
 
-Write one `issues/<name>.md` per issue, and save its PoC as a real runnable file
-`issues/poc_<name>.<ext>`, a script or an `.http` file, not a sketch in prose. If
-you cannot write a concrete runnable PoC, the finding is most likely a false
-positive, so do not report it. Each issue file must have:
+Write one `issues/<name>.md` per issue, the write-up only, and save its PoC as a
+real runnable file `pocs/<name>.<ext>` with the **same `<name>`** so the two pair
+one to one, a script or an `.http` file, not a sketch in prose and not a `.md`.
+Keep `issues/` write-ups and `pocs/` scripts in their own directories, do not mix
+them. If you cannot write a concrete runnable PoC, the finding is most likely a
+false positive, so do not report it. Each issue file must have:
 
 ```markdown
 # <title>
@@ -167,7 +169,7 @@ positive, so do not report it. Each issue file must have:
 (end-to-end, actionable steps)
 
 ## PoC
-(the path to `issues/poc_<name>.<ext>` and how to run it)
+(the path to `pocs/<name>.<ext>` and how to run it)
 
 ## Verification
 (the actual output of running the PoC, or the exact blocker)

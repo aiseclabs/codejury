@@ -82,3 +82,20 @@ def test_review_diff_dry_run_respects_exclude(capsys):
 def test_old_audit_command_is_gone(capsys):
     with pytest.raises(SystemExit):   # argparse rejects the removed command
         main(["audit", "--dry-run"])
+
+
+def test_review_repo_writes_methodology_to_workspace(tmp_path):
+    # the scaffold drops the methodology into the workspace so the slash command and
+    # the agent can read it, alongside printing it
+    repo = tmp_path / "svc"; repo.mkdir(); (repo / "app.py").write_text("x = 1\n")
+    ws = tmp_path / "ws"
+    rc = main(["review", "repo", str(repo), "--workspace", str(ws)])
+    assert rc == 0
+    assert (ws / "svc" / "METHODOLOGY.md").is_file()
+
+
+def test_python_dash_m_codejury_runs():
+    # `python -m codejury` must work, for a shell without the console script on PATH
+    import subprocess, sys
+    r = subprocess.run([sys.executable, "-m", "codejury", "--version"], capture_output=True, text=True)
+    assert r.returncode == 0 and "codejury" in r.stdout.lower()

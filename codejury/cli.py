@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+from pathlib import Path
 
 from codejury import __version__
 from codejury.report import gate, render
@@ -131,14 +132,19 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo":
         res = scaffold(args.directory, args.workspace)
-        print(f"Workspace: {res.workspace}", file=sys.stderr)
+        (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
+        print(f"Workspace ready: {res.workspace}", file=sys.stderr)
         if res.guides:
-            print(f"Detected stack: {', '.join(res.guides)}. Notes in {res.workspace}/_stack.md", file=sys.stderr)
+            print(f"Detected stack: {', '.join(res.guides)}, notes in {res.workspace}/_stack.md", file=sys.stderr)
         print(f"Flagged {len(res.candidate_files)} candidate entrypoint files into "
               f"{res.workspace}/entrypoints/_entrypoints.md", file=sys.stderr)
-        print(f"Memory: {res.memory_path}", file=sys.stderr)
-        print("\nRun this review with an interactive agent (Claude Code / Codex) using the methodology below.\n")
-        print(res.methodology)
+        print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
+        print(
+            "This command sets up the review, it does not find the issues itself. Next, have an "
+            f"interactive agent follow {res.workspace}/METHODOLOGY.md to run the review. In Claude "
+            "Code use the /codejury-review-repo command. Findings are written to "
+            f"{res.workspace}/issues/."
+        )
         return 0
 
     if args.command == "review":  # no scope given
