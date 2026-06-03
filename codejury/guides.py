@@ -13,13 +13,10 @@ code change, which keeps the unbounded language/framework axis out of code.
 from __future__ import annotations
 
 import fnmatch
-import re
 from dataclasses import dataclass
 
 from codejury.mddoc import iter_md_docs
 from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR
-
-_DIFF_PATH = re.compile(r"^(?:\+\+\+ b/|diff --git a/\S+ b/)(\S+)", re.MULTILINE)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -82,15 +79,3 @@ def select_guides(files, *, text: str = "", guides: list[Guide] | None = None) -
     file_list = list(files)
     blob = text.lower()
     return [g for g in pool if _matches(g, file_list, blob)]
-
-
-def _changed_paths(diff: str) -> list[str]:
-    """The file paths touched by a unified diff (from its `+++ b/` / `diff --git` headers)."""
-    return _DIFF_PATH.findall(diff)
-
-
-def guides_for_diff(diff: str, *, guides: list[Guide] | None = None) -> str:
-    """Concatenated bodies of the language/framework guides relevant to a diff, by
-    its changed paths and its content. Empty when nothing matches."""
-    selected = select_guides(_changed_paths(diff), text=diff, guides=guides)
-    return "\n\n---\n\n".join(g.body for g in selected)

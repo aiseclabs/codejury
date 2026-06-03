@@ -7,12 +7,25 @@ coverage and lower false positives.
 
 from __future__ import annotations
 
+import re
+
 from codejury.domain.finding import Finding, findings_from_list
 from codejury.diff.prompts import SYSTEM, standard_audit_prompt
 from codejury.diff.rules import rules_for_diff
+from codejury.guides import select_guides
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
-from codejury.guides import guides_for_diff
+
+_DIFF_PATH = re.compile(r"^(?:\+\+\+ b/|diff --git a/\S+ b/)(\S+)", re.MULTILINE)
+
+
+def guides_for_diff(diff: str) -> str:
+    """Concatenated bodies of the language/framework guides relevant to a diff,
+    selected by its changed paths and its content. Empty when nothing matches.
+    Lives here, not in the shared guides module, because parsing a diff is a
+    diff-path concern."""
+    paths = _DIFF_PATH.findall(diff)
+    return "\n\n---\n\n".join(g.body for g in select_guides(paths, text=diff))
 
 
 class AuditError(RuntimeError):

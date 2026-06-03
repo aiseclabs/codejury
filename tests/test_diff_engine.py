@@ -84,6 +84,15 @@ def test_engine_raises_on_wrong_shape_json():
             AuditRunner(provider=MockProvider(default=bad), model="m").run(_DIFF)
 
 
+def test_guides_for_diff_selects_by_path_and_content():
+    from codejury.diff.engine import guides_for_diff
+    diff = ("diff --git a/app/urls.py b/app/urls.py\n"
+            "+from django.urls import path\n+urlpatterns = []\n")
+    notes = guides_for_diff(diff)
+    assert "Django" in notes and "Python" in notes        # urls.py + .py + the django import
+    assert guides_for_diff("+++ b/README.md\n+hello\n") == ""   # nothing relevant
+
+
 def test_prompt_carries_diff_focus_and_do_not_report():
     p = standard_audit_prompt(_DIFF, rules="RULE-X", context="def caller(): ...", stack="STACK-NOTE")
     assert "SELECT * FROM u" in p          # the diff

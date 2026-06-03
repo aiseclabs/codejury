@@ -1,7 +1,7 @@
 """Language/framework review guides load and are selected by detection signals
 (file globs + dependency-manifest substrings), so adding one is a drop-in file."""
 
-from codejury.guides import Guide, guides_for_diff, load_guides, select_guides
+from codejury.guides import Guide, load_guides, select_guides
 
 
 def test_shipped_guides_load():
@@ -32,14 +32,3 @@ def test_select_respects_injected_pool():
                   detect_manifest=(), detect_imports=(), entrypoint_files=(), body="b")]
     assert [g.id for g in select_guides(["a.xyz"], guides=only)] == ["x"]
     assert select_guides(["a.py"], guides=only) == []
-
-
-def test_guides_for_diff_by_path_and_content():
-    diff = ("diff --git a/app/urls.py b/app/urls.py\n"
-            "+from django.urls import path\n+urlpatterns = []\n")
-    notes = guides_for_diff(diff)
-    assert "Django" in notes and "Python" in notes   # urls.py + .py + the django import
-
-
-def test_guides_for_diff_empty_when_irrelevant():
-    assert guides_for_diff("+++ b/README.md\n+hello\n") == ""
