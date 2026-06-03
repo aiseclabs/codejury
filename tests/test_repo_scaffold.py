@@ -1,4 +1,4 @@
-"""RW-4: the full-review scaffold sets up the agent workspace (api/issues/
+"""RW-4: the repo-review scaffold sets up the agent workspace (entrypoints/issues/
 analysis + memory + seeded entrypoints) and returns the methodology. It does not
 run an LLM pipeline."""
 
@@ -32,7 +32,7 @@ def test_scaffold_creates_workspace(tmp_path):
 
     assert res.project == "myservice"
     assert res.workspace == ws_root / "myservice"
-    for sub in ("api", "issues", "analysis"):
+    for sub in ("entrypoints", "issues", "analysis"):
         assert (res.workspace / sub).is_dir()
     assert res.memory_path.is_file()
     assert "Security Review Memory" in res.memory_path.read_text()
@@ -42,7 +42,7 @@ def test_scaffold_creates_workspace(tmp_path):
 def test_scaffold_seeds_entrypoints_from_repomodel(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert res.entrypoints == 2
-    seeded = (res.workspace / "api" / "_entrypoints.md").read_text()
+    seeded = (res.workspace / "entrypoints" / "_entrypoints.md").read_text()
     assert "/users" in seeded and "/admin/users/<uid>" in seeded
     assert "list_users" in seeded and "❌" in seeded
 
@@ -71,4 +71,4 @@ def test_no_python_entrypoints_still_scaffolds(tmp_path):
     (d / "notes.txt").write_text("hi")
     res = scaffold(d, tmp_path / "work")
     assert res.entrypoints == 0
-    assert "enumerate them manually" in (res.workspace / "api" / "_entrypoints.md").read_text()
+    assert "enumerate them manually" in (res.workspace / "entrypoints" / "_entrypoints.md").read_text()

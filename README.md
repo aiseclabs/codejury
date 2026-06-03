@@ -7,10 +7,10 @@ AI code security review, in two paths matched to their nature:
   Finder/Challenger/Judge pass that trades roughly 3x the cost for extra recall
   on subtle, cross-cutting flaws.
 - **Whole-repo review** (agent-driven): a methodology an interactive agent
-  (Claude Code, Codex) runs to traverse a codebase from its API entrypoints,
-  verify issues with a real PoC, and iterate over rounds with a persistent
-  memory. Too large for a single LLM call, so codejury ships the methodology and
-  scaffolds the workspace rather than running a pipeline.
+  (Claude Code, Codex) runs to map a codebase's attack surface, trace inputs to
+  sinks across files, verify issues with a real PoC, and iterate over rounds with
+  a persistent memory. Too large for a single LLM call, so codejury ships the
+  methodology and scaffolds the workspace rather than running a pipeline.
 
 Security knowledge lives in **rich rules** (`codejury/data/rules/*.md`, with
 per-language vulnerable/secure examples), injected into the audit prompt, not
@@ -82,12 +82,13 @@ when the gate fails, so findings always show up on the PR.
 codejury review repo /path/to/your/repo
 ```
 
-This scaffolds a review workspace (`api/`, `issues/`, `analysis/`, and a
-`security-review-memory.md`), seeds the API inventory from a deterministic scan,
-and prints the methodology. Run it with an interactive agent: it reads the
-methodology and the rules, traverses the code from its API entrypoints, records
-high-confidence issues with a PoC, and asks you to confirm credentials or false
-positives along the way. Nothing runs against production.
+This scaffolds a review workspace (`entrypoints/`, `issues/`, `analysis/`, and a
+`security-review-memory.md`), seeds the entrypoint inventory from a
+deterministic scan, and prints the methodology. Run it with an interactive
+agent: it reads the methodology and the rules, maps the attack surface, traces
+inputs to sinks across files, records high-confidence issues with a PoC, and
+asks you to confirm credentials or false positives along the way. Nothing runs
+against production.
 
 ## Findings
 

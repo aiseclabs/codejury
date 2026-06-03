@@ -132,7 +132,7 @@ def _dispatch(args, parser) -> int:
     if args.command == "review" and scope == "repo":
         res = scaffold(args.directory, args.workspace)
         print(f"Workspace: {res.workspace}", file=sys.stderr)
-        print(f"Seeded {res.entrypoints} entrypoints into {res.workspace}/api/_entrypoints.md", file=sys.stderr)
+        print(f"Seeded {res.entrypoints} entrypoints into {res.workspace}/entrypoints/_entrypoints.md", file=sys.stderr)
         print(f"Memory: {res.memory_path}", file=sys.stderr)
         print("\nRun this review with an interactive agent (Claude Code / Codex) using the methodology below.\n")
         print(res.methodology)

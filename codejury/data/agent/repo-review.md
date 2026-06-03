@@ -1,13 +1,13 @@
-# Full Security Review — Agent Methodology
+# Repo Security Review — Agent Methodology
 
-A whole-repository security audit, run by an interactive coding agent (Claude
-Code, Codex, etc.), not a one-shot LLM call. It maps the attack surface, traces
-inputs to sinks across files, verifies issues with a real PoC, and
-iterates over multiple rounds with a persistent memory. One round is roughly
-30 minutes; run as many rounds as needed.
+The `review repo` path: a whole-repository security audit, run by an interactive
+coding agent (Claude Code, Codex, etc.), not a one-shot LLM call. It maps the
+attack surface, traces inputs to sinks across files, verifies issues with a real
+PoC, and iterates over multiple rounds with a persistent memory. One round is
+roughly 30 minutes; run as many rounds as needed.
 
 Target repository: the directory you were given.
-Workspace: `<workspace>/<project>/` (created for you), holding `api/`,
+Workspace: `<workspace>/<project>/` (created for you), holding `entrypoints/`,
 `issues/`, `analysis/`, and `security-review-memory.md`.
 
 ---
@@ -18,9 +18,9 @@ Workspace: `<workspace>/<project>/` (created for you), holding `api/`,
    - skip every pattern under "Confirmed false positives";
    - do not re-report anything under "Fixed";
    - weight the files under "High-risk areas" more heavily.
-2. Read `api/_entrypoints.md` (seeded for you from a deterministic AST scan) as a
-   *starting* map of the attack surface. It lists HTTP routes and CLI commands
-   only, so it is a subset, not the whole surface (see "Map the attack surface").
+2. Read `entrypoints/_entrypoints.md` (seeded for you from a deterministic AST
+   scan) as a *starting* map of the attack surface. It lists HTTP routes and CLI
+   commands only, a subset, not the whole surface (see "Map the attack surface").
 3. Read the relevant rule files under the shipped `rules/` for the target's stack
    (sql-injection, idor, ssrf, authentication-jwt, insecure-deserialization, ...).
 
@@ -28,7 +28,7 @@ Workspace: `<workspace>/<project>/` (created for you), holding `api/`,
 
 The seeded inventory lists HTTP routes and CLI commands only. Before analysing,
 complete the surface: untrusted input enters at more than HTTP. Enumerate every
-source the attacker can influence and add it to `api/`:
+source the attacker can influence and add it to `entrypoints/`:
 
 - HTTP routes, GraphQL resolvers, gRPC / RPC handlers, WebSocket handlers;
 - CLI commands, scheduled jobs / cron, queue and topic consumers, webhooks and
@@ -40,8 +40,8 @@ source the attacker can influence and add it to `api/`:
   inter-service calls.
 
 `pickle.loads(cookie)` and `yaml.load(upload)` are entrypoints just as much as a
-route is. Record the inventory in `api/` (one file per module: source + auth
-method + review status ✅/⚠️/❌).
+route is. Record the inventory in `entrypoints/` (one file per module: source +
+auth method + review status ✅/⚠️/❌).
 
 ## Analyse each source
 

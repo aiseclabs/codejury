@@ -23,7 +23,7 @@ default behavior. Strategy: see `ROADMAP.md`.
    adversarial Finder/Challenger/Judge pass). Whole-repo review is too large for a
    single call, so it ships as a methodology an interactive agent runs, not a
    pipeline.
-5. **PoC verification is human-in-the-loop and safe.** The full-review agent
+5. **PoC verification is human-in-the-loop and safe.** The repo-review agent
    confirms an issue with a real PoC against a sandbox/dev environment, asking the
    operator for credentials/test-data; it never touches production or real
    credentials and never runs a destructive action without explicit go-ahead.
@@ -38,8 +38,8 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Diff engine | standard `AuditRunner` (one call) + adversarial `AdversarialAuditRunner` (Finder/Challenger/Judge); `audit_diff` orchestration (chunk, normalize, filter) | `codejury/diff/`, `diff/runner.py` |
 | Rules | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/rules/`, `diff/rules.py` |
 | Finding + report | flat `Finding`; text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
-| Full review | agent methodology + memory template + workspace scaffold (no pipeline) | `codejury/data/agent/`, `repo/scaffold.py` |
-| RepoModel | deterministic AST entrypoint scan, seeds the API inventory | `codejury/repo/model.py` |
+| Repo review | agent methodology + memory template + workspace scaffold (no pipeline) | `codejury/data/agent/`, `repo/scaffold.py` |
+| RepoModel | deterministic AST entrypoint scan, seeds the entrypoint inventory | `codejury/repo/model.py` |
 | Provider | anthropic · openai · litellm · mock (+ retry), via a factory | `codejury/providers/` |
 | JSON parsing | best-effort extraction of a JSON object from model output | `codejury/json_parse.py` |
 
