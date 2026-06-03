@@ -59,7 +59,8 @@ urlpatterns = [
 ]
 '''
 
-# include() mounts and class-based views resolve to no handler function: noise
+# include() to a module not in the tree resolves to no file: dropped.
+# class-based views resolve to the view class name.
 DJANGO_NOISE = '''
 from django.urls import path, include
 from .views import DashboardView
@@ -69,6 +70,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("profile/", views.profile),
     path("dash/", DashboardView.as_view()),
+    path("admin-panel/", views.AdminView.as_view()),
 ]
 '''
 
@@ -163,12 +165,16 @@ def test_django_include_mounts_subroutes_under_prefix():
     assert all(e.route != "users" for e in model.entrypoints)
 
 
-def test_django_include_and_cbv_with_no_resolvable_function_are_dropped():
-    # include() mounts and an unresolved .as_view() carry no handler function;
-    # only the plain function-based view survives, no empty `- -` noise entries
+def test_django_unresolvable_include_dropped_and_cbv_resolved():
+    # include() whose module is not in the tree resolves to no file and is dropped;
+    # class-based views resolve to the view class name (both Name and views.Attr forms)
     model = _model({"urls.py": DJANGO_NOISE})
-    assert _routes(model) == {("http", "django", "profile", "profile/", "")}
-    assert all(e.function for e in model.entrypoints)
+    assert _routes(model) == {
+        ("http", "django", "profile", "profile/", ""),
+        ("http", "django", "DashboardView", "dash/", ""),
+        ("http", "django", "AdminView", "admin-panel/", ""),
+    }
+    assert all(e.function for e in model.entrypoints)  # no empty `- -` noise entries
 
 
 def test_plain_module_has_no_entrypoints():

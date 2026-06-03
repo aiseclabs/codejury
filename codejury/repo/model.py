@@ -245,10 +245,18 @@ def _method(decorator_name: str, call: ast.Call | None, rule: str) -> str:
 
 def _view_name(call: ast.Call) -> str:
     # Django path("route", view): the view is the second positional argument
-    if len(call.args) >= 2:
-        view = call.args[1]
-        if isinstance(view, ast.Name):
-            return view.id
-        if isinstance(view, ast.Attribute):
-            return view.attr
+    if len(call.args) < 2:
+        return ""
+    view = call.args[1]
+    if isinstance(view, ast.Name):
+        return view.id
+    if isinstance(view, ast.Attribute):
+        return view.attr
+    # class-based view: SomeView.as_view() / views.SomeView.as_view() -> class name
+    if isinstance(view, ast.Call) and isinstance(view.func, ast.Attribute) and view.func.attr == "as_view":
+        target = view.func.value
+        if isinstance(target, ast.Name):
+            return target.id
+        if isinstance(target, ast.Attribute):
+            return target.attr
     return ""
