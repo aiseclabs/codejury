@@ -8,13 +8,13 @@ roughly 30 minutes. Run as many rounds as needed.
 
 Target repository: the directory you were given.
 Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
-`issues/`, `analysis/`, and `security-review-memory.md`.
+`issues/`, `analysis/`, and `MEMORY.md`.
 
 ---
 
 ## On Start
 
-1. Read `security-review-memory.md` in the workspace if it exists:
+1. Read `MEMORY.md` in the workspace if it exists:
    - skip every pattern under "Confirmed false positives".
    - do not re-report anything under "Fixed".
    - weight the files under "High-risk areas" more heavily.
@@ -226,6 +226,6 @@ If any item fails, run another round. State which items pass when you report.
 
 Report the confirmed findings, the ones with a reproduced PoC, separately from
 the suspected ones still blocked on verification, so the two are never conflated.
-Append a row to the audit history in `security-review-memory.md`, and ask the
+Append a row to the audit history in `MEMORY.md`, and ask the
 operator which findings were false positives. Record those under "Confirmed false
 positives" so future rounds skip them.

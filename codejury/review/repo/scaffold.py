@@ -25,7 +25,7 @@ from codejury.review.repo.model import build_repo_model_from_dir, candidate_entr
 from codejury.resources import METHODOLOGIES_DIR
 
 _METHODOLOGY = METHODOLOGIES_DIR / "repo-review.md"
-_MEMORY_TEMPLATE = METHODOLOGIES_DIR / "security-review-memory.md"
+_MEMORY_TEMPLATE = METHODOLOGIES_DIR / "memory-template.md"
 
 _DETECT_PER_FILE = 16_000   # bytes read per file
 _DETECT_TOTAL = 8_000_000   # bytes of source sampled overall
@@ -157,7 +157,7 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
             d.mkdir(parents=True, exist_ok=True)
             created.append(str(d))
 
-    memory_path = ws / "security-review-memory.md"
+    memory_path = ws / "MEMORY.md"
     if not memory_path.exists():  # never clobber an edited memory
         template = _MEMORY_TEMPLATE.read_text(encoding="utf-8").replace("<project>", project)
         memory_path.write_text(template, encoding="utf-8")

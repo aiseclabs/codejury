@@ -7,25 +7,15 @@
  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚════╝  ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 ```
 
-> AI code security review for diffs and repos.
+An AI code security review tool. It works two ways. `review diff` audits a pull
+request diff for newly introduced exploitable risk in one command. `review repo`
+sets up an interactive agent such as Claude Code or Codex to audit a whole
+repository, mapping the attack surface, tracing inputs to sinks across files, and
+verifying each issue with a real PoC.
 
-It runs two paths matched to their nature.
-
-- **Diff Review** is coded. It audits a pull request diff for newly introduced
-  exploitable risk, as a single balanced LLM call or an adversarial Finder,
-  Challenger, and Judge pass that trades roughly 3x the cost for extra recall on
-  subtle flaws that span files. One command in, findings out.
-- **Repo Review** is agent driven. A whole repo is too large for one LLM
-  call, so codejury scaffolds a workspace and hands an interactive agent such as
-  Claude Code or Codex a methodology to run. The agent maps the attack surface,
-  traces inputs to sinks across files, verifies issues with a real PoC, and
-  iterates over rounds with a persistent memory.
-
-Security knowledge is data, not code. Vulnerability classes live in
-`codejury/data/vulnerabilities/*.md` with a vulnerable and a secure example per
-language, and the stack guides live under `data/languages`, `data/frameworks`,
-and `data/protocols`. The engine stays language neutral and names no framework,
-so adding a stack is a drop-in markdown file.
+Security knowledge is data, not code. Drop-in markdown guides hold the
+vulnerability classes, languages, frameworks, and protocols, so the engine names
+no language and adding a stack is a new file.
 
 ## Install
 
@@ -36,19 +26,21 @@ codejury install-slash-command             # Claude Code, ~/.claude/commands/
 codejury install-slash-command --agent codex   # Codex, ~/.codex/prompts/
 ```
 
-`install-slash-command` copies the `/codejury-review-repo` command into the agent's
-command directory. The command body is the same for every agent, only the
-directory differs, so pass `--dir` for any other agent. The repo review itself is
-agent neutral, so even without the command you can run `codejury review repo` and
-tell any agent to follow the methodology it writes.
+`install-slash-command` copies the `/codejury-review-repo` command into the
+agent's command directory. The command body is the same for every agent, only the
+directory differs, so pass `--dir` for any other agent.
 
 ## Diff Review
 
+The coded engine. It audits a diff in one command, as a single balanced LLM call
+or an adversarial Finder, Challenger, and Judge pass that trades roughly 3x the
+cost for extra recall on subtle flaws that span files.
+
 ```bash
-# audit a diff file
+# a diff file
 codejury review diff --file changes.diff
 
-# audit a git range in a repo
+# a git range in a repo
 codejury review diff --repo /path/to/app --git-range origin/main...HEAD
 
 # from stdin
@@ -66,7 +58,48 @@ the `CODEJURY_API_KEY`, `CODEJURY_MODEL`, and `CODEJURY_API_BASE` environment
 variables. `codejury review diff --dry-run` exercises the engine with a mock
 provider and no key, and falls back to a built in demo diff when you pass none.
 
-### Choosing a Model and Mode
+## Repo Review
+
+The agent path. A whole repo is too large for one LLM call, so this sets up a
+review for an interactive agent rather than running a pipeline.
+
+```bash
+codejury review repo /path/to/your/repo
+```
+
+It detects the stack, seeds the entrypoint inventory and the downstream trace
+targets from a deterministic scan, writes the methodology to
+`<workspace>/METHODOLOGY.md`, and prints a short pointer. The workspace:
+
+```
+entrypoints/   the candidate entrypoint files to start from
+issues/        one write-up per confirmed or suspected issue
+pocs/          a runnable PoC per issue, same name as the issue
+analysis/      _trace_targets.md, the round ledger, and trace notes
+METHODOLOGY.md and MEMORY.md
+```
+
+Then run it with an interactive agent. In Claude Code or Codex:
+
+```
+/codejury-review-repo /path/to/your/repo
+```
+
+Any agent works, the slash command is just a shortcut. Without it, tell the agent
+to follow the `METHODOLOGY.md` the scaffold wrote. The agent maps the attack
+surface including non HTTP sources, traces each input to its sink through the
+downstream layers, runs an Authorization Model pass for missing-auth and IDOR,
+and follows a control into a library when an entrypoint delegates it. It iterates
+until a Completeness Gate passes, confirms each issue with a real PoC against a
+sandbox or dev environment, and asks you for any credential it needs. Only a
+reproduced PoC is a confirmed finding, and nothing runs against production.
+
+The supported stacks today are Python with Django, Celery, Flask, and FastAPI,
+Go with Gin and Echo, JavaScript and TypeScript with Express and NestJS, and the
+OAuth and OIDC protocol. The methodology still works on an unguided stack, it just
+leans more on the agent's own knowledge.
+
+## Choosing a Model and Mode
 
 Detection quality is dominated by the model first, then the mode. On real diff
 probes:
@@ -82,7 +115,7 @@ Default to standard mode with a strong model, set with `--model` or
 `CODEJURY_MODEL`. False positives are held down by the do not report list and the
 post filter, not by the mode.
 
-### Use in CI with GitHub Actions
+## Use in CI with GitHub Actions
 
 Audit every pull request and surface findings in the code scanning tab. Copy
 `examples/codejury-pr-review.yml` into `.github/workflows/`, add a
@@ -95,52 +128,6 @@ Audit every pull request and surface findings in the code scanning tab. Copy
 The job makes one model call per pull request in standard mode. The SARIF is
 uploaded even when the gate fails, so findings always show up on the pull
 request.
-
-## Repo Review
-
-Repo Review does not scan and print findings. It sets up a review for an agent to
-run, because a whole repo needs many rounds of reading, cross-file tracing,
-and PoC work that an agent does, not a single call.
-
-```bash
-codejury review repo /path/to/your/repo
-```
-
-This detects the stack, seeds the entrypoint inventory and the downstream trace
-targets from a deterministic scan, writes the methodology to
-`<workspace>/METHODOLOGY.md`, and prints a short pointer. It creates the
-workspace:
-
-```
-entrypoints/   the candidate entrypoint files to start from
-issues/        one write-up per confirmed or suspected issue
-pocs/          a runnable PoC per issue, same name as the issue
-analysis/      _trace_targets.md, the round ledger, and trace notes
-security-review-memory.md
-```
-
-Then run it with an interactive agent. In Claude Code or Codex:
-
-```
-/codejury-review-repo /path/to/your/repo
-```
-
-Any agent works, the slash command is just a shortcut. Without it, tell the agent
-to follow the `METHODOLOGY.md` the scaffold wrote.
-
-The agent follows `METHODOLOGY.md`: it maps the attack surface including non HTTP
-sources, traces each input to its sink through the downstream layers, runs an
-Authorization Model pass for missing-auth and IDOR, and follows a control into a
-library when an entrypoint delegates it. It keeps going until a Completeness Gate
-passes, two consecutive rounds that add nothing new. It confirms each issue with
-a real PoC against a sandbox or dev environment and asks you for any credential or
-test data it needs. Only a reproduced PoC is a confirmed finding, and nothing
-runs against production.
-
-The supported stacks today are Python with Django, Celery, Flask, and FastAPI,
-Go with Gin and Echo, JavaScript and TypeScript with Express and NestJS, and the
-OAuth and OIDC protocol. The methodology still works on an unguided stack, it just
-leans more on the agent's own knowledge.
 
 ## Findings
 
