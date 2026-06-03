@@ -136,6 +136,40 @@ third-party. It is not auditing the library for its own bugs, which belongs to
 that library's own review. It is confirming that the control your endpoint relies
 on holds here.
 
+## Challenge Every Control, Presence Is Not Sufficiency
+
+A control being present is not the same as the control holding. The most common
+way a real review misses a real flaw is clearing a path the moment it sees a
+gate, a signature, or a single-use token, without asking whether that control
+actually defeats the specific attack. For every control you find on a path, do
+not clear on presence. Challenge it on these axes:
+
+- **Replay**. A signed or authenticated privileged request is replayable unless
+  the control BOTH consumes a one-time nonce AND enforces a freshness window such
+  as a timestamp or short expiry. That the caller is authenticated, that the
+  scheme fails closed, or that a TOTP is single-use is orthogonal to replay, so
+  do not let any of them clear it. Capture one valid signed request and ask: can
+  the exact same bytes be sent again and accepted? If nothing is consumed and no
+  window is checked, it replays.
+- **Concurrency and state**. A check-then-act is bypassable under concurrent
+  requests unless a lock is held across the act, even when the single-request
+  path looks single-use. A redeem, a balance debit, or a status transition that
+  reads then writes without a row lock or atomic guard double-spends under a race.
+- **Sibling coverage**. A gate on one endpoint does not cover its siblings. When
+  you find a missing-authorization or IDOR pattern, enumerate every endpoint
+  behind the same controller or gate and report the highest-impact instance, not
+  the first one you saw. A read variant flagged MEDIUM often has a create or push
+  sibling that is HIGH.
+- **Trusted-source assumptions**. A value is not safe just because a caller you
+  treat as trusted set it. If that caller is a distinct tenant or service, the
+  value is still attacker-influenced. A self-set `callback_url` that flows into a
+  server-side fetch is SSRF or a worker-blocking DoS unless there is an allowlist,
+  so do not clear it on "the owner set it".
+
+When a control passes one axis, it can still fail another, so run all four before
+you mark a path cleared. Record which axis you checked, not just that a control
+exists.
+
 ## Scope
 
 Report only HIGH / CRITICAL, exploitable, high-confidence issues. **Do not report**
@@ -217,6 +251,10 @@ reporting it as clean is the failure this gate exists to prevent.
   at the view.
 - The Authorization Model pass ran: the access gate is mapped, sibling endpoints
   compared, and IDOR and unauthenticated privileged paths checked.
+- Every control on a cleared path was challenged for sufficiency, not presence:
+  replay needs a nonce and a freshness window, check-then-act needs a lock,
+  sibling endpoints behind a shared gate were all enumerated, and a trusted-source
+  value flowing to a sink was still treated as attacker-influenced.
 - `analysis/_rounds.md` shows two consecutive rounds that added no new source, no
   new traced path, and no new issue.
 
