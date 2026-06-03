@@ -10,6 +10,7 @@ the methodology text to print.
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -41,6 +42,8 @@ class ScaffoldResult:
     trace_targets: tuple[str, ...] = ()     # downstream logic-layer files to trace into
     guides: tuple[str, ...] = ()
     created: list[str] = field(default_factory=list)
+    had_prior_run: bool = False             # the workspace already held a previous review's output
+    cleared: list[str] = field(default_factory=list)  # paths removed by a fresh run, MEMORY.md included
 
 
 def _read_manifests(target: Path) -> str:
@@ -146,10 +149,48 @@ clean one.
 """
 
 
-def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
+def _has_prior_run(ws: Path) -> bool:
+    """True when the workspace already holds a previous review's output, not just
+    a bare scaffold. Findings, PoCs, a logged round ledger, or a hand-built
+    entrypoint inventory all count. The regenerated seeds alone do not."""
+    if not ws.exists():
+        return False
+    for sub in ("issues", "pocs"):
+        d = ws / sub
+        if d.is_dir() and any(d.iterdir()):
+            return True
+    rounds = ws / "analysis" / "_rounds.md"
+    if rounds.exists() and rounds.read_text(encoding="utf-8") != _ROUNDS_TEMPLATE:
+        return True
+    inv = ws / "entrypoints"
+    if inv.is_dir() and any(p.name != "_entrypoints.md" for p in inv.iterdir()):
+        return True
+    return False
+
+
+def _clear_prior_run(ws: Path) -> list[str]:
+    """Remove a previous review's output so a fresh run starts clean. This wipes
+    MEMORY.md too, so the cross-run memory of confirmed false positives and fixed
+    issues is reset, the run starts from a blank slate with no stale judgments
+    suppressing a finding."""
+    removed: list[str] = []
+    for child in ws.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+        removed.append(str(child))
+    return removed
+
+
+def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) -> ScaffoldResult:
     target = Path(target).resolve()
     project = target.name
     ws = Path(workspace) / project
+    had_prior_run = _has_prior_run(ws)
+    cleared: list[str] = []
+    if fresh and ws.exists():
+        cleared = _clear_prior_run(ws)
     created: list[str] = []
     for sub in ("entrypoints", "issues", "pocs", "analysis"):
         d = ws / sub
@@ -201,4 +242,6 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
         trace_targets=tuple(layers),
         guides=tuple(g.id for g in guides),
         created=created,
+        had_prior_run=had_prior_run,
+        cleared=cleared,
     )

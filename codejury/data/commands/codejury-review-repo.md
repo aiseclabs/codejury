@@ -13,6 +13,12 @@ Run a codejury whole-repo security review of: $ARGUMENTS
    the project venv first, for example `. .venv/bin/activate`, or run it through
    that venv's Python, for example `python -m codejury`.
 
+   If the output reports that a previous review's output is already in the
+   workspace, ask me whether to clear it and start fresh. If I say yes, re-run the
+   same command with `--fresh`, which clears the prior issues, PoCs, round ledger,
+   and MEMORY.md for a clean slate. If I say no, continue and build on what is
+   there.
+
 2. Read `<workspace>/METHODOLOGY.md` and follow it to completion. It is the single
    source of truth for how to run the review, the entrypoint map, the trace
    targets, the Authorization Model pass, the dependency-control checks, the round

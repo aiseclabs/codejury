@@ -136,6 +136,36 @@ def test_scaffold_does_not_clobber_existing_memory(tmp_path):
     assert str(second.memory_path) not in second.created  # not recreated
 
 
+def test_scaffold_flags_a_prior_run(tmp_path):
+    target = _target(tmp_path)
+    ws_root = tmp_path / "work"
+    first = scaffold(target, ws_root)
+    assert first.had_prior_run is False  # a bare first scaffold is not a prior run
+
+    (first.workspace / "issues" / "found.md").write_text("# a finding\n")
+    second = scaffold(target, ws_root)
+    assert second.had_prior_run is True
+    assert second.cleared == []  # not cleared without fresh
+    assert (second.workspace / "issues" / "found.md").is_file()  # left intact
+
+
+def test_scaffold_fresh_clears_prior_output_including_memory(tmp_path):
+    target = _target(tmp_path)
+    ws_root = tmp_path / "work"
+    first = scaffold(target, ws_root)
+    (first.workspace / "issues" / "found.md").write_text("# a finding\n")
+    (first.workspace / "pocs" / "found.py").write_text("print('poc')\n")
+    first.memory_path.write_text("# edited memory\nFP-001 ...\n")
+
+    fresh = scaffold(target, ws_root, fresh=True)
+    assert fresh.had_prior_run is True
+    assert fresh.cleared  # something was removed
+    assert not (fresh.workspace / "issues" / "found.md").exists()  # stale finding gone
+    assert not (fresh.workspace / "pocs" / "found.py").exists()
+    assert "# edited memory" not in fresh.memory_path.read_text()  # MEMORY.md reset to template
+    assert (fresh.workspace / "entrypoints" / "_entrypoints.md").is_file()  # reseeded
+
+
 def test_plain_repo_still_scaffolds(tmp_path):
     d = tmp_path / "plain"
     d.mkdir()

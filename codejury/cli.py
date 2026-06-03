@@ -99,6 +99,8 @@ def main(argv: list[str] | None = None) -> int:
     repo = rsub.add_parser("repo", help="scaffold a whole-repo review for an interactive agent")
     repo.add_argument("directory", help="target repository to review")
     repo.add_argument("--workspace", default="/var/tmp/codejury-review", help="where to create the review workspace")
+    repo.add_argument("--fresh", action="store_true",
+                      help="clear a previous review's output in the workspace first, MEMORY.md included")
 
     inst = sub.add_parser("install-slash-command",
                           help="install the /codejury-review-repo slash command for an agent")
@@ -137,8 +139,13 @@ def _dispatch(args, parser) -> int:
         return 1 if gate(kept, args.fail_on) else 0
 
     if args.command == "review" and scope == "repo":
-        res = scaffold(args.directory, args.workspace)
+        res = scaffold(args.directory, args.workspace, fresh=args.fresh)
         (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
+        if res.cleared:
+            print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}, MEMORY.md included", file=sys.stderr)
+        elif res.had_prior_run:
+            print(f"A previous review's output is in {res.workspace}. Re-run with --fresh to clear it "
+                  "first, MEMORY.md included.", file=sys.stderr)
         print(f"Workspace ready: {res.workspace}", file=sys.stderr)
         if res.guides:
             print(f"Detected stack: {', '.join(res.guides)}, notes in {res.workspace}/_stack.md", file=sys.stderr)
