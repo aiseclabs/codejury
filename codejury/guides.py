@@ -2,8 +2,10 @@
 
 Each `data/languages/*.md` and `data/frameworks/*.md` is a knowledge unit: YAML
 frontmatter declaring how to detect the language or framework in a target repo
-(file-name globs, dependency-manifest substrings, import markers), and a body of
-review guidance (where input enters, common sinks, auth conventions, gotchas).
+by file-name globs, dependency-manifest substrings, import markers, or
+language-neutral content tokens such as a protocol's wire fields, and a body of
+review guidance covering where input enters, common sinks, auth conventions, and
+gotchas.
 
 Selection is generic: a guide applies when its detect signals fire on the repo.
 Adding a language or framework is a drop-in file under the right directory, no
@@ -27,6 +29,7 @@ class Guide:
     detect_files: tuple[str, ...]
     detect_manifest: tuple[str, ...]
     detect_imports: tuple[str, ...]
+    detect_content: tuple[str, ...]       # language-neutral content tokens, for example a protocol's wire fields
     entrypoint_files: tuple[str, ...]     # globs for files likely to define entrypoints
     entrypoint_markers: tuple[str, ...]   # content markers for files that define entrypoints
     body: str
@@ -41,6 +44,7 @@ def _guide(path, meta: dict, body: str, kind: str) -> Guide:
         detect_files=tuple(str(f) for f in detect.get("files", [])),
         detect_manifest=tuple(str(m).lower() for m in detect.get("manifest", [])),
         detect_imports=tuple(str(i) for i in detect.get("imports", [])),
+        detect_content=tuple(str(c).lower() for c in detect.get("content", [])),
         entrypoint_files=tuple(str(g) for g in meta.get("entrypoint_files", [])),
         entrypoint_markers=tuple(str(m) for m in meta.get("entrypoint_markers", [])),
         body=body,
@@ -79,13 +83,17 @@ def _matches(guide: Guide, files: list[str], text: str) -> bool:
         return True
     if any(i in text for i in guide.detect_imports):
         return True
+    if any(c in text for c in guide.detect_content):
+        return True
     return False
 
 
 def select_guides(files, *, text: str = "", guides: list[Guide] | None = None) -> list[Guide]:
     """The guides whose detect signals fire on the target, languages first then
     frameworks. `files` are the target's file paths. `text` is content to scan for
-    manifest substrings and import markers (a repo's manifests, or a diff body)."""
+    manifest substrings, import markers, and language-neutral content tokens such
+    as a protocol's wire fields, namely a repo's manifests plus a source sample,
+    or a diff body."""
     pool = load_guides() if guides is None else guides
     file_list = list(files)
     blob = text.lower()

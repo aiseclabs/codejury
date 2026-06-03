@@ -13,8 +13,9 @@ def test_shipped_guides_load():
     assert "IDOR" in by_id["django"].body or "idor" in by_id["django"].body.lower()
 
 
-def test_topic_guide_selected_by_manifest():
-    matched = {g.id for g in select_guides(["main.py"], text="authlib==1.6.9\ndjango\n")}
+def test_topic_guide_selected_by_protocol_token():
+    # language-neutral detection: an OAuth wire field, no ecosystem library name
+    matched = {g.id for g in select_guides(["main.py"], text="grant_type=authorization_code\nredirect_uri\n")}
     assert "oauth" in matched
 
 
@@ -35,7 +36,7 @@ def test_no_signal_no_match():
 
 def test_select_respects_injected_pool():
     only = [Guide(id="x", kind="framework", title="X", detect_files=("*.xyz",),
-                  detect_manifest=(), detect_imports=(), entrypoint_files=(),
+                  detect_manifest=(), detect_imports=(), detect_content=(), entrypoint_files=(),
                   entrypoint_markers=(), body="b")]
     assert [g.id for g in select_guides(["a.xyz"], guides=only)] == ["x"]
     assert select_guides(["a.py"], guides=only) == []

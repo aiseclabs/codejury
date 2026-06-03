@@ -26,6 +26,15 @@ _MANIFESTS = (
     "package.json", "go.mod", "Gemfile", "pom.xml", "build.gradle", "Cargo.toml", "composer.json",
 )
 
+# source and config extensions sampled so language-neutral content tokens, such
+# as a protocol's wire fields, can be detected regardless of the stack
+_DETECT_EXT = frozenset({
+    ".py", ".js", ".mjs", ".ts", ".tsx", ".jsx", ".go", ".rb", ".java", ".kt",
+    ".php", ".cs", ".rs", ".scala", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".env",
+})
+_DETECT_PER_FILE = 16_000   # bytes read per file
+_DETECT_TOTAL = 8_000_000   # bytes of source sampled overall
+
 
 @dataclass(frozen=True, kw_only=True)
 class ScaffoldResult:
@@ -47,6 +56,27 @@ def _read_manifests(target: Path) -> str:
                 parts.append(p.read_text(encoding="utf-8"))
         except OSError:
             pass
+    return "\n".join(parts)
+
+
+def _detection_text(target: Path, files: list[str]) -> str:
+    """The dependency manifests plus a bounded sample of source and config
+    content, so detection can fire on language-neutral content tokens, not only
+    on per-ecosystem dependency names."""
+    parts = [_read_manifests(target)]
+    total = 0
+    for f in files:
+        if Path(f).suffix.lower() not in _DETECT_EXT:
+            continue
+        p = target / f
+        try:
+            chunk = p.read_text(encoding="utf-8")[:_DETECT_PER_FILE]
+        except (OSError, UnicodeDecodeError):
+            continue
+        parts.append(chunk)
+        total += len(chunk)
+        if total >= _DETECT_TOTAL:
+            break
     return "\n".join(parts)
 
 
@@ -101,7 +131,7 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
     model = build_repo_model_from_dir(target)
 
     # detect the stack and seed its review guides (languages + frameworks)
-    guides = select_guides(model.files, text=_read_manifests(target))
+    guides = select_guides(model.files, text=_detection_text(target, model.files))
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
 
     # flag candidate entrypoint files via the matched guides' globs and by

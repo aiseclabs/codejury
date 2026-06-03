@@ -3,9 +3,7 @@ id: oauth
 title: OAuth and OIDC
 kind: topic
 detect:
-  files: []
-  manifest: ["oauth", "oauthlib", "authlib", "oauth2", "oauth2-server", "django-oauth", "django-allauth", "doorkeeper", "omniauth", "passport", "spring-security-oauth", "spring-boot-starter-oauth2", "golang.org/x/oauth2", "go-oidc", "openid", "oidc"]
-  imports: ["oauth", "oidc", "openid"]
+  content: ["grant_type", "authorization_code", "redirect_uri", "code_challenge", "response_type", "client_secret", "openid-configuration"]
 ---
 # OAuth and OIDC Review Notes
 
