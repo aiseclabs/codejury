@@ -6,10 +6,16 @@ from codejury.guides import Guide, load_guides, select_guides
 
 def test_shipped_guides_load():
     by_id = {g.id: g for g in load_guides()}
-    assert {"python", "django"} <= set(by_id)
+    assert {"python", "django", "oauth"} <= set(by_id)
     assert by_id["python"].kind == "language"
     assert by_id["django"].kind == "framework"
+    assert by_id["oauth"].kind == "topic"
     assert "IDOR" in by_id["django"].body or "idor" in by_id["django"].body.lower()
+
+
+def test_topic_guide_selected_by_manifest():
+    matched = {g.id for g in select_guides(["main.py"], text="authlib==1.6.9\ndjango\n")}
+    assert "oauth" in matched
 
 
 def test_select_by_file_glob():

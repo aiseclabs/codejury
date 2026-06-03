@@ -22,17 +22,20 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
    flags as likely to define entrypoints. Open them to find the actual
    entrypoints. It is a *starting* subset, not the whole surface. See "Map the
    attack surface".
-3. Read `_stack.md`, the seeded detected languages and frameworks plus review
-   notes for them, so you know where this stack's entrypoints, sinks, and auth
-   checks live. If it matched nothing, lean on your own knowledge of the stack.
+3. Read `_stack.md`, the seeded detected languages, frameworks, and topics plus
+   review notes for them, so you know where this stack's entrypoints and sinks
+   live and which protocol checks apply, for example the OAuth checklist. If it
+   matched nothing, lean on your own knowledge of the stack.
 4. Read the relevant rule files under the shipped `rules/` for the target's stack
    such as sql-injection, idor, ssrf, authentication-jwt, or insecure-deserialization.
 
 ## Map the Attack Surface
 
-The seeded inventory lists HTTP routes and CLI commands only. Before analysing,
-complete the surface: untrusted input enters at more than HTTP. Enumerate every
-source the attacker can influence and add it to `entrypoints/`:
+The seeded `entrypoints/_entrypoints.md` flags files that likely define
+entrypoints. It is a starting point, not the whole surface. Before any per-source
+analysis, build a COMPLETE inventory: open every flagged file, read its routes
+and handlers, and enumerate every source the attacker can influence, including
+the ones no scan finds. Untrusted input enters at more than HTTP:
 
 - HTTP routes, GraphQL resolvers, gRPC / RPC handlers, WebSocket handlers.
 - CLI commands, scheduled jobs / cron, queue and topic consumers, webhooks and
@@ -44,8 +47,11 @@ source the attacker can influence and add it to `entrypoints/`:
   inter-service calls.
 
 `pickle.loads(cookie)` and `yaml.load(upload)` are entrypoints just as much as a
-route is. Record the inventory in `entrypoints/`, one file per module: source +
-auth method + review status ✅/⚠️/❌.
+route is. Record the full inventory in `entrypoints/`, one file per module, each
+listing the source, the auth method, and a review status ✅/⚠️/❌. Do not begin
+per-source analysis until the inventory covers every endpoint, since an endpoint
+you never list is one you never review. This single step is what most decides
+whether the review finds the deep issues.
 
 ## Analyse Each Source
 
@@ -129,9 +135,11 @@ destructive action without the operator's explicit go-ahead.
 ## Iteration
 
 Each round, read the workspace history first and do not repeat finished work.
-Process leftover TODOs, otherwise pick an unreviewed ❌ or to-deepen ⚠️
-source from the inventory. When every source is ✅ and there are no TODOs,
-report the review complete.
+Process leftover TODOs, otherwise pick an unreviewed ❌ or to-deepen ⚠️ source
+from the inventory. One round rarely finds the deep cross-file and stateful bugs,
+so keep going until two consecutive rounds surface nothing new, then report the
+review complete. The hard classes such as authorization, replay, and broken
+business state usually appear only after several rounds.
 
 ## On Finish
 

@@ -16,7 +16,7 @@ import fnmatch
 from dataclasses import dataclass
 
 from codejury.mddoc import iter_md_docs
-from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR
+from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR, TOPICS_DIR
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -65,9 +65,9 @@ def entrypoint_markers(guides: list[Guide]) -> tuple[str, ...]:
     return tuple(seen)
 
 
-def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR) -> list[Guide]:
+def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR, topics_dir=TOPICS_DIR) -> list[Guide]:
     out: list[Guide] = []
-    for directory, kind in ((languages_dir, "language"), (frameworks_dir, "framework")):
+    for directory, kind in ((languages_dir, "language"), (frameworks_dir, "framework"), (topics_dir, "topic")):
         out += [_guide(path, meta, body, kind) for path, meta, body in iter_md_docs(directory)]
     return out
 
