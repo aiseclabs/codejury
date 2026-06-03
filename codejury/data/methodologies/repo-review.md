@@ -239,10 +239,12 @@ dev environment, and gate reporting on the result:
 - **Reproduced**: the PoC ran and triggered the issue. Only these are reported as
   confirmed HIGH / CRITICAL.
 - **Blocked**: the PoC is written and correct but you need something only the
-  operator has, so stop and ask, for an auth cookie or token, an MFA step, or
-  specific test data or an account. Report these separately as suspected and
-  needing verification, with the exact blocker, never mixed into the confirmed
-  set.
+  operator has, an auth cookie or token, an MFA step, or specific test data or an
+  account. Record the exact blocker, mark the finding suspected, and keep
+  reviewing. Do not halt the rounds to ask for it. Collect every blocked PoC's
+  needs and ask the operator for them together once the review is otherwise
+  complete, then verify the batch. Report suspected findings separately from
+  confirmed, with the exact blocker, never mixed into the confirmed set.
 - **Not run with no concrete PoC**: do not report. It is a guess.
 
 Never run a PoC against production, and never use real credentials or perform a
@@ -258,10 +260,16 @@ bugs. The hard classes such as authorization, replay, and broken business state
 usually appear only after several rounds, so keep going.
 
 Run the rounds to the Completeness Gate on your own. Do not pause between rounds
-to ask whether to continue, and do not stop early because a round was productive.
-The one place to stop and ask the operator is PoC verification, when a PoC needs a
-credential, test data, or go-ahead for a destructive action. While a PoC is
-blocked on the operator, keep reviewing other sources rather than waiting.
+to ask whether to continue, do not stop early because a round was productive, and
+do not stop because a PoC is blocked or because you need an operator input to
+grade a finding. When you lack an operator input, such as how broadly a credential
+is distributed or whether a service or tenant is trusted, proceed on the
+conservative assumption that makes the finding exploitable, grade it on that
+basis, and note the assumption in the issue. Gather every operator question, the
+blocked PoC credentials, the trust-boundary confirmations, and the false-positive
+list, and put them in one batch to ask when the review reaches the gate, not
+mid-review. Verifying a destructive action still needs explicit go-ahead before
+you run it.
 
 ## Completeness Gate
 
