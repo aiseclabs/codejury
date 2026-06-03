@@ -10,7 +10,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 1. **Knowledge is rich vulnerability classes, in data.** Security knowledge lives in
    `codejury/data/vulnerabilities/*.md`, with rich per-language vulnerable and secure examples, and
    in the prompts that reference them, not hardcoded in Python. The agent
-   methodology lives in `codejury/data/methodology/`. Detection *logic* is generic,
+   methodology lives in `codejury/data/methodologies/`. Detection *logic* is generic,
    *what* to detect is data, reviewable in a PR. Knowledge is split by axis and
    stays decoupled: vulnerability classes name the weakness, languages and frameworks carry the
    concrete idioms and the entrypoint markers, and protocols and the methodology
@@ -42,7 +42,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Diff engine | standard `AuditRunner` for one call plus adversarial `AdversarialAuditRunner` Finder/Challenger/Judge, and `audit_diff` orchestration to chunk, normalize, and filter | `codejury/diff/`, `diff/runner.py` |
 | Vulnerabilities | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/vulnerabilities/`, `diff/vulnerabilities.py` |
 | Finding + report | flat `Finding`, text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
-| Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/data/methodology/`, `repo/scaffold.py` |
+| Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/data/methodologies/`, `repo/scaffold.py` |
 | RepoModel | language-agnostic file map, flags candidate entrypoint files via guide globs | `codejury/repo/model.py` |
 | Provider | anthropic · openai · litellm · mock with retry, via a factory | `codejury/providers/` |
 | JSON parsing | best-effort extraction of a JSON object from model output | `codejury/json_parse.py` |

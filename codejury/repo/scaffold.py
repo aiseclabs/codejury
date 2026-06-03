@@ -15,10 +15,10 @@ from pathlib import Path
 
 from codejury.guides import Guide, entrypoint_globs, entrypoint_markers, select_guides
 from codejury.repo.model import build_repo_model_from_dir, candidate_entrypoint_files
-from codejury.resources import METHODOLOGY_DIR
+from codejury.resources import METHODOLOGIES_DIR
 
-_METHODOLOGY = METHODOLOGY_DIR / "repo-review.md"
-_MEMORY_TEMPLATE = METHODOLOGY_DIR / "security-review-memory.md"
+_METHODOLOGY = METHODOLOGIES_DIR / "repo-review.md"
+_MEMORY_TEMPLATE = METHODOLOGIES_DIR / "security-review-memory.md"
 
 # top-level dependency manifests scanned to detect the stack (content, not names)
 _MANIFESTS = (

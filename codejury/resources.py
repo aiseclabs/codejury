@@ -12,4 +12,4 @@ VULNERABILITIES_DIR = _DATA / "vulnerabilities"  # vulnerability-class definitio
 LANGUAGES_DIR = _DATA / "languages"    # per-language review guides (how the target works)
 FRAMEWORKS_DIR = _DATA / "frameworks"  # per-framework review guides (how the target works)
 PROTOCOLS_DIR = _DATA / "protocols"    # protocol guides such as oauth (what to check)
-METHODOLOGY_DIR = _DATA / "methodology"  # repo-review methodology and memory template
+METHODOLOGIES_DIR = _DATA / "methodologies"  # repo-review methodology and memory template
