@@ -28,5 +28,5 @@ entrypoint_markers: ["APIView", "ViewSet", "@api_view", "@action", "router.regis
 ## Common Sinks / Gotchas
 - SQL: `.raw()`, `.extra()`, `RawSQL`, or string-built SQL via `connection.cursor()`.
 - Templates: `mark_safe`, `|safe`, `format_html` on unescaped user input, autoescape off.
-- `pickle` / `yaml.load` on a cookie or upload, `DEBUG=True` leaking internals,
-  a hardcoded `SECRET_KEY`.
+- Settings: `DEBUG=True` leaks internals, a hardcoded `SECRET_KEY`. Untrusted
+  deserialization is a language-level sink, see the Python guide.
