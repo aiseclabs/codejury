@@ -6,7 +6,7 @@ Run a codejury whole-repository security review of: $ARGUMENTS
 1. Scaffold the workspace:
 
    ```
-   codejury review $ARGUMENTS --workspace /tmp/codejury-review
+   codejury review repo $ARGUMENTS --workspace /tmp/codejury-review
    ```
 
    If `codejury` is not on PATH it is a pip-installed console script, so activate

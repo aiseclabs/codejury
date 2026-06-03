@@ -46,7 +46,7 @@ _JSON_SHAPE = (
 
 def category_block() -> str:
     """The closed category set the model must choose from, the vulnerability ids."""
-    from codejury.diff.vulnerabilities import allowed_categories
+    from codejury.review.diff.vulnerabilities import allowed_categories
 
     cats = allowed_categories()
     return (

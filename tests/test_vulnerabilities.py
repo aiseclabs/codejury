@@ -1,7 +1,7 @@
 """RW-3: the rich vulnerability-class library loads, and trigger-based selection
 picks the relevant classes for a diff to inject into the audit prompt."""
 
-from codejury.diff.vulnerabilities import (
+from codejury.review.diff.vulnerabilities import (
     Vulnerability,
     allowed_categories,
     load_vulnerabilities,

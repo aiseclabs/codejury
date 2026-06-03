@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from codejury.diff.debate_prompts import (
+from codejury.review.diff.debate_prompts import (
     CHALLENGER_SYSTEM,
     FINDER_SYSTEM,
     JUDGE_SYSTEM,
@@ -19,7 +19,7 @@ from codejury.diff.debate_prompts import (
     finder_prompt,
     judge_prompt,
 )
-from codejury.diff.vulnerabilities import vulnerabilities_for_diff
+from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.domain.finding import Finding, findings_from_list
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider

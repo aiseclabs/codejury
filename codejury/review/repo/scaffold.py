@@ -21,7 +21,7 @@ from codejury.guides import (
     logic_layer_globs,
     select_guides,
 )
-from codejury.review.model import build_repo_model_from_dir, candidate_entrypoint_files, logic_layer_files
+from codejury.review.repo.model import build_repo_model_from_dir, candidate_entrypoint_files, logic_layer_files
 from codejury.resources import METHODOLOGIES_DIR
 
 _METHODOLOGY = METHODOLOGIES_DIR / "repo-review.md"

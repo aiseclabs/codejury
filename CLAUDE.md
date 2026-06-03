@@ -31,7 +31,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 4. **Two paths, matched to nature.** Diff review is coded, a single LLM call or the
    adversarial Finder/Challenger/Judge pass. Whole-repo review is too large for a
    single call, so it ships as a methodology an interactive agent runs, not a
-   pipeline. The `/codejury-review` slash command is a convenience that has
+   pipeline. The `/codejury-review-repo` slash command is a convenience that has
    the agent run that same methodology, it does not reimplement the review as a
    coded pipeline.
 5. **PoC verification is human-in-the-loop and safe.** The repo-review agent
@@ -46,29 +46,29 @@ default behavior. Strategy: see `ROADMAP.md`.
 
 | Layer | Implementation | Location |
 |---|---|---|
-| Diff engine | standard `AuditRunner` for one call plus adversarial `AdversarialAuditRunner` Finder/Challenger/Judge, and `audit_diff` orchestration to chunk, normalize, and filter | `codejury/diff/`, `diff/runner.py` |
-| Vulnerabilities | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/vulnerabilities/`, `diff/vulnerabilities.py` |
+| Diff engine | standard `AuditRunner` for one call plus adversarial `AdversarialAuditRunner` Finder/Challenger/Judge, and `audit_diff` orchestration to chunk, normalize, and filter | `codejury/review/diff/`, `review/diff/runner.py` |
+| Vulnerabilities | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/vulnerabilities/`, `review/diff/vulnerabilities.py` |
 | Finding + report | flat `Finding`, text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
-| Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/data/methodologies/`, `review/scaffold.py` |
-| RepoModel | language-agnostic file map, flags candidate entrypoint files via guide globs | `codejury/review/model.py` |
+| Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/data/methodologies/`, `review/repo/scaffold.py` |
+| RepoModel | language-agnostic file map, flags candidate entrypoint files via guide globs | `codejury/review/repo/model.py` |
 | Detection config | what counts as a source file, a manifest, a noise dir, or test code, across ecosystems, so the code enumerates no language | `codejury/data/detection.yaml`, `codejury/detection.py` |
 | Provider | anthropic · openai · litellm · mock with retry, via a factory | `codejury/providers/` |
 | JSON parsing | best-effort extraction of a JSON object from model output | `codejury/json_parse.py` |
 
 ## Commands
 
-Two verbs, one per path, so `review` means exactly the `/codejury-review` repo
-review. `diff` audits a unified diff via `--file`, `--repo --git-range`, or
-stdin, with `--mode {standard,adversarial}`. `review <dir>` scaffolds a workspace,
-writes the methodology to `<workspace>/METHODOLOGY.md`, and prints a short
-pointer, it does not run the review itself. The `/codejury-review` slash command
+One verb `review`, split by scope. `review diff` audits a unified diff via
+`--file`, `--repo --git-range`, or stdin, with `--mode {standard,adversarial}`.
+`review repo <dir>` scaffolds a workspace, writes the methodology to
+`<workspace>/METHODOLOGY.md`, and prints a short pointer, it does not run the
+review itself. The `/codejury-review-repo` slash command
 runs it inside Claude Code or Codex, so the agent scaffolds then follows
 `METHODOLOGY.md` interactively, which keeps PoC verification human-in-the-loop.
 The slash command ships as package data in `data/commands/`, and `codejury
 install-slash-command [--agent claude|codex]` copies it into the agent's command
 directory so a pip install can use it. The body is portable, only the directory
 differs, and the review itself is agent neutral. `codejury --version` prints the version.
-Shared `diff` flags: `--provider {anthropic,openai,litellm}`, `--model`,
+Shared `review diff` flags: `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`,
 `--no-filter`, `--exclude PATH` repeatable, `--dry-run` for a mock provider with no
 key and a built in demo diff when none is supplied.

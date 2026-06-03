@@ -1,4 +1,4 @@
-"""Diff-audit orchestration (codejury.diff.runner) plus the thin CLI surface.
+"""Diff-audit orchestration (codejury.review.diff.runner) plus the thin CLI surface.
 
 A diff over the size budget is split per file and audited one file at a time so a
 big PR does not overflow the model context and silently truncate the reply. The
@@ -8,7 +8,7 @@ per-file findings are then de-duplicated.
 import pytest
 
 from codejury.cli import main
-from codejury.diff.runner import audit_diff, dedup_findings, split_diff_by_file
+from codejury.review.diff.runner import audit_diff, dedup_findings, split_diff_by_file
 from codejury.domain.finding import Finding
 from codejury.providers.mock import MockProvider
 
@@ -37,7 +37,7 @@ def test_dedup_findings_collapses_identical():
 
 def test_large_diff_is_audited_per_file(monkeypatch):
     # force the chunking path on a small diff
-    monkeypatch.setattr("codejury.diff.runner._MAX_DIFF_CHARS", 1)
+    monkeypatch.setattr("codejury.review.diff.runner._MAX_DIFF_CHARS", 1)
     resp = ('{"findings": [{"file": "a.py", "line": 1, "severity": "HIGH", '
             '"category": "sql_injection", "description": "x", "confidence": 0.9}]}')
     provider = MockProvider(default=resp)
@@ -68,13 +68,13 @@ def test_version_flag_exits_zero(capsys):
 
 def test_review_diff_dry_run_is_zero_config(capsys):
     # no diff input, no key: the built-in demo diff runs through the mock provider
-    rc = main(["diff", "--dry-run"])
+    rc = main(["review", "diff", "--dry-run"])
     assert rc == 0
     assert "sql-injection" in capsys.readouterr().out
 
 
 def test_review_diff_dry_run_respects_exclude(capsys):
-    rc = main(["diff", "--dry-run", "--exclude", "app.py"])
+    rc = main(["review", "diff", "--dry-run", "--exclude", "app.py"])
     assert rc == 0
     assert "no findings" in capsys.readouterr().out
 
@@ -89,7 +89,7 @@ def test_review_repo_writes_methodology_to_workspace(tmp_path):
     # the agent can read it, alongside printing it
     repo = tmp_path / "svc"; repo.mkdir(); (repo / "app.py").write_text("x = 1\n")
     ws = tmp_path / "ws"
-    rc = main(["review", str(repo), "--workspace", str(ws)])
+    rc = main(["review", "repo", str(repo), "--workspace", str(ws)])
     assert rc == 0
     assert (ws / "svc" / "METHODOLOGY.md").is_file()
 
@@ -104,5 +104,5 @@ def test_python_dash_m_codejury_runs():
 def test_install_slash_command_writes_the_file(tmp_path):
     rc = main(["install-slash-command", "--dir", str(tmp_path)])
     assert rc == 0
-    f = tmp_path / "codejury-review.md"
-    assert f.is_file() and "codejury review" in f.read_text()
+    f = tmp_path / "codejury-review-repo.md"
+    assert f.is_file() and "codejury review repo" in f.read_text()

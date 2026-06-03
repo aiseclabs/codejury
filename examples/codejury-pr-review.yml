@@ -37,7 +37,7 @@ jobs:
           CODEJURY_MODEL: claude-sonnet-4-6                     # a strong model matters most
         run: |
           set +e
-          codejury diff \
+          codejury review diff \
             --provider anthropic \
             --repo . \
             --git-range "origin/${{ github.base_ref }}...HEAD" \

@@ -3,8 +3,8 @@ a MockProvider whose responses are consumed in role order per round."""
 
 import json
 
-from codejury.diff.debate import AdversarialAuditRunner
-from codejury.diff.debate_prompts import challenger_prompt, finder_prompt, judge_prompt
+from codejury.review.diff.debate import AdversarialAuditRunner
+from codejury.review.diff.debate_prompts import challenger_prompt, finder_prompt, judge_prompt
 from codejury.providers.mock import MockProvider
 
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"

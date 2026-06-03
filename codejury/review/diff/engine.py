@@ -10,8 +10,8 @@ from __future__ import annotations
 import re
 
 from codejury.domain.finding import Finding, findings_from_list
-from codejury.diff.prompts import SYSTEM, standard_audit_prompt
-from codejury.diff.vulnerabilities import vulnerabilities_for_diff
+from codejury.review.diff.prompts import SYSTEM, standard_audit_prompt
+from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.guides import select_guides
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider

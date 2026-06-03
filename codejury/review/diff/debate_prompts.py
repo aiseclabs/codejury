@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 
-from codejury.diff.prompts import DO_NOT_REPORT, FOCUS, category_block
+from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, category_block
 
 _FINDING_FIELDS = (
     '{"file": "path", "line": 0, "severity": "CRITICAL|HIGH|MEDIUM|LOW", '

@@ -36,34 +36,34 @@ codejury install-slash-command             # Claude Code, ~/.claude/commands/
 codejury install-slash-command --agent codex   # Codex, ~/.codex/prompts/
 ```
 
-`install-slash-command` copies the `/codejury-review` command into the agent's
+`install-slash-command` copies the `/codejury-review-repo` command into the agent's
 command directory. The command body is the same for every agent, only the
 directory differs, so pass `--dir` for any other agent. The repo review itself is
-agent neutral, so even without the command you can run `codejury review` and
+agent neutral, so even without the command you can run `codejury review repo` and
 tell any agent to follow the methodology it writes.
 
 ## Diff Review
 
 ```bash
 # audit a diff file
-codejury diff --file changes.diff
+codejury review diff --file changes.diff
 
 # audit a git range in a repo
-codejury diff --repo /path/to/app --git-range origin/main...HEAD
+codejury review diff --repo /path/to/app --git-range origin/main...HEAD
 
 # from stdin
-git diff HEAD~1 | codejury diff
+git diff HEAD~1 | codejury review diff
 
 # adversarial mode, more recall on subtle flaws, about 3x the cost
-codejury diff --file changes.diff --mode adversarial
+codejury review diff --file changes.diff --mode adversarial
 
 # CI gate and SARIF
-codejury diff --file changes.diff --format sarif --fail-on high
+codejury review diff --file changes.diff --format sarif --fail-on high
 ```
 
 Configure a backend with `--provider`, `--model`, `--api-key`, `--api-base`, or
 the `CODEJURY_API_KEY`, `CODEJURY_MODEL`, and `CODEJURY_API_BASE` environment
-variables. `codejury diff --dry-run` exercises the engine with a mock
+variables. `codejury review diff --dry-run` exercises the engine with a mock
 provider and no key, and falls back to a built in demo diff when you pass none.
 
 ### Choosing a Model and Mode
@@ -103,7 +103,7 @@ run, because a whole repository needs many rounds of reading, cross-file tracing
 and PoC work that an agent does, not a single call.
 
 ```bash
-codejury review /path/to/your/repo
+codejury review repo /path/to/your/repo
 ```
 
 This detects the stack, seeds the entrypoint inventory and the downstream trace
@@ -122,7 +122,7 @@ security-review-memory.md
 Then run it with an interactive agent. In Claude Code or Codex:
 
 ```
-/codejury-review /path/to/your/repo
+/codejury-review-repo /path/to/your/repo
 ```
 
 Any agent works, the slash command is just a shortcut. Without it, tell the agent
