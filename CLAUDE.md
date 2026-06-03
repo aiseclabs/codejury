@@ -39,7 +39,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Rules | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/rules/`, `diff/rules.py` |
 | Finding + report | flat `Finding`; text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
 | Repo review | agent methodology + memory template + workspace scaffold (no pipeline) | `codejury/data/agent/`, `repo/scaffold.py` |
-| RepoModel | deterministic AST entrypoint scan, seeds the entrypoint inventory | `codejury/repo/model.py` |
+| RepoModel | language-agnostic file map; flags candidate entrypoint files via guide globs | `codejury/repo/model.py` |
 | Provider | anthropic · openai · litellm · mock (+ retry), via a factory | `codejury/providers/` |
 | JSON parsing | best-effort extraction of a JSON object from model output | `codejury/json_parse.py` |
 

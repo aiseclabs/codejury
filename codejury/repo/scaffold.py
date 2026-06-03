@@ -4,7 +4,7 @@ The `review repo` path. Whole-repo review is too large for a single LLM call, so
 codejury does not run it as a pipeline. Instead it scaffolds a workspace for an
 interactive agent (Claude Code, Codex) and hands over the methodology: it creates
 the entrypoints/issues/analysis directories, copies the review-memory template,
-seeds the entrypoint inventory from a deterministic RepoModel scan, and returns
+seeds the detected stack guides and the candidate entrypoint files, and returns
 the methodology text to print.
 """
 
@@ -13,8 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from codejury.guides import Guide, select_guides
-from codejury.repo.model import build_repo_model_from_dir
+from codejury.guides import Guide, entrypoint_globs, select_guides
+from codejury.repo.model import build_repo_model_from_dir, candidate_entrypoint_files
 from codejury.resources import AGENT_DIR
 
 _METHODOLOGY = AGENT_DIR / "repo-review.md"
@@ -33,7 +33,7 @@ class ScaffoldResult:
     workspace: Path
     methodology: str
     memory_path: Path
-    entrypoints: int
+    candidate_files: tuple[str, ...] = ()   # files a matched guide flags as likely entrypoints
     guides: tuple[str, ...] = ()
     created: list[str] = field(default_factory=list)
 
@@ -65,22 +65,17 @@ def _stack_md(guides: list[Guide]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _entrypoints_md(model) -> str:
-    http = [e for e in model.entrypoints if e.kind == "http"]
-    cli = [e for e in model.entrypoints if e.kind == "cli"]
-    lines = ["# Entrypoints (seeded from a deterministic scan)", "",
-             "HTTP routes and CLI commands only; add non-HTTP sources here too.", "",
+def _entrypoints_md(candidates: list[str]) -> str:
+    lines = ["# Entrypoints", "",
+             "Files the detected stack flags as likely to define entrypoints (see "
+             "`_stack.md`). Open each, identify the actual entrypoints, and add the "
+             "non-HTTP sources (deserialization, queues, file parsers, ...) here too.", "",
              "Status legend: ❌ not reviewed · ⚠️ to deepen · ✅ reviewed", ""]
-    if http:
-        lines += ["## HTTP routes", ""]
-        lines += [f"- ❌ `{e.method or '-'} {e.route or '-'}`  {e.file}::{e.function}  [{e.framework}]" for e in http]
-        lines.append("")
-    if cli:
-        lines += ["## CLI commands", ""]
-        lines += [f"- ❌ {e.file}::{e.function}  [{e.framework}]" for e in cli]
-        lines.append("")
-    if not model.entrypoints:
-        lines.append("(no entrypoints auto-detected; enumerate them manually while reading the code)")
+    if candidates:
+        lines += [f"- ❌ {f}" for f in candidates]
+    else:
+        lines.append("(no candidate files flagged; enumerate entrypoints by reading the code, "
+                      "guided by `_stack.md`)")
     return "\n".join(lines) + "\n"
 
 
@@ -102,18 +97,21 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
         created.append(str(memory_path))
 
     model = build_repo_model_from_dir(target)
-    (ws / "entrypoints" / "_entrypoints.md").write_text(_entrypoints_md(model), encoding="utf-8")
 
     # detect the stack and seed its review guides (languages + frameworks)
     guides = select_guides(model.files, text=_read_manifests(target))
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
+
+    # flag candidate entrypoint files via the matched guides' declared globs
+    candidates = candidate_entrypoint_files(model.files, entrypoint_globs(guides))
+    (ws / "entrypoints" / "_entrypoints.md").write_text(_entrypoints_md(candidates), encoding="utf-8")
 
     return ScaffoldResult(
         project=project,
         workspace=ws,
         methodology=_METHODOLOGY.read_text(encoding="utf-8"),
         memory_path=memory_path,
-        entrypoints=len(model.entrypoints),
+        candidate_files=tuple(candidates),
         guides=tuple(g.id for g in guides),
         created=created,
     )

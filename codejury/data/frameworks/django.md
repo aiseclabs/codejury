@@ -6,6 +6,7 @@ detect:
   files: ["*urls.py", "manage.py", "*settings.py"]
   manifest: ["django"]
   imports: ["from django", "import django"]
+entrypoint_files: ["*urls.py"]
 ---
 # Django — review notes
 

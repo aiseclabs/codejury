@@ -12,8 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-import yaml
-
+from codejury.mddoc import iter_md_docs
 from codejury.resources import RULES_DIR
 
 _IMPACT_RANK = {"CRITICAL": 3, "HIGH": 2, "MEDIUM": 1, "LOW": 0}
@@ -29,31 +28,19 @@ class Rule:
     body: str
 
 
-def _parse(path: Path) -> Rule | None:
-    text = path.read_text(encoding="utf-8")
-    meta: dict = {}
-    body = text
-    if text.startswith("---"):
-        parts = text.split("---", 2)
-        if len(parts) == 3:
-            meta = yaml.safe_load(parts[1]) or {}
-            body = parts[2].strip()
-    return Rule(
-        id=path.stem,
-        title=str(meta.get("title", path.stem)),
-        impact=str(meta.get("impact", "MEDIUM")).upper(),
-        tags=tuple(meta.get("tags", [])),
-        triggers=tuple(str(t) for t in meta.get("triggers", [])),
-        body=body,
-    )
-
-
 def load_rules(directory: str | Path = RULES_DIR) -> list[Rule]:
-    root = Path(directory)
-    if not root.is_dir():
-        return []
-    rules = [_parse(p) for p in root.glob("*.md") if p.name != "SKILL.md"]
-    return sorted([r for r in rules if r], key=lambda r: r.id)
+    rules = [
+        Rule(
+            id=path.stem,
+            title=str(meta.get("title", path.stem)),
+            impact=str(meta.get("impact", "MEDIUM")).upper(),
+            tags=tuple(meta.get("tags", [])),
+            triggers=tuple(str(t) for t in meta.get("triggers", [])),
+            body=body,
+        )
+        for path, meta, body in iter_md_docs(directory)
+    ]
+    return sorted(rules, key=lambda r: r.id)
 
 
 def select_rules(diff: str, rules: list[Rule], *, limit: int = 6) -> list[Rule]:

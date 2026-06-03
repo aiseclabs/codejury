@@ -15,10 +15,8 @@ from __future__ import annotations
 import fnmatch
 import re
 from dataclasses import dataclass
-from pathlib import Path
 
-import yaml
-
+from codejury.mddoc import iter_md_docs
 from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR
 
 _DIFF_PATH = re.compile(r"^(?:\+\+\+ b/|diff --git a/\S+ b/)(\S+)", re.MULTILINE)
@@ -32,18 +30,11 @@ class Guide:
     detect_files: tuple[str, ...]
     detect_manifest: tuple[str, ...]
     detect_imports: tuple[str, ...]
+    entrypoint_files: tuple[str, ...]   # globs for files likely to define entrypoints
     body: str
 
 
-def _parse(path: Path, kind: str) -> Guide:
-    text = path.read_text(encoding="utf-8")
-    meta: dict = {}
-    body = text
-    if text.startswith("---"):
-        parts = text.split("---", 2)
-        if len(parts) == 3:
-            meta = yaml.safe_load(parts[1]) or {}
-            body = parts[2].strip()
+def _guide(path, meta: dict, body: str, kind: str) -> Guide:
     detect = meta.get("detect", {}) or {}
     return Guide(
         id=str(meta.get("id", path.stem)),
@@ -52,16 +43,24 @@ def _parse(path: Path, kind: str) -> Guide:
         detect_files=tuple(str(f) for f in detect.get("files", [])),
         detect_manifest=tuple(str(m).lower() for m in detect.get("manifest", [])),
         detect_imports=tuple(str(i) for i in detect.get("imports", [])),
+        entrypoint_files=tuple(str(g) for g in meta.get("entrypoint_files", [])),
         body=body,
     )
+
+
+def entrypoint_globs(guides: list[Guide]) -> tuple[str, ...]:
+    """The entrypoint-file globs declared by a set of guides, deduplicated."""
+    seen: dict[str, None] = {}
+    for g in guides:
+        for pat in g.entrypoint_files:
+            seen.setdefault(pat, None)
+    return tuple(seen)
 
 
 def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR) -> list[Guide]:
     out: list[Guide] = []
     for directory, kind in ((languages_dir, "language"), (frameworks_dir, "framework")):
-        root = Path(directory)
-        if root.is_dir():
-            out += [_parse(p, kind) for p in sorted(root.glob("*.md")) if p.name != "SKILL.md"]
+        out += [_guide(path, meta, body, kind) for path, meta, body in iter_md_docs(directory)]
     return out
 
 
