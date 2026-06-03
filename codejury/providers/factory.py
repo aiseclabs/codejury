@@ -14,7 +14,7 @@ PROVIDERS = ("anthropic", "openai", "litellm")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
-# adversarial mode: per-role model overrides; each falls back to the base model.
+# adversarial mode: per-role model overrides, each falls back to the base model.
 DEFAULT_FINDER_MODEL = os.environ.get("CODEJURY_FINDER_MODEL")
 DEFAULT_CHALLENGER_MODEL = os.environ.get("CODEJURY_CHALLENGER_MODEL")
 DEFAULT_JUDGE_MODEL = os.environ.get("CODEJURY_JUDGE_MODEL")

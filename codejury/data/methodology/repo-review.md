@@ -1,10 +1,10 @@
-# Repo Security Review — Agent Methodology
+# Repo Security Review: Agent Methodology
 
 The `review repo` path: a whole-repository security audit, run by an interactive
-coding agent (Claude Code, Codex, etc.), not a one-shot LLM call. It maps the
+coding agent such as Claude Code or Codex, not a one-shot LLM call. It maps the
 attack surface, traces inputs to sinks across files, verifies issues with a real
 PoC, and iterates over multiple rounds with a persistent memory. One round is
-roughly 30 minutes; run as many rounds as needed.
+roughly 30 minutes. Run as many rounds as needed.
 
 Target repository: the directory you were given.
 Workspace: `<workspace>/<project>/` (created for you), holding `entrypoints/`,
@@ -12,11 +12,11 @@ Workspace: `<workspace>/<project>/` (created for you), holding `entrypoints/`,
 
 ---
 
-## On start (do this first)
+## On start
 
 1. Read `security-review-memory.md` in the workspace if it exists:
-   - skip every pattern under "Confirmed false positives";
-   - do not re-report anything under "Fixed";
+   - skip every pattern under "Confirmed false positives".
+   - do not re-report anything under "Fixed".
    - weight the files under "High-risk areas" more heavily.
 2. Read `entrypoints/_entrypoints.md` (seeded): the files the detected stack
    flags as likely to define entrypoints. Open them to find the actual
@@ -34,12 +34,12 @@ The seeded inventory lists HTTP routes and CLI commands only. Before analysing,
 complete the surface: untrusted input enters at more than HTTP. Enumerate every
 source the attacker can influence and add it to `entrypoints/`:
 
-- HTTP routes, GraphQL resolvers, gRPC / RPC handlers, WebSocket handlers;
+- HTTP routes, GraphQL resolvers, gRPC / RPC handlers, WebSocket handlers.
 - CLI commands, scheduled jobs / cron, queue and topic consumers, webhooks and
-  third-party callbacks;
+  third-party callbacks.
 - deserialization points (pickle, yaml.load, marshal), file and document parsers
-  (XML / XXE, YAML, CSV, zip, image / office), template rendering of user input;
-- file uploads, archive extraction, and any filesystem path built from user input;
+  (XML / XXE, YAML, CSV, zip, image / office), template rendering of user input.
+- file uploads, archive extraction, and any filesystem path built from user input.
 - headers, cookies, environment, and config read as trusted, and inbound
   inter-service calls.
 
@@ -61,11 +61,11 @@ Read the implementation reachable from each source. For every one ask:
 - Mass assignment: is a user-controlled body bound wholesale into a model?
 - Signature: is a caller-supplied key trusted as the trust anchor?
 
-## Trace attack paths (the core work)
+## Trace attack paths, the core work
 
 A whole-repo review earns its keep by reasoning *across files*: a flaw is usually
 a source in one file reaching a dangerous sink in another, past a control defined
-in a third (a route that trusts a helper which skips signature checks; an id that
+in a third (a route that trusts a helper which skips signature checks, an id that
 reaches a query with no ownership check). For each promising source, trace the
 path and record it in `analysis/`:
 
@@ -129,7 +129,7 @@ destructive action without the operator's explicit go-ahead.
 ## Iteration
 
 Each round, read the workspace history first and do not repeat finished work.
-Process leftover TODOs; otherwise pick an unreviewed (❌) or to-deepen (⚠️)
+Process leftover TODOs, otherwise pick an unreviewed (❌) or to-deepen (⚠️)
 source from the inventory. When every source is ✅ and there are no TODOs,
 report the review complete.
 

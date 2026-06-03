@@ -26,7 +26,7 @@ _FINDING_FIELDS = (
 
 FINDER_SYSTEM = (
     "You are a red-team application security engineer. Enumerate every plausible "
-    "exploitable vulnerability an attacker could reach; do not self-censor or pre-filter "
+    "exploitable vulnerability an attacker could reach. Do not self-censor or pre-filter "
     "for fear of false positives, the Challenger and Judge will do that. Respond with a "
     "single JSON object and nothing else."
 )
@@ -102,7 +102,7 @@ def judge_prompt(diff: str, finder_findings: list, rebuttals: list, new_findings
         "- UNRESOLVED: cannot decide from the code shown -> put it in `unresolved`.\n"
         "- INVESTIGATE: needs a dynamic/runtime check to confirm -> put it in `investigate`.\n"
         "Set `converged` to true when this round surfaced no new confirmed finding and nothing is left to "
-        "investigate; false if another round could still change the ruling.\n\n"
+        "investigate. Set it to false if another round could still change the ruling.\n\n"
         f"Code change (unified diff):\n```diff\n{diff}\n```\n\n{context_block}"
         f"Finder findings:\n{json.dumps(finder_findings, ensure_ascii=False)}\n\n"
         f"Challenger rebuttals:\n{json.dumps(rebuttals, ensure_ascii=False)}\n\n"

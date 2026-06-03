@@ -8,7 +8,7 @@ triggers: ["api_key =", "API_KEY =", "password =", "secret =", "token =", "sk_li
 
 ## Hardcoded Secrets
 
-A literal credential, key, or token in source leaks with the code and cannot be rotated easily. Load secrets from environment variables or a secret manager. A variable that reads from the environment or is passed in as a parameter is fine; only an actual literal value is a finding.
+A literal credential, key, or token in source leaks with the code and cannot be rotated easily. Load secrets from environment variables or a secret manager. A variable that reads from the environment or is passed in as a parameter is fine. Only an actual literal value is a finding.
 
 ### Python
 Vulnerable:

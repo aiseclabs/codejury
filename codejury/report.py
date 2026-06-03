@@ -49,8 +49,8 @@ def to_markdown(findings: list[Finding]) -> str:
     out = ["## Security review", "",
            f"{b['CRITICAL']} critical, {b['HIGH']} high, {b['MEDIUM']} medium, {b['LOW']} low.", ""]
     for f in _sorted(findings):
-        cat = f" ({f.category})" if f.category else ""
-        out.append(f"### {f.severity}{cat} — `{_loc(f)}`")
+        cat = f" {f.category}" if f.category else ""
+        out.append(f"### {f.severity}{cat} `{_loc(f)}`")
         if f.description:
             out.append(f"\n{f.description}")
         if f.exploit_scenario:

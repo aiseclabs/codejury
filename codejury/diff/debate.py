@@ -34,7 +34,7 @@ class AdversarialResult:
     investigate: list[dict] = field(default_factory=list)
     rounds: int = 0
     converged: bool = False
-    degraded: bool = False  # the judge response was unusable; findings are the unjudged fallback
+    degraded: bool = False  # the judge response was unusable, findings are the unjudged fallback
 
 
 def _dicts(items: object) -> list[dict]:
@@ -91,16 +91,16 @@ class AdversarialAuditRunner:
     ) -> None:
         self._provider = provider
         self._max_tokens = max_tokens
-        # each role can run on its own model (a strong finder, a skeptical
-        # challenger, a careful judge); each defaults to the base model.
+        # each role can run on its own model, each defaults to the base model
         self._finder_model = finder_model or model
         self._challenger_model = challenger_model or model
         self._judge_model = judge_model or model
 
     def _ask(self, system: str, prompt: str, model: str) -> tuple[dict, bool]:
-        """Returns (parsed object, ok). ok is False when the response could not be
-        parsed into a JSON object (a provider error page, a blocked request, prose),
-        so the caller can avoid treating an unusable reply as an empty result."""
+        """Return the parsed object and an ok flag. ok is False when the response
+        could not be parsed into a JSON object, for example a provider error page,
+        a blocked request, or prose, so the caller does not treat an unusable reply
+        as an empty result."""
         try:
             result = self._provider.complete(
                 system=system,
@@ -109,15 +109,15 @@ class AdversarialAuditRunner:
                 max_tokens=self._max_tokens,
             )
         except Exception:
-            # a provider error (exhausted retries, blank body, transport failure)
-            # is an unusable reply, not an empty result; degrade gracefully
+            # a provider error such as exhausted retries or a transport failure
+            # is an unusable reply, not an empty result, so degrade gracefully
             return {}, False
         obj = extract_json_object(result.text)
         return (obj or {}), bool(obj)
 
     def run(self, diff: str, *, rules: str = "", context: str = "", max_rounds: int = 3) -> AdversarialResult:
         if not rules:
-            rules = rules_for_diff(diff)  # inject the rules relevant to this diff
+            rules = rules_for_diff(diff)
         prior: list[dict] = []
         prev_keys: set | None = None
         judged = AdversarialResult(findings=[])
@@ -142,14 +142,13 @@ class AdversarialAuditRunner:
             verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge_model)
             if not judge_ok:
                 # the judge is the filter that controls false positives, and an
-                # unusable reply is often transient (a flaky proxy, a blocked
-                # request); re-ask once before giving up on it
+                # unusable reply is usually transient, so re-ask once before degrading
                 verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge_model)
             if not judge_ok:
                 # judge still unusable: degrade, but apply the recall-safe
-                # challenger's dismissals so a transient judge outage does not pass
-                # through findings the challenger already showed are safe (this is
-                # what otherwise inflates false positives in degraded runs)
+                # challenger dismissals so a transient judge outage does not pass
+                # through findings the challenger already showed are safe. without
+                # this the degraded fallback inflates false positives
                 fallback = _dedup(_apply_dismissals(finder_findings, rebuttals) + new_findings)
                 judged = AdversarialResult(findings=findings_from_list(fallback), rounds=rounds, degraded=True)
                 degraded = True

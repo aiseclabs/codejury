@@ -22,4 +22,4 @@ el.textContent = "Hello " + username;
 
 ### Python (templates)
 Vulnerable: `return render_template_string("<div>" + user_input + "</div>")`
-Secure: rely on Jinja auto-escaping; never apply `| safe` to user data.
+Secure: rely on Jinja auto-escaping. Never apply `| safe` to user data.

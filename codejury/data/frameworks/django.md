@@ -8,7 +8,7 @@ detect:
   imports: ["from django", "import django"]
 entrypoint_files: ["*urls.py"]
 ---
-# Django — review notes
+# Django review notes
 
 ## Entrypoints
 - Routes live in `urls.py`: `path()` / `re_path()` map a URL to a view.
@@ -26,6 +26,6 @@ entrypoint_files: ["*urls.py"]
 
 ## Common sinks / gotchas
 - SQL: `.raw()`, `.extra()`, `RawSQL`, or string-built SQL via `connection.cursor()`.
-- Templates: `mark_safe`, `|safe`, `format_html` on unescaped user input; autoescape off.
-- `pickle` / `yaml.load` on a cookie or upload; `DEBUG=True` leaking internals;
+- Templates: `mark_safe`, `|safe`, `format_html` on unescaped user input, autoescape off.
+- `pickle` / `yaml.load` on a cookie or upload, `DEBUG=True` leaking internals,
   a hardcoded `SECRET_KEY`.

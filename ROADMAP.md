@@ -20,7 +20,7 @@ whole-repo audit is too large for one call. codejury answers each:
   interactive agent over multiple rounds, not a per-chunk LLM call. codejury
   ships the methodology and scaffolds the workspace.
 - **Sharp scope + human-in-the-loop.** A do-not-report list and a false-positive
-  filter keep noise down; the repo-review agent confirms issues with a PoC and a
+  filter keep noise down. The repo-review agent confirms issues with a PoC and a
   persistent memory of confirmed false positives.
 
 ## Capability boundaries (honest)
@@ -36,8 +36,8 @@ dependency scanning, dynamic testing, pentest, or runtime defense.
 
 - **Diff engine**: standard + adversarial shipped. Next: tune prompts on real
   diffs, measure precision/recall on real PRs (not a synthetic corpus).
-- **Rules**: grow `data/rules/` coverage and per-language depth; it is data.
+- **Rules**: grow `data/rules/` coverage and per-language depth, it is data.
 - **Repo review**: refine the methodology, the entrypoint seeding, and the
   review-memory loop from real audits.
 - **Validation**: the real measure is efficacy on real repositories with a real
-  provider; that drives prompt and rule changes.
+  provider, which drives prompt and rule changes.

@@ -1,4 +1,4 @@
-# Security Review Memory — <project>
+# Security Review Memory: <project>
 
 > Maintained by the security-review agent. Read at the start of every round,
 > updated at the end. It skips confirmed false positives, avoids re-reporting
@@ -22,7 +22,7 @@
 
 ## High-risk areas (weight every round)
 
-<!-- - `<path>` — <reason, e.g. past auth bypass> -->
+<!-- - `<path>`: <reason, for example a past auth bypass> -->
 
 ## Audit history
 

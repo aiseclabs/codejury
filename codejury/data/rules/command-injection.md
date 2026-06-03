@@ -8,7 +8,7 @@ triggers: ["os.system", "os.popen", "subprocess", "shell=True", "Runtime.getRunt
 
 ## Command Injection
 
-Passing untrusted input to a shell lets an attacker run arbitrary commands. Never build a shell string from input; pass an argument list with the shell disabled.
+Passing untrusted input to a shell lets an attacker run arbitrary commands. Never build a shell string from input. Pass an argument list with the shell disabled.
 
 ### Python
 Vulnerable:

@@ -46,8 +46,8 @@ class AuditRunner:
 
     def run(self, diff: str, *, rules: str = "", context: str = "") -> list[Finding]:
         if not rules:
-            rules = rules_for_diff(diff)  # inject the rules relevant to this diff
-        stack = guides_for_diff(diff)     # inject the target's language/framework conventions
+            rules = rules_for_diff(diff)
+        stack = guides_for_diff(diff)
         result = self._provider.complete(
             system=SYSTEM,
             messages=[Message(role="user", content=standard_audit_prompt(diff, rules=rules, context=context, stack=stack))],
@@ -57,8 +57,8 @@ class AuditRunner:
         obj = extract_json_object(result.text)
         if obj is None or "findings" not in obj:
             raise AuditError(
-                "the model reply was not a valid audit result (no JSON object, or a "
-                "JSON object without a `findings` key); treating it as a failed "
-                "audit rather than a clean pass"
+                "the model reply was not a valid audit result. it had no JSON object, "
+                "or a JSON object without a findings key, so it is a failed audit "
+                "rather than a clean pass"
             )
         return findings_from_list(obj.get("findings"))

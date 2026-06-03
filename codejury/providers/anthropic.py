@@ -1,7 +1,7 @@
 """AnthropicProvider: Provider backed by the Anthropic Messages API.
 
 When ``cache`` is set, the system prompt is marked with an ephemeral
-cache_control block; the capability checklist is large and reused across
+cache_control block. The capability checklist is large and reused across
 artifacts, so caching it is the high-value target.
 
 The Anthropic client is injectable so the mapping and caching logic can be
@@ -30,7 +30,7 @@ class AnthropicProvider(Provider):
                 import anthropic
             except ImportError as exc:
                 raise RuntimeError(
-                    "anthropic SDK not installed; run: pip install 'codejury[anthropic]'"
+                    "anthropic SDK not installed. run: pip install 'codejury[anthropic]'"
                 ) from exc
             kwargs: dict[str, Any] = {}
             if self._api_key:
@@ -56,7 +56,7 @@ class AnthropicProvider(Provider):
         response = self._get_client().messages.create(
             model=model,
             max_tokens=max_tokens,
-            temperature=0,  # determinism: same input -> same verdicts (invariant 2)
+            temperature=0,  # determinism: same input gives the same verdicts, invariant 2
             timeout=600,    # bound a hung request rather than hang the audit
             system=system_param,
             messages=[{"role": m.role, "content": m.content} for m in messages],

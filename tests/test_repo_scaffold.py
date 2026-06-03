@@ -58,11 +58,11 @@ def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):
     # the seed says so and the agent enumerates from the code
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert res.candidate_files == ()
-    assert "no candidate files flagged" in (res.workspace / "entrypoints" / "_entrypoints.md").read_text()
+    assert "No candidate files flagged" in (res.workspace / "entrypoints" / "_entrypoints.md").read_text()
 
 
 def test_scaffold_seeds_stack_guides(tmp_path):
-    # the Flask target is Python; the python language guide should be detected and
+    # the Flask target is Python, so the python language guide should be detected and
     # its notes written to _stack.md
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert "python" in res.guides
@@ -105,4 +105,4 @@ def test_plain_repo_still_scaffolds(tmp_path):
     (d / "notes.txt").write_text("hi")
     res = scaffold(d, tmp_path / "work")
     assert res.candidate_files == ()
-    assert "enumerate entrypoints by reading the code" in (res.workspace / "entrypoints" / "_entrypoints.md").read_text()
+    assert "Enumerate entrypoints by reading" in (res.workspace / "entrypoints" / "_entrypoints.md").read_text()

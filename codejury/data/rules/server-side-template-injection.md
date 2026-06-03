@@ -8,7 +8,7 @@ triggers: ["render_template_string", "Template(", "from_string", "Jinja2", "{{",
 
 ## Server-Side Template Injection (SSTI)
 
-Building a template from untrusted input (rather than passing input as template data) lets an attacker inject template syntax that the engine evaluates, often reaching RCE. Pass untrusted values as data to a fixed template; never compile a template from user input.
+Building a template from untrusted input (rather than passing input as template data) lets an attacker inject template syntax that the engine evaluates, often reaching RCE. Pass untrusted values as data to a fixed template. Never compile a template from user input.
 
 ### Python (Jinja2)
 Vulnerable:

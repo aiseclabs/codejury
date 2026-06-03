@@ -73,7 +73,7 @@ def _matches(guide: Guide, files: list[str], text: str) -> bool:
 
 def select_guides(files, *, text: str = "", guides: list[Guide] | None = None) -> list[Guide]:
     """The guides whose detect signals fire on the target, languages first then
-    frameworks. `files` are the target's file paths; `text` is content to scan for
+    frameworks. `files` are the target's file paths. `text` is content to scan for
     manifest substrings and import markers (a repo's manifests, or a diff body)."""
     pool = load_guides() if guides is None else guides
     file_list = list(files)

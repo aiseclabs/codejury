@@ -30,10 +30,10 @@ class Finding:
 
 
 def _to_float(value: object, default: float) -> float:
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         return default
     try:
-        f = float(value)  # type: ignore[arg-type]
+        f = float(value)
     except (TypeError, ValueError):
         return default
     return f if 0.0 <= f <= 1.0 else default

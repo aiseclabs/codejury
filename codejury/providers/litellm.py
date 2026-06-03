@@ -22,7 +22,7 @@ class LiteLLMProvider(Provider):
         *,
         api_key: str | None = None,
         api_base: str | None = None,
-        temperature: float = 0.0,  # determinism: same input -> same verdicts (invariant 2)
+        temperature: float = 0.0,  # determinism: same input gives the same verdicts, invariant 2
         completion: Callable[..., Any] | None = None,
     ) -> None:
         self._api_key = api_key
@@ -35,7 +35,7 @@ class LiteLLMProvider(Provider):
             try:
                 import litellm
             except ImportError as exc:
-                raise RuntimeError("litellm not installed; run: pip install 'codejury[litellm]'") from exc
+                raise RuntimeError("litellm not installed. run: pip install 'codejury[litellm]'") from exc
             self._completion = litellm.completion
         return self._completion
 

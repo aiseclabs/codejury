@@ -18,4 +18,4 @@ Vulnerable:
 def change_email():
     current_user.email = request.form["email"]; db.commit()
 ```
-Secure: keep CSRF protection on; validate the token, or set the session cookie `SameSite="Lax"` and check the Origin header.
+Secure: keep CSRF protection on. Validate the token, or set the session cookie `SameSite="Lax"` and check the Origin header.

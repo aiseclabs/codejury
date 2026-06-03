@@ -66,4 +66,4 @@ class RetryProvider(Provider):
             if attempt == self._max_attempts:
                 raise EmptyResponseError("provider returned a blank response after all attempts")
             self._sleep(self._base_delay * attempt)
-        raise AssertionError("unreachable")  # pragma: no cover
+        raise EmptyResponseError("retry provider was configured with no attempts")

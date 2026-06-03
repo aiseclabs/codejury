@@ -8,7 +8,7 @@ description: "Application security rules for reviewing code for exploitable vuln
 Application-security rules, one file per weakness class under `rules/`, named by
 the specific weakness (CWE-style). Each rule states impact, the markers to hunt
 (`triggers`), and vulnerable-vs-secure examples. The diff-audit engine injects the
-rules relevant to a change into the prompt; the repo-review agent reads them for
+rules relevant to a change into the prompt. The repo-review agent reads them for
 the target's stack. A finding's `category` is one of these ids.
 
 ## Rules by OWASP category

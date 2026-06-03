@@ -33,7 +33,7 @@ Do NOT report, regardless of severity:
 - Risks that only matter if a production config is leaked (do not assume the code
   shown reflects production configuration).
 For input-driven issues, flag only when untrusted input can plausibly reach the
-sink; a constant, a stored field, trusted config, or an operator-supplied CLI
+sink. A constant, a stored field, trusted config, or an operator-supplied CLI
 argument is not attacker-controlled.
 """
 

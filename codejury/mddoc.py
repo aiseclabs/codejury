@@ -2,7 +2,7 @@
 
 Both the vulnerability rules (`data/rules`) and the language/framework guides
 (`data/languages`, `data/frameworks`) are markdown files with a YAML frontmatter
-and a body. This holds only that shared mechanics; each caller builds its own
+and a body. This holds only that shared mechanics. Each caller builds its own
 typed record and applies its own selection, since rules select by trigger text
 and guides select by detection signals.
 """

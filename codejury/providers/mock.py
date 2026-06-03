@@ -12,7 +12,7 @@ from codejury.providers.base import CompletionResult, Message, Provider
 
 class MockProvider(Provider):
     def __init__(self, *, responses: list[str] | None = None, default: str = "") -> None:
-        # responses are returned in order, one per call; once exhausted, `default`
+        # responses are returned in order, one per call. Once exhausted, `default`
         # is returned for every further call.
         self._responses = list(responses or [])
         self._default = default

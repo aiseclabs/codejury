@@ -73,7 +73,7 @@ Audit every pull request and surface findings in the code scanning tab. Copy
 2. write SARIF and upload it with `github/codeql-action/upload-sarif`,
 3. fail the check on a HIGH or CRITICAL finding (`--fail-on high`).
 
-The job makes one model call per PR (standard mode); the SARIF is uploaded even
+The job makes one model call per PR (standard mode). The SARIF is uploaded even
 when the gate fails, so findings always show up on the PR.
 
 ## Whole-repo review
@@ -94,11 +94,11 @@ against production.
 
 Each finding carries a file and line, a severity and category, a concrete
 exploit scenario, a recommendation, and a confidence. A false-positive filter
-drops test/mock-path and low-confidence noise; the model is also told not to
+drops test/mock-path and low-confidence noise. The model is also told not to
 report dependency CVEs, style notes, speculation, or config-leak-only risks.
 
 ## Extending
 
 Add a vulnerability class by dropping a new `codejury/data/rules/<class>.md` with
 the standard frontmatter (title, impact, tags, triggers) and vulnerable/secure
-examples. It is data; no code change needed.
+examples. It is data, no code change needed.

@@ -1,7 +1,7 @@
 name: Publish to PyPI
 
-# Publishes on GitHub Release. Uses PyPI Trusted Publishing (OIDC) — no API
-# token is stored anywhere; PyPI verifies this repo + environment instead.
+# Publishes on GitHub Release. Uses PyPI Trusted Publishing via OIDC, so no API
+# token is stored anywhere; PyPI verifies this repo and environment instead.
 on:
   release:
     types: [published]

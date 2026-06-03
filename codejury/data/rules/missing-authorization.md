@@ -8,7 +8,7 @@ triggers: ["@app.route", "@router", "@login_required", "requires_", "permission"
 
 ## Missing Authorization
 
-A privileged or state-changing endpoint performs its action without verifying the caller is allowed to, or derives the role/permission from a client-controlled value. Enforce authorization server-side, per request, from a trusted store; a route that mutates or exposes privileged data must check the caller's rights the same way its peers do.
+A privileged or state-changing endpoint performs its action without verifying the caller is allowed to, or derives the role/permission from a client-controlled value. Enforce authorization server-side, per request, from a trusted store. A route that mutates or exposes privileged data must check the caller's rights the same way its peers do.
 
 ### Python
 Vulnerable:

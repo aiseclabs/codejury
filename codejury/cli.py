@@ -133,7 +133,7 @@ def _dispatch(args, parser) -> int:
         res = scaffold(args.directory, args.workspace)
         print(f"Workspace: {res.workspace}", file=sys.stderr)
         if res.guides:
-            print(f"Detected stack ({', '.join(res.guides)}); notes in {res.workspace}/_stack.md", file=sys.stderr)
+            print(f"Detected stack: {', '.join(res.guides)}. Notes in {res.workspace}/_stack.md", file=sys.stderr)
         print(f"Flagged {len(res.candidate_files)} candidate entrypoint files into "
               f"{res.workspace}/entrypoints/_entrypoints.md", file=sys.stderr)
         print(f"Memory: {res.memory_path}", file=sys.stderr)

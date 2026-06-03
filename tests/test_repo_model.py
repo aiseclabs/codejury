@@ -1,4 +1,4 @@
-"""RepoModel is a language-agnostic file map; candidate entrypoint files are
+"""RepoModel is a language-agnostic file map. Candidate entrypoint files are
 flagged by guide-declared globs, not by parsing code."""
 
 from codejury.repo.model import (

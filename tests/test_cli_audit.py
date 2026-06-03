@@ -1,7 +1,7 @@
 """Diff-audit orchestration (codejury.diff.runner) plus the thin CLI surface.
 
 A diff over the size budget is split per file and audited one file at a time so a
-big PR does not overflow the model context and silently truncate the reply; the
+big PR does not overflow the model context and silently truncate the reply. The
 per-file findings are then de-duplicated.
 """
 

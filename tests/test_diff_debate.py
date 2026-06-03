@@ -165,7 +165,7 @@ def test_judge_retry_recovers_from_a_transient_unusable_reply():
 
 
 def test_degraded_fallback_drops_challenger_dismissed_findings():
-    # judge stays unusable (both the call and its retry); the degraded fallback
+    # judge stays unusable (both the call and its retry). The degraded fallback
     # must still honor the challenger's recall-safe dismissals rather than pass
     # every finder finding through, which is what inflates false positives
     second = {**_VULN, "line": 5, "category": "xss"}

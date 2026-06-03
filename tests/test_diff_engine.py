@@ -1,5 +1,5 @@
 """RW-1: the standard diff-audit engine, the Finding domain, and the
-false-positive filter. Deterministic with a MockProvider; no key."""
+false-positive filter. Deterministic with a MockProvider, no key."""
 
 import json
 
@@ -62,7 +62,7 @@ def test_engine_empty_on_no_findings():
 
 def test_engine_raises_on_unparseable_reply():
     # an unusable reply (provider error page, blank body, prose) must not be
-    # reported as a clean audit; it is a failure
+    # reported as a clean audit, it is a failure
     import pytest
 
     from codejury.diff.engine import AuditError
@@ -122,7 +122,7 @@ def test_filter_drops_test_file_naming_outside_test_dir():
 
 
 def test_filter_keeps_production_file_with_sampleish_name():
-    # the old over-broad regex dropped these; a bare sample_/mock_ prefix is production
+    # the old over-broad regex dropped these, but a bare sample_/mock_ prefix is production
     kept, dropped = FindingsFilter().filter(
         [_f("app/sample_rate.py"), _f("app/mock_billing.py"), _f("app/example_config.py")]
     )

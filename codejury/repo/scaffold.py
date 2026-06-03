@@ -52,12 +52,12 @@ def _read_manifests(target: Path) -> str:
 
 def _stack_md(guides: list[Guide]) -> str:
     if not guides:
-        return ("# Detected stack — review notes\n\n"
-                "(no language or framework guide matched; rely on the methodology and "
-                "your own knowledge of the stack)\n")
+        return ("# Detected stack\n\n"
+                "No language or framework guide matched. Rely on the methodology and "
+                "your own knowledge of the stack.\n")
     langs = [g.id for g in guides if g.kind == "language"]
     fws = [g.id for g in guides if g.kind == "framework"]
-    lines = ["# Detected stack — review notes", "",
+    lines = ["# Detected stack", "",
              f"Languages: {', '.join(langs) or '-'}",
              f"Frameworks: {', '.join(fws) or '-'}", ""]
     for g in guides:
@@ -67,15 +67,15 @@ def _stack_md(guides: list[Guide]) -> str:
 
 def _entrypoints_md(candidates: list[str]) -> str:
     lines = ["# Entrypoints", "",
-             "Files the detected stack flags as likely to define entrypoints (see "
-             "`_stack.md`). Open each, identify the actual entrypoints, and add the "
-             "non-HTTP sources (deserialization, queues, file parsers, ...) here too.", "",
+             "Files the detected stack flags as likely to define entrypoints, see "
+             "`_stack.md`. Open each, identify the actual entrypoints, and add "
+             "non-HTTP sources such as deserialization, queues, and file parsers here too.", "",
              "Status legend: ❌ not reviewed · ⚠️ to deepen · ✅ reviewed", ""]
     if candidates:
         lines += [f"- ❌ {f}" for f in candidates]
     else:
-        lines.append("(no candidate files flagged; enumerate entrypoints by reading the code, "
-                      "guided by `_stack.md`)")
+        lines.append("No candidate files flagged. Enumerate entrypoints by reading "
+                      "the code, guided by `_stack.md`.")
     return "\n".join(lines) + "\n"
 
 

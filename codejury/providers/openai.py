@@ -26,7 +26,7 @@ class OpenAIProvider(Provider):
             try:
                 import openai
             except ImportError as exc:
-                raise RuntimeError("openai not installed; run: pip install 'codejury[openai]'") from exc
+                raise RuntimeError("openai not installed. run: pip install 'codejury[openai]'") from exc
             kwargs: dict[str, Any] = {}
             if self._api_key:
                 kwargs["api_key"] = self._api_key
@@ -53,7 +53,7 @@ class OpenAIProvider(Provider):
             model=model,
             messages=api_messages,
             max_tokens=max_tokens,
-            temperature=0,  # determinism: same input -> same verdicts (invariant 2)
+            temperature=0,  # determinism: same input gives the same verdicts, invariant 2
             timeout=600,    # bound a hung request rather than hang the audit
         )
         return CompletionResult(text=choice_text(response))

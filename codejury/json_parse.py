@@ -86,7 +86,7 @@ def _first_balanced_object(text: str) -> dict | None:
 
 def _repair(text: str) -> dict | None:
     """Last resort: repair malformed or truncated JSON (unescaped quotes, trailing
-    commas, an unterminated reply). Optional dependency; a no-op if absent."""
+    commas, an unterminated reply). Optional dependency, a no-op if absent."""
     try:
         from json_repair import repair_json
     except ImportError:
