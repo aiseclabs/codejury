@@ -33,7 +33,7 @@ from codejury.providers.factory import (
     make_provider,
 )
 from codejury.providers.mock import MockProvider
-from codejury.repo.scaffold import scaffold
+from codejury.review.scaffold import scaffold
 
 _FORMATS = ("text", "markdown", "json", "sarif")
 _FAIL_ON = ("critical", "high", "medium", "low")
@@ -55,7 +55,7 @@ def _dry_run_diff() -> str:
     return "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
 
 
-# canned reply for `review diff --dry-run`: a mock provider returns this so the
+# canned reply for `diff --dry-run`: a mock provider returns this so the
 # pipeline runs end to end with no key and no backend call
 _MOCK_REPLY = (
     '{"findings": [{"file": "app.py", "line": 1, "severity": "HIGH", '
@@ -65,7 +65,7 @@ _MOCK_REPLY = (
 
 
 def _add_audit_args(p) -> None:
-    """The diff-audit flags for `review diff`."""
+    """The diff-audit flags for `diff`."""
     p.add_argument("--file", default=None, help="unified diff file (default: read stdin)")
     p.add_argument("--repo", default=None, help="repo path for --git-range")
     p.add_argument("--git-range", default=None, help="git range to diff, e.g. origin/main...HEAD")
