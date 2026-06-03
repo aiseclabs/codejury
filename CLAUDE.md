@@ -70,5 +70,11 @@ key; a built-in demo diff when none is supplied).
 ## Boundaries
 
 - Real-world detection quality is what matters; measure it on real diffs, not a
-  synthetic golden set. Favor the adversarial mode and the do-not-report list to
-  keep false positives down.
+  synthetic golden set.
+- The model dominates detection quality, then the mode. On real-diff probes a
+  strong model (Sonnet tier) in standard mode caught every planted vulnerability
+  with near-zero false positives; a weaker model raised false positives in both
+  modes. Default to standard mode with a strong model. The do-not-report list and
+  the post-filter keep false positives down; adversarial mode did not lower them
+  over standard and costs ~3x, so reach for it for extra recall on subtle
+  cross-file logic, not as a false-positive reducer.

@@ -3,8 +3,9 @@
 AI code security review, in two paths matched to their nature:
 
 - **Diff review** (coded): audit a pull request's diff for newly introduced,
-  exploitable risks. A single balanced LLM call, or an adversarial
-  Finder/Challenger/Judge pass for higher coverage and fewer false positives.
+  exploitable risks. A single balanced LLM call (the default), or an adversarial
+  Finder/Challenger/Judge pass that trades roughly 3x the cost for extra recall
+  on subtle, cross-cutting flaws.
 - **Whole-repo review** (agent-driven): a methodology an interactive agent
   (Claude Code, Codex) runs to traverse a codebase from its API entrypoints,
   verify issues with a real PoC, and iterate over rounds with a persistent
@@ -34,7 +35,7 @@ codejury review diff --repo /path/to/app --git-range origin/main...HEAD
 # from stdin
 git diff HEAD~1 | codejury review diff
 
-# adversarial mode: Finder + Challenger + Judge (higher coverage, lower FP, ~3x cost)
+# adversarial mode: Finder + Challenger + Judge (extra recall on subtle flaws, ~3x cost)
 codejury review diff --diff-file changes.diff --mode adversarial
 
 # CI gate + SARIF
@@ -45,6 +46,22 @@ Configure a backend with `--provider`/`--model`/`--api-key`/`--api-base` or the
 `CODEJURY_API_KEY` / `CODEJURY_MODEL` / `CODEJURY_API_BASE` environment variables.
 `codejury review diff --dry-run` exercises the engine with a mock provider and
 no key (it uses a built-in demo diff when you do not pass one).
+
+### Choosing a model and mode
+
+Detection quality is dominated by the model first, then the mode. On real-diff
+probes:
+
+- A strong model (Claude Sonnet tier) in **standard** mode caught every planted
+  vulnerability with near-zero false positives. A weaker model raised false
+  positives in both modes, so the model is the lever that matters most.
+- **Adversarial** mode did not lower false positives over standard on those
+  probes and costs ~3x. Reach for it for extra recall on subtle, cross-file
+  logic, not as a false-positive reducer.
+
+Default to **standard mode with a strong model** (set it with `--model` or
+`CODEJURY_MODEL`). False positives are held down by the do-not-report list and
+the post-filter, not by the mode.
 
 ## Whole-repo review
 
