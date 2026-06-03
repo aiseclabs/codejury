@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
     _add_audit_args(rsub.add_parser("diff", help="audit a unified diff (the coded engine)"))
     repo = rsub.add_parser("repo", help="scaffold a whole-repo review for an interactive agent")
     repo.add_argument("directory", help="target repository to review")
-    repo.add_argument("--workspace", default="codejury-review", help="where to create the review workspace")
+    repo.add_argument("--workspace", default="/var/tmp/codejury-review", help="where to create the review workspace")
 
     inst = sub.add_parser("install-slash-command",
                           help="install the /codejury-review-repo slash command for an agent")
