@@ -22,7 +22,7 @@ It runs two paths matched to their nature.
   ships the methodology and scaffolds the workspace instead of running a
   pipeline.
 
-Security knowledge lives in rich rules under `codejury/data/rules/*.md`, with a
+Security knowledge lives in rich vulnerability classes under `codejury/data/vulnerabilities/*.md`, with a
 vulnerable and a secure example per language, injected into the audit prompt
 rather than buried in code.
 
@@ -96,7 +96,7 @@ codejury review repo /path/to/your/repo
 This scaffolds a review workspace with `entrypoints/`, `issues/`, `analysis/`,
 and a `security-review-memory.md`, seeds the entrypoint inventory from a
 deterministic scan, and prints the methodology. Run it with an interactive agent.
-It reads the methodology and the rules, maps the attack surface, traces inputs to
+It reads the methodology and the vulnerability classes, maps the attack surface, traces inputs to
 sinks across files, records high confidence issues with a PoC, and asks you to
 confirm credentials or false positives along the way. Nothing runs against
 production.
@@ -111,6 +111,6 @@ production config leaks.
 
 ## Extending
 
-Add a vulnerability class by dropping a new file `codejury/data/rules/<class>.md`
+Add a vulnerability class by dropping a new file `codejury/data/vulnerabilities/<class>.md`
 with the standard frontmatter of title, impact, tags, and triggers plus a
 vulnerable and a secure example. It is data, no code change needed.

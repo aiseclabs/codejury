@@ -7,13 +7,13 @@ default behavior. Strategy: see `ROADMAP.md`.
 
 ## Invariants, Never Violate
 
-1. **Knowledge is rich rules, in data.** Security knowledge lives in
-   `codejury/data/rules/*.md`, with rich per-language vulnerable and secure examples, and
+1. **Knowledge is rich vulnerability classes, in data.** Security knowledge lives in
+   `codejury/data/vulnerabilities/*.md`, with rich per-language vulnerable and secure examples, and
    in the prompts that reference them, not hardcoded in Python. The agent
    methodology lives in `codejury/data/methodology/`. Detection *logic* is generic,
    *what* to detect is data, reviewable in a PR. Knowledge is split by axis and
-   stays decoupled: rules name the weakness, languages and frameworks carry the
-   concrete idioms and the entrypoint markers, and topics and the methodology
+   stays decoupled: vulnerability classes name the weakness, languages and frameworks carry the
+   concrete idioms and the entrypoint markers, and protocols and the methodology
    stay language-neutral. Adding a language or framework is a drop-in guide, no
    code change.
 2. **Findings are real and evidenced.** Report only real, exploitable,
@@ -40,7 +40,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Layer | Implementation | Location |
 |---|---|---|
 | Diff engine | standard `AuditRunner` for one call plus adversarial `AdversarialAuditRunner` Finder/Challenger/Judge, and `audit_diff` orchestration to chunk, normalize, and filter | `codejury/diff/`, `diff/runner.py` |
-| Rules | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/rules/`, `diff/rules.py` |
+| Vulnerabilities | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/vulnerabilities/`, `diff/vulnerabilities.py` |
 | Finding + report | flat `Finding`, text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
 | Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/data/methodology/`, `repo/scaffold.py` |
 | RepoModel | language-agnostic file map, flags candidate entrypoint files via guide globs | `codejury/repo/model.py` |
@@ -66,7 +66,7 @@ key and a built in demo diff when none is supplied.
   `CODEJURY_API_KEY`, `CODEJURY_MODEL`. The tool does NOT auto-load `.env`.
 - Data ships via `[tool.setuptools.package-data] codejury = ["data/**/*.yaml",
   "data/**/*.md"]`.
-- Add a rule by dropping a new `data/rules/<class>.md` with frontmatter of title,
+- Add a vulnerability class by dropping a new `data/vulnerabilities/<class>.md` with frontmatter of title,
   impact, tags, and triggers, and a body of vulnerable and secure examples. It is data.
 - Release: bump `pyproject.toml` version -> GitHub Release `vX.Y.Z` -> OIDC
   Trusted Publishing pushes to PyPI.

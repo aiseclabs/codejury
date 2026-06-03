@@ -9,8 +9,8 @@ LLM code-security review fails in practice for predictable reasons: a single
 pass is weak, thin rule schemas give the model little real guidance, and a
 whole-repo audit is too large for one call. The design answers each:
 
-- **Knowledge as rich rules.** Per-class markdown with per-language
-  vulnerable and secure examples in `data/rules/`, injected into the prompt, beats a
+- **Knowledge as rich vulnerability classes.** Per-class markdown with per-language
+  vulnerable and secure examples in `data/vulnerabilities/`, injected into the prompt, beats a
   rendered checklist.
 - **Adversarial diff review.** Finder as a red team, exhaustive with no self-filter,
   Challenger to rebut false positives and independently re-scan, Judge to cross
@@ -36,8 +36,8 @@ dependency scanning, dynamic testing, pentest, or runtime defense.
 
 - **Diff engine**: standard + adversarial shipped. Next: tune prompts on real
   diffs, measure precision and recall on real PRs, not a synthetic corpus.
-- **Rules**: grow `data/rules/` coverage and per-language depth, it is data.
+- **Vulnerabilities**: grow `data/vulnerabilities/` coverage and per-language depth, it is data.
 - **Repo Review**: refine the methodology, the entrypoint seeding, and the
   review-memory loop from real audits.
 - **Validation**: the real measure is efficacy on real repositories with a real
-  provider, which drives prompt and rule changes.
+  provider, which drives prompt and vulnerability-class changes.

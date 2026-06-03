@@ -1,17 +1,18 @@
 ---
 name: code-security-review
-description: "Application security rules for reviewing code for exploitable vulnerabilities. Use when reviewing a diff or a codebase for security issues, or when writing code that handles untrusted input, authentication, authorization, file paths, database queries, network requests, deserialization, or cryptography. Read the matching rule before judging whether code is vulnerable."
+description: "Application security vulnerability classes for reviewing code for exploitable issues. Use when reviewing a diff or a codebase for security problems, or when writing code that handles untrusted input, authentication, authorization, file paths, database queries, network requests, deserialization, or cryptography. Read the matching vulnerability class before judging whether code is vulnerable."
 ---
 
-# Code Security Review Rules
+# Code Security Review
 
-Application-security rules, one file per weakness class under `rules/`, named by
-the specific weakness, CWE-style. Each rule states impact, the markers to hunt
-in `triggers`, and vulnerable-vs-secure examples. The diff-audit engine injects the
-rules relevant to a change into the prompt. The repo-review agent reads them for
-the target's stack. A finding's `category` is one of these ids.
+Application-security vulnerability classes, one file per weakness under
+`vulnerabilities/`, named by the specific weakness, CWE-style. Each states impact,
+the markers to hunt in `triggers`, and vulnerable-vs-secure examples. The
+diff-audit engine injects the classes relevant to a change into the prompt. The
+repo-review agent reads them for the target's stack. A finding's `category` is
+one of these ids.
 
-## Rules by OWASP Category
+## Vulnerability Classes by OWASP Category
 
 ### A01 Broken Access Control
 - `missing-authorization` CWE-862
@@ -54,5 +55,5 @@ the target's stack. A finding's `category` is one of these ids.
 
 Report only real, exploitable, high-confidence issues with a concrete exploit
 path. Do not report dependency CVEs, style, speculation, or config-leak-only
-risks. The set is data: add a class by dropping a new `rules/<id>.md` with the
-same frontmatter of id, title, impact, tags, and triggers, plus examples.
+risks. The set is data: add a class by dropping a new `vulnerabilities/<id>.md`
+with the same frontmatter of id, title, impact, tags, and triggers, plus examples.

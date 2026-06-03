@@ -45,8 +45,8 @@ _JSON_SHAPE = (
 
 
 def category_block() -> str:
-    """The closed category set the model must choose from, derived from the rules."""
-    from codejury.diff.rules import allowed_categories
+    """The closed category set the model must choose from, the vulnerability ids."""
+    from codejury.diff.vulnerabilities import allowed_categories
 
     cats = allowed_categories()
     return (
@@ -57,9 +57,9 @@ def category_block() -> str:
     )
 
 
-def standard_audit_prompt(diff: str, *, rules: str = "", context: str = "", stack: str = "") -> str:
+def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", stack: str = "") -> str:
     stack_block = f"Conventions of the target's language/framework:\n{stack}\n\n" if stack else ""
-    rules_block = f"Relevant security rules for reference:\n{rules}\n\n" if rules else ""
+    vulnerabilities_block = f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
     context_block = (
         f"Surrounding code for tracing where values come from (not under review):\n"
         f"```\n{context}\n```\n\n"
@@ -71,7 +71,7 @@ def standard_audit_prompt(diff: str, *, rules: str = "", context: str = "", stac
         f"{FOCUS}\n{DO_NOT_REPORT}\n"
         f"{category_block()}"
         f"{stack_block}"
-        f"{rules_block}"
+        f"{vulnerabilities_block}"
         f"Code change (unified diff):\n```diff\n{diff}\n```\n\n"
         f"{context_block}"
         "Report each real vulnerability with a precise file and line, a concrete "

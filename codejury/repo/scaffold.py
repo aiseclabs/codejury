@@ -87,11 +87,11 @@ def _stack_md(guides: list[Guide]) -> str:
                 "your own knowledge of the stack.\n")
     langs = [g.id for g in guides if g.kind == "language"]
     fws = [g.id for g in guides if g.kind == "framework"]
-    topics = [g.id for g in guides if g.kind == "topic"]
+    protocols = [g.id for g in guides if g.kind == "protocol"]
     lines = ["# Detected stack", "",
              f"Languages: {', '.join(langs) or '-'}",
              f"Frameworks: {', '.join(fws) or '-'}",
-             f"Topics: {', '.join(topics) or '-'}", ""]
+             f"Protocols: {', '.join(protocols) or '-'}", ""]
     for g in guides:
         lines += ["---", "", g.body, ""]
     return "\n".join(lines) + "\n"

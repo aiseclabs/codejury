@@ -9,7 +9,7 @@ def test_shipped_guides_load():
     assert {"python", "django", "oauth"} <= set(by_id)
     assert by_id["python"].kind == "language"
     assert by_id["django"].kind == "framework"
-    assert by_id["oauth"].kind == "topic"
+    assert by_id["oauth"].kind == "protocol"
     assert "IDOR" in by_id["django"].body or "idor" in by_id["django"].body.lower()
 
 
@@ -17,10 +17,10 @@ def test_every_guide_declares_a_kind_in_frontmatter():
     # kind is sourced from frontmatter, the single source of truth, so a drop-in
     # that forgets it must fail loudly rather than be silently miscategorised
     for g in load_guides():
-        assert g.kind in {"language", "framework", "topic"}, f"{g.id} has kind {g.kind!r}"
+        assert g.kind in {"language", "framework", "protocol"}, f"{g.id} has kind {g.kind!r}"
 
 
-def test_topic_guide_selected_by_protocol_token():
+def test_protocol_guide_selected_by_protocol_token():
     # language-neutral detection: an OAuth wire field, no ecosystem library name
     matched = {g.id for g in select_guides(["main.py"], text="grant_type=authorization_code\nredirect_uri\n")}
     assert "oauth" in matched

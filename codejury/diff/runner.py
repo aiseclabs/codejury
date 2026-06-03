@@ -13,7 +13,7 @@ import dataclasses
 from codejury.diff.debate import AdversarialAuditRunner
 from codejury.diff.engine import AuditRunner
 from codejury.diff.findings_filter import FindingsFilter
-from codejury.diff.rules import allowed_categories, normalize_category
+from codejury.diff.vulnerabilities import allowed_categories, normalize_category
 from codejury.domain.finding import Finding
 
 # A diff larger than this is audited file-by-file so a big PR does not overflow

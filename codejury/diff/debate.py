@@ -19,7 +19,7 @@ from codejury.diff.debate_prompts import (
     finder_prompt,
     judge_prompt,
 )
-from codejury.diff.rules import rules_for_diff
+from codejury.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.domain.finding import Finding, findings_from_list
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
@@ -115,9 +115,9 @@ class AdversarialAuditRunner:
         obj = extract_json_object(result.text)
         return (obj or {}), bool(obj)
 
-    def run(self, diff: str, *, rules: str = "", context: str = "", max_rounds: int = 3) -> AdversarialResult:
-        if not rules:
-            rules = rules_for_diff(diff)
+    def run(self, diff: str, *, vulnerabilities: str = "", context: str = "", max_rounds: int = 3) -> AdversarialResult:
+        if not vulnerabilities:
+            vulnerabilities = vulnerabilities_for_diff(diff)
         prior: list[dict] = []
         prev_keys: set | None = None
         judged = AdversarialResult(findings=[])
@@ -126,13 +126,13 @@ class AdversarialAuditRunner:
         degraded = False
         for rounds in range(1, max_rounds + 1):
             finder, _ = self._ask(
-                FINDER_SYSTEM, finder_prompt(diff, rules=rules, context=context, prior=prior), self._finder_model
+                FINDER_SYSTEM, finder_prompt(diff, vulnerabilities=vulnerabilities, context=context, prior=prior), self._finder_model
             )
             finder_findings = _dicts(finder.get("findings"))
 
             challenger, _ = self._ask(
                 CHALLENGER_SYSTEM,
-                challenger_prompt(diff, finder_findings, rules=rules, context=context),
+                challenger_prompt(diff, finder_findings, vulnerabilities=vulnerabilities, context=context),
                 self._challenger_model,
             )
             rebuttals = _dicts(challenger.get("rebuttals"))

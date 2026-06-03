@@ -3,7 +3,8 @@
 Two paths matched to their nature: a coded diff-audit engine (standard single
 call or adversarial Finder/Challenger/Judge), and a whole-repo review run as a
 methodology by an interactive agent. Security knowledge lives in rich markdown
-rules (data/rules) injected into the audit prompt, not in a rendered schema.
+vulnerability classes (data/vulnerabilities) injected into the audit prompt, not
+in a rendered schema.
 """
 
 from importlib.metadata import PackageNotFoundError, version

@@ -11,7 +11,7 @@ import re
 
 from codejury.domain.finding import Finding, findings_from_list
 from codejury.diff.prompts import SYSTEM, standard_audit_prompt
-from codejury.diff.rules import rules_for_diff
+from codejury.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.guides import select_guides
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
@@ -44,13 +44,13 @@ class AuditRunner:
         self._model = model
         self._max_tokens = max_tokens
 
-    def run(self, diff: str, *, rules: str = "", context: str = "") -> list[Finding]:
-        if not rules:
-            rules = rules_for_diff(diff)
+    def run(self, diff: str, *, vulnerabilities: str = "", context: str = "") -> list[Finding]:
+        if not vulnerabilities:
+            vulnerabilities = vulnerabilities_for_diff(diff)
         stack = guides_for_diff(diff)
         result = self._provider.complete(
             system=SYSTEM,
-            messages=[Message(role="user", content=standard_audit_prompt(diff, rules=rules, context=context, stack=stack))],
+            messages=[Message(role="user", content=standard_audit_prompt(diff, vulnerabilities=vulnerabilities, context=context, stack=stack))],
             model=self._model,
             max_tokens=self._max_tokens,
         )

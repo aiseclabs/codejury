@@ -1,7 +1,7 @@
 ---
 id: oauth
 title: OAuth and OIDC
-kind: topic
+kind: protocol
 detect:
   content: ["grant_type", "authorization_code", "redirect_uri", "code_challenge", "response_type", "client_secret", "openid-configuration"]
 ---
@@ -39,17 +39,17 @@ authorization, and replay flaws rather than injection.
   be replayed.
 - A JWT access token has its signature, algorithm, issuer, audience, and expiry
   verified. Disabling signature verification or allowing an unconstrained
-  algorithm is a flaw. See the jwt-validation rule.
+  algorithm is a flaw. See the jwt-validation vulnerability class.
 
 ## Replay and Signatures
 - A signed or one-time request such as an MFA binding, a webhook, or a privileged
   action carries a nonce or a short timestamp window and a single-use check, so a
-  captured request cannot be replayed. See the replay-attack rule.
+  captured request cannot be replayed. See the replay-attack vulnerability class.
 
 ## Authorization per Endpoint
 - Every token, introspection, revocation, and management endpoint authenticates
   the caller and authorizes the specific resource. Watch for an endpoint that
   acts on a client-supplied id with no owner or tenant check, the IDOR shape, and
   for a privileged endpoint left unauthenticated. See the
-  insecure-direct-object-reference and missing-authorization rules, and the
-  Authorization Model step in the methodology.
+  insecure-direct-object-reference and missing-authorization vulnerability classes,
+  and the Authorization Model step in the methodology.

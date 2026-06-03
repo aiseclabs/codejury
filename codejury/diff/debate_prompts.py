@@ -45,13 +45,13 @@ JUDGE_SYSTEM = (
 )
 
 
-def _diff_block(diff: str, rules: str, context: str) -> str:
-    rules_block = f"Relevant security rules for reference:\n{rules}\n\n" if rules else ""
+def _diff_block(diff: str, vulnerabilities: str, context: str) -> str:
+    vulnerabilities_block = f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
     context_block = f"Surrounding code (not under review):\n```\n{context}\n```\n\n" if context else ""
-    return f"{rules_block}Code change (unified diff):\n```diff\n{diff}\n```\n\n{context_block}"
+    return f"{vulnerabilities_block}Code change (unified diff):\n```diff\n{diff}\n```\n\n{context_block}"
 
 
-def finder_prompt(diff: str, *, rules: str = "", context: str = "", prior: list | None = None) -> str:
+def finder_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", prior: list | None = None) -> str:
     prior_block = ""
     if prior:
         prior_block = (
@@ -62,12 +62,12 @@ def finder_prompt(diff: str, *, rules: str = "", context: str = "", prior: list 
     return (
         "Find every exploitable vulnerability in this code change.\n\n"
         f"{FOCUS}\n{DO_NOT_REPORT}\n{category_block()}"
-        f"{_diff_block(diff, rules, context)}{prior_block}"
+        f"{_diff_block(diff, vulnerabilities, context)}{prior_block}"
         'Respond with a single JSON object exactly like: {"findings": [' + _FINDING_FIELDS + "]}"
     )
 
 
-def challenger_prompt(diff: str, finder_findings: list, *, rules: str = "", context: str = "") -> str:
+def challenger_prompt(diff: str, finder_findings: list, *, vulnerabilities: str = "", context: str = "") -> str:
     return (
         "Two tasks on the code change below.\n"
         "1. Rebut a finding when the diff SHOWS the value is handled safely: a parameterized "
@@ -79,7 +79,7 @@ def challenger_prompt(diff: str, finder_findings: list, *, rules: str = "", cont
         "safety the diff shows, not on guessing the input is internal.\n"
         "2. Independently scan the diff yourself and report any real issue the finder missed.\n\n"
         f"{FOCUS}\n{DO_NOT_REPORT}\n{category_block()}"
-        f"{_diff_block(diff, rules, context)}"
+        f"{_diff_block(diff, vulnerabilities, context)}"
         f"Reported findings:\n{json.dumps(finder_findings, ensure_ascii=False)}\n\n"
         'Respond with a single JSON object exactly like: '
         '{"rebuttals": [{"target": "finding description or file:line", "verdict": "dismiss|downgrade", '

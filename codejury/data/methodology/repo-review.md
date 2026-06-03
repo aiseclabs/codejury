@@ -22,12 +22,13 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
    flags as likely to define entrypoints. Open them to find the actual
    entrypoints. It is a *starting* subset, not the whole surface. See "Map the
    attack surface".
-3. Read `_stack.md`, the seeded detected languages, frameworks, and topics plus
+3. Read `_stack.md`, the seeded detected languages, frameworks, and protocols plus
    review notes for them, so you know where this stack's entrypoints and sinks
    live and which protocol checks apply, for example the OAuth checklist. If it
    matched nothing, lean on your own knowledge of the stack.
-4. Read the relevant rule files under the shipped `rules/` for the target's stack
-   such as sql-injection, idor, ssrf, authentication-jwt, or insecure-deserialization.
+4. Read the relevant vulnerability files under the shipped `vulnerabilities/` for
+   the target's stack such as sql-injection, idor, ssrf, jwt-validation, or
+   insecure-deserialization.
 
 ## Map the Attack Surface
 
