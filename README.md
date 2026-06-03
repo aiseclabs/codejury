@@ -9,29 +9,38 @@
 
 > AI code security review for diffs and whole repositories.
 
-It runs two paths matched to their nature.
+codejury runs two paths matched to their nature.
 
 - **Diff Review** is coded. It audits a pull request diff for newly introduced
   exploitable risk, as a single balanced LLM call or an adversarial Finder,
   Challenger, and Judge pass that trades roughly 3x the cost for extra recall on
-  subtle flaws that span files.
-- **Repo Review** is agent driven. It is a methodology an interactive agent such
-  as Claude Code or Codex runs to map a codebase attack surface, trace inputs to
-  sinks across files, verify issues with a real PoC, and iterate over rounds with
-  a persistent memory. A whole repository is too large for one LLM call, so it
-  ships the methodology and scaffolds the workspace instead of running a
-  pipeline.
+  subtle flaws that span files. One command in, findings out.
+- **Repo Review** is agent driven. A whole repository is too large for one LLM
+  call, so codejury scaffolds a workspace and hands an interactive agent such as
+  Claude Code or Codex a methodology to run. The agent maps the attack surface,
+  traces inputs to sinks across files, verifies issues with a real PoC, and
+  iterates over rounds with a persistent memory.
 
-Security knowledge lives in rich vulnerability classes under `codejury/data/vulnerabilities/*.md`, with a
-vulnerable and a secure example per language, injected into the audit prompt
-rather than buried in code.
+Security knowledge is data, not code. Vulnerability classes live in
+`codejury/data/vulnerabilities/*.md` with a vulnerable and a secure example per
+language, and the stack guides live under `data/languages`, `data/frameworks`,
+and `data/protocols`. The engine stays language neutral and names no framework,
+so adding a stack is a drop-in markdown file.
 
 ## Install
 
 ```bash
-pip install codejury                 # core
-pip install "codejury[anthropic]"    # add a backend, also openai or litellm
+pip install codejury                       # core
+pip install "codejury[anthropic]"          # add a backend, also openai or litellm
+codejury install-slash-command             # Claude Code, ~/.claude/commands/
+codejury install-slash-command --agent codex   # Codex, ~/.codex/prompts/
 ```
+
+`install-slash-command` copies the `/codejury-review` command into the agent's
+command directory. The command body is the same for every agent, only the
+directory differs, so pass `--dir` for any other agent. The repo review itself is
+agent neutral, so even without the command you can run `codejury review repo` and
+tell any agent to follow the methodology it writes.
 
 ## Diff Review
 
@@ -89,17 +98,49 @@ request.
 
 ## Repo Review
 
+Repo Review does not scan and print findings. It sets up a review for an agent to
+run, because a whole repository needs many rounds of reading, cross-file tracing,
+and PoC work that an agent does, not a single call.
+
 ```bash
 codejury review repo /path/to/your/repo
 ```
 
-This scaffolds a review workspace with `entrypoints/`, `issues/`, `analysis/`,
-and a `security-review-memory.md`, seeds the entrypoint inventory from a
-deterministic scan, and prints the methodology. Run it with an interactive agent.
-It reads the methodology and the vulnerability classes, maps the attack surface, traces inputs to
-sinks across files, records high confidence issues with a PoC, and asks you to
-confirm credentials or false positives along the way. Nothing runs against
-production.
+This detects the stack, seeds the entrypoint inventory and the downstream trace
+targets from a deterministic scan, writes the methodology to
+`<workspace>/METHODOLOGY.md`, and prints a short pointer. It creates the
+workspace:
+
+```
+entrypoints/   the candidate entrypoint files to start from
+issues/        one write-up per confirmed or suspected issue
+pocs/          a runnable PoC per issue, same name as the issue
+analysis/      _trace_targets.md, the round ledger, and trace notes
+security-review-memory.md
+```
+
+Then run it with an interactive agent. In Claude Code or Codex:
+
+```
+/codejury-review /path/to/your/repo
+```
+
+Any agent works, the slash command is just a shortcut. Without it, tell the agent
+to follow the `METHODOLOGY.md` the scaffold wrote.
+
+The agent follows `METHODOLOGY.md`: it maps the attack surface including non HTTP
+sources, traces each input to its sink through the downstream layers, runs an
+Authorization Model pass for missing-auth and IDOR, and follows a control into a
+library when an entrypoint delegates it. It keeps going until a Completeness Gate
+passes, two consecutive rounds that add nothing new. It confirms each issue with
+a real PoC against a sandbox or dev environment and asks you for any credential or
+test data it needs. Only a reproduced PoC is a confirmed finding, and nothing
+runs against production.
+
+The supported stacks today are Python with Django, Celery, Flask, and FastAPI,
+Go with Gin and Echo, JavaScript and TypeScript with Express and NestJS, and the
+OAuth and OIDC protocol. The methodology still works on an unguided stack, it just
+leans more on the agent's own knowledge.
 
 ## Findings
 
@@ -111,6 +152,15 @@ production config leaks.
 
 ## Extending
 
-Add a vulnerability class by dropping a new file `codejury/data/vulnerabilities/<class>.md`
-with the standard frontmatter of title, impact, tags, and triggers plus a
-vulnerable and a secure example. It is data, no code change needed.
+Knowledge is data, so extending codejury is a drop-in markdown file with no code
+change.
+
+- A vulnerability class: `codejury/data/vulnerabilities/<class>.md` with
+  frontmatter of title, impact, tags, and triggers, plus a vulnerable and a
+  secure example.
+- A language or framework: `codejury/data/languages/<lang>.md` or
+  `codejury/data/frameworks/<lang>/<framework>.md`, declaring its detect signals,
+  entrypoint markers, and downstream logic layers.
+- A protocol such as OAuth: `codejury/data/protocols/<name>.md`, detected by
+  language neutral content tokens.
+```

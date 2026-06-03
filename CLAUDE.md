@@ -31,7 +31,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 4. **Two paths, matched to nature.** Diff review is coded, a single LLM call or the
    adversarial Finder/Challenger/Judge pass. Whole-repo review is too large for a
    single call, so it ships as a methodology an interactive agent runs, not a
-   pipeline. The `/codejury-review-repo` slash command is a convenience that has
+   pipeline. The `/codejury-review` slash command is a convenience that has
    the agent run that same methodology, it does not reimplement the review as a
    coded pipeline.
 5. **PoC verification is human-in-the-loop and safe.** The repo-review agent
@@ -61,9 +61,13 @@ One verb, `review`, split by scope. `review diff` audits a unified diff via
 `--diff-file`, `--repo --git-range`, or stdin, with `--mode {standard,adversarial}`.
 `review repo <dir>` scaffolds a workspace, writes the methodology to
 `<workspace>/METHODOLOGY.md`, and prints a short pointer, it does not run the
-review itself. The `/codejury-review-repo` slash command in `.claude/commands/`
-runs it inside Claude Code, so the agent scaffolds then follows `METHODOLOGY.md`
-interactively, which keeps PoC verification human-in-the-loop. `codejury --version` prints the version.
+review itself. The `/codejury-review` slash command runs it inside Claude
+Code, so the agent scaffolds then follows `METHODOLOGY.md` interactively, which
+keeps PoC verification human-in-the-loop. The slash command ships as package data
+in `data/commands/`, and `codejury install-slash-command [--agent claude|codex]`
+copies it into the agent's command directory so a pip install can use it. The
+body is portable, only the directory differs, and the review itself is agent
+neutral. `codejury --version` prints the version.
 Shared `review diff` flags: `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`,
 `--no-filter`, `--exclude PATH` repeatable, `--dry-run` for a mock provider with no

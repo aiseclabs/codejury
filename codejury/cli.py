@@ -100,6 +100,12 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("directory", help="target repository to review")
     repo.add_argument("--workspace", default="codejury-review", help="where to create the review workspace")
 
+    inst = sub.add_parser("install-slash-command",
+                          help="install the /codejury-review slash command for an agent")
+    inst.add_argument("--agent", choices=("claude", "codex"), default="claude",
+                      help="which agent's command directory to install into")
+    inst.add_argument("--dir", default=None, help="explicit target directory, overrides --agent")
+
     args = parser.parse_args(argv)
     try:
         return _dispatch(args, parser)
@@ -141,10 +147,26 @@ def _dispatch(args, parser) -> int:
         print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
         print(
             "This command sets up the review, it does not find the issues itself. Next, have an "
-            f"interactive agent follow {res.workspace}/METHODOLOGY.md to run the review. In Claude "
-            "Code use the /codejury-review-repo command. Findings are written to "
+            f"interactive agent follow {res.workspace}/METHODOLOGY.md to run the review, or use the "
+            "/codejury-review command in Claude Code or Codex. Findings are written to "
             f"{res.workspace}/issues/."
         )
+        return 0
+
+    if args.command == "install-slash-command":
+        from codejury.resources import COMMANDS_DIR
+        # the command body is portable, only the directory differs per agent
+        agent_dirs = {
+            "claude": Path.home() / ".claude" / "commands",
+            "codex": Path.home() / ".codex" / "prompts",
+        }
+        target_dir = Path(args.dir) if args.dir else agent_dirs[args.agent]
+        target_dir.mkdir(parents=True, exist_ok=True)
+        name = "codejury-review.md"
+        dst = target_dir / name
+        dst.write_text((COMMANDS_DIR / name).read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"Installed slash command to {dst}")
+        print("Run it in the agent with: /codejury-review <repository>")
         return 0
 
     if args.command == "review":  # no scope given

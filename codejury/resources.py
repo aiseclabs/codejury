@@ -14,3 +14,4 @@ FRAMEWORKS_DIR = _DATA / "frameworks"  # per-framework review guides (how the ta
 PROTOCOLS_DIR = _DATA / "protocols"    # protocol guides such as oauth (what to check)
 METHODOLOGIES_DIR = _DATA / "methodologies"  # repo-review methodology and memory template
 DETECTION_FILE = _DATA / "detection.yaml"    # file and path classification across ecosystems
+COMMANDS_DIR = _DATA / "commands"            # Claude Code slash commands shipped for install

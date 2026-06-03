@@ -99,3 +99,10 @@ def test_python_dash_m_codejury_runs():
     import subprocess, sys
     r = subprocess.run([sys.executable, "-m", "codejury", "--version"], capture_output=True, text=True)
     assert r.returncode == 0 and "codejury" in r.stdout.lower()
+
+
+def test_install_slash_command_writes_the_file(tmp_path):
+    rc = main(["install-slash-command", "--dir", str(tmp_path)])
+    assert rc == 0
+    f = tmp_path / "codejury-review.md"
+    assert f.is_file() and "codejury review repo" in f.read_text()
