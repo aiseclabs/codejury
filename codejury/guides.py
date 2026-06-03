@@ -25,7 +25,7 @@ from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR, PROTOCOLS_DIR
 class Guide:
     id: str
     kind: str            # "language", "framework", or "protocol"
-    language: str        # for a framework, the language it belongs to, for example "python"; else ""
+    language: str        # for a framework, the id of the language it belongs to, otherwise empty
     title: str
     detect_files: tuple[str, ...]
     detect_manifest: tuple[str, ...]
@@ -33,6 +33,7 @@ class Guide:
     detect_content: tuple[str, ...]       # language-neutral content tokens, for example a protocol's wire fields
     entrypoint_files: tuple[str, ...]     # globs for files likely to define entrypoints
     entrypoint_markers: tuple[str, ...]   # content markers for files that define entrypoints
+    logic_layers: tuple[str, ...]         # globs for downstream business-logic files to trace into, for example managers and dao
     body: str
 
 
@@ -49,6 +50,7 @@ def _guide(path, meta: dict, body: str) -> Guide:
         detect_content=tuple(str(c).lower() for c in detect.get("content", [])),
         entrypoint_files=tuple(str(g) for g in meta.get("entrypoint_files", [])),
         entrypoint_markers=tuple(str(m) for m in meta.get("entrypoint_markers", [])),
+        logic_layers=tuple(str(g) for g in meta.get("logic_layers", [])),
         body=body,
     )
 
@@ -68,6 +70,17 @@ def entrypoint_markers(guides: list[Guide]) -> tuple[str, ...]:
     for g in guides:
         for m in g.entrypoint_markers:
             seen.setdefault(m, None)
+    return tuple(seen)
+
+
+def logic_layer_globs(guides: list[Guide]) -> tuple[str, ...]:
+    """The downstream business-logic globs declared by a set of guides,
+    deduplicated. These name where logic lives below the entrypoint, for example
+    managers, controllers, dao, and services, so a trace does not stop at the view."""
+    seen: dict[str, None] = {}
+    for g in guides:
+        for pat in g.logic_layers:
+            seen.setdefault(pat, None)
     return tuple(seen)
 
 

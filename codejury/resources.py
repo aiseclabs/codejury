@@ -13,3 +13,4 @@ LANGUAGES_DIR = _DATA / "languages"    # per-language review guides (how the tar
 FRAMEWORKS_DIR = _DATA / "frameworks"  # per-framework review guides (how the target works)
 PROTOCOLS_DIR = _DATA / "protocols"    # protocol guides such as oauth (what to check)
 METHODOLOGIES_DIR = _DATA / "methodologies"  # repo-review methodology and memory template
+DETECTION_FILE = _DATA / "detection.yaml"    # file and path classification across ecosystems

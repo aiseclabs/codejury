@@ -13,26 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-# directory segments that mark test code
-_TEST_DIRS = frozenset({
-    "test", "tests", "__tests__", "__mocks__", "mocks", "fixtures", "testdata", "e2e", "spec", "specs",
-})
-
-
-def _is_test_path(path: str) -> bool:
-    parts = path.replace("\\", "/").split("/")
-    if any(p in _TEST_DIRS for p in parts[:-1]):  # a directory segment, not the filename
-        return True
-    name = parts[-1].lower()
-    if name == "conftest.py":
-        return True
-    stem = name.rsplit(".", 1)[0]
-    return (
-        stem.startswith("test_")
-        or stem.endswith("_test")
-        or stem.endswith(".test")
-        or stem.endswith(".spec")
-    )
+from codejury.detection import load_detection
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -53,7 +34,7 @@ class FindingsFilter:
         if f.confidence < self.min_confidence:
             return f"confidence {f.confidence:.2f} below floor {self.min_confidence:.2f}"
         path = f.file or ""
-        if self.drop_test_paths and _is_test_path(path):
+        if self.drop_test_paths and load_detection().is_test_path(path):
             return "test path (test/mock/fixture directory or test-file naming)"
         match = next((e for e in self.exclude_paths if e and e in path), None)
         if match:

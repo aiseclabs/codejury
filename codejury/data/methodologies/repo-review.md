@@ -29,6 +29,9 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
 4. Read the relevant vulnerability files under the shipped `vulnerabilities/` for
    the target's stack such as sql-injection, idor, ssrf, jwt-validation, or
    insecure-deserialization.
+5. Read `analysis/_trace_targets.md`, the seeded downstream logic-layer files such
+   as managers and dao to trace into, and `analysis/_rounds.md`, the round ledger
+   you must keep. See "Trace Attack Paths" and "Completeness Gate".
 
 ## Map the Attack Surface
 
@@ -94,8 +97,11 @@ Then hunt three shapes:
 A whole-repo review earns its keep by reasoning *across files*: a flaw is usually
 a source in one file reaching a dangerous sink in another, past a control defined
 in a third, for example a route that trusts a helper which skips signature checks, or an id that
-reaches a query with no ownership check. For each promising source, trace the
-path and record it in `analysis/`:
+reaches a query with no ownership check. The flaw usually lives below the
+entrypoint, in a manager, a controller, a dao, or a service, not in the view. The
+seeded `analysis/_trace_targets.md` lists those downstream logic-layer files. For
+each promising source, follow the calls out of the entrypoint into those layers
+to the real sink, and record the path in `analysis/`:
 
 - **Source**: the entrypoint and the attacker-controlled value.
 - **Sink**: the dangerous operation it reaches such as a query, shell, file path, fetch,
@@ -106,7 +112,10 @@ path and record it in `analysis/`:
 
 The vulnerability is a path with a reachable sink and no adequate control. Record
 the system's trust boundaries and auth/authz model in `analysis/` once, so every
-trace can refer to it instead of restating it.
+trace can refer to it instead of restating it. An entrypoint is not done until its
+path is traced through the downstream layers to a sink or cleared, since stopping
+at the view is what hides the deep flaw, for example the missing lock in a dao or
+the skipped expiry check in a manager.
 
 ## Scope
 
@@ -158,10 +167,27 @@ destructive action without the operator's explicit go-ahead.
 
 Each round, read the workspace history first and do not repeat finished work.
 Process leftover TODOs, otherwise pick an unreviewed ❌ or to-deepen ⚠️ source
-from the inventory. One round rarely finds the deep cross-file and stateful bugs,
-so keep going until two consecutive rounds surface nothing new, then report the
-review complete. The hard classes such as authorization, replay, and broken
-business state usually appear only after several rounds.
+from the inventory, trace it through the downstream layers, and log the round in
+`analysis/_rounds.md`. One round rarely finds the deep cross-file and stateful
+bugs. The hard classes such as authorization, replay, and broken business state
+usually appear only after several rounds, so keep going.
+
+## Completeness Gate
+
+Do not report the review complete until all of the following hold. A short run
+with most entrypoints still ❌ is an incomplete review, not a clean one, and
+reporting it as clean is the failure this gate exists to prevent.
+
+- Every entrypoint in the inventory is resolved to ✅, none left ❌.
+- Each entrypoint's path is traced through the downstream layers in
+  `analysis/_trace_targets.md` to a real sink or explicitly cleared, not stopped
+  at the view.
+- The Authorization Model pass ran: the access gate is mapped, sibling endpoints
+  compared, and IDOR and unauthenticated privileged paths checked.
+- `analysis/_rounds.md` shows two consecutive rounds that added no new source, no
+  new traced path, and no new issue.
+
+If any item fails, run another round. State which items pass when you report.
 
 ## On Finish
 

@@ -4,8 +4,8 @@ Lists the repo's files (deterministic, zero model call, cacheable). It does not
 parse code or enumerate framework routes: identifying the actual entrypoints is
 left to the agent, guided by the matched language/framework guides
 (`data/languages`, `data/frameworks`). The only deterministic help is flagging
-*candidate* entrypoint files by the globs a guide declares (e.g. Django's
-`*urls.py`), which is language-agnostic and keeps framework logic out of code.
+*candidate* entrypoint files by the globs a guide declares, which keeps every
+language-specific and framework-specific detail in the guides and out of this module.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
 
-_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache"})
+from codejury.detection import load_detection
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -26,13 +26,14 @@ class RepoModel:
 def _read_files(root: Path) -> tuple[str, ...]:
     """Relative paths of the files under root, skipping noise dirs and symlinks
     that escape the tree."""
+    skip_dirs = load_detection().skip_dirs
     root = root.resolve()
     out: list[str] = []
     for path in root.rglob("*"):
         if not path.is_file():
             continue
         rel = path.relative_to(root)
-        if any(part in _SKIP_DIRS for part in rel.parts):
+        if any(part in skip_dirs for part in rel.parts):
             continue
         try:
             if not path.resolve().is_relative_to(root):
@@ -54,23 +55,7 @@ def build_repo_model(root: str | Path, files) -> RepoModel:
     return RepoModel(root=str(root), files=tuple(sorted(files)))
 
 
-# source extensions whose content is scanned for a guide's entrypoint markers
-_SCAN_EXT = frozenset({
-    ".py", ".js", ".ts", ".tsx", ".jsx", ".mjs", ".go", ".rb", ".java", ".kt",
-    ".php", ".cs", ".scala", ".rs",
-})
 _SCAN_MAX_BYTES = 2_000_000
-
-# test code is not an entrypoint, untrusted input does not enter through it
-_TEST_DIRS = frozenset({"test", "tests", "__tests__", "__mocks__", "mocks", "fixtures", "testdata", "e2e"})
-
-
-def _is_test_path(f: str) -> bool:
-    parts = f.replace("\\", "/").split("/")
-    if any(p in _TEST_DIRS for p in parts[:-1]):
-        return True
-    stem = parts[-1].rsplit(".", 1)[0].lower()
-    return parts[-1] == "conftest.py" or stem.startswith("test_") or stem.endswith("_test") or stem.endswith(".test")
 
 
 def _read_text(path: Path) -> str:
@@ -85,22 +70,34 @@ def _read_text(path: Path) -> str:
 def candidate_entrypoint_files(files, *, root=None, globs=(), markers=()) -> list[str]:
     """Files likely to define entrypoints. A file is a candidate when its path
     matches one of `globs`, or when `root` is given and its content contains one
-    of `markers` such as a DRF `ViewSet` or a route registration. The marker scan
-    is what recovers framework entrypoints that no filename glob would catch, and
-    it stays data-driven because the markers come from the guide. Returns a sorted
-    list with no duplicates."""
+    of `markers` the guide declares, such as a handler class or a route
+    registration. The marker scan is what recovers framework entrypoints that no
+    filename glob would catch, and it stays data-driven because the markers come
+    from the guide. Returns a sorted list with no duplicates."""
+    det = load_detection()
     globs = tuple(globs)
     markers = tuple(markers)
     base = Path(root) if root is not None else None
     out: list[str] = []
     for f in files:
-        if _is_test_path(f):
+        if det.is_test_path(f):
             continue
         if any(fnmatch.fnmatch(f, g) for g in globs):
             out.append(f)
             continue
-        if markers and base is not None and Path(f).suffix in _SCAN_EXT:
+        if markers and base is not None and Path(f).suffix in det.source_extensions:
             text = _read_text(base / f)
             if text and any(m in text for m in markers):
                 out.append(f)
     return out
+
+
+def logic_layer_files(files, *, globs=()) -> list[str]:
+    """Non-test files whose path matches one of the downstream logic-layer globs,
+    for example managers, controllers, dao, or services. These are not entrypoints
+    but the call targets to trace into from an entrypoint, so a review does not
+    stop at the view. Returns a sorted list with no duplicates."""
+    det = load_detection()
+    globs = tuple(globs)
+    out = {f for f in files if not det.is_test_path(f) and any(fnmatch.fnmatch(f, g) for g in globs)}
+    return sorted(out)

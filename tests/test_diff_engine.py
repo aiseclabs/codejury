@@ -117,7 +117,7 @@ def test_filter_drops_test_paths():
 
 def test_filter_drops_test_file_naming_outside_test_dir():
     # a test-file naming convention is enough, even in a non-test directory
-    kept, dropped = FindingsFilter().filter([_f("app/views_test.go"), _f("app/conftest.py")])
+    kept, dropped = FindingsFilter().filter([_f("app/views_test.go"), _f("app/billing.spec.js")])
     assert kept == [] and len(dropped) == 2
 
 

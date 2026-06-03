@@ -1,0 +1,17 @@
+# File and path classification, across ecosystems: what the engine treats as a
+# source file, a dependency manifest, a noise directory, or test code. Kept here
+# so the implementation enumerates no language itself, adding a language is a
+# data edit. This is distinct from a guide's stack detection, which decides which
+# language, framework, or protocol applies.
+
+skip_dirs: [".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache"]
+
+source_extensions: [".py", ".js", ".ts", ".tsx", ".jsx", ".mjs", ".go", ".rb", ".java", ".kt", ".php", ".cs", ".scala", ".rs"]
+
+config_extensions: [".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".env"]
+
+manifests: ["requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup.py", "Pipfile", "package.json", "go.mod", "Gemfile", "pom.xml", "build.gradle", "Cargo.toml", "composer.json"]
+
+test_dirs: ["test", "tests", "__tests__", "__mocks__", "mocks", "fixtures", "testdata", "e2e", "spec", "specs"]
+
+test_name_patterns: ["test_*", "*_test.*", "*.test.*", "*.spec.*"]

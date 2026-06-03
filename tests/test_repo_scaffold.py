@@ -53,6 +53,39 @@ def test_scaffold_flags_candidate_entrypoint_files(tmp_path):
     assert "app/urls.py" in seeded and "❌" in seeded
 
 
+def test_scaffold_surfaces_downstream_logic_layers(tmp_path):
+    # the django guide's logic_layers globs flag a manager/dao as a trace target,
+    # not an entrypoint, so the agent traces past the view to where the flaw lives
+    d = tmp_path / "dj"
+    (d / "app" / "managers").mkdir(parents=True)
+    (d / "app" / "tests").mkdir()
+    (d / "manage.py").write_text("import django\n")
+    (d / "app" / "urls.py").write_text("from django.urls import path\nurlpatterns = []\n")
+    (d / "app" / "managers" / "auth_manager.py").write_text("class AuthManager:\n    pass\n")
+    (d / "app" / "tests" / "test_managers.py").write_text("def test_x():\n    pass\n")
+    (d / "requirements.txt").write_text("Django==4.2\n")
+    res = scaffold(d, tmp_path / "work")
+
+    assert "app/managers/auth_manager.py" in res.trace_targets
+    assert "app/managers/auth_manager.py" not in res.candidate_files   # a trace target, not an entrypoint
+    assert not any("test" in t for t in res.trace_targets)             # test code excluded
+    targets_md = (res.workspace / "analysis" / "_trace_targets.md").read_text()
+    assert "app/managers/auth_manager.py" in targets_md
+
+
+def test_scaffold_seeds_round_ledger(tmp_path):
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    rounds = res.workspace / "analysis" / "_rounds.md"
+    assert rounds.is_file()
+    assert "Round 1" in rounds.read_text()
+
+
+def test_methodology_has_completeness_gate(tmp_path):
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    assert "Completeness Gate" in res.methodology
+    assert "_trace_targets.md" in res.methodology
+
+
 def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):
     # the Flask target has no *urls.py and no django manifest: no candidate files,
     # the seed says so and the agent enumerates from the code

@@ -9,6 +9,7 @@ detect:
   imports: ["from django", "import django"]
 entrypoint_files: ["*urls.py", "*views.py", "*viewsets.py", "*/views/*.py", "*serializers.py", "*api.py", "*consumers.py"]
 entrypoint_markers: ["APIView", "ViewSet", "@api_view", "@action", "router.register", "path(", "re_path(", "as_view("]
+logic_layers: ["*/controllers/*.py", "*controllers.py", "*/managers/*.py", "*managers.py", "*/dao/*.py", "*dao.py", "*/services/*.py", "*services.py", "*/models/*.py", "*models.py"]
 ---
 # Django Review Notes
 

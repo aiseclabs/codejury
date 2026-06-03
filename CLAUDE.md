@@ -17,7 +17,10 @@ default behavior. Strategy: see `ROADMAP.md`.
    stay language-neutral. A framework belongs to a language, so it lives under
    that language, for example `data/frameworks/python/django.md`, and declares
    `language:` in its frontmatter as the source of truth. Adding a language or
-   framework is a drop-in guide, no code change.
+   framework is a drop-in guide, no code change. The implementation outside
+   `data/` names no specific language or framework: even the source-extension,
+   manifest, noise-dir, and test conventions live in `data/detection.yaml`, so
+   the code stays a generic engine.
 2. **Findings are real and evidenced.** Report only real, exploitable,
    high-confidence problems, each with a file location and a concrete exploit
    scenario. No location means not reportable.
@@ -46,6 +49,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Finding + report | flat `Finding`, text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
 | Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/data/methodologies/`, `repo/scaffold.py` |
 | RepoModel | language-agnostic file map, flags candidate entrypoint files via guide globs | `codejury/repo/model.py` |
+| Detection config | what counts as a source file, a manifest, a noise dir, or test code, across ecosystems, so the code enumerates no language | `codejury/data/detection.yaml`, `codejury/detection.py` |
 | Provider | anthropic · openai · litellm · mock with retry, via a factory | `codejury/providers/` |
 | JSON parsing | best-effort extraction of a JSON object from model output | `codejury/json_parse.py` |
 
