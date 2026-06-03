@@ -7,7 +7,7 @@
  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚════╝  ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 ```
 
-> AI code security review for diffs and whole repositories.
+> AI code security review for diffs and repos.
 
 codejury runs two paths matched to their nature.
 
