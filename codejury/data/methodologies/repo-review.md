@@ -136,6 +136,13 @@ third-party. It is not auditing the library for its own bugs, which belongs to
 that library's own review. It is confirming that the control your endpoint relies
 on holds here.
 
+When a library control fails for a reachable first-party entrypoint, rate the
+finding at its real impact, do not downgrade it because the fix lands in the
+library. A replayable signature on a first-party-mounted endpoint is a HIGH for
+this app even though the patch is a nonce or timestamp window in the library.
+"Tracked for the operator as a library change" is not a reason to drop it below
+the report bar. The mount makes it this app's exposure, so report it as one.
+
 ## Challenge Every Control, Presence Is Not Sufficiency
 
 A control being present is not the same as the control holding. The most common
@@ -176,6 +183,14 @@ present on one sibling can be commented out, skipped, or absent on another, and 
 class-wide clear makes that invisible. Read the actual gate in each endpoint's own
 code before you mark it cleared. A commented-out or skipped check is a finding,
 not a clear.
+
+Apply a trust-boundary assumption consistently. Once you adopt an assumption about
+a boundary to grade one finding, such as treating a service or tenant as distinct
+and mutually distrusting, grade every finding on that same boundary by the same
+assumption. If that assumption makes a self-set `callback_url` a HIGH SSRF, then a
+cross-service read of another service's data on the same boundary is a HIGH IDOR,
+not a below-bar note. Grading the same boundary as untrusted in one place and
+trusted in another is the inconsistency to avoid.
 
 ## Scope
 
