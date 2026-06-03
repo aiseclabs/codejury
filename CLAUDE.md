@@ -10,7 +10,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 1. **Knowledge is rich rules, in data.** Security knowledge lives in
    `codejury/data/rules/*.md` (rich, per-language vulnerable/secure examples) and
    in the prompts that reference them, not hardcoded in Python. The agent
-   methodology lives in `codejury/data/agent/`. Detection *logic* is generic;
+   methodology lives in `codejury/data/methodology/`. Detection *logic* is generic;
    *what* to detect is data, reviewable in a PR.
 2. **Findings are real and evidenced.** Report only real, exploitable,
    high-confidence problems, each with a file location and a concrete exploit
@@ -38,7 +38,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Diff engine | standard `AuditRunner` (one call) + adversarial `AdversarialAuditRunner` (Finder/Challenger/Judge); `audit_diff` orchestration (chunk, normalize, filter) | `codejury/diff/`, `diff/runner.py` |
 | Rules | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/rules/`, `diff/rules.py` |
 | Finding + report | flat `Finding`; text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
-| Repo review | agent methodology + memory template + workspace scaffold (no pipeline) | `codejury/data/agent/`, `repo/scaffold.py` |
+| Repo review | agent methodology + memory template + workspace scaffold (no pipeline) | `codejury/data/methodology/`, `repo/scaffold.py` |
 | RepoModel | language-agnostic file map; flags candidate entrypoint files via guide globs | `codejury/repo/model.py` |
 | Provider | anthropic · openai · litellm · mock (+ retry), via a factory | `codejury/providers/` |
 | JSON parsing | best-effort extraction of a JSON object from model output | `codejury/json_parse.py` |

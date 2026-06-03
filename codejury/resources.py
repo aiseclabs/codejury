@@ -11,4 +11,4 @@ _DATA = Path(__file__).resolve().parent / "data"
 RULES_DIR = _DATA / "rules"            # vulnerability-class detection rules (what to find)
 LANGUAGES_DIR = _DATA / "languages"    # per-language review guides (how the target works)
 FRAMEWORKS_DIR = _DATA / "frameworks"  # per-framework review guides (how the target works)
-AGENT_DIR = _DATA / "agent"            # repo-review methodology and memory template
+METHODOLOGY_DIR = _DATA / "methodology"  # repo-review methodology and memory template
