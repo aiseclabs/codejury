@@ -170,6 +170,13 @@ When a control passes one axis, it can still fail another, so run all four befor
 you mark a path cleared. Record which axis you checked, not just that a control
 exists.
 
+Clear per endpoint, never per class. Do not clear a group with one statement such
+as "the write paths are all scoped" or "the connection logins are sound". A check
+present on one sibling can be commented out, skipped, or absent on another, and a
+class-wide clear makes that invisible. Read the actual gate in each endpoint's own
+code before you mark it cleared. A commented-out or skipped check is a finding,
+not a clear.
+
 ## Scope
 
 Report only HIGH / CRITICAL, exploitable, high-confidence issues. **Do not report**
@@ -178,6 +185,17 @@ speculative issues you cannot tie to a concrete exploit, and risks that only
 matter if production config is leaked. A control that a library fails to enforce
 for a reachable first-party entrypoint is not a dependency CVE, it is this app's
 exploitable exposure, so it is in scope. See "Controls That Live in a Library".
+
+Rate by impact, not by how local the bug looks. A control that protects money,
+signing, approval, authentication, identity, or tenant isolation is HIGH or
+CRITICAL when it can be defeated, even when the defeat is a single missing line.
+An authorization code or token with no expiry, a signed privileged request that
+can be replayed, a binding or ownership check that is commented out or skipped,
+and a cross-tenant read or write are HIGH, not MEDIUM. Do not let a conservative
+severity estimate drop a real exploitable issue. When you have a concrete exploit
+but are unsure it clears the bar, report it as suspected with your severity
+reasoning rather than parking it below the bar. The bar excludes issues with no
+concrete exploit, not exploitable issues you are unsure how to grade.
 
 ## Recording an Issue
 
@@ -263,6 +281,13 @@ reporting it as clean is the failure this gate exists to prevent.
   value flowing to a sink was still treated as attacker-influenced.
 - `analysis/_rounds.md` shows two consecutive rounds that added no new source, no
   new traced path, and no new issue.
+
+Resolving an entrypoint to ✅ means you read the code on its path to the sink and
+either filed an issue or cleared it on a specific reason that cites the code. A
+blanket dismissal, a park below the bar, or a class-wide clear does not resolve an
+entrypoint. Reaching the gate by closing entrypoints out is the failure this gate
+exists to prevent. The goal is every real issue found, not every entrypoint marked
+done.
 
 If any item fails, run another round. State which items pass when you report.
 
