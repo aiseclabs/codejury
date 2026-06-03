@@ -58,7 +58,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 ## Commands
 
 Two verbs, one per path, so `review` means exactly the `/codejury-review` repo
-review. `diff` audits a unified diff via `--diff-file`, `--repo --git-range`, or
+review. `diff` audits a unified diff via `--file`, `--repo --git-range`, or
 stdin, with `--mode {standard,adversarial}`. `review <dir>` scaffolds a workspace,
 writes the methodology to `<workspace>/METHODOLOGY.md`, and prints a short
 pointer, it does not run the review itself. The `/codejury-review` slash command

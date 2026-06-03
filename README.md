@@ -46,7 +46,7 @@ tell any agent to follow the methodology it writes.
 
 ```bash
 # audit a diff file
-codejury diff --diff-file changes.diff
+codejury diff --file changes.diff
 
 # audit a git range in a repo
 codejury diff --repo /path/to/app --git-range origin/main...HEAD
@@ -55,10 +55,10 @@ codejury diff --repo /path/to/app --git-range origin/main...HEAD
 git diff HEAD~1 | codejury diff
 
 # adversarial mode, more recall on subtle flaws, about 3x the cost
-codejury diff --diff-file changes.diff --mode adversarial
+codejury diff --file changes.diff --mode adversarial
 
 # CI gate and SARIF
-codejury diff --diff-file changes.diff --format sarif --fail-on high
+codejury diff --file changes.diff --format sarif --fail-on high
 ```
 
 Configure a backend with `--provider`, `--model`, `--api-key`, `--api-base`, or

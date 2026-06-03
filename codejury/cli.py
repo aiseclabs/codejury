@@ -40,8 +40,8 @@ _FAIL_ON = ("critical", "high", "medium", "low")
 
 
 def _read_diff(args) -> str:
-    if args.diff_file:
-        with open(args.diff_file, encoding="utf-8") as f:
+    if args.file:
+        with open(args.file, encoding="utf-8") as f:
             return f.read()
     if args.git_range:
         return subprocess.run(
@@ -66,7 +66,7 @@ _MOCK_REPLY = (
 
 def _add_audit_args(p) -> None:
     """The diff-audit flags for `review diff`."""
-    p.add_argument("--diff-file", default=None, help="unified diff file (default: read stdin)")
+    p.add_argument("--file", default=None, help="unified diff file (default: read stdin)")
     p.add_argument("--repo", default=None, help="repo path for --git-range")
     p.add_argument("--git-range", default=None, help="git range to diff, e.g. origin/main...HEAD")
     p.add_argument("--dry-run", action="store_true",
@@ -120,7 +120,7 @@ def _dispatch(args, parser) -> int:
             provider = MockProvider(default=_MOCK_REPLY)
             model = "mock"
             # zero-config smoke test: fall back to a built-in demo diff when none is supplied
-            diff = _read_diff(args) if (args.diff_file or args.git_range) else _dry_run_diff()
+            diff = _read_diff(args) if (args.file or args.git_range) else _dry_run_diff()
         else:
             provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
             model = args.model
