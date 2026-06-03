@@ -55,12 +55,13 @@ def _read_manifests(target: Path) -> str:
     return "\n".join(parts)
 
 
-def _detection_text(target: Path, files: list[str]) -> str:
-    """The dependency manifests plus a bounded sample of source and config
-    content, so detection can fire on language-neutral content tokens, not only
-    on per-ecosystem dependency names."""
+def _source_sample(target: Path, files: list[str]) -> str:
+    """A bounded sample of source and config content, so detection can fire on
+    import markers and language-neutral content tokens such as a protocol's wire
+    fields. Kept separate from the manifests so a dependency name does not
+    false-match a word that happens to appear in source."""
     detection_extensions = load_detection().detection_extensions
-    parts = [_read_manifests(target)]
+    parts: list[str] = []
     total = 0
     for f in files:
         if Path(f).suffix.lower() not in detection_extensions:
@@ -165,7 +166,11 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
     model = build_repo_model_from_dir(target)
 
     # detect the stack and seed its review guides (languages + frameworks)
-    guides = select_guides(model.files, text=_detection_text(target, model.files))
+    guides = select_guides(
+        model.files,
+        manifest_text=_read_manifests(target),
+        source_text=_source_sample(target, model.files),
+    )
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
 
     # flag candidate entrypoint files via the matched guides' globs and by

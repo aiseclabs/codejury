@@ -25,7 +25,7 @@ def guides_for_diff(diff: str) -> str:
     Lives here, not in the shared guides module, because parsing a diff is a
     diff-path concern."""
     paths = _DIFF_PATH.findall(diff)
-    return "\n\n---\n\n".join(g.body for g in select_guides(paths, text=diff))
+    return "\n\n---\n\n".join(g.body for g in select_guides(paths, source_text=diff))
 
 
 class AuditError(RuntimeError):

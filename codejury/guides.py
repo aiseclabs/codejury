@@ -94,25 +94,27 @@ def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR, prot
     return out
 
 
-def _matches(guide: Guide, files: list[str], text: str) -> bool:
+def _matches(guide: Guide, files: list[str], manifest_text: str, source_text: str) -> bool:
     if any(fnmatch.fnmatch(f, pat) for pat in guide.detect_files for f in files):
         return True
-    if any(m in text for m in guide.detect_manifest):
+    if any(m in manifest_text for m in guide.detect_manifest):     # dependency names, manifests only
         return True
-    if any(i in text for i in guide.detect_imports):
+    if any(i in source_text for i in guide.detect_imports):        # import markers, source only
         return True
-    if any(c in text for c in guide.detect_content):
+    if any(c in source_text for c in guide.detect_content):        # content tokens, source only
         return True
     return False
 
 
-def select_guides(files, *, text: str = "", guides: list[Guide] | None = None) -> list[Guide]:
+def select_guides(files, *, manifest_text: str = "", source_text: str = "", guides: list[Guide] | None = None) -> list[Guide]:
     """The guides whose detect signals fire on the target, languages first then
-    frameworks. `files` are the target's file paths. `text` is content to scan for
-    manifest substrings, import markers, and language-neutral content tokens such
-    as a protocol's wire fields, namely a repo's manifests plus a source sample,
-    or a diff body."""
+    frameworks. `files` are the target's file paths. `manifest_text` is the
+    dependency-manifest content, scanned only for dependency-name substrings, so a
+    name like a framework's does not false-match a word in source. `source_text`
+    is a source sample or a diff body, scanned for import markers and for
+    language-neutral content tokens such as a protocol's wire fields."""
     pool = load_guides() if guides is None else guides
     file_list = list(files)
-    blob = text.lower()
-    return [g for g in pool if _matches(g, file_list, blob)]
+    man = manifest_text.lower()
+    src = source_text.lower()
+    return [g for g in pool if _matches(g, file_list, man, src)]

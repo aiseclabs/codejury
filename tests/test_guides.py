@@ -22,9 +22,15 @@ def test_every_guide_declares_a_kind_in_frontmatter():
 
 
 def test_protocol_guide_selected_by_protocol_token():
-    # language-neutral detection: an OAuth wire field, no ecosystem library name
-    matched = {g.id for g in select_guides(["main.py"], text="grant_type=authorization_code\nredirect_uri\n")}
+    # language-neutral detection: an OAuth wire field in source, no ecosystem library name
+    matched = {g.id for g in select_guides(["main.py"], source_text="grant_type=authorization_code\nredirect_uri\n")}
     assert "oauth" in matched
+
+
+def test_manifest_name_does_not_match_a_word_in_source():
+    # a dependency name is scanned in manifests only, so the word in source does not fire it
+    assert "flask" not in {g.id for g in select_guides(["app.py"], source_text="x = some_expression_flask_like\n")}
+    assert "flask" in {g.id for g in select_guides(["app.py"], manifest_text="Flask==3.0\n")}
 
 
 def test_select_by_file_glob():
@@ -34,7 +40,7 @@ def test_select_by_file_glob():
 
 
 def test_select_by_manifest_substring():
-    matched = {g.id for g in select_guides(["main.py"], text="Django==4.2\nrequests\n")}
+    matched = {g.id for g in select_guides(["main.py"], manifest_text="Django==4.2\nrequests\n")}
     assert "django" in matched and "python" in matched
 
 

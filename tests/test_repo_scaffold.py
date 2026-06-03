@@ -87,20 +87,24 @@ def test_methodology_has_completeness_gate(tmp_path):
 
 
 def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):
-    # the Flask target has no *urls.py and no django manifest: no candidate files,
-    # the seed says so and the agent enumerates from the code
-    res = scaffold(_target(tmp_path), tmp_path / "work")
+    # a stack with no shipped guide: no candidate files, the seed says so and the
+    # agent enumerates from the code
+    d = tmp_path / "rb"
+    d.mkdir()
+    (d / "app.rb").write_text("puts 'hello'\n")
+    res = scaffold(d, tmp_path / "work")
     assert res.candidate_files == ()
     assert "No candidate files flagged" in (res.workspace / "entrypoints" / "_entrypoints.md").read_text()
 
 
 def test_scaffold_seeds_stack_guides(tmp_path):
-    # the Flask target is Python, so the python language guide should be detected and
-    # its notes written to _stack.md
+    # the Flask target is Python and Flask, so both guides are detected, and the
+    # flask guide flags the route file app.py as a candidate entrypoint
     res = scaffold(_target(tmp_path), tmp_path / "work")
-    assert "python" in res.guides
+    assert "python" in res.guides and "flask" in res.guides
+    assert "app.py" in res.candidate_files
     stack = (res.workspace / "_stack.md").read_text()
-    assert "python" in stack.lower()
+    assert "python" in stack.lower() and "flask" in stack.lower()
 
 
 def test_scaffold_detects_framework_from_files_and_manifest(tmp_path):
