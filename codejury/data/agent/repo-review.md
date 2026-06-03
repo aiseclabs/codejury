@@ -21,7 +21,10 @@ Workspace: `<workspace>/<project>/` (created for you), holding `entrypoints/`,
 2. Read `entrypoints/_entrypoints.md` (seeded for you from a deterministic AST
    scan) as a *starting* map of the attack surface. It lists HTTP routes and CLI
    commands only, a subset, not the whole surface (see "Map the attack surface").
-3. Read the relevant rule files under the shipped `rules/` for the target's stack
+3. Read `_stack.md` (seeded): the detected languages and frameworks and review
+   notes for them, so you know where this stack's entrypoints, sinks, and auth
+   checks live. If it matched nothing, lean on your own knowledge of the stack.
+4. Read the relevant rule files under the shipped `rules/` for the target's stack
    (sql-injection, idor, ssrf, authentication-jwt, insecure-deserialization, ...).
 
 ## Map the attack surface

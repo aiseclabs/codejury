@@ -13,11 +13,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from codejury.repo.guides import Guide, select_guides
 from codejury.repo.model import build_repo_model_from_dir
 from codejury.resources import AGENT_DIR
 
 _METHODOLOGY = AGENT_DIR / "repo-review.md"
 _MEMORY_TEMPLATE = AGENT_DIR / "security-review-memory.md"
+
+# top-level dependency manifests scanned to detect the stack (content, not names)
+_MANIFESTS = (
+    "requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup.py", "Pipfile",
+    "package.json", "go.mod", "Gemfile", "pom.xml", "build.gradle", "Cargo.toml", "composer.json",
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -27,7 +34,35 @@ class ScaffoldResult:
     methodology: str
     memory_path: Path
     entrypoints: int
+    guides: tuple[str, ...] = ()
     created: list[str] = field(default_factory=list)
+
+
+def _read_manifests(target: Path) -> str:
+    parts: list[str] = []
+    for name in _MANIFESTS:
+        p = target / name
+        try:
+            if p.is_file():
+                parts.append(p.read_text(encoding="utf-8"))
+        except OSError:
+            pass
+    return "\n".join(parts)
+
+
+def _stack_md(guides: list[Guide]) -> str:
+    if not guides:
+        return ("# Detected stack — review notes\n\n"
+                "(no language or framework guide matched; rely on the methodology and "
+                "your own knowledge of the stack)\n")
+    langs = [g.id for g in guides if g.kind == "language"]
+    fws = [g.id for g in guides if g.kind == "framework"]
+    lines = ["# Detected stack — review notes", "",
+             f"Languages: {', '.join(langs) or '-'}",
+             f"Frameworks: {', '.join(fws) or '-'}", ""]
+    for g in guides:
+        lines += ["---", "", g.body, ""]
+    return "\n".join(lines) + "\n"
 
 
 def _entrypoints_md(model) -> str:
@@ -69,11 +104,16 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
     model = build_repo_model_from_dir(target)
     (ws / "entrypoints" / "_entrypoints.md").write_text(_entrypoints_md(model), encoding="utf-8")
 
+    # detect the stack and seed its review guides (languages + frameworks)
+    guides = select_guides(model.files, manifest_text=_read_manifests(target))
+    (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
+
     return ScaffoldResult(
         project=project,
         workspace=ws,
         methodology=_METHODOLOGY.read_text(encoding="utf-8"),
         memory_path=memory_path,
         entrypoints=len(model.entrypoints),
+        guides=tuple(g.id for g in guides),
         created=created,
     )

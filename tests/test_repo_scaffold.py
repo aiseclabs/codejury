@@ -47,6 +47,26 @@ def test_scaffold_seeds_entrypoints_from_repomodel(tmp_path):
     assert "list_users" in seeded and "❌" in seeded
 
 
+def test_scaffold_seeds_stack_guides(tmp_path):
+    # the Flask target is Python; the python language guide should be detected and
+    # its notes written to _stack.md
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    assert "python" in res.guides
+    stack = (res.workspace / "_stack.md").read_text()
+    assert "python" in stack.lower()
+
+
+def test_scaffold_detects_framework_from_files_and_manifest(tmp_path):
+    d = tmp_path / "dj"
+    d.mkdir()
+    (d / "manage.py").write_text("import django\n")
+    (d / "urls.py").write_text("from django.urls import path\nurlpatterns = []\n")
+    (d / "requirements.txt").write_text("Django==4.2\n")
+    res = scaffold(d, tmp_path / "work")
+    assert "django" in res.guides
+    assert "Django" in (res.workspace / "_stack.md").read_text()
+
+
 def test_methodology_is_returned(tmp_path):
     # the methodology text ships and is handed back for the agent to follow
     res = scaffold(_target(tmp_path), tmp_path / "work")

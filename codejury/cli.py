@@ -133,6 +133,8 @@ def _dispatch(args, parser) -> int:
         res = scaffold(args.directory, args.workspace)
         print(f"Workspace: {res.workspace}", file=sys.stderr)
         print(f"Seeded {res.entrypoints} entrypoints into {res.workspace}/entrypoints/_entrypoints.md", file=sys.stderr)
+        if res.guides:
+            print(f"Detected stack ({', '.join(res.guides)}); notes in {res.workspace}/_stack.md", file=sys.stderr)
         print(f"Memory: {res.memory_path}", file=sys.stderr)
         print("\nRun this review with an interactive agent (Claude Code / Codex) using the methodology below.\n")
         print(res.methodology)
