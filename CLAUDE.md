@@ -57,18 +57,18 @@ default behavior. Strategy: see `ROADMAP.md`.
 
 ## Commands
 
-One verb, `review`, split by scope. `review diff` audits a unified diff via
-`--diff-file`, `--repo --git-range`, or stdin, with `--mode {standard,adversarial}`.
-`review repo <dir>` scaffolds a workspace, writes the methodology to
-`<workspace>/METHODOLOGY.md`, and prints a short pointer, it does not run the
-review itself. The `/codejury-review` slash command runs it inside Claude
-Code, so the agent scaffolds then follows `METHODOLOGY.md` interactively, which
-keeps PoC verification human-in-the-loop. The slash command ships as package data
-in `data/commands/`, and `codejury install-slash-command [--agent claude|codex]`
-copies it into the agent's command directory so a pip install can use it. The
-body is portable, only the directory differs, and the review itself is agent
-neutral. `codejury --version` prints the version.
-Shared `review diff` flags: `--provider {anthropic,openai,litellm}`, `--model`,
+Two verbs, one per path, so `review` means exactly the `/codejury-review` repo
+review. `diff` audits a unified diff via `--diff-file`, `--repo --git-range`, or
+stdin, with `--mode {standard,adversarial}`. `review <dir>` scaffolds a workspace,
+writes the methodology to `<workspace>/METHODOLOGY.md`, and prints a short
+pointer, it does not run the review itself. The `/codejury-review` slash command
+runs it inside Claude Code or Codex, so the agent scaffolds then follows
+`METHODOLOGY.md` interactively, which keeps PoC verification human-in-the-loop.
+The slash command ships as package data in `data/commands/`, and `codejury
+install-slash-command [--agent claude|codex]` copies it into the agent's command
+directory so a pip install can use it. The body is portable, only the directory
+differs, and the review itself is agent neutral. `codejury --version` prints the version.
+Shared `diff` flags: `--provider {anthropic,openai,litellm}`, `--model`,
 `--format {text,markdown,json,sarif}`, `--fail-on {critical,high,medium,low}`,
 `--no-filter`, `--exclude PATH` repeatable, `--dry-run` for a mock provider with no
 key and a built in demo diff when none is supplied.

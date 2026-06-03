@@ -39,31 +39,31 @@ codejury install-slash-command --agent codex   # Codex, ~/.codex/prompts/
 `install-slash-command` copies the `/codejury-review` command into the agent's
 command directory. The command body is the same for every agent, only the
 directory differs, so pass `--dir` for any other agent. The repo review itself is
-agent neutral, so even without the command you can run `codejury review repo` and
+agent neutral, so even without the command you can run `codejury review` and
 tell any agent to follow the methodology it writes.
 
 ## Diff Review
 
 ```bash
 # audit a diff file
-codejury review diff --diff-file changes.diff
+codejury diff --diff-file changes.diff
 
 # audit a git range in a repo
-codejury review diff --repo /path/to/app --git-range origin/main...HEAD
+codejury diff --repo /path/to/app --git-range origin/main...HEAD
 
 # from stdin
-git diff HEAD~1 | codejury review diff
+git diff HEAD~1 | codejury diff
 
 # adversarial mode, more recall on subtle flaws, about 3x the cost
-codejury review diff --diff-file changes.diff --mode adversarial
+codejury diff --diff-file changes.diff --mode adversarial
 
 # CI gate and SARIF
-codejury review diff --diff-file changes.diff --format sarif --fail-on high
+codejury diff --diff-file changes.diff --format sarif --fail-on high
 ```
 
 Configure a backend with `--provider`, `--model`, `--api-key`, `--api-base`, or
 the `CODEJURY_API_KEY`, `CODEJURY_MODEL`, and `CODEJURY_API_BASE` environment
-variables. `codejury review diff --dry-run` exercises the engine with a mock
+variables. `codejury diff --dry-run` exercises the engine with a mock
 provider and no key, and falls back to a built in demo diff when you pass none.
 
 ### Choosing a Model and Mode
@@ -103,7 +103,7 @@ run, because a whole repository needs many rounds of reading, cross-file tracing
 and PoC work that an agent does, not a single call.
 
 ```bash
-codejury review repo /path/to/your/repo
+codejury review /path/to/your/repo
 ```
 
 This detects the stack, seeds the entrypoint inventory and the downstream trace

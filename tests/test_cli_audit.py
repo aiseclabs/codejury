@@ -68,13 +68,13 @@ def test_version_flag_exits_zero(capsys):
 
 def test_review_diff_dry_run_is_zero_config(capsys):
     # no diff input, no key: the built-in demo diff runs through the mock provider
-    rc = main(["review", "diff", "--dry-run"])
+    rc = main(["diff", "--dry-run"])
     assert rc == 0
     assert "sql-injection" in capsys.readouterr().out
 
 
 def test_review_diff_dry_run_respects_exclude(capsys):
-    rc = main(["review", "diff", "--dry-run", "--exclude", "app.py"])
+    rc = main(["diff", "--dry-run", "--exclude", "app.py"])
     assert rc == 0
     assert "no findings" in capsys.readouterr().out
 
@@ -89,7 +89,7 @@ def test_review_repo_writes_methodology_to_workspace(tmp_path):
     # the agent can read it, alongside printing it
     repo = tmp_path / "svc"; repo.mkdir(); (repo / "app.py").write_text("x = 1\n")
     ws = tmp_path / "ws"
-    rc = main(["review", "repo", str(repo), "--workspace", str(ws)])
+    rc = main(["review", str(repo), "--workspace", str(ws)])
     assert rc == 0
     assert (ws / "svc" / "METHODOLOGY.md").is_file()
 
@@ -105,4 +105,4 @@ def test_install_slash_command_writes_the_file(tmp_path):
     rc = main(["install-slash-command", "--dir", str(tmp_path)])
     assert rc == 0
     f = tmp_path / "codejury-review.md"
-    assert f.is_file() and "codejury review repo" in f.read_text()
+    assert f.is_file() and "codejury review" in f.read_text()

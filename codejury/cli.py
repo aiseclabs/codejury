@@ -2,13 +2,13 @@
 
 Two paths matched to their nature:
 
-- ``review diff`` runs the coded diff engine over a unified diff: a single
-  balanced call (standard) or the adversarial Finder/Challenger/Judge pass.
-- ``review repo`` scaffolds a workspace and prints the methodology for an
+- ``diff`` runs the coded diff engine over a unified diff: a single balanced call
+  (standard) or the adversarial Finder/Challenger/Judge pass.
+- ``review <dir>`` scaffolds a workspace and prints the methodology for an
   interactive agent to run a whole-repo review (it does not run an LLM pipeline,
   which a single call cannot do for a whole codebase).
 
-``review diff --dry-run`` exercises the engine with a mock provider and no key.
+``diff --dry-run`` exercises the engine with a mock provider and no key.
 The audit orchestration itself lives in ``codejury.diff.runner``.
 """
 
@@ -93,12 +93,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--version", action="version", version=f"codejury {__version__}")
     sub = parser.add_subparsers(dest="command")
 
-    review = sub.add_parser("review", help="review code for security findings")
-    rsub = review.add_subparsers(dest="scope")
-    _add_audit_args(rsub.add_parser("diff", help="audit a unified diff (the coded engine)"))
-    repo = rsub.add_parser("repo", help="scaffold a whole-repo review for an interactive agent")
-    repo.add_argument("directory", help="target repository to review")
-    repo.add_argument("--workspace", default="codejury-review", help="where to create the review workspace")
+    _add_audit_args(sub.add_parser("diff", help="audit a unified diff (the coded engine)"))
+
+    review = sub.add_parser("review", help="scaffold a whole-repo review for an interactive agent")
+    review.add_argument("directory", help="target repository to review")
+    review.add_argument("--workspace", default="codejury-review", help="where to create the review workspace")
 
     inst = sub.add_parser("install-slash-command",
                           help="install the /codejury-review slash command for an agent")
@@ -116,8 +115,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _dispatch(args, parser) -> int:
-    scope = getattr(args, "scope", None)
-    if args.command == "review" and scope == "diff":
+    if args.command == "diff":
         if args.dry_run:
             provider = MockProvider(default=_MOCK_REPLY)
             model = "mock"
@@ -136,7 +134,7 @@ def _dispatch(args, parser) -> int:
         print(render(args.fmt, kept))
         return 1 if gate(kept, args.fail_on) else 0
 
-    if args.command == "review" and scope == "repo":
+    if args.command == "review":
         res = scaffold(args.directory, args.workspace)
         (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
         print(f"Workspace ready: {res.workspace}", file=sys.stderr)
@@ -168,12 +166,6 @@ def _dispatch(args, parser) -> int:
         print(f"Installed slash command to {dst}")
         print("Run it in the agent with: /codejury-review <repository>")
         return 0
-
-    if args.command == "review":  # no scope given
-        print("usage: codejury review {diff,repo} ...", file=sys.stderr)
-        print("  diff   audit a unified diff for security findings", file=sys.stderr)
-        print("  repo   scaffold a whole-repo review for an interactive agent", file=sys.stderr)
-        return 1
 
     parser.print_help()
     return 1
