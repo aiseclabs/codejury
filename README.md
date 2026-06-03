@@ -163,4 +163,3 @@ change.
   entrypoint markers, and downstream logic layers.
 - A protocol such as OAuth: `codejury/data/protocols/<name>.md`, detected by
   language neutral content tokens.
-```
