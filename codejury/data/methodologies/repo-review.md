@@ -117,12 +117,33 @@ path is traced through the downstream layers to a sink or cleared, since stoppin
 at the view is what hides the deep flaw, for example the missing lock in a dao or
 the skipped expiry check in a manager.
 
+## Controls That Live in a Library
+
+An entrypoint's security control is often not in the first-party code at all: the
+authentication, the signature or replay check, the permission test is implemented
+in a library the endpoint calls. You cannot judge whether the endpoint is
+exploitable from the first-party code alone, because the control that would stop
+the attack lives in the library.
+
+So when a traced path relies on a control a library provides, follow into that
+library's relevant function and verify it actually enforces the control, for
+example that a signature check also binds a nonce or a timestamp window, or that
+an auth helper truly validates the caller. Read the specific function the path
+depends on, not the whole library, and read it where it is installed or vendored.
+
+This is about this app's exposure, so it applies to any library, internal or
+third-party. It is not auditing the library for its own bugs, which belongs to
+that library's own review. It is confirming that the control your endpoint relies
+on holds here.
+
 ## Scope
 
 Report only HIGH / CRITICAL, exploitable, high-confidence issues. **Do not report**
 regardless of severity, dependency CVEs, style or best-practice notes,
 speculative issues you cannot tie to a concrete exploit, and risks that only
-matter if production config is leaked.
+matter if production config is leaked. A control that a library fails to enforce
+for a reachable first-party entrypoint is not a dependency CVE, it is this app's
+exploitable exposure, so it is in scope. See "Controls That Live in a Library".
 
 ## Recording an Issue
 
