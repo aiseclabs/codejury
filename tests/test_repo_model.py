@@ -39,10 +39,13 @@ def test_build_from_dir_walks_tree_and_skips_noise(tmp_path):
     (tmp_path / "go.mod").write_text("module x")          # non-.py files are listed too
     (tmp_path / "__pycache__").mkdir()
     (tmp_path / "__pycache__" / "junk.py").write_text("x = 1")
+    (tmp_path / "build" / "lib" / "pkg").mkdir(parents=True)
+    (tmp_path / "build" / "lib" / "pkg" / "urls.py").write_text("x = 1")  # build artifact, a duplicate of source
 
     m = build_repo_model_from_dir(tmp_path)
     assert {"app.py", "pkg/urls.py", "go.mod"} <= set(m.files)
     assert all("__pycache__" not in f for f in m.files)   # noise dir skipped
+    assert all(not f.startswith("build/") for f in m.files)   # build output skipped, no duplicate source
 
 
 def test_build_is_deterministic():

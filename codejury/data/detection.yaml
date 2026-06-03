@@ -4,7 +4,7 @@
 # data edit. This is distinct from a guide's stack detection, which decides which
 # language, framework, or protocol applies.
 
-skip_dirs: [".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache"]
+skip_dirs: [".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache", "build", "dist", "target", "out", ".tox", ".eggs", ".next", ".nuxt"]
 
 source_extensions: [".py", ".js", ".ts", ".tsx", ".jsx", ".mjs", ".go", ".rb", ".java", ".kt", ".php", ".cs", ".scala", ".rs"]
 
