@@ -1,10 +1,10 @@
 """AI code security review tool.
 
-Two paths matched to their nature: a coded diff-audit engine (standard single
-call or adversarial Finder/Challenger/Judge), and a whole-repo review run as a
-methodology by an interactive agent. Security knowledge lives in rich markdown
-vulnerability classes (data/vulnerabilities) injected into the audit prompt, not
-in a rendered schema.
+Two paths matched to their nature: a coded diff-audit engine, a standard single
+call or an adversarial Finder/Challenger/Judge pass, and a whole-repo review run
+as a methodology by an interactive agent. Security knowledge lives in rich
+markdown vulnerability classes under data/vulnerabilities, injected into the
+audit prompt, not in a rendered schema.
 """
 
 from importlib.metadata import PackageNotFoundError, version

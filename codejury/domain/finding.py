@@ -45,7 +45,7 @@ def _to_line(value: object) -> int | None:
 
 def finding_from_dict(data: dict[str, Any]) -> Finding | None:
     """Map one loosely-typed model finding onto a Finding, or None if it has no
-    location (invariant: every finding carries a file)."""
+    location, since every finding carries a file, that is the invariant."""
     if not isinstance(data, dict):
         return None
     file = str(data.get("file", "")).strip()

@@ -1,9 +1,9 @@
 """RepoModel: a language-agnostic structural map of a repository.
 
-Lists the repo's files (deterministic, zero model call, cacheable). It does not
+Lists the repo's files deterministically, with zero model calls, cacheable. It does not
 parse code or enumerate framework routes: identifying the actual entrypoints is
-left to the agent, guided by the matched language/framework guides
-(`data/languages`, `data/frameworks`). The only deterministic help is flagging
+left to the agent, guided by the matched language/framework guides under
+`data/languages` and `data/frameworks`. The only deterministic help is flagging
 *candidate* entrypoint files by the globs a guide declares, which keeps every
 language-specific and framework-specific detail in the guides and out of this module.
 """
@@ -50,8 +50,8 @@ def build_repo_model_from_dir(root: str | Path) -> RepoModel:
 
 
 def build_repo_model(root: str | Path, files) -> RepoModel:
-    """Build a RepoModel from an iterable of relative paths (for tests / callers
-    that already have the file list)."""
+    """Build a RepoModel from an iterable of relative paths, for tests or callers
+    that already have the file list."""
     return RepoModel(root=str(root), files=tuple(sorted(files)))
 
 

@@ -2,7 +2,7 @@
 
 Each round runs the three roles once: the finder scans, the challenger rebuts and
 independently re-scans, the judge cross-validates and keeps the survivors. Rounds
-repeat (feeding the judged set back to the finder) until the confirmed set is
+repeat, feeding the judged set back to the finder, until the confirmed set is
 stable or ``max_rounds`` is hit. Higher coverage and lower false positives than
 the standard single call, at roughly three times the cost.
 """
@@ -65,9 +65,9 @@ def _loc(d: dict) -> str:
 
 
 def _apply_dismissals(findings: list[dict], rebuttals: list[dict]) -> list[dict]:
-    """Drop findings the challenger dismissed. The challenger is recall-safe (it
-    dismisses only when the diff shows a safe pattern: a parameterized query,
-    basename, an allowlist, shell=False), so honoring its dismissals is sound even
+    """Drop findings the challenger dismissed. The challenger is recall-safe: it
+    dismisses only when the diff shows a safe pattern such as a parameterized query,
+    a basename, an allowlist, or shell=False, so honoring its dismissals is sound even
     when the judge is unavailable."""
     dismissed = {
         str(r.get("target")) for r in rebuttals

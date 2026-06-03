@@ -9,13 +9,13 @@
 
 > AI code security review for diffs and repos.
 
-codejury runs two paths matched to their nature.
+It runs two paths matched to their nature.
 
 - **Diff Review** is coded. It audits a pull request diff for newly introduced
   exploitable risk, as a single balanced LLM call or an adversarial Finder,
   Challenger, and Judge pass that trades roughly 3x the cost for extra recall on
   subtle flaws that span files. One command in, findings out.
-- **Repo Review** is agent driven. A whole repository is too large for one LLM
+- **Repo Review** is agent driven. A whole repo is too large for one LLM
   call, so codejury scaffolds a workspace and hands an interactive agent such as
   Claude Code or Codex a methodology to run. The agent maps the attack surface,
   traces inputs to sinks across files, verifies issues with a real PoC, and
@@ -99,7 +99,7 @@ request.
 ## Repo Review
 
 Repo Review does not scan and print findings. It sets up a review for an agent to
-run, because a whole repository needs many rounds of reading, cross-file tracing,
+run, because a whole repo needs many rounds of reading, cross-file tracing,
 and PoC work that an agent does, not a single call.
 
 ```bash

@@ -4,7 +4,7 @@ Real model calls fail intermittently, for example on timeouts or rate limits.
 This decorator retries with linear backoff and re-raises the last error once
 attempts are exhausted. A 200 response with a blank body is treated as a
 transient failure and retried too, since an empty reply is unusable and must
-not be passed downstream as a clean (no-findings) result. ``sleep`` is
+not be passed downstream as a clean no-findings result. ``sleep`` is
 injectable so tests do not actually wait.
 """
 

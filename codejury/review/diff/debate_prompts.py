@@ -1,14 +1,14 @@
 """Adversarial-mode prompts: three roles over the same diff.
 
-- Finder (red team): attacker view, exhaustive, does not self-filter, so misses
+- Finder, the red team: attacker view, exhaustive, does not self-filter, so misses
   are rare.
-- Challenger (blue team): two jobs in one pass: rebut each Finder finding it
+- Challenger, the blue team: two jobs in one pass: rebut each Finder finding it
   believes is a false positive, and independently scan the diff for what Finder
   missed.
 - Judge: cross-validate both independent scans and rule each finding, keeping the
   survivors with calibrated severity.
 
-The shared knowledge (focus areas, do-not-report list) is reused from the
+The shared knowledge, the focus areas and the do-not-report list, is reused from the
 standard prompt so the two modes hunt the same things.
 """
 

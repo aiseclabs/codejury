@@ -1,7 +1,7 @@
 ---
 description: Run a codejury whole-repo security review on a repository, interactively
 ---
-Run a codejury whole-repository security review of: $ARGUMENTS
+Run a codejury whole-repo security review of: $ARGUMENTS
 
 1. Scaffold the workspace:
 

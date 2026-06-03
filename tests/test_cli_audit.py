@@ -87,7 +87,9 @@ def test_old_audit_command_is_gone(capsys):
 def test_review_repo_writes_methodology_to_workspace(tmp_path):
     # the scaffold drops the methodology into the workspace so the slash command and
     # the agent can read it, alongside printing it
-    repo = tmp_path / "svc"; repo.mkdir(); (repo / "app.py").write_text("x = 1\n")
+    repo = tmp_path / "svc"
+    repo.mkdir()
+    (repo / "app.py").write_text("x = 1\n")
     ws = tmp_path / "ws"
     rc = main(["review", "repo", str(repo), "--workspace", str(ws)])
     assert rc == 0

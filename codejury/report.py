@@ -111,7 +111,7 @@ def render(fmt: str, findings: list[Finding]) -> str:
 
 
 def gate(findings: list[Finding], fail_on: str | None) -> bool:
-    """True if any finding is at or above ``fail_on`` (critical|high|medium|low)."""
+    """True if any finding is at or above ``fail_on``, one of critical, high, medium, or low."""
     if not fail_on:
         return False
     threshold = _GATE_RANK.get(fail_on.lower())

@@ -1,7 +1,7 @@
 """Text extraction for the OpenAI chat-completions response shape.
 
 Shared by OpenAIProvider and LiteLLMProvider, since LiteLLM returns the same
-``choices[0].message.content`` structure (a string, or a list of content blocks).
+``choices[0].message.content`` structure, a string or a list of content blocks.
 """
 
 from __future__ import annotations

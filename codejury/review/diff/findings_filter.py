@@ -5,7 +5,7 @@ common noise it still emits: findings below a confidence floor, and findings in
 test code. Test detection is conservative, a real test directory segment or a
 test-file naming convention, not a bare ``sample_``/``mock_`` prefix, so a
 production file like ``sample_rate.py`` is not silently suppressed. Operators can
-add their own excluded path segments. Returns (kept, dropped) so the dropped set
+add their own excluded path segments. Returns the kept set and the dropped set, so the dropped set
 stays auditable.
 """
 

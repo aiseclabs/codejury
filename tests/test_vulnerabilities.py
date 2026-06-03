@@ -68,11 +68,11 @@ def test_select_matches_by_trigger():
 
 def test_select_is_capped_and_severity_ordered():
     # a diff that trips many triggers
-    busy = "os.system(x); cursor.execute(q); requests.get(u); pickle.loads(d); open(p); jwt.decode(t)\n"
+    busy = "os.system(x)\ncursor.execute(q)\nrequests.get(u)\npickle.loads(d)\nopen(p)\njwt.decode(t)\n"
     sel = select_vulnerabilities(busy, _VULNS, limit=3)
     assert len(sel) == 3
     impacts = [v.impact for v in sel]
-    assert impacts == sorted(impacts, key=lambda i: {"CRITICAL": 0, "HIGH": 1}.get(i, 2))  # criticals first
+    assert impacts == sorted(impacts, key=lambda i: {"CRITICAL": 0, "HIGH": 1}.get(i, 2))   # criticals first
 
 
 def test_no_match_is_empty():

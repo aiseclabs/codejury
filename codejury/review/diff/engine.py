@@ -1,7 +1,7 @@
 """Standard diff-audit engine: one model call over a diff, parsed into Findings.
 
 The cheap, balanced default. The adversarial Finder/Challenger/Judge engine
-(RW-2) builds on the same Finding domain for the cases that need higher
+builds on the same Finding domain for the cases that need higher
 coverage and lower false positives.
 """
 
@@ -33,8 +33,8 @@ class AuditError(RuntimeError):
 
     Raised instead of returning an empty findings list, so a failed or blank
     call is never reported as a clean audit. The prompt requires a JSON object
-    carrying a ``findings`` key (an empty ``{"findings": []}`` when there is
-    nothing to report), so a reply that yields no object, or an object without
+    carrying a ``findings`` key, an empty ``{"findings": []}`` when there is
+    nothing to report, so a reply that yields no object, or an object without
     that key, is a failure, not a pass."""
 
 

@@ -1,12 +1,12 @@
 """Best-effort extraction of a JSON object from model output.
 
 Models often wrap JSON in prose or code fences, and sometimes emit slightly
-malformed JSON (an unescaped quote, a trailing comma, a reply truncated at the
-token limit). This recovers the object: a direct parse, then a fenced ```json
-block, then the first balanced-brace span (string-aware, so braces inside string
-values do not throw off the count), then a json-repair fallback for malformed or
-truncated output. The repair step keeps a single bad character from silently
-dropping an entire findings list.
+malformed JSON, for example an unescaped quote, a trailing comma, or a reply
+truncated at the token limit. This recovers the object: a direct parse, then a
+fenced ```json block, then the first balanced-brace span, which is string-aware
+so braces inside string values do not throw off the count, then a json-repair
+fallback for malformed or truncated output. The repair step keeps a single bad
+character from silently dropping an entire findings list.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import re
 _FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
 # Defensive ceiling: model output is bounded by max_tokens, but never scan an
-# unbounded string (the balanced-brace pass is superlinear on pathological input).
+# unbounded string, the balanced-brace pass is superlinear on pathological input.
 _MAX_SCAN = 1_000_000
 
 
@@ -49,7 +49,7 @@ def extract_json_object(text: str) -> dict | None:
 
 def _first_balanced_object(text: str) -> dict | None:
     """The first complete top-level {...} span, counting braces only outside of
-    string literals so braces inside a value (code in a description, "{x}") do not
+    string literals so braces inside a value, for example code in a description like "{x}", do not
     corrupt the depth count."""
     depth = 0
     start = -1
@@ -85,8 +85,8 @@ def _first_balanced_object(text: str) -> dict | None:
 
 
 def _repair(text: str) -> dict | None:
-    """Last resort: repair malformed or truncated JSON (unescaped quotes, trailing
-    commas, an unterminated reply). Optional dependency, a no-op if absent."""
+    """Last resort: repair malformed or truncated JSON such as unescaped quotes, trailing
+    commas, or an unterminated reply. Optional dependency, a no-op if absent."""
     try:
         from json_repair import repair_json
     except ImportError:

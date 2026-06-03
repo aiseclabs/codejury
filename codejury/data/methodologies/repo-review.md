@@ -1,6 +1,6 @@
 # Repo Security Review: Agent Methodology
 
-The `review repo` path: a whole-repository security audit, run by an interactive
+The `review repo` path: a whole-repo security audit, run by an interactive
 coding agent such as Claude Code or Codex, not a one-shot LLM call. It maps the
 attack surface, traces inputs to sinks across files, verifies issues with a real
 PoC, and iterates over multiple rounds with a persistent memory. One round is

@@ -3,10 +3,10 @@
 Two paths matched to their nature:
 
 - ``review diff`` runs the coded diff engine over a unified diff: a single
-  balanced call (standard) or the adversarial Finder/Challenger/Judge pass.
+  balanced call in standard mode or the adversarial Finder/Challenger/Judge pass.
 - ``review repo <dir>`` scaffolds a workspace and prints the methodology for an
-  interactive agent to run a whole-repo review (it does not run an LLM pipeline,
-  which a single call cannot do for a whole codebase).
+  interactive agent to run a whole-repo review. It does not run an LLM pipeline,
+  which a single call cannot do for a whole codebase.
 
 ``review diff --dry-run`` exercises the engine with a mock provider and no key.
 The audit orchestration itself lives in ``codejury.review.diff.runner``.

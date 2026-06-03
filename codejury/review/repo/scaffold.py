@@ -2,7 +2,7 @@
 
 The `review repo` path. Whole-repo review is too large for a single LLM call, so
 it does not run as a pipeline. Instead it scaffolds a workspace for an
-interactive agent (Claude Code, Codex) and hands over the methodology: it creates
+interactive agent such as Claude Code or Codex and hands over the methodology: it creates
 the entrypoints/issues/analysis directories, copies the review-memory template,
 seeds the detected stack guides and the candidate entrypoint files, and returns
 the methodology text to print.
@@ -165,7 +165,7 @@ def scaffold(target: str | Path, workspace: str | Path) -> ScaffoldResult:
 
     model = build_repo_model_from_dir(target)
 
-    # detect the stack and seed its review guides (languages + frameworks)
+    # detect the stack and seed its review guides
     guides = select_guides(
         model.files,
         manifest_text=_read_manifests(target),

@@ -22,7 +22,7 @@ _MAX_DIFF_CHARS = 60_000
 
 
 def split_diff_by_file(diff: str) -> list[str]:
-    """Split a unified diff into one diff per file (`diff --git ...` boundaries)."""
+    """Split a unified diff into one diff per file at `diff --git` boundaries."""
     chunks: list[str] = []
     cur: list[str] = []
     for line in diff.splitlines(keepends=True):
@@ -59,7 +59,7 @@ def audit_diff(
     judge_model: str | None = None,
     exclude_paths: tuple[str, ...] = (),
 ) -> tuple[list[Finding], list[tuple[Finding, str]]]:
-    """Audit a diff and return (kept findings, dropped (finding, reason)).
+    """Audit a diff and return the kept findings and the dropped finding-reason pairs.
 
     A diff over the size budget is audited one file at a time so it does not
     overflow the context. Finding categories are normalized to the rule-id set.

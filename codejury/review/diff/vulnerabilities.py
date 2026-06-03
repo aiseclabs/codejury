@@ -1,10 +1,10 @@
 """Vulnerability classes as data: load the rich markdown definitions and pick the
 ones relevant to a diff, to inject into the audit prompt.
 
-Each ``data/vulnerabilities/<class>.md`` has a YAML frontmatter (title, impact,
-tags, triggers) and a body with vulnerable/secure examples.
+Each ``data/vulnerabilities/<class>.md`` has a YAML frontmatter of title, impact,
+tags, and triggers, and a body with vulnerable/secure examples.
 ``select_vulnerabilities`` matches a class's triggers against the diff text
-(case-insensitive substring), so only the relevant ones are fed to the model
+as a case-insensitive substring, so only the relevant ones are fed to the model
 rather than the whole library.
 """
 
@@ -54,13 +54,13 @@ def select_vulnerabilities(diff: str, items: list[Vulnerability], *, limit: int 
 
 def allowed_categories(directory: str | Path = VULNERABILITIES_DIR) -> list[str]:
     """The closed set of finding categories: every vulnerability id. A finding's
-    category must be one of these (or 'other'), so findings tie back to a class."""
+    category must be one of these or 'other', so findings tie back to a class."""
     return [v.id for v in load_vulnerabilities(directory)]
 
 
 def normalize_category(category: str, allowed: set[str]) -> str:
     """Map a model-emitted category onto the closed vulnerability-id set: lowercase
-    and hyphenate (so `sql_injection` -> `sql-injection`), keep it if it is a known
+    and hyphenate, so `sql_injection` becomes `sql-injection`, keep it if it is a known
     id, else `other`. Empty stays empty."""
     if not category:
         return ""
