@@ -170,6 +170,21 @@ def _env_md(manifests_present: list[str], test_files: list[str], patterns: tuple
     return "\n".join(lines) + "\n"
 
 
+_NEGATIVES_TEMPLATE = """\
+# Negative-Verdict Audit Ledger
+
+Every non-obvious negative is a claim that must survive a fresh skeptical read, see
+"Audit the Negatives" in the methodology. Record one row per refuted candidate,
+below-bar downgrade, or cleared control a reader would plausibly have called a
+finding. Fill every cell: a blank Attack or Verdict is an unfinished audit, not a
+clear. If the controlling fact breaks under the attack, reopen the candidate as a
+finding and grade it.
+
+| Candidate, what was rejected | Controlling fact the negative rests on | Adversarial attack on that fact, with PoC if the harness allows | Surviving verdict |
+|---|---|---|---|
+"""
+
+
 _ROUNDS_TEMPLATE = """\
 # Review Rounds
 
@@ -301,6 +316,13 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
         env_path.write_text(
             _env_md(manifests_present, test_files, detection.test_name_patterns), encoding="utf-8")
         created.append(str(env_path))
+
+    # seed the negative-verdict audit ledger so a wrong clear or refute is challenged,
+    # not just recorded, never clobber an edited one
+    negatives_path = ws / "analysis" / "_negatives.md"
+    if not negatives_path.exists():
+        negatives_path.write_text(_NEGATIVES_TEMPLATE, encoding="utf-8")
+        created.append(str(negatives_path))
 
     # seed a round ledger so depth is a visible obligation, never clobber an edited one
     rounds_path = ws / "analysis" / "_rounds.md"

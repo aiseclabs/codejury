@@ -25,6 +25,11 @@ def _complete_ws(root):
         "| Injection and sinks | every sink | done | _sweep_sinks.md |\n")
     (ws / "analysis" / "_rounds.md").write_text(
         "# Review Rounds\n\n## Round 1\n- Sources reviewed: all\n\n## Round 2\n- New issues: none\n")
+    (ws / "analysis" / "_negatives.md").write_text(
+        "# Negative-Verdict Audit Ledger\n\n"
+        "| Candidate | Controlling fact | Attack | Verdict |\n"
+        "|---|---|---|---|\n"
+        "| auth-code race | lock held in atomic | ran PoC, SELECT FOR UPDATE serializes | refuted, holds |\n")
     return ws
 
 
@@ -84,6 +89,28 @@ def test_single_round_fails(tmp_path):
     result = check_gate(ws)
     assert not result.passed
     assert any("round" in f for f in result.failures)
+
+
+def test_unfinished_negative_audit_fails(tmp_path):
+    ws = _complete_ws(tmp_path)
+    (ws / "analysis" / "_negatives.md").write_text(
+        "# Negative-Verdict Audit Ledger\n\n"
+        "| Candidate | Controlling fact | Attack | Verdict |\n"
+        "|---|---|---|---|\n"
+        "| totp replay | idempotent so harmless |  |  |\n")  # Attack and Verdict blank
+    result = check_gate(ws)
+    assert not result.passed
+    assert any("_negatives.md" in f for f in result.failures)
+
+
+def test_empty_negatives_ledger_passes(tmp_path):
+    # the seeded ledger with no rows is not a failure, only half-filled rows are
+    ws = _complete_ws(tmp_path)
+    (ws / "analysis" / "_negatives.md").write_text(
+        "# Negative-Verdict Audit Ledger\n\n"
+        "| Candidate | Controlling fact | Attack | Verdict |\n"
+        "|---|---|---|---|\n")
+    assert check_gate(ws).passed
 
 
 def test_sub_high_issue_fails(tmp_path):

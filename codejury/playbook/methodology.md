@@ -70,6 +70,9 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
 8. Read `analysis/_env.md`, the repo's own test harness, the signals to stand it up,
    and the working command to record once you have it. A stateful finding is
    refuted by an executed PoC, not a static guess, see "Recording a Finding".
+9. Read `analysis/_negatives.md`, the ledger of cleared and refuted candidates each
+   audited from a fresh skeptical read, see "Audit the Negatives". A wrong negative
+   is how recall leaks, so it gets its own audit, not just a sweep-row clear.
 
 ---
 
@@ -385,6 +388,42 @@ unreachability, read whether any response, callback, or log hands that id to
 another party. Hold a clear to the same standard as a finding, or the dominant
 error stops being a false positive and becomes a real bug waved away.
 
+## Audit the Negatives
+
+*Truth, and the recall it defends. Blocks the mirror of a false positive, a real bug
+talked out of existence with a plausible but wrong reason. This is the only pass that
+defends against a confident wrong negative, which no completeness count can see.*
+
+The refutation gate stops a confident misread from being reported. Its mirror has no
+gate, a real finding cleared or downgraded on a plausible but wrong reason, and that
+is where recall leaks: a replay waved away as "idempotent", a missing check explained
+by a control that does not actually fire, a race cleared by a lock that is not held.
+A clear and a downgrade are negative verdicts, and a negative verdict is a claim like
+any other. The gate can confirm you filled every sweep row, it cannot see that a row
+says "cleared" for the wrong reason, so the negatives need their own audit.
+
+Record every non-obvious negative, a refuted candidate, a downgrade below the bar, or
+a cleared control a reader would plausibly have called a finding, as a row in
+`analysis/_negatives.md`: the candidate, the one controlling fact the negative rests
+on, the adversarial attack on that fact, and the surviving verdict. Then, from a fresh
+skeptical read, attack each controlling fact and try to break it, running a PoC where
+the harness allows, see `analysis/_env.md`:
+
+- "It is idempotent, so the replay is harmless." Read what the action writes. A replay
+  that regenerates a seed, overwrites a pending secret, or re-triggers a state change
+  is not idempotent.
+- "The check lives in a decorator or base class." Read it. Does it fire on THIS
+  endpoint, or did a sibling drop it?
+- "The lock serializes the redeem." Read it. Is the locking query's result used and is
+  it inside a transaction? A discarded or autocommit `SELECT ... FOR UPDATE` does not
+  serialize, but one whose SELECT executes inside `transaction.atomic()` does, even if
+  the returned row object is thrown away.
+- "The id is not reachable." Read it. Does any response, callback, or log hand it out?
+
+If the controlling fact breaks, the negative was a false negative: reopen it as a
+finding and grade it. A negative you cannot defend against a fresh read is a real bug
+waved away, the error the count of caught issues hides.
+
 ## Rounds and the Completeness Gate
 
 *Coverage and Autonomy. Blocks one round and done, and blocks pausing to ask the
@@ -436,8 +475,9 @@ review is visible rather than passing as clean.
 **The gate is mechanically checkable.** Before you report complete, run
 `codejury review repo <target> --workspace <workspace> --gate`. It reads the
 workspace's own bookkeeping, an unresolved ❌ entrypoint, a `todo` or `partial`
-sweep, fewer than two logged rounds, an issue graded below HIGH, and exits non-zero
-listing each unmet item. A FAIL means run another round, not report. This is a
+sweep, fewer than two logged rounds, an issue graded below HIGH, a negative-audit row
+left unfinished, and exits non-zero listing each unmet item. A FAIL means run another
+round, not report. This is a
 structural floor, it confirms the ledger is filled, never that every real issue was
 found, so passing it is necessary, not sufficient: the recall still rests on the
 rounds and the re-runs.
@@ -497,24 +537,39 @@ spends effort on the unverified findings and never redoes a settled one.
 search space and lands its blind spots somewhere different each time, so no single
 run is complete. Repeated runs over the same workspace are how coverage compounds.*
 
-Run the review more than once, over the SAME workspace, not a fresh one. Each run
-reads the prior state and extends it rather than restarting:
+There are two ways to run again, and they are not the same. Keep them distinct.
 
-- The persistent workspace is the union. Use the default `/var/tmp/codejury-review/
-  <project>`, not a throwaway location, and do not pass `--fresh` unless you mean to
-  discard everything. `--fresh` resets the union, including `MEMORY.md`.
-- Each run skips what is settled and does new work: confirmed and refuted findings,
-  confirmed false positives in `MEMORY.md`, and `done` sweeps are not redone. The
-  run picks up `todo` and `partial` sweeps in `analysis/_coverage.md` and unreviewed
-  entrypoints.
-- Each run records what it settled so the next does not re-litigate it: new findings
-  to `issues/`, confirmed ones indexed under "Confirmed findings" in `MEMORY.md`,
-  refuted ones under "Confirmed false positives", and the sweep statuses advanced in
-  the coverage ledger.
-- Diversity helps. A run that leads with a different class, the replay sweep first,
-  or the data-exposure sweep first, catches blind spots a prior run shared with
-  itself. The union of a few such runs is the result, not any one run.
+**Resume** continues one interrupted or staged review over the same workspace. It
+inherits everything settled: confirmed and refuted findings, confirmed false
+positives in `MEMORY.md`, and `done` sweeps are not redone, it picks up only `todo`
+and `partial` sweeps and unreviewed entrypoints. This is what Phase 2 does, and what
+a run that ran out of time does. A resume converges fast because it skips settled
+work, but for the same reason it cannot improve recall: once a run drives every
+sweep to `done`, a resume sees nothing left to look at.
 
-Convergence is the goal: each run leaves less `todo`, more settled, and a fuller
-false-positive memory, so the next run is shorter and the union approaches complete.
-A run that starts from zero every time cannot converge, it only re-samples.
+**Recall union** is the opposite, and it is how recall actually grows. Run the review
+several times as INDEPENDENT passes, each re-sweeping the surface fresh, and take the
+union of their findings. A prior run's `done` sweep does NOT suppress this pass, a
+fresh pass re-derives it and may reach a different verdict, that re-sampling is the
+whole point. The only things that carry across independent passes are the confirmed
+findings and the confirmed false positives, so a pass does not re-report a settled
+finding or re-litigate a known false positive, but it does look again everywhere
+else. One pass samples a large space and lands its blind spots somewhere; a second
+independent pass lands them elsewhere; the union is more complete than either.
+
+- Diversity drives the union. Give each pass a different lead, the replay sweep
+  first, then a pass led by the authorization sibling-diff, then one led by data
+  exposure. A pass that starts where the last one started shares its blind spots.
+- Keep going until the union converges: two consecutive independent passes that add
+  no new finding. That is the recall analogue of the per-round empty-rounds gate, one
+  pass is never enough and a same-count second pass that swaps which issues it caught,
+  found one, missed another the first caught, is the signal to run a third, not to
+  stop.
+- The persistent workspace holds the union's `issues/` and `MEMORY.md`. Use the
+  default `/var/tmp/codejury-review/<project>`, and do not pass `--fresh` unless you
+  mean to discard the accumulated findings and false-positive memory.
+
+Convergence is the goal: the union of independent diverse passes approaches complete,
+while the confirmed-finding and false-positive memory keeps each pass from redoing
+settled work. A single pass, however well it drives its own gate to done, is one
+sample, not the union.

@@ -48,6 +48,30 @@ def _table_status_cells(text: str) -> list[str]:
     return cells
 
 
+def _blank_negative_rows(text: str) -> int:
+    """Count data rows in the negatives ledger with a blank Attack or Verdict cell.
+
+    The ledger is `| Candidate | Controlling fact | Attack | Verdict |`, so a row is
+    audited only when all four cells are non-empty. Header and separator rows, and
+    the empty ledger, do not count."""
+    blank = 0
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        parts = [c.strip() for c in line.strip("|").split("|")]
+        if len(parts) < 4:
+            continue
+        joined = " ".join(parts).lower()
+        if "candidate" in joined and "verdict" in joined:
+            continue  # header row
+        if set("".join(parts)) <= {"-", ":"}:
+            continue  # separator row
+        if any(not parts[i] for i in range(4)):
+            blank += 1
+    return blank
+
+
 def _risk_value(text: str) -> str | None:
     """The Risk or Severity value from an issue write-up, lowercased, or None."""
     m = re.search(r"(?im)^\s*-?\s*(?:risk|severity)\s*:\s*(.+?)\s*$", text)
@@ -100,7 +124,17 @@ def check_gate(project_dir: Path) -> GateResult:
     else:
         failures.append("analysis/_rounds.md is missing, the round ledger was not kept")
 
-    # 4. No finding parked below HIGH; the bar is refuted or HIGH, never a MEDIUM discount.
+    # 4. Every recorded negative verdict was audited, no row left half-filled.
+    checked.append("negative-verdict audit complete")
+    neg = project_dir / "analysis" / "_negatives.md"
+    if neg.is_file():
+        unfinished = _blank_negative_rows(neg.read_text(encoding="utf-8"))
+        if unfinished:
+            failures.append(
+                f"{unfinished} row(s) in analysis/_negatives.md have a blank Attack or Verdict cell, "
+                "audit each cleared or refuted candidate or it is an unfinished negative, not a clear")
+
+    # 5. No finding parked below HIGH; the bar is refuted or HIGH, never a MEDIUM discount.
     checked.append("no finding below HIGH")
     issues_dir = project_dir / "issues"
     if issues_dir.is_dir():
