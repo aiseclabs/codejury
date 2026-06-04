@@ -148,6 +148,28 @@ clean one.
 - Still open, ❌ or ⚠️ in `entrypoints/_entrypoints.md`:
 """
 
+_COVERAGE_TEMPLATE = """\
+# Coverage Ledger
+
+The review is complete only when every sweep below is `done`, or `n/a` with a
+cited reason, every entrypoint is resolved, and two consecutive rounds add nothing
+new. A sweep is `done` when its verdict table in `analysis/` has one row per
+instance with no blank cell. An unfinished sweep is a known gap: list it in the
+final report, do not report the review clean. See "Class Sweeps and the Coverage
+Ledger" in the methodology.
+
+| Sweep | Enumerates, one row each | Status | Verdict table |
+|---|---|---|---|
+| Entrypoint inventory | every attacker-influenced source | todo | entrypoints/_entrypoints.md |
+| Authorization | every endpoint: gate, identity, resource, sibling diff | todo | analysis/_sweep_authz.md |
+| Replay | every auth or signature control: nonce, freshness window | todo | analysis/_sweep_replay.md |
+| Data exposure | every sensitive value reaching a log, response, or callback | todo | analysis/_sweep_data_exposure.md |
+| Injection and sinks | every dangerous sink reached from a source | todo | analysis/_sweep_sinks.md |
+
+Set each Status to done, partial, or n/a with a reason. Add a row when a new class
+arises.
+"""
+
 
 def _has_prior_run(ws: Path) -> bool:
     """True when the workspace already holds a previous review's output, not just
@@ -236,6 +258,12 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
     if not rounds_path.exists():
         rounds_path.write_text(_ROUNDS_TEMPLATE, encoding="utf-8")
         created.append(str(rounds_path))
+
+    # seed the coverage ledger so completeness is per-class and visible, never clobber an edited one
+    coverage_path = ws / "analysis" / "_coverage.md"
+    if not coverage_path.exists():
+        coverage_path.write_text(_COVERAGE_TEMPLATE, encoding="utf-8")
+        created.append(str(coverage_path))
 
     return ScaffoldResult(
         project=project,

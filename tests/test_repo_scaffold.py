@@ -86,6 +86,16 @@ def test_methodology_has_refutation_gate(tmp_path):
     assert "survived refutation" in res.methodology
 
 
+def test_scaffold_seeds_coverage_ledger(tmp_path):
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    ledger = res.workspace / "analysis" / "_coverage.md"
+    assert ledger.is_file()
+    text = ledger.read_text()
+    for sweep in ("Authorization", "Replay", "Data exposure", "Injection and sinks"):
+        assert sweep in text
+    assert "Class Sweeps and the Coverage Ledger" in res.methodology
+
+
 def test_scaffold_seeds_round_ledger(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     rounds = res.workspace / "analysis" / "_rounds.md"

@@ -38,9 +38,10 @@ Run a codejury whole-repo security review of: $ARGUMENTS
    needs no input from me, and never against production. The blocked findings are
    settled in a separate follow-up run I start later.
 
-4. End with one report and then stop: confirmed findings, blocked findings each
-   with its `Needs:`, and one consolidated verification-needs list of what a
-   follow-up run requires, the per-PoC credentials, the trust-boundary questions,
-   and the candidate false positives. Present it as a table: title, class,
-   `file:line`, exploit, status. The issue files live in the workspace `issues/`.
-   Do not ask me to continue, just finish and report.
+4. Drive every sweep in `analysis/_coverage.md` to done before reporting complete,
+   each class enumerated into its verdict table with no blank cell. End with one
+   report and then stop: confirmed findings, blocked findings each with its
+   `Needs:`, the consolidated verification-needs list, and the coverage status with
+   any unfinished sweep named as a known gap. Present findings as a table: title,
+   class, `file:line`, exploit, status. The issue files live in the workspace
+   `issues/`. Do not ask me to continue, just finish and report.

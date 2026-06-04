@@ -61,6 +61,8 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
 6. Read `_false_positive_traps.md`, the recurring patterns that make a static read
    call a finding real when it is not. You apply these before reporting, see
    "Refute Before Reporting".
+7. Read `analysis/_coverage.md`, the per-class sweep ledger you must drive to done,
+   see "Class Sweeps and the Coverage Ledger".
 
 ---
 
@@ -209,6 +211,36 @@ same way. If that assumption makes a self-set `callback_url` a HIGH SSRF, then a
 cross-service read of another service's data on the same boundary is a HIGH IDOR,
 not a below-bar note.
 
+## Class Sweeps and the Coverage Ledger
+
+*Coverage. Blocks the deepest miss, a whole class never checked because no one
+thought to look. Turns "did I notice this?" into "fill a row for every instance".*
+
+Do not leave coverage to what you happen to notice while reading. Run each class as
+a sweep that enumerates EVERY instance into a verdict table in `analysis/`, one row
+per instance, no blank cell. A blank cell is an unfinished sweep, not a clear. The
+sweeps and their tables are tracked in `analysis/_coverage.md`:
+
+- **Authorization**, table `_sweep_authz.md`: every endpoint, one row of gate,
+  identity checked, resource checked, the sibling that differs. See "The
+  Authorization Model Pass".
+- **Replay**, table `_sweep_replay.md`: every authentication or signature control,
+  one row of whether it consumes a nonce and enforces a freshness window, and so
+  whether the exact request replays. A control with "signature present" but no
+  freshness column filled is not cleared, it is unchecked. See the replay axis in
+  "Challenge Every Control".
+- **Data exposure**, table `_sweep_data_exposure.md`: every place a sensitive value,
+  a token, a secret, PII, or another tenant's data, reaches a log line, a response
+  body, an error, or an outbound callback. This class has no attacker entrypoint,
+  so an entrypoint-anchored read misses it. Enumerate the sensitive sinks and ask
+  for each whether an unauthorized party can observe the value.
+- **Injection and sinks**, table `_sweep_sinks.md`: every dangerous sink, a query,
+  shell, path, fetch, deserialize, template, redirect, reached from a source.
+
+Mark each sweep `done`, `partial`, or `n/a` with a reason in `_coverage.md`. The
+review is not complete while any sweep is `todo` or `partial`. Add a sweep row when
+a new class arises, for example a stack-specific one a guide names.
+
 ## What to Report
 
 *Truth. Blocks detecting a real issue then dropping it with a conservative severity
@@ -344,7 +376,10 @@ the failure this gate prevents.
 - Every entrypoint in the inventory is resolved to ✅, none left ❌.
 - Each entrypoint's path is traced to a real sink or explicitly cleared, not stopped
   at the view.
-- The Authorization Model pass ran.
+- **Every sweep in `analysis/_coverage.md` is `done` or `n/a` with a cited reason,
+  none `todo` or `partial`.** Each sweep's verdict table has a row for every
+  instance with no blank cell. This is the check that catches a whole class never
+  looked at.
 - Every control on a cleared path was challenged on all four axes, see "Challenge
   Every Control", not cleared on presence.
 - Every reported finding survived refutation, see "Refute Before Reporting", and
@@ -355,8 +390,11 @@ the failure this gate prevents.
 Resolving an entrypoint to ✅ means you read the code on its path to the sink and
 either filed a finding or cleared it on a specific reason that cites the code. A
 blanket dismissal, a park below the bar, or a class-wide clear does not resolve an
-entrypoint. The goal is every real issue found, not every entrypoint marked done. If
-any item fails, run another round, and state which items pass when you report.
+entrypoint. The goal is every real issue found, not every entrypoint marked done.
+
+If any item fails, run another round. When you report, state the coverage ledger
+status and list any sweep left `partial` or `n/a` as a known gap, so an incomplete
+review is visible rather than passing as clean.
 
 ## On Finish
 
@@ -372,6 +410,9 @@ operator anything. End it with a single report:
   `Needs:` lines, the credentials and test data per PoC, the trust-boundary
   questions, and the candidate false positives to rule out. This is a section of the
   report, not a question. Do not wait on it.
+- **Coverage**, the `analysis/_coverage.md` status: which sweeps are done, and any
+  left `partial` or `n/a` as the review's known gaps. State this honestly, a clean
+  report with an unfinished sweep is the failure the ledger exists to prevent.
 
 Append a row to the audit history in `MEMORY.md`, then stop.
 
