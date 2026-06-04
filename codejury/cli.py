@@ -101,6 +101,9 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("--workspace", default="/var/tmp/codejury-review", help="where to create the review workspace")
     repo.add_argument("--fresh", action="store_true",
                       help="clear a previous review's output in the workspace first, MEMORY.md included")
+    repo.add_argument("--gate", action="store_true",
+                      help="check the existing workspace against the Completeness Gate instead of scaffolding; "
+                           "exit 0 if it passes, 1 if any item is unmet")
 
     inst = sub.add_parser("install-slash-command",
                           help="install the /codejury-review-repo slash command for an agent")
@@ -137,6 +140,20 @@ def _dispatch(args, parser) -> int:
         )
         print(render(args.fmt, kept))
         return 1 if gate(kept, args.fail_on) else 0
+
+    if args.command == "review" and scope == "repo" and args.gate:
+        from codejury.review.repo.gate import check_gate
+        project_dir = Path(args.workspace) / Path(args.directory).resolve().name
+        result = check_gate(project_dir)
+        if result.passed:
+            print(f"Completeness Gate PASSED for {project_dir}")
+            print("Checked: " + "; ".join(result.checked))
+            return 0
+        print(f"Completeness Gate FAILED for {project_dir}, {len(result.failures)} item(s) unmet:", file=sys.stderr)
+        for f in result.failures:
+            print(f"  - {f}", file=sys.stderr)
+        print("Run another round to address these, then re-check. Do not report the review complete yet.", file=sys.stderr)
+        return 1
 
     if args.command == "review" and scope == "repo":
         res = scaffold(args.directory, args.workspace, fresh=args.fresh)

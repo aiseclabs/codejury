@@ -62,7 +62,11 @@ One verb `review`, split by scope. `review diff` audits a unified diff via
 `--file`, `--repo --git-range`, or stdin, with `--mode {standard,adversarial}`.
 `review repo <dir>` scaffolds a workspace, writes the methodology to
 `<workspace>/METHODOLOGY.md`, and prints a short pointer, it does not run the
-review itself. The `/codejury-review-repo` slash command
+review itself. `review repo <dir> --gate` does not scaffold, it checks the existing
+workspace against the Completeness Gate, an unresolved entrypoint, a todo or partial
+sweep, fewer than two rounds, or a finding graded below HIGH, and exits non-zero
+listing each unmet item, so the agent stops only when the bookkeeping is complete,
+not after one round. The `/codejury-review-repo` slash command
 runs it inside Claude Code or Codex, so the agent scaffolds then follows
 `METHODOLOGY.md` interactively, which keeps PoC verification human-in-the-loop.
 The slash command ships as package data in `playbook/command.md`, and `codejury

@@ -132,6 +132,44 @@ def _trace_targets_md(layers: list[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _env_md(manifests_present: list[str], test_files: list[str], patterns: tuple[str, ...]) -> str:
+    lines = ["# PoC Harness and Test Environment", "",
+             "A stateful finding, a concurrency or lock race, a replay window, or "
+             "whether an access gate actually fires, cannot be refuted by reading "
+             "alone, see \"Recording a Finding\" in the methodology. Before you "
+             "refute one, stand up the target's own test harness and run the PoC. "
+             "A refute of a claim you could have tested but did not is not valid: "
+             "leave it blocked with the PoC as its `Needs:`.", "",
+             "This bring-up needs no operator credentials, it runs the repo's own "
+             "test suite locally, so it belongs in Phase 1. Record the working "
+             "command below once you have it, so later rounds and re-runs reuse it "
+             "instead of rediscovering it.", "",
+             "## Detected signals", ""]
+    if manifests_present:
+        lines.append("- Dependency manifests present, the ecosystem and where test "
+                      "config lives: " + ", ".join(manifests_present))
+    else:
+        lines.append("- Dependency manifests present: none found, identify the "
+                      "ecosystem from `_stack.md`.")
+    if test_files:
+        shown = test_files[:15]
+        lines.append("- Existing tests to mirror as a PoC harness:")
+        lines += [f"  - {f}" for f in shown]
+        if len(test_files) > len(shown):
+            lines.append(f"  - ... and {len(test_files) - len(shown)} more")
+    else:
+        lines.append("- Existing tests to mirror: none detected, write the PoC "
+                      "against the framework's own test client.")
+    lines.append(f"- Test-file naming conventions: {', '.join(patterns) or '-'}")
+    lines += ["",
+              "## Working test command", "",
+              "<!-- Fill this in once the harness runs: the exact invocation, any "
+              "settings module, and the env it needs. Until this is filled, a "
+              "stateful-claim finding stays blocked, not refuted. -->", "",
+              "(not yet established)", ""]
+    return "\n".join(lines) + "\n"
+
+
 _ROUNDS_TEMPLATE = """\
 # Review Rounds
 
@@ -252,6 +290,17 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
     # past the view into the manager or dao where the flaw usually lives
     layers = logic_layer_files(model.files, globs=logic_layer_globs(guides))
     (ws / "analysis" / "_trace_targets.md").write_text(_trace_targets_md(layers), encoding="utf-8")
+
+    # surface the repo's own test harness so a stateful claim is refuted by an
+    # executed PoC, not a static guess about a lock or gate, never clobber an edited one
+    env_path = ws / "analysis" / "_env.md"
+    if not env_path.exists():
+        detection = load_detection()
+        manifests_present = [m for m in detection.manifests if (target / m).is_file()]
+        test_files = [f for f in model.files if detection.is_test_path(f)]
+        env_path.write_text(
+            _env_md(manifests_present, test_files, detection.test_name_patterns), encoding="utf-8")
+        created.append(str(env_path))
 
     # seed a round ledger so depth is a visible obligation, never clobber an edited one
     rounds_path = ws / "analysis" / "_rounds.md"

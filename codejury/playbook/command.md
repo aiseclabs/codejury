@@ -39,9 +39,21 @@ Run a codejury whole-repo security review of: $ARGUMENTS
    settled in a separate follow-up run I start later.
 
 4. Drive every sweep in `analysis/_coverage.md` to done before reporting complete,
-   each class enumerated into its verdict table with no blank cell. End with one
-   report and then stop: confirmed findings, blocked findings each with its
-   `Needs:`, the consolidated verification-needs list, and the coverage status with
-   any unfinished sweep named as a known gap. Present findings as a table: title,
-   class, `file:line`, exploit, status. The issue files live in the workspace
+   each class enumerated into its verdict table with no blank cell. Before you
+   report, run the Completeness Gate and let it, not your own judgment, decide
+   whether the review may stop:
+
+   ```
+   codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review --gate
+   ```
+
+   If it exits non-zero, it lists what is unmet, an unresolved ❌ entrypoint, a
+   `todo` or `partial` sweep, fewer than two rounds, or an issue graded below HIGH.
+   Run another round to address each, then re-check. Only report complete once the
+   gate passes. It is a floor, not proof of recall, so keep accumulating rounds.
+
+   End with one report and then stop: confirmed findings, blocked findings each with
+   its `Needs:`, the consolidated verification-needs list, and the coverage status
+   with any sweep left `n/a` named as a known gap. Present findings as a table:
+   title, class, `file:line`, exploit, status. The issue files live in the workspace
    `issues/`. Do not ask me to continue, just finish and report.

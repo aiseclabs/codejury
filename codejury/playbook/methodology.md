@@ -67,6 +67,9 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
    "Refute Before Reporting".
 7. Read `analysis/_coverage.md`, the per-class sweep ledger you must drive to done,
    see "Class Sweeps and the Coverage Ledger".
+8. Read `analysis/_env.md`, the repo's own test harness, the signals to stand it up,
+   and the working command to record once you have it. A stateful finding is
+   refuted by an executed PoC, not a static guess, see "Recording a Finding".
 
 ---
 
@@ -267,6 +270,14 @@ unsure it clears the bar, report it with your severity reasoning rather than par
 it below. The bar excludes issues with no concrete exploit, not exploitable issues
 you are unsure how to grade.
 
+**There is no resting state below HIGH.** A candidate has two exits and no third:
+**refuted** with a named controlling fact, or a **HIGH/CRITICAL** finding you report.
+A precondition, needing to capture a request, learn a code, or hold a credential,
+is a line in the attack path, not a severity discount that parks the finding below
+the bar. "MEDIUM, requires capture" is not a verdict, it is an unfinished
+refutation: either name the fact that clears it, or report it. The gate enforces
+this, an issue graded below HIGH fails it.
+
 ## Recording a Finding
 
 *Truth. A finding is a hypothesis until it survives refutation, so every finding
@@ -316,6 +327,18 @@ Reporting", not by execution:
 - **refuted**: the refutation found a controlling fact that makes the code safe, or
   a PoC ran and did not trigger. Terminal. Move it under "Confirmed false
   positives" in `MEMORY.md` and do not report it.
+
+**A stateful claim has no cheap refuted exit.** When a finding turns on runtime
+behavior, a concurrency or lock race, a replay window, or whether an access gate
+actually fires, the controlling fact is the mechanism, not its name: "the parameter
+says `select_for_update`", "it looks single-use", "the decorator is named auth" are
+assumptions, and assuming them is the exact misread the trap list catches. To
+**refute** such a claim you must either run a PoC that does not trigger, or trace the
+mechanism end to end in this code and prove it holds; never clear it on the presence
+of a named control. When the target's own test harness can be stood up with no
+operator input, see `analysis/_env.md`, running the PoC is required before a refute:
+a refute of a stateful claim you could have tested but did not is not valid,
+downgrade it to **blocked** with `Needs:` the PoC to run.
 
 Running a PoC against a real environment, with real credentials, or any destructive
 action belongs to Phase 2, never here. In Phase 1 you may run a PoC only when it
@@ -409,6 +432,15 @@ entrypoint. The goal is every real issue found, not every entrypoint marked done
 If any item fails, run another round. When you report, state the coverage ledger
 status and list any sweep left `partial` or `n/a` as a known gap, so an incomplete
 review is visible rather than passing as clean.
+
+**The gate is mechanically checkable.** Before you report complete, run
+`codejury review repo <target> --workspace <workspace> --gate`. It reads the
+workspace's own bookkeeping, an unresolved ❌ entrypoint, a `todo` or `partial`
+sweep, fewer than two logged rounds, an issue graded below HIGH, and exits non-zero
+listing each unmet item. A FAIL means run another round, not report. This is a
+structural floor, it confirms the ledger is filled, never that every real issue was
+found, so passing it is necessary, not sufficient: the recall still rests on the
+rounds and the re-runs.
 
 ## On Finish
 
