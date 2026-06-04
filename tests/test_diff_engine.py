@@ -6,7 +6,7 @@ import json
 from codejury.review.diff.engine import AuditRunner
 from codejury.review.diff.findings_filter import FindingsFilter
 from codejury.review.diff.prompts import standard_audit_prompt
-from codejury.domain.finding import Finding, finding_from_dict, findings_from_list
+from codejury.finding import Finding, finding_from_dict, findings_from_list
 from codejury.providers.mock import MockProvider
 
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"

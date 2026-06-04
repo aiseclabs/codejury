@@ -20,7 +20,7 @@ from codejury.review.diff.debate_prompts import (
     judge_prompt,
 )
 from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
-from codejury.domain.finding import Finding, findings_from_list
+from codejury.finding import Finding, findings_from_list
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 

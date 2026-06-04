@@ -1,16 +1,11 @@
----
-name: code-security-review
-description: "Application security vulnerability classes for reviewing code for exploitable issues. Use when reviewing a diff or a codebase for security problems, or when writing code that handles untrusted input, authentication, authorization, file paths, database queries, network requests, deserialization, or cryptography. Read the matching vulnerability class before judging whether code is vulnerable."
----
-
-# Code Security Review
+# Vulnerability Class Index
 
 Application-security vulnerability classes, one file per weakness under
 `vulnerabilities/`, named by the specific weakness, CWE-style. Each states impact,
 the markers to hunt in `triggers`, and vulnerable-vs-secure examples. The
 diff-audit engine injects the classes relevant to a change into the prompt. The
-repo-review agent reads them for the target's stack. A finding's `category` is
-one of these ids.
+repo-review agent reads them for the target's stack. A finding's `category` is one
+of these ids.
 
 ## Vulnerability Classes by OWASP Category
 

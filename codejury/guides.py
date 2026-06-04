@@ -1,6 +1,6 @@
 """Language and framework review guides as data.
 
-Each `data/languages/*.md` and `data/frameworks/*.md` is a knowledge unit: YAML
+Each `knowledge/guides/languages/*.md` and `knowledge/guides/frameworks/*.md` is a knowledge unit: YAML
 frontmatter declaring how to detect the language or framework in a target repo
 by file-name globs, dependency-manifest substrings, import markers, or
 language-neutral content tokens such as a protocol's wire fields, and a body of

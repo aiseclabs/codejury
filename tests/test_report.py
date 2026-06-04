@@ -12,7 +12,7 @@ from codejury.report import (
     to_json,
     to_sarif,
 )
-from codejury.domain.finding import Finding
+from codejury.finding import Finding
 
 _SCHEMA = json.loads((Path(__file__).parent / "data" / "sarif-schema-2.1.0.json").read_text())
 

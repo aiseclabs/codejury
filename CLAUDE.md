@@ -8,18 +8,19 @@ default behavior. Strategy: see `ROADMAP.md`.
 ## Invariants, Never Violate
 
 1. **Knowledge is rich vulnerability classes, in data.** Security knowledge lives in
-   `codejury/data/vulnerabilities/*.md`, with rich per-language vulnerable and secure examples, and
+   `codejury/knowledge/vulnerabilities/*.md`, with rich per-language vulnerable and secure examples, and
    in the prompts that reference them, not hardcoded in Python. The agent
-   methodology lives in `codejury/data/methodologies/`. Detection *logic* is generic,
+   methodology lives in `codejury/playbook/methodology.md`. Detection *logic* is generic,
    *what* to detect is data, reviewable in a PR. Knowledge is split by axis and
    stays decoupled: vulnerability classes name the weakness, languages and frameworks carry the
    concrete idioms and the entrypoint markers, and protocols and the methodology
-   stay language-neutral. A framework belongs to a language, so it lives under
-   that language, for example `data/frameworks/python/django.md`, and declares
+   stay language-neutral. The per-stack guides live under `knowledge/guides/`. A
+   framework belongs to a language, so it lives under that language, for example
+   `knowledge/guides/frameworks/python/django.md`, and declares
    `language:` in its frontmatter as the source of truth. Adding a language or
-   framework is a drop-in guide, no code change. The implementation outside
-   `data/` names no specific language or framework: even the source-extension,
-   manifest, noise-dir, and test conventions live in `data/detection.yaml`, so
+   framework is a drop-in guide, no code change. The implementation outside the
+   content directories names no specific language or framework: even the source-extension,
+   manifest, noise-dir, and test conventions live in `codejury/detection.yaml`, so
    the code stays a generic engine.
 2. **Findings are real and evidenced.** Report only real, exploitable,
    high-confidence problems, each with a file location and a concrete exploit
@@ -47,11 +48,11 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Layer | Implementation | Location |
 |---|---|---|
 | Diff engine | standard `AuditRunner` for one call plus adversarial `AdversarialAuditRunner` Finder/Challenger/Judge, and `audit_diff` orchestration to chunk, normalize, and filter | `codejury/review/diff/`, `review/diff/runner.py` |
-| Vulnerabilities | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/data/vulnerabilities/`, `review/diff/vulnerabilities.py` |
-| Finding + report | flat `Finding`, text/markdown/json/sarif + severity gate | `codejury/domain/finding.py`, `codejury/report.py` |
-| Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/data/methodologies/`, `review/repo/scaffold.py` |
+| Vulnerabilities | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/knowledge/vulnerabilities/`, `review/diff/vulnerabilities.py` |
+| Finding + report | flat `Finding`, text/markdown/json/sarif + severity gate | `codejury/finding.py`, `codejury/report.py` |
+| Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/playbook/`, `review/repo/scaffold.py` |
 | RepoModel | language-agnostic file map, flags candidate entrypoint files via guide globs | `codejury/review/repo/model.py` |
-| Detection config | what counts as a source file, a manifest, a noise dir, or test code, across ecosystems, so the code enumerates no language | `codejury/data/detection.yaml`, `codejury/detection.py` |
+| Detection config | what counts as a source file, a manifest, a noise dir, or test code, across ecosystems, so the code enumerates no language | `codejury/detection.yaml`, `codejury/detection.py` |
 | Provider | anthropic · openai · litellm · mock with retry, via a factory | `codejury/providers/` |
 | JSON parsing | best-effort extraction of a JSON object from model output | `codejury/json_parse.py` |
 
@@ -64,7 +65,7 @@ One verb `review`, split by scope. `review diff` audits a unified diff via
 review itself. The `/codejury-review-repo` slash command
 runs it inside Claude Code or Codex, so the agent scaffolds then follows
 `METHODOLOGY.md` interactively, which keeps PoC verification human-in-the-loop.
-The slash command ships as package data in `data/commands/`, and `codejury
+The slash command ships as package data in `playbook/command.md`, and `codejury
 install-slash-command [--agent claude|codex]` copies it into the agent's command
 directory so a pip install can use it. The body is portable, only the directory
 differs, and the review itself is agent neutral. `codejury --version` prints the version.
@@ -79,9 +80,9 @@ key and a built in demo diff when none is supplied.
   install -e ".[dev]" && pytest`.
 - Provider keys come from the environment or flags `CODEJURY_API_BASE`,
   `CODEJURY_API_KEY`, `CODEJURY_MODEL`. The tool does NOT auto-load `.env`.
-- Data ships via `[tool.setuptools.package-data] codejury = ["data/**/*.yaml",
-  "data/**/*.md"]`.
-- Add a vulnerability class by dropping a new `data/vulnerabilities/<class>.md` with frontmatter of title,
+- Content ships via `[tool.setuptools.package-data] codejury = ["knowledge/**/*.md",
+  "playbook/**/*.md", "detection.yaml"]`.
+- Add a vulnerability class by dropping a new `knowledge/vulnerabilities/<class>.md` with frontmatter of title,
   impact, tags, and triggers, and a body of vulnerable and secure examples. It is data.
 - Release: bump `pyproject.toml` version -> GitHub Release `vX.Y.Z` -> OIDC
   Trusted Publishing pushes to PyPI.

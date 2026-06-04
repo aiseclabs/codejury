@@ -9,7 +9,7 @@ from codejury.review.diff.vulnerabilities import (
     select_vulnerabilities,
     vulnerabilities_for_diff,
 )
-from codejury.resources import VULNERABILITIES_DIR
+from codejury.resources import KNOWLEDGE_INDEX, VULNERABILITIES_DIR
 
 # The frozen 25-class application-security set (id = category = SARIF ruleId).
 _EXPECTED_IDS = {
@@ -86,6 +86,7 @@ def test_vulnerabilities_for_diff_returns_relevant_body():
     assert "SQL Injection" not in text                  # only the matched class
 
 
-def test_skill_index_is_not_loaded_as_a_vulnerability():
-    assert "SKILL" not in {v.id for v in _VULNS}
-    assert (VULNERABILITIES_DIR / "SKILL.md").is_file()           # but the agent index ships
+def test_knowledge_index_ships_and_is_not_a_vulnerability():
+    assert "index" not in {v.id for v in _VULNS}        # the index is not loaded as a class
+    assert KNOWLEDGE_INDEX.is_file()                    # it ships beside vulnerabilities/, not inside it
+    assert KNOWLEDGE_INDEX.parent == VULNERABILITIES_DIR.parent

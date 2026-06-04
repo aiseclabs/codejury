@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from codejury.domain.finding import Finding, findings_from_list
+from codejury.finding import Finding, findings_from_list
 from codejury.review.diff.prompts import SYSTEM, standard_audit_prompt
 from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.guides import select_guides

@@ -23,10 +23,10 @@ from codejury.guides import (
     select_guides,
 )
 from codejury.review.repo.model import build_repo_model_from_dir, candidate_entrypoint_files, logic_layer_files
-from codejury.resources import METHODOLOGIES_DIR
+from codejury.resources import METHODOLOGY_FILE, MEMORY_TEMPLATE_FILE
 
-_METHODOLOGY = METHODOLOGIES_DIR / "repo-review.md"
-_MEMORY_TEMPLATE = METHODOLOGIES_DIR / "memory-template.md"
+_METHODOLOGY = METHODOLOGY_FILE
+_MEMORY_TEMPLATE = MEMORY_TEMPLATE_FILE
 
 _DETECT_PER_FILE = 16_000   # bytes read per file
 _DETECT_TOTAL = 8_000_000   # bytes of source sampled overall

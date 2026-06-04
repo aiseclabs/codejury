@@ -14,7 +14,7 @@ from codejury.review.diff.debate import AdversarialAuditRunner
 from codejury.review.diff.engine import AuditRunner
 from codejury.review.diff.findings_filter import FindingsFilter
 from codejury.review.diff.vulnerabilities import allowed_categories, normalize_category
-from codejury.domain.finding import Finding
+from codejury.finding import Finding
 
 # A diff larger than this is audited file-by-file so a big PR does not overflow
 # the model's context and silently truncate the reply.

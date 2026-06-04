@@ -142,11 +142,11 @@ production config leaks.
 Knowledge is data, so extending codejury is a drop-in markdown file with no code
 change.
 
-- A vulnerability class: `codejury/data/vulnerabilities/<class>.md` with
+- A vulnerability class: `codejury/knowledge/vulnerabilities/<class>.md` with
   frontmatter of title, impact, tags, and triggers, plus a vulnerable and a
   secure example.
-- A language or framework: `codejury/data/languages/<lang>.md` or
-  `codejury/data/frameworks/<lang>/<framework>.md`, declaring its detect signals,
-  entrypoint markers, and downstream logic layers.
-- A protocol such as OAuth: `codejury/data/protocols/<name>.md`, detected by
-  language neutral content tokens.
+- A language or framework: `codejury/knowledge/guides/languages/<lang>.md` or
+  `codejury/knowledge/guides/frameworks/<lang>/<framework>.md`, declaring its detect
+  signals, entrypoint markers, and downstream logic layers.
+- A protocol such as OAuth: `codejury/knowledge/guides/protocols/<name>.md`, detected
+  by language neutral content tokens.

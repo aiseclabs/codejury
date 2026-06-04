@@ -18,9 +18,9 @@ def test_parse_frontmatter_empty_block():
     assert meta == {} and body == "body"
 
 
-def test_iter_md_docs_skips_skill_and_missing(tmp_path):
+def test_iter_md_docs_skips_index_and_missing(tmp_path):
     (tmp_path / "a.md").write_text("---\nid: a\n---\nA")
-    (tmp_path / "SKILL.md").write_text("index")
+    (tmp_path / "index.md").write_text("index")
     (tmp_path / "note.txt").write_text("ignored")
     docs = list(iter_md_docs(tmp_path))
     assert [p.name for p, _, _ in docs] == ["a.md"]

@@ -3,7 +3,7 @@
 Lists the repo's files deterministically, with zero model calls, cacheable. It does not
 parse code or enumerate framework routes: identifying the actual entrypoints is
 left to the agent, guided by the matched language/framework guides under
-`data/languages` and `data/frameworks`. The only deterministic help is flagging
+`knowledge/guides/languages` and `knowledge/guides/frameworks`. The only deterministic help is flagging
 *candidate* entrypoint files by the globs a guide declares, which keeps every
 language-specific and framework-specific detail in the guides and out of this module.
 """

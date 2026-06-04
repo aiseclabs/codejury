@@ -1,7 +1,7 @@
 """Shared markdown-doc plumbing: frontmatter parsing and directory loading.
 
-Both the vulnerability classes under `data/vulnerabilities` and the guides under
-`data/languages`, `data/frameworks`, and `data/protocols` are markdown files with a
+Both the vulnerability classes under `knowledge/vulnerabilities` and the guides under
+`knowledge/guides/languages`, `knowledge/guides/frameworks`, and `knowledge/guides/protocols` are markdown files with a
 YAML frontmatter and a body. This holds only that shared mechanics. Each caller
 builds its own typed record and applies its own selection, since vulnerability
 classes select by trigger text and guides select by detection signals.
@@ -27,14 +27,15 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
 
 def iter_md_docs(directory: str | Path) -> Iterator[tuple[Path, dict, str]]:
     """Yield the path, meta, and body for each `*.md` under `directory`, recursively,
-    skipping `SKILL.md`. This lets a guide axis group files into subdirectories,
-    for example frameworks by language. Yields nothing if the directory does not
-    exist. Sorted by path for determinism."""
+    skipping an `index.md`. This lets a guide axis group files into subdirectories,
+    for example frameworks by language, and lets a directory carry a plain index
+    that is not loaded as a class. Yields nothing if the directory does not exist.
+    Sorted by path for determinism."""
     root = Path(directory)
     if not root.is_dir():
         return
     for path in sorted(root.rglob("*.md")):
-        if path.name == "SKILL.md":
+        if path.name == "index.md":
             continue
         meta, body = parse_frontmatter(path.read_text(encoding="utf-8"))
         yield path, meta, body

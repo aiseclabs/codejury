@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 
-from codejury.domain.finding import Finding
+from codejury.finding import Finding
 
 _SARIF_LEVEL = {"CRITICAL": "error", "HIGH": "error", "MEDIUM": "warning", "LOW": "note"}
 _SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}

@@ -1,17 +1,26 @@
-"""Locations of the data bundled inside the installed package.
+"""Locations of the content bundled inside the installed package.
 
 Resolved relative to the package so they work from any working directory once
-installed.
+installed. Two content areas: `knowledge/` is the pluggable security knowledge,
+`playbook/` is the repo-review agent path's assets. Detection config sits next to
+its loader.
 """
 
 from pathlib import Path
 
-_DATA = Path(__file__).resolve().parent / "data"
+_PKG = Path(__file__).resolve().parent
+_KNOWLEDGE = _PKG / "knowledge"        # pluggable security knowledge
+_GUIDES = _KNOWLEDGE / "guides"        # per-stack review guides, how the target works
+_PLAYBOOK = _PKG / "playbook"          # the repo-review agent path's assets
 
-VULNERABILITIES_DIR = _DATA / "vulnerabilities"  # vulnerability-class definitions, what to find
-LANGUAGES_DIR = _DATA / "languages"    # per-language review guides, how the target works
-FRAMEWORKS_DIR = _DATA / "frameworks"  # per-framework review guides, how the target works
-PROTOCOLS_DIR = _DATA / "protocols"    # protocol guides such as oauth, what to check
-METHODOLOGIES_DIR = _DATA / "methodologies"  # repo-review methodology and memory template
-DETECTION_FILE = _DATA / "detection.yaml"    # file and path classification across ecosystems
-COMMANDS_DIR = _DATA / "commands"            # Claude Code slash commands shipped for install
+VULNERABILITIES_DIR = _KNOWLEDGE / "vulnerabilities"  # vulnerability-class definitions, what to find
+LANGUAGES_DIR = _GUIDES / "languages"    # per-language review guides
+FRAMEWORKS_DIR = _GUIDES / "frameworks"  # per-framework review guides
+PROTOCOLS_DIR = _GUIDES / "protocols"    # protocol guides such as oauth, what to check
+KNOWLEDGE_INDEX = _KNOWLEDGE / "index.md"  # the vulnerability-class index the agent reads
+
+METHODOLOGY_FILE = _PLAYBOOK / "methodology.md"        # the repo-review process
+MEMORY_TEMPLATE_FILE = _PLAYBOOK / "memory-template.md"  # the workspace MEMORY.md template
+COMMAND_FILE = _PLAYBOOK / "command.md"                # the slash command body shipped for install
+
+DETECTION_FILE = _PKG / "detection.yaml"  # file and path classification across ecosystems

@@ -9,7 +9,7 @@ import pytest
 
 from codejury.cli import main
 from codejury.review.diff.runner import audit_diff, dedup_findings, split_diff_by_file
-from codejury.domain.finding import Finding
+from codejury.finding import Finding
 from codejury.providers.mock import MockProvider
 
 _FILE_A = "diff --git a/a.py b/a.py\n@@ -0,0 +1 @@\n+x = 1\n"

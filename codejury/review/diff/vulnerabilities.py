@@ -1,7 +1,7 @@
 """Vulnerability classes as data: load the rich markdown definitions and pick the
 ones relevant to a diff, to inject into the audit prompt.
 
-Each ``data/vulnerabilities/<class>.md`` has a YAML frontmatter of title, impact,
+Each ``knowledge/vulnerabilities/<class>.md`` has a YAML frontmatter of title, impact,
 tags, and triggers, and a body with vulnerable/secure examples.
 ``select_vulnerabilities`` matches a class's triggers against the diff text
 as a case-insensitive substring, so only the relevant ones are fed to the model

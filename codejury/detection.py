@@ -1,4 +1,4 @@
-"""File and path classification config, loaded from `data/detection.yaml`.
+"""File and path classification config, loaded from `detection.yaml`.
 
 What the engine treats as a source file, a dependency manifest, a noise
 directory, or test code, across ecosystems. Kept in data so the implementation
