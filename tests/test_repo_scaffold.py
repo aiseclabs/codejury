@@ -84,6 +84,13 @@ def test_methodology_has_refutation_gate(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert "Refute Before Reporting" in res.methodology
     assert "survived refutation" in res.methodology
+    assert "Refute clears too" in res.methodology          # clears are claims, must survive too
+
+
+def test_methodology_accumulates_across_runs(tmp_path):
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    assert "Accumulate Across Runs" in res.methodology
+    assert "Confirmed Findings" in res.memory_path.read_text()   # carry-forward index
 
 
 def test_scaffold_seeds_coverage_ledger(tmp_path):

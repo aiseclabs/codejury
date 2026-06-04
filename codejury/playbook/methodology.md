@@ -41,10 +41,14 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
 
 ## On Start
 
-1. Read `MEMORY.md` in the workspace if it exists:
+1. Read `MEMORY.md` in the workspace if it exists, and the existing `issues/`:
    - skip every pattern under "Confirmed false positives".
+   - do not re-litigate anything under "Confirmed findings", carry it forward and
+     re-list it, do not re-investigate it from scratch.
    - do not re-report anything under "Fixed".
    - weight the files under "High-risk areas" more heavily.
+   - read each existing `issues/<name>.md` status: a confirmed or refuted finding is
+     settled, extend the review rather than redo it.
 2. Read `entrypoints/_entrypoints.md`, the seeded list of files the detected stack
    flags as likely to define entrypoints. It is a starting subset, not the whole
    surface, see "Map the Attack Surface".
@@ -348,6 +352,16 @@ explain it away. A finding you cannot defend against a fresh skeptical read is a
 guess, and the trap that recurs most is calling a control absent without reading
 where it actually lives.
 
+**Refute clears too, not only findings.** Clearing a control is also a claim, that
+it holds, and it must survive the same test. Name the controlling fact the clear
+rests on, "the signature prevents replay", "the id is not reachable across tenants",
+and prove it in code. A clear you cannot prove is not a clear: it is a finding you
+have not finished. "Strong auth" is not proof against replay, read whether a nonce
+is consumed and a freshness window enforced. "256-bit id" is not proof of
+unreachability, read whether any response, callback, or log hands that id to
+another party. Hold a clear to the same standard as a finding, or the dominant
+error stops being a false positive and becomes a real bug waved away.
+
 ## Rounds and the Completeness Gate
 
 *Coverage and Autonomy. Blocks one round and done, and blocks pausing to ask the
@@ -442,3 +456,33 @@ Never run a PoC against production, and never use real credentials or perform a
 destructive action without the operator's explicit go-ahead. The lifecycle is a
 resumable pipeline, `blocked -> confirmed` or `blocked -> refuted`, so a re-run only
 spends effort on the unverified findings and never redoes a settled one.
+
+---
+
+# Accumulate Across Runs
+
+*Recall is a multi-pass property. A single pass of one reviewer samples a large
+search space and lands its blind spots somewhere different each time, so no single
+run is complete. Repeated runs over the same workspace are how coverage compounds.*
+
+Run the review more than once, over the SAME workspace, not a fresh one. Each run
+reads the prior state and extends it rather than restarting:
+
+- The persistent workspace is the union. Use the default `/var/tmp/codejury-review/
+  <project>`, not a throwaway location, and do not pass `--fresh` unless you mean to
+  discard everything. `--fresh` resets the union, including `MEMORY.md`.
+- Each run skips what is settled and does new work: confirmed and refuted findings,
+  confirmed false positives in `MEMORY.md`, and `done` sweeps are not redone. The
+  run picks up `todo` and `partial` sweeps in `analysis/_coverage.md` and unreviewed
+  entrypoints.
+- Each run records what it settled so the next does not re-litigate it: new findings
+  to `issues/`, confirmed ones indexed under "Confirmed findings" in `MEMORY.md`,
+  refuted ones under "Confirmed false positives", and the sweep statuses advanced in
+  the coverage ledger.
+- Diversity helps. A run that leads with a different class, the replay sweep first,
+  or the data-exposure sweep first, catches blind spots a prior run shared with
+  itself. The union of a few such runs is the result, not any one run.
+
+Convergence is the goal: each run leaves less `todo`, more settled, and a fuller
+false-positive memory, so the next run is shorter and the union approaches complete.
+A run that starts from zero every time cannot converge, it only re-samples.
