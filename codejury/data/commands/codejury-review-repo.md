@@ -24,19 +24,23 @@ Run a codejury whole-repo security review of: $ARGUMENTS
    targets, the Authorization Model pass, the dependency-control checks, the round
    ledger, and the Completeness Gate. Do not improvise a different process.
 
-   Run every round to the Completeness Gate on your own. Do not pause between
-   rounds to ask whether to continue, do not stop early because a round felt
-   productive, and do not report the review done until the gate passes. The only
-   reasons to stop and ask me are in step 3.
+   Run every round to the Completeness Gate on your own and do not stop to ask me
+   anything mid-run. Do not pause between rounds, do not stop early because a round
+   felt productive, and do not report the review done until the gate passes. When
+   you lack an input to grade a finding, proceed on the conservative assumption
+   that makes it exploitable and note the assumption.
 
-3. Verify each issue with a real PoC, human in the loop. Stop and ask me only for
-   what the PoC genuinely needs: a credential, a test account, an MFA step, or
-   go-ahead before a destructive action. Never touch production, never use real
-   credentials, and never run a destructive action without my go-ahead. Only a
-   reproduced PoC is a confirmed finding, so keep reviewing while a PoC is blocked
-   on me rather than waiting.
+3. Write a real PoC per issue and set each issue's `Status`. In this first pass,
+   run only the PoCs that need no input from me, setting `Status: confirmed` if it
+   triggers or `Status: refuted` if it does not. When a PoC needs a credential, a
+   test account, an MFA step, or test data, set `Status: blocked` with the exact
+   `Needs:`, and keep going. Do not run anything against production. The blocked
+   PoCs are verified in a separate follow-up run I start later, once I can supply
+   those inputs.
 
-4. Report confirmed findings, the ones with a reproduced PoC, separately from
-   suspected ones still blocked on verification, as a table: title, class,
-   `file:line`, exploit, verification status. The issue files live in the
-   workspace `issues/`.
+4. End with one report and then stop: confirmed findings, blocked findings each
+   with its `Needs:`, and one consolidated verification-needs list of what a
+   follow-up run requires, the per-PoC credentials, the trust-boundary questions,
+   and the candidate false positives. Present it as a table: title, class,
+   `file:line`, exploit, status. The issue files live in the workspace `issues/`.
+   Do not ask me to continue, just finish and report.

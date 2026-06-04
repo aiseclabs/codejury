@@ -227,7 +227,8 @@ false positive, so do not report it. Each issue file must have:
 - Risk: HIGH | CRITICAL
 - Type: IDOR | auth bypass | signature flaw | business logic | ...
 - Source: `<METHOD> <path>` or the non-HTTP entrypoint (queue, deserializer, ...)
-- Verification: reproduced | blocked, needs <what> | not run
+- Status: confirmed | blocked | refuted
+- Needs: (only when Status is blocked) the exact input a follow-up run must supply
 
 ## Analysis
 (cite exact file paths and line numbers)
@@ -239,7 +240,7 @@ false positive, so do not report it. Each issue file must have:
 (the path to `pocs/<name>.<ext>` and how to run it)
 
 ## Verification
-(the actual output of running the PoC, or the exact blocker)
+(the PoC output that confirmed or refuted it, or the exact blocker while blocked)
 
 ## Fix
 ```
@@ -248,22 +249,48 @@ false positive, so do not report it. Each issue file must have:
 
 A finding is a hypothesis until a PoC proves it. The tool, and you, can be
 confident and still wrong, so the PoC is what separates a real vulnerability from
-a plausible misread. Confirm each issue by running its PoC against a sandbox or
-dev environment, and gate reporting on the result:
+a plausible misread. Every reported finding carries a single `Status`, and the
+status is the contract a verification re-run follows. There are three:
 
-- **Reproduced**: the PoC ran and triggered the issue. Only these are reported as
-  confirmed HIGH / CRITICAL.
-- **Blocked**: the PoC is written and correct but you need something only the
+- **confirmed**: the PoC ran and triggered the issue. Terminal. Only these are
+  reported as confirmed HIGH / CRITICAL.
+- **blocked**: the PoC is written and correct but needs something only the
   operator has, an auth cookie or token, an MFA step, or specific test data or an
-  account. Record the exact blocker, mark the finding suspected, and keep
-  reviewing. Do not halt the rounds to ask for it. Collect every blocked PoC's
-  needs and ask the operator for them together once the review is otherwise
-  complete, then verify the batch. Report suspected findings separately from
-  confirmed, with the exact blocker, never mixed into the confirmed set.
-- **Not run with no concrete PoC**: do not report. It is a guess.
+  account. Record the exact need in `Needs:`, keep reviewing, and do not halt the
+  rounds or ask the operator for it during the run. This is the worklist a
+  follow-up run picks up, see "Verification Re-run".
+- **refuted**: the PoC ran and did not trigger the issue. Terminal. Move it to
+  "Confirmed false positives" in `MEMORY.md` so future runs skip it, and do not
+  report it as a finding.
+
+If you cannot write a concrete runnable PoC at all, the finding is most likely a
+guess, so do not report it. That is not a status, it is not a finding.
 
 Never run a PoC against production, and never use real credentials or perform a
-destructive action without the operator's explicit go-ahead.
+destructive action without the operator's explicit go-ahead. This applies to the
+follow-up verification run, where a PoC is actually executed. The first pass runs
+only the PoCs that need no operator input, so it needs no go-ahead and asks for
+nothing.
+
+## Verification Re-run
+
+When the operator returns with the credentials and answers the first pass asked
+for, they start a re-run over the same workspace, not a `--fresh` one, so every
+issue file keeps its status. The re-run is not a fresh review, it is a sweep
+driven by `Status`:
+
+- Read each `issues/<name>.md` and act only on the ones marked **blocked**. Skip
+  every **confirmed** and **refuted** issue, and skip anything under "Confirmed
+  false positives" in `MEMORY.md`. They are terminal, do not re-investigate them.
+- For each blocked issue, run its PoC with the now-available input. Rewrite the
+  status in place: **confirmed** if it triggered, **refuted** if it did not, and
+  record a refuted one under "Confirmed false positives" in `MEMORY.md`.
+- A blocked issue whose input still did not arrive stays **blocked**, with the
+  same `Needs:`, for the next re-run.
+
+This keeps the lifecycle a resumable pipeline, `blocked -> confirmed` or
+`blocked -> refuted`, so a re-run only spends effort on the unverified findings
+and never redoes settled ones.
 
 ## Iteration
 
@@ -280,11 +307,11 @@ do not stop because a PoC is blocked or because you need an operator input to
 grade a finding. When you lack an operator input, such as how broadly a credential
 is distributed or whether a service or tenant is trusted, proceed on the
 conservative assumption that makes the finding exploitable, grade it on that
-basis, and note the assumption in the issue. Gather every operator question, the
-blocked PoC credentials, the trust-boundary confirmations, and the false-positive
-list, and put them in one batch to ask when the review reaches the gate, not
-mid-review. Verifying a destructive action still needs explicit go-ahead before
-you run it.
+basis, and note the assumption in the issue. Do not ask the operator anything
+mid-run. Gather every operator input you would want, the blocked PoC credentials,
+the trust-boundary confirmations, and the candidate false positives, and write
+them into the final report as a verification-needs list, see "On Finish". The run
+finishes on its own and the operator acts on that list afterward.
 
 ## Completeness Gate
 
@@ -316,8 +343,26 @@ If any item fails, run another round. State which items pass when you report.
 
 ## On Finish
 
-Report the confirmed findings, the ones with a reproduced PoC, separately from
-the suspected ones still blocked on verification, so the two are never conflated.
-Append a row to the audit history in `MEMORY.md`, and ask the
-operator which findings were false positives. Record those under "Confirmed false
-positives" so future rounds skip them.
+The first pass runs to completion on its own and then stops. It does not pause to
+ask the operator anything along the way. End it with a single report:
+
+- **Confirmed**, the `Status: confirmed` set: findings with a reproduced PoC.
+  Empty on a first pass with no credentials, that is expected.
+- **Blocked**, the `Status: blocked` set: code-confirmed findings whose PoC needs
+  an operator input, each graded on its conservative assumption with the exact
+  `Needs:` named. This is the main output of a first pass.
+- **Verification needs**: one consolidated list, gathered from the blocked issues'
+  `Needs:` lines, of what a follow-up run requires, the credentials and test data
+  per PoC, the trust-boundary questions, and the candidate false positives you
+  want ruled out. This is a section of the report, not a question. Do not wait on
+  it. The operator uses it to drive the "Verification Re-run".
+
+Append a row to the audit history in `MEMORY.md`. Then stop.
+
+The operator acts on the report afterward: they record any false positives under
+"Confirmed false positives" in `MEMORY.md` so future runs skip them, and when they
+can supply the credentials and answers, they start a follow-up run that reproduces
+the blocked PoCs and promotes the verified ones to confirmed. That follow-up run
+is where a PoC actually executes, so the production and destructive-action rules
+apply there. Splitting verification into its own run is what lets the review run
+end to end without stopping to ask.
