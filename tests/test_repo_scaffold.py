@@ -122,7 +122,7 @@ def test_methodology_is_returned(tmp_path):
     # the methodology text ships and is handed back for the agent to follow
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert "Agent Methodology" in res.methodology
-    assert "PoC Verification" in res.methodology and "Do not report" in res.methodology
+    assert "Verification Re-run" in res.methodology and "Do not report" in res.methodology
 
 
 def test_scaffold_does_not_clobber_existing_memory(tmp_path):

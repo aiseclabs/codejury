@@ -1,14 +1,37 @@
 # Repo Security Review: Agent Methodology
 
-The `review repo` path: a whole-repo security audit, run by an interactive
-coding agent such as Claude Code or Codex, not a one-shot LLM call. It maps the
-attack surface, traces inputs to sinks across files, verifies issues with a real
-PoC, and iterates over multiple rounds with a persistent memory. One round is
-roughly 30 minutes. Run as many rounds as needed.
+The `review repo` path: a whole-repo security audit run by an interactive coding
+agent such as Claude Code or Codex, not a one-shot LLM call. The agent maps the
+attack surface, traces inputs to sinks across files, and proves each issue with a
+real PoC, over as many rounds as it takes.
+
+You already know security. This methodology is not a tutorial on vulnerability
+classes, it is a set of forcing functions against the ways an agent under-performs
+a review: stopping shallow, clearing a finding the moment it sees a control,
+detecting a real issue then dropping it at triage, and interrupting the operator.
+Each step below names the shortcut it blocks.
+
+It rests on three pillars:
+
+- **Coverage**, find every real issue. A complete surface inventory, a trace from
+  each source to its sink, a challenge of every control, and rounds that run until
+  nothing new appears. Shallowness is made visible in the workspace so it cannot
+  pass as a clean result.
+- **Truth**, report only what is real. A finding is a hypothesis until a PoC
+  reproduces it. The PoC is the arbiter, not your confidence, so every finding
+  carries a status and only a reproduced one is confirmed.
+- **Autonomy**, do not burden the operator. The review runs end to end on its own.
+  The one irreducible human dependency, the credentials and go-ahead to run a PoC
+  safely, is deferred to a separate phase, never asked for mid-run.
+
+So the work splits into two phases. Phase 1 is an autonomous review that produces
+confirmed and blocked findings plus a list of what verification needs. Phase 2 is
+an operator-driven re-run that turns the blocked findings into confirmed or refuted
+once the operator can supply those inputs.
 
 Target repository: the directory you were given.
 Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
-`issues/`, `analysis/`, and `MEMORY.md`.
+`issues/`, `pocs/`, `analysis/`, and `MEMORY.md`.
 
 ---
 
@@ -19,33 +42,43 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
    - do not re-report anything under "Fixed".
    - weight the files under "High-risk areas" more heavily.
 2. Read `entrypoints/_entrypoints.md`, the seeded list of files the detected stack
-   flags as likely to define entrypoints. Open them to find the actual
-   entrypoints. It is a *starting* subset, not the whole surface. See "Map the
-   attack surface".
-3. Read `_stack.md`, the seeded detected languages, frameworks, and protocols plus
-   review notes for them, so you know where this stack's entrypoints and sinks
-   live and which protocol checks apply, for example the OAuth checklist. If it
-   matched nothing, lean on your own knowledge of the stack.
+   flags as likely to define entrypoints. It is a starting subset, not the whole
+   surface, see "Map the Attack Surface".
+3. Read `_stack.md`, the seeded languages, frameworks, and protocols plus review
+   notes, so you know where this stack's entrypoints and sinks live and which
+   protocol checks apply, such as the OAuth checklist. If it matched nothing, lean
+   on your own knowledge of the stack.
 4. Read the relevant vulnerability files under the shipped `vulnerabilities/` for
-   the target's stack such as sql-injection, idor, ssrf, jwt-validation, or
+   the target's stack, such as sql-injection, idor, ssrf, jwt-validation, or
    insecure-deserialization.
 5. Read `analysis/_trace_targets.md`, the seeded downstream logic-layer files such
    as managers and dao to trace into, and `analysis/_rounds.md`, the round ledger
-   you must keep. See "Trace Attack Paths" and "Completeness Gate".
+   you must keep.
+
+---
+
+# Phase 1: The Review
+
+Run Phase 1 unattended to the Completeness Gate. It produces confirmed and blocked
+findings and a verification-needs list, and never pauses to ask the operator
+anything, see "Rounds and the Completeness Gate".
 
 ## Map the Attack Surface
 
-The seeded `entrypoints/_entrypoints.md` flags files that likely define
-entrypoints. It is a starting point, not the whole surface. Before any per-source
-analysis, build a COMPLETE inventory: open every flagged file, read its routes
-and handlers, and enumerate every source the attacker can influence, including
-the ones no scan finds. Untrusted input enters at more than HTTP:
+*Coverage. Blocks reviewing only the endpoints that are obvious.*
+
+The seeded `entrypoints/_entrypoints.md` is a starting point, not the whole
+surface. Before any per-source analysis, build a COMPLETE inventory: open every
+flagged file, read its routes and handlers, and enumerate every source an attacker
+can influence, including the ones no scan finds. Untrusted input enters at more
+than HTTP:
 
 - HTTP routes, GraphQL resolvers, gRPC / RPC handlers, WebSocket handlers.
 - CLI commands, scheduled jobs / cron, queue and topic consumers, webhooks and
   third-party callbacks.
-- deserialization points such as pickle, yaml.load, or marshal, file and document parsers
-  for XML / XXE, YAML, CSV, zip, image / office, and template rendering of user input.
+- deserialization points such as pickle, yaml.load, or marshal, file and document
+  parsers for XML / XXE, YAML, CSV, zip, image / office, and template rendering of
+  user input.
 - file uploads, archive extraction, and any filesystem path built from user input.
 - headers, cookies, environment, and config read as trusted, and inbound
   inter-service calls.
@@ -54,172 +87,153 @@ the ones no scan finds. Untrusted input enters at more than HTTP:
 route is. Record the full inventory in `entrypoints/`, one file per module, each
 listing the source, the auth method, and a review status ✅/⚠️/❌. Do not begin
 per-source analysis until the inventory covers every endpoint, since an endpoint
-you never list is one you never review. This single step is what most decides
-whether the review finds the deep issues.
+you never list is one you never review. This step most decides whether the review
+finds the deep issues.
 
-## Analyse Each Source
+## Trace Each Source to Its Sink
 
-Read the implementation reachable from each source. For every one ask:
+*Coverage. Blocks stopping at the view instead of following the call into the logic
+layer where the flaw lives.*
+
+A whole-repo review earns its keep by reasoning across files. A flaw is usually a
+source in one file reaching a dangerous sink in another, past a control defined in
+a third, such as a route that trusts a helper which skips a signature check, or an
+id that reaches a query with no ownership check. The flaw usually lives below the
+entrypoint, in a manager, a controller, a dao, or a service, not in the view. The
+seeded `analysis/_trace_targets.md` lists those downstream layers.
+
+For each source, follow the calls out of the entrypoint into those layers to the
+real sink, asking as you go:
 
 - What inputs can the attacker control?
-- Is authentication, authorization, signature verification, tenant isolation, or
-  a business-state check bypassed or missing?
-- IDOR: can a user reach another user's, tenant's, or service's resource by a
-  supplied id?
-- Do privileged operations such as payment, signing, approval, or state change allow state
-  bypass or replay with no nonce or time window?
+- Is authentication, authorization, signature verification, tenant isolation, or a
+  business-state check missing or bypassable?
+- IDOR: can a caller reach another user's, tenant's, or service's resource by a
+  supplied id, however the id arrives?
+- Does a privileged operation such as payment, signing, approval, or a state change
+  allow replay or state bypass with no nonce or time window?
 - Mass assignment: is a user-controlled body bound wholesale into a model?
 - Signature: is a caller-supplied key trusted as the trust anchor?
 
-## Authorization Model
+Record each path in `analysis/`:
 
-The missing-authorization and IDOR classes are not local to one function, so they
-need their own pass. This step is language and framework agnostic. The access
-gate looks different per stack, a decorator, a middleware, a permission class, a
-filter, a guard, or an annotation, but every protected endpoint must authenticate
-the caller and authorize the specific resource.
+- **Source**: the entrypoint and the attacker-controlled value.
+- **Sink**: the dangerous operation it reaches such as a query, shell, file path,
+  fetch, deserialize, template, or redirect, with `file:line`.
+- **Controls on the path**: every auth, authz, validation, sanitization, signature,
+  or tenant check between source and sink, and which are missing or bypassable.
 
-First map how this codebase enforces access control, then record on each
-inventory entry which gate it applies and which identity and resource it checks.
-Then hunt three shapes:
+The vulnerability is a path with a reachable sink and no adequate control. Record
+the system's trust boundaries and auth model in `analysis/` once, so every trace
+refers to it instead of restating it. An entrypoint is not done until its path is
+traced to a sink or explicitly cleared, since stopping at the view is what hides
+the deep flaw, such as a missing lock in a dao or a skipped expiry check in a
+manager.
+
+## The Authorization Model Pass
+
+*Coverage. Missing authorization and IDOR are not local to one function, so they
+get their own pass.*
+
+This pass is language and framework agnostic. The access gate looks different per
+stack, a decorator, a middleware, a permission class, a filter, a guard, or an
+annotation, but every protected endpoint must authenticate the caller and authorize
+the specific resource.
+
+First map how this codebase enforces access control, then record on each inventory
+entry which gate it applies and which identity and resource it checks. Then hunt
+three shapes:
 
 - A peer that dropped a check. Compare sibling endpoints such as a v1 and a v2, a
   batch and a single, or an admin and a public variant. When one applies an
-  ownership or permission check that a sibling omits, the sibling is a likely
-  flaw.
-- IDOR. An endpoint acts on a resource named by a client-supplied id with no
-  owner or tenant check, however the id arrives.
+  ownership or permission check a sibling omits, the sibling is a likely flaw.
+- IDOR. An endpoint acts on a resource named by a client-supplied id with no owner
+  or tenant check.
 - An unauthenticated privileged path. A state-changing or sensitive endpoint is
   reachable without the gate its peers require.
 
-## Trace Attack Paths, the Core Work
+## Challenge Every Control
 
-A whole-repo review earns its keep by reasoning *across files*: a flaw is usually
-a source in one file reaching a dangerous sink in another, past a control defined
-in a third, for example a route that trusts a helper which skips signature checks, or an id that
-reaches a query with no ownership check. The flaw usually lives below the
-entrypoint, in a manager, a controller, a dao, or a service, not in the view. The
-seeded `analysis/_trace_targets.md` lists those downstream logic-layer files. For
-each promising source, follow the calls out of the entrypoint into those layers
-to the real sink, and record the path in `analysis/`:
+*Coverage. Blocks clearing a path the moment a control is present, without asking
+whether it holds.*
 
-- **Source**: the entrypoint and the attacker-controlled value.
-- **Sink**: the dangerous operation it reaches such as a query, shell, file path, fetch,
-  deserialize, template, or redirect, with `file:line`.
-- **Controls on the path**: every auth / authz / validation / sanitization /
-  signature / tenant check between source and sink, and crucially which are
-  missing or bypassable.
+A control being present is not the same as the control holding. For every control
+you find on a path, do not clear on presence. Challenge it on four axes:
 
-The vulnerability is a path with a reachable sink and no adequate control. Record
-the system's trust boundaries and auth/authz model in `analysis/` once, so every
-trace can refer to it instead of restating it. An entrypoint is not done until its
-path is traced through the downstream layers to a sink or cleared, since stopping
-at the view is what hides the deep flaw, for example the missing lock in a dao or
-the skipped expiry check in a manager.
-
-## Controls That Live in a Library
-
-An entrypoint's security control is often not in the first-party code at all: the
-authentication, the signature or replay check, the permission test is implemented
-in a library the endpoint calls. You cannot judge whether the endpoint is
-exploitable from the first-party code alone, because the control that would stop
-the attack lives in the library.
-
-So when a traced path relies on a control a library provides, follow into that
-library's relevant function and verify it actually enforces the control, for
-example that a signature check also binds a nonce or a timestamp window, or that
-an auth helper truly validates the caller. Read the specific function the path
-depends on, not the whole library, and read it where it is installed or vendored.
-
-This is about this app's exposure, so it applies to any library, internal or
-third-party. It is not auditing the library for its own bugs, which belongs to
-that library's own review. It is confirming that the control your endpoint relies
-on holds here.
-
-When a library control fails for a reachable first-party entrypoint, rate the
-finding at its real impact, do not downgrade it because the fix lands in the
-library. A replayable signature on a first-party-mounted endpoint is a HIGH for
-this app even though the patch is a nonce or timestamp window in the library.
-"Tracked for the operator as a library change" is not a reason to drop it below
-the report bar. The mount makes it this app's exposure, so report it as one.
-
-## Challenge Every Control, Presence Is Not Sufficiency
-
-A control being present is not the same as the control holding. The most common
-way a real review misses a real flaw is clearing a path the moment it sees a
-gate, a signature, or a single-use token, without asking whether that control
-actually defeats the specific attack. For every control you find on a path, do
-not clear on presence. Challenge it on these axes:
-
-- **Replay**. A signed or authenticated privileged request is replayable unless
-  the control BOTH consumes a one-time nonce AND enforces a freshness window such
-  as a timestamp or short expiry. That the caller is authenticated, that the
-  scheme fails closed, or that a TOTP is single-use is orthogonal to replay, so
-  do not let any of them clear it. Capture one valid signed request and ask: can
-  the exact same bytes be sent again and accepted? If nothing is consumed and no
-  window is checked, it replays.
+- **Replay**. A signed or authenticated privileged request is replayable unless the
+  control BOTH consumes a one-time nonce AND enforces a freshness window such as a
+  timestamp or short expiry. That the caller is authenticated, that the scheme
+  fails closed, or that a TOTP is single-use is orthogonal to replay. Capture one
+  valid request and ask: can the exact same bytes be sent again and accepted?
 - **Concurrency and state**. A check-then-act is bypassable under concurrent
-  requests unless a lock is held across the act, even when the single-request
-  path looks single-use. A redeem, a balance debit, or a status transition that
-  reads then writes without a row lock or atomic guard double-spends under a race.
-- **Sibling coverage**. A gate on one endpoint does not cover its siblings. When
-  you find a missing-authorization or IDOR pattern, enumerate every endpoint
-  behind the same controller or gate and report the highest-impact instance, not
-  the first one you saw. A read variant flagged MEDIUM often has a create or push
-  sibling that is HIGH.
+  requests unless a lock is held across the act, even when the single-request path
+  looks single-use. A redeem, a balance debit, or a status transition that reads
+  then writes without a row lock double-spends under a race.
+- **Sibling coverage**. A gate on one endpoint does not cover its siblings. When you
+  find a missing-authorization or IDOR pattern, enumerate every endpoint behind the
+  same controller or gate and carry the highest-impact instance, not the first one
+  you saw.
 - **Trusted-source assumptions**. A value is not safe just because a caller you
-  treat as trusted set it. If that caller is a distinct tenant or service, the
-  value is still attacker-influenced. A self-set `callback_url` that flows into a
-  server-side fetch is SSRF or a worker-blocking DoS unless there is an allowlist,
-  so do not clear it on "the owner set it".
+  treat as trusted set it. If that caller is a distinct tenant or service, the value
+  is still attacker-influenced. A self-set `callback_url` that flows into a
+  server-side fetch is SSRF or a worker-blocking DoS unless there is an allowlist.
 
-When a control passes one axis, it can still fail another, so run all four before
-you mark a path cleared. Record which axis you checked, not just that a control
-exists.
+A control that passes one axis can fail another, so run all four before you mark a
+path cleared, and record which axis you checked.
 
-Clear per endpoint, never per class. Do not clear a group with one statement such
-as "the write paths are all scoped" or "the connection logins are sound". A check
-present on one sibling can be commented out, skipped, or absent on another, and a
-class-wide clear makes that invisible. Read the actual gate in each endpoint's own
-code before you mark it cleared. A commented-out or skipped check is a finding,
-not a clear.
+**The control may live in a library.** The authentication, the signature or replay
+check, the permission test is often implemented in a library the endpoint calls,
+internal or third-party. You cannot judge the endpoint from first-party code alone.
+Follow into the specific function the path depends on, read it where it is installed
+or vendored, and verify it actually enforces the control, such as a signature check
+that also binds a nonce or a timestamp window. This is not auditing the library for
+its own bugs, it is confirming the control your endpoint relies on holds here.
 
-Apply a trust-boundary assumption consistently. Once you adopt an assumption about
-a boundary to grade one finding, such as treating a service or tenant as distinct
-and mutually distrusting, grade every finding on that same boundary by the same
-assumption. If that assumption makes a self-set `callback_url` a HIGH SSRF, then a
+**Clear per endpoint, never per class.** Do not clear a group with one statement
+such as "the write paths are all scoped" or "the connection logins are sound". A
+check present on one sibling can be commented out, skipped, or absent on another,
+and a class-wide clear makes that invisible. Read the actual gate in each endpoint's
+own code. A commented-out or skipped check is a finding, not a clear.
+
+**Apply a trust-boundary assumption consistently.** Once you adopt an assumption
+about a boundary to grade one finding, such as treating a service or tenant as
+distinct and mutually distrusting, grade every finding on that same boundary the
+same way. If that assumption makes a self-set `callback_url` a HIGH SSRF, then a
 cross-service read of another service's data on the same boundary is a HIGH IDOR,
-not a below-bar note. Grading the same boundary as untrusted in one place and
-trusted in another is the inconsistency to avoid.
+not a below-bar note.
 
-## Scope
+## What to Report
 
-Report only HIGH / CRITICAL, exploitable, high-confidence issues. **Do not report**
-regardless of severity, dependency CVEs, style or best-practice notes,
-speculative issues you cannot tie to a concrete exploit, and risks that only
-matter if production config is leaked. A control that a library fails to enforce
-for a reachable first-party entrypoint is not a dependency CVE, it is this app's
-exploitable exposure, so it is in scope. See "Controls That Live in a Library".
+*Truth. Blocks detecting a real issue then dropping it with a conservative severity
+estimate.*
+
+Report only exploitable, high-confidence issues at HIGH or CRITICAL. Do NOT report,
+regardless of severity: dependency CVEs, style or best-practice notes, speculative
+issues with no concrete exploit, and risks that only matter if production config is
+leaked. A control a library fails to enforce for a reachable first-party entrypoint
+is not a dependency CVE, it is this app's exploitable exposure, so it is in scope.
 
 Rate by impact, not by how local the bug looks. A control that protects money,
-signing, approval, authentication, identity, or tenant isolation is HIGH or
-CRITICAL when it can be defeated, even when the defeat is a single missing line.
-An authorization code or token with no expiry, a signed privileged request that
-can be replayed, a binding or ownership check that is commented out or skipped,
-and a cross-tenant read or write are HIGH, not MEDIUM. Do not let a conservative
-severity estimate drop a real exploitable issue. When you have a concrete exploit
-but are unsure it clears the bar, report it as suspected with your severity
-reasoning rather than parking it below the bar. The bar excludes issues with no
-concrete exploit, not exploitable issues you are unsure how to grade.
+signing, approval, authentication, identity, or tenant isolation is HIGH or CRITICAL
+when it can be defeated, even when the defeat is a single missing line and even when
+the fix lands in a library. An authorization code or token with no expiry, a
+replayable signed request, a binding or ownership check that is commented out, and a
+cross-tenant read or write are HIGH, not MEDIUM. Do not let a conservative severity
+estimate drop a real exploitable issue. When you have a concrete exploit but are
+unsure it clears the bar, report it with your severity reasoning rather than parking
+it below. The bar excludes issues with no concrete exploit, not exploitable issues
+you are unsure how to grade.
 
-## Recording an Issue
+## Recording a Finding
 
-Write one `issues/<name>.md` per issue, the write-up only, and save its PoC as a
-real runnable file `pocs/<name>.<ext>` with the **same `<name>`** so the two pair
-one to one, a script or an `.http` file, not a sketch in prose and not a `.md`.
-Keep `issues/` write-ups and `pocs/` scripts in their own directories, do not mix
-them. If you cannot write a concrete runnable PoC, the finding is most likely a
-false positive, so do not report it. Each issue file must have:
+*Truth. A finding is a hypothesis until a PoC proves it, so every finding carries a
+runnable PoC and a status.*
+
+Write one `issues/<name>.md` write-up and save its PoC as a real runnable file
+`pocs/<name>.<ext>` with the same `<name>`, a script or an `.http` file, not a
+sketch in prose and not a `.md`. Keep the two directories separate. If you cannot
+write a concrete runnable PoC, the finding is most likely a guess, so do not report
+it.
 
 ```markdown
 # <title>
@@ -245,124 +259,99 @@ false positive, so do not report it. Each issue file must have:
 ## Fix
 ```
 
-## PoC Verification, the False-Positive Gate
-
-A finding is a hypothesis until a PoC proves it. The tool, and you, can be
-confident and still wrong, so the PoC is what separates a real vulnerability from
-a plausible misread. Every reported finding carries a single `Status`, and the
-status is the contract a verification re-run follows. There are three:
+The `Status` is the spine of the review and the contract a re-run follows:
 
 - **confirmed**: the PoC ran and triggered the issue. Terminal. Only these are
-  reported as confirmed HIGH / CRITICAL.
-- **blocked**: the PoC is written and correct but needs something only the
-  operator has, an auth cookie or token, an MFA step, or specific test data or an
-  account. Record the exact need in `Needs:`, keep reviewing, and do not halt the
-  rounds or ask the operator for it during the run. This is the worklist a
-  follow-up run picks up, see "Verification Re-run".
-- **refuted**: the PoC ran and did not trigger the issue. Terminal. Move it to
-  "Confirmed false positives" in `MEMORY.md` so future runs skip it, and do not
-  report it as a finding.
+  reported as confirmed.
+- **blocked**: the PoC is written and correct but needs something only the operator
+  has, an auth token, an MFA step, or test data. Record the exact need in `Needs:`
+  and keep going. This is the worklist for Phase 2.
+- **refuted**: the PoC ran and did not trigger the issue. Terminal. Move it under
+  "Confirmed false positives" in `MEMORY.md` and do not report it.
 
-If you cannot write a concrete runnable PoC at all, the finding is most likely a
-guess, so do not report it. That is not a status, it is not a finding.
+In Phase 1, run only the PoCs that need no operator input, setting `confirmed` or
+`refuted` from the result, and mark the rest `blocked`. Running a PoC against a real
+environment, with real credentials, or any destructive action belongs to Phase 2,
+never here.
 
-Never run a PoC against production, and never use real credentials or perform a
-destructive action without the operator's explicit go-ahead. This applies to the
-follow-up verification run, where a PoC is actually executed. The first pass runs
-only the PoCs that need no operator input, so it needs no go-ahead and asks for
-nothing.
+## Rounds and the Completeness Gate
 
-## Verification Re-run
+*Coverage and Autonomy. Blocks one round and done, and blocks pausing to ask the
+operator.*
 
-When the operator returns with the credentials and answers the first pass asked
-for, they start a re-run over the same workspace, not a `--fresh` one, so every
-issue file keeps its status. The re-run is not a fresh review, it is a sweep
-driven by `Status`:
+Each round, read the workspace history first and do not repeat finished work. Pick
+an unreviewed ❌ or to-deepen ⚠️ source, trace it to its sink, challenge its
+controls, record any finding, and log the round in `analysis/_rounds.md`. One round
+is roughly 30 minutes and rarely finds the deep cross-file and stateful bugs. The
+hard classes such as authorization, replay, and broken business state usually appear
+only after several rounds, so keep going.
 
-- Read each `issues/<name>.md` and act only on the ones marked **blocked**. Skip
-  every **confirmed** and **refuted** issue, and skip anything under "Confirmed
-  false positives" in `MEMORY.md`. They are terminal, do not re-investigate them.
-- For each blocked issue, run its PoC with the now-available input. Rewrite the
-  status in place: **confirmed** if it triggered, **refuted** if it did not, and
-  record a refuted one under "Confirmed false positives" in `MEMORY.md`.
-- A blocked issue whose input still did not arrive stays **blocked**, with the
-  same `Needs:`, for the next re-run.
+**Run unattended.** Do not pause between rounds to ask whether to continue, do not
+stop early because a round was productive, and do not stop because a PoC is blocked
+or because you lack an operator input to grade a finding. When you lack an input,
+such as how broadly a credential is distributed or whether a service is trusted,
+proceed on the conservative assumption that keeps the finding exploitable, grade on
+it, and note the assumption. Gather every operator input you would want, the blocked
+PoC credentials, the trust-boundary questions, and the candidate false positives,
+into the verification-needs list for "On Finish". Do not ask for any of it mid-run.
 
-This keeps the lifecycle a resumable pipeline, `blocked -> confirmed` or
-`blocked -> refuted`, so a re-run only spends effort on the unverified findings
-and never redoes settled ones.
-
-## Iteration
-
-Each round, read the workspace history first and do not repeat finished work.
-Process leftover TODOs, otherwise pick an unreviewed ❌ or to-deepen ⚠️ source
-from the inventory, trace it through the downstream layers, and log the round in
-`analysis/_rounds.md`. One round rarely finds the deep cross-file and stateful
-bugs. The hard classes such as authorization, replay, and broken business state
-usually appear only after several rounds, so keep going.
-
-Run the rounds to the Completeness Gate on your own. Do not pause between rounds
-to ask whether to continue, do not stop early because a round was productive, and
-do not stop because a PoC is blocked or because you need an operator input to
-grade a finding. When you lack an operator input, such as how broadly a credential
-is distributed or whether a service or tenant is trusted, proceed on the
-conservative assumption that makes the finding exploitable, grade it on that
-basis, and note the assumption in the issue. Do not ask the operator anything
-mid-run. Gather every operator input you would want, the blocked PoC credentials,
-the trust-boundary confirmations, and the candidate false positives, and write
-them into the final report as a verification-needs list, see "On Finish". The run
-finishes on its own and the operator acts on that list afterward.
-
-## Completeness Gate
-
-Do not report the review complete until all of the following hold. A short run
-with most entrypoints still ❌ is an incomplete review, not a clean one, and
-reporting it as clean is the failure this gate exists to prevent.
+**The gate.** Do not report the review complete until all of these hold. A short run
+with most entrypoints still ❌ is incomplete, not clean, and reporting it as clean is
+the failure this gate prevents.
 
 - Every entrypoint in the inventory is resolved to ✅, none left ❌.
-- Each entrypoint's path is traced through the downstream layers in
-  `analysis/_trace_targets.md` to a real sink or explicitly cleared, not stopped
+- Each entrypoint's path is traced to a real sink or explicitly cleared, not stopped
   at the view.
-- The Authorization Model pass ran: the access gate is mapped, sibling endpoints
-  compared, and IDOR and unauthenticated privileged paths checked.
-- Every control on a cleared path was challenged for sufficiency, not presence:
-  replay needs a nonce and a freshness window, check-then-act needs a lock,
-  sibling endpoints behind a shared gate were all enumerated, and a trusted-source
-  value flowing to a sink was still treated as attacker-influenced.
+- The Authorization Model pass ran.
+- Every control on a cleared path was challenged on all four axes, see "Challenge
+  Every Control", not cleared on presence.
 - `analysis/_rounds.md` shows two consecutive rounds that added no new source, no
   new traced path, and no new issue.
 
 Resolving an entrypoint to ✅ means you read the code on its path to the sink and
-either filed an issue or cleared it on a specific reason that cites the code. A
+either filed a finding or cleared it on a specific reason that cites the code. A
 blanket dismissal, a park below the bar, or a class-wide clear does not resolve an
-entrypoint. Reaching the gate by closing entrypoints out is the failure this gate
-exists to prevent. The goal is every real issue found, not every entrypoint marked
-done.
-
-If any item fails, run another round. State which items pass when you report.
+entrypoint. The goal is every real issue found, not every entrypoint marked done. If
+any item fails, run another round, and state which items pass when you report.
 
 ## On Finish
 
-The first pass runs to completion on its own and then stops. It does not pause to
-ask the operator anything along the way. End it with a single report:
+Phase 1 runs to completion on its own and then stops, without pausing to ask the
+operator anything. End it with a single report:
 
-- **Confirmed**, the `Status: confirmed` set: findings with a reproduced PoC.
-  Empty on a first pass with no credentials, that is expected.
-- **Blocked**, the `Status: blocked` set: code-confirmed findings whose PoC needs
-  an operator input, each graded on its conservative assumption with the exact
-  `Needs:` named. This is the main output of a first pass.
-- **Verification needs**: one consolidated list, gathered from the blocked issues'
-  `Needs:` lines, of what a follow-up run requires, the credentials and test data
-  per PoC, the trust-boundary questions, and the candidate false positives you
-  want ruled out. This is a section of the report, not a question. Do not wait on
-  it. The operator uses it to drive the "Verification Re-run".
+- **Confirmed**, the `Status: confirmed` findings, with a reproduced PoC. Empty on a
+  first pass with no credentials, that is expected.
+- **Blocked**, the `Status: blocked` findings, each graded on its conservative
+  assumption with its exact `Needs:`. This is the main output of a first pass.
+- **Verification needs**, one consolidated list gathered from the blocked findings'
+  `Needs:` lines, the credentials and test data per PoC, the trust-boundary
+  questions, and the candidate false positives to rule out. This is a section of the
+  report, not a question. Do not wait on it.
 
-Append a row to the audit history in `MEMORY.md`. Then stop.
+Append a row to the audit history in `MEMORY.md`, then stop.
 
-The operator acts on the report afterward: they record any false positives under
-"Confirmed false positives" in `MEMORY.md` so future runs skip them, and when they
-can supply the credentials and answers, they start a follow-up run that reproduces
-the blocked PoCs and promotes the verified ones to confirmed. That follow-up run
-is where a PoC actually executes, so the production and destructive-action rules
-apply there. Splitting verification into its own run is what lets the review run
-end to end without stopping to ask.
+---
+
+# Phase 2: Verification Re-run
+
+*Truth and Autonomy. Where blocked hypotheses become confirmed or refuted, and the
+only place a PoC actually executes.*
+
+When the operator returns with the credentials and answers, they record any accepted
+false positives under "Confirmed false positives" in `MEMORY.md`, then start a
+re-run over the same workspace, not a `--fresh` one, so every issue keeps its
+status. This is not a fresh review, it is a sweep driven by `Status`:
+
+- Act only on findings marked **blocked**. Skip every **confirmed** and **refuted**
+  one, and skip anything under "Confirmed false positives" in `MEMORY.md`. They are
+  terminal, do not re-investigate them.
+- For each blocked finding, run its PoC with the now-available input. Rewrite the
+  status in place, **confirmed** if it triggered, **refuted** if it did not, and
+  record a refuted one under "Confirmed false positives" in `MEMORY.md`.
+- A blocked finding whose input still did not arrive stays **blocked** for the next
+  re-run.
+
+Never run a PoC against production, and never use real credentials or perform a
+destructive action without the operator's explicit go-ahead. The lifecycle is a
+resumable pipeline, `blocked -> confirmed` or `blocked -> refuted`, so a re-run only
+spends effort on the unverified findings and never redoes a settled one.
