@@ -17,17 +17,21 @@ It rests on three pillars:
   each source to its sink, a challenge of every control, and rounds that run until
   nothing new appears. Shallowness is made visible in the workspace so it cannot
   pass as a clean result.
-- **Truth**, report only what is real. A finding is a hypothesis until a PoC
-  reproduces it. The PoC is the arbiter, not your confidence, so every finding
-  carries a status and only a reproduced one is confirmed.
+- **Truth**, report only what is real. A finding is a hypothesis until it survives
+  refutation. You usually cannot run a PoC, so the arbiter is a fresh skeptical
+  pass that tries to disprove the finding by reading the code, not your confidence
+  in it. A reproduced PoC is the strongest evidence when a runtime is available,
+  but the static refutation is the gate that always runs. Every finding carries a
+  status.
 - **Autonomy**, do not burden the operator. The review runs end to end on its own.
   The one irreducible human dependency, the credentials and go-ahead to run a PoC
   safely, is deferred to a separate phase, never asked for mid-run.
 
-So the work splits into two phases. Phase 1 is an autonomous review that produces
-confirmed and blocked findings plus a list of what verification needs. Phase 2 is
-an operator-driven re-run that turns the blocked findings into confirmed or refuted
-once the operator can supply those inputs.
+So the work splits into two phases. Phase 1 is an autonomous review that traces,
+refutes its own candidate findings, and produces confirmed and blocked findings
+plus a list of what verification needs. Phase 2 is an operator-driven re-run that
+settles the blocked findings, the ones whose verdict needs a runtime fact, once the
+operator can supply it.
 
 Target repository: the directory you were given.
 Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
@@ -54,6 +58,9 @@ Workspace: `<workspace>/<project>/`, created for you, holding `entrypoints/`,
 5. Read `analysis/_trace_targets.md`, the seeded downstream logic-layer files such
    as managers and dao to trace into, and `analysis/_rounds.md`, the round ledger
    you must keep.
+6. Read `_false_positive_traps.md`, the recurring patterns that make a static read
+   call a finding real when it is not. You apply these before reporting, see
+   "Refute Before Reporting".
 
 ---
 
@@ -226,8 +233,8 @@ you are unsure how to grade.
 
 ## Recording a Finding
 
-*Truth. A finding is a hypothesis until a PoC proves it, so every finding carries a
-runnable PoC and a status.*
+*Truth. A finding is a hypothesis until it survives refutation, so every finding
+carries a runnable PoC and a status.*
 
 Write one `issues/<name>.md` write-up and save its PoC as a real runnable file
 `pocs/<name>.<ext>` with the same `<name>`, a script or an `.http` file, not a
@@ -254,25 +261,60 @@ it.
 (the path to `pocs/<name>.<ext>` and how to run it)
 
 ## Verification
-(the PoC output that confirmed or refuted it, or the exact blocker while blocked)
+(the refutation attempt and its outcome, plus any PoC output, or the exact blocker)
 
 ## Fix
 ```
 
-The `Status` is the spine of the review and the contract a re-run follows:
+The `Status` is the spine of the review and the contract a re-run follows. Because
+a PoC usually cannot run, the status is set by the refutation in "Refute Before
+Reporting", not by execution:
 
-- **confirmed**: the PoC ran and triggered the issue. Terminal. Only these are
-  reported as confirmed.
-- **blocked**: the PoC is written and correct but needs something only the operator
-  has, an auth token, an MFA step, or test data. Record the exact need in `Needs:`
-  and keep going. This is the worklist for Phase 2.
-- **refuted**: the PoC ran and did not trigger the issue. Terminal. Move it under
-  "Confirmed false positives" in `MEMORY.md` and do not report it.
+- **confirmed**: the finding survived refutation, a fresh skeptical read tried to
+  disprove it and could not. These are reported. A reproduced PoC, when a runtime
+  is available, makes a confirmed finding stronger but is not required to confirm.
+- **blocked**: it survived refutation, but settling it for sure needs a runtime
+  fact you cannot read from the code, a credential, a deploy-config value, or live
+  behavior. Record the exact need in `Needs:`, grade it on the conservative
+  assumption, and keep going. This is the worklist for Phase 2.
+- **refuted**: the refutation found a controlling fact that makes the code safe, or
+  a PoC ran and did not trigger. Terminal. Move it under "Confirmed false
+  positives" in `MEMORY.md` and do not report it.
 
-In Phase 1, run only the PoCs that need no operator input, setting `confirmed` or
-`refuted` from the result, and mark the rest `blocked`. Running a PoC against a real
-environment, with real credentials, or any destructive action belongs to Phase 2,
-never here.
+Running a PoC against a real environment, with real credentials, or any destructive
+action belongs to Phase 2, never here. In Phase 1 you may run a PoC only when it
+needs no operator input.
+
+## Refute Before Reporting
+
+*Truth. Blocks reporting a confident misread. This is the gate that always runs,
+since a PoC usually cannot.*
+
+A candidate finding is the offense's claim that a control is missing or bypassable.
+Before you set its status, switch sides and try to prove it is a false positive. Do
+this for every candidate, from a fresh read, not as a rubber stamp on your own work:
+
+1. **Name the controlling fact.** State the one thing that, if true, makes the code
+   safe: the lock is actually held, the value is server-set not attacker-set, the
+   check lives in a decorator or base class, the input never reaches the sink, the
+   two sides share a trust domain. Then read that exact code and settle it.
+2. **Run the trap checklist.** Check the finding against every pattern in
+   `_false_positive_traps.md`. These are the recurring ways a static read calls a
+   finding real when it is not, such as a lock held by a `SELECT ... FOR UPDATE`
+   whose result was discarded, or an id that comes from the session rather than the
+   request.
+3. **Decide and record.** If the controlling fact holds, mark the finding
+   **refuted**, record the pattern under "Confirmed false positives" in `MEMORY.md`,
+   and do not report it. If you read the code and the control genuinely is absent or
+   bypassable, mark it **confirmed**. If the verdict turns on a runtime fact you
+   cannot read, mark it **blocked** with the exact `Needs:`. Write the refutation
+   attempt into the issue's `Verification` section so a reader sees it was
+   challenged, not asserted.
+
+Default to refuted when the controlling fact holds. Survive the refutation, do not
+explain it away. A finding you cannot defend against a fresh skeptical read is a
+guess, and the trap that recurs most is calling a control absent without reading
+where it actually lives.
 
 ## Rounds and the Completeness Gate
 
@@ -305,6 +347,8 @@ the failure this gate prevents.
 - The Authorization Model pass ran.
 - Every control on a cleared path was challenged on all four axes, see "Challenge
   Every Control", not cleared on presence.
+- Every reported finding survived refutation, see "Refute Before Reporting", and
+  its `Status` was set from that read, not asserted.
 - `analysis/_rounds.md` shows two consecutive rounds that added no new source, no
   new traced path, and no new issue.
 
@@ -319,10 +363,11 @@ any item fails, run another round, and state which items pass when you report.
 Phase 1 runs to completion on its own and then stops, without pausing to ask the
 operator anything. End it with a single report:
 
-- **Confirmed**, the `Status: confirmed` findings, with a reproduced PoC. Empty on a
-  first pass with no credentials, that is expected.
-- **Blocked**, the `Status: blocked` findings, each graded on its conservative
-  assumption with its exact `Needs:`. This is the main output of a first pass.
+- **Confirmed**, the `Status: confirmed` findings that survived refutation. A
+  reproduced PoC strengthens them when a runtime was available, but is not required.
+- **Blocked**, the `Status: blocked` findings that survived refutation but whose
+  verdict needs a runtime fact, each graded on its conservative assumption with its
+  exact `Needs:`.
 - **Verification needs**, one consolidated list gathered from the blocked findings'
   `Needs:` lines, the credentials and test data per PoC, the trust-boundary
   questions, and the candidate false positives to rule out. This is a section of the
@@ -345,9 +390,10 @@ status. This is not a fresh review, it is a sweep driven by `Status`:
 - Act only on findings marked **blocked**. Skip every **confirmed** and **refuted**
   one, and skip anything under "Confirmed false positives" in `MEMORY.md`. They are
   terminal, do not re-investigate them.
-- For each blocked finding, run its PoC with the now-available input. Rewrite the
-  status in place, **confirmed** if it triggered, **refuted** if it did not, and
-  record a refuted one under "Confirmed false positives" in `MEMORY.md`.
+- For each blocked finding, settle it with the now-available fact, run its PoC, or
+  check the deploy-config or trust-boundary answer. Rewrite the status in place,
+  **confirmed** if it holds, **refuted** if it does not, and record a refuted one
+  under "Confirmed false positives" in `MEMORY.md`.
 - A blocked finding whose input still did not arrive stays **blocked** for the next
   re-run.
 

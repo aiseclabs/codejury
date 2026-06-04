@@ -30,13 +30,13 @@ Run a codejury whole-repo security review of: $ARGUMENTS
    you lack an input to grade a finding, proceed on the conservative assumption
    that makes it exploitable and note the assumption.
 
-3. Write a real PoC per issue and set each issue's `Status`. In this first pass,
-   run only the PoCs that need no input from me, setting `Status: confirmed` if it
-   triggers or `Status: refuted` if it does not. When a PoC needs a credential, a
-   test account, an MFA step, or test data, set `Status: blocked` with the exact
-   `Needs:`, and keep going. Do not run anything against production. The blocked
-   PoCs are verified in a separate follow-up run I start later, once I can supply
-   those inputs.
+3. Write a real PoC per issue, then refute each finding before reporting it: from a
+   fresh skeptical read, try to prove it is a false positive against the traps in
+   `_false_positive_traps.md`. Set `Status: confirmed` if it survives, `refuted` if
+   the refutation kills it and then do not report it, or `blocked` with the exact
+   `Needs:` when only a runtime fact I hold can settle it. Run a PoC only when it
+   needs no input from me, and never against production. The blocked findings are
+   settled in a separate follow-up run I start later.
 
 4. End with one report and then stop: confirmed findings, blocked findings each
    with its `Needs:`, and one consolidated verification-needs list of what a

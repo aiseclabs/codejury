@@ -22,5 +22,6 @@ KNOWLEDGE_INDEX = _KNOWLEDGE / "index.md"  # the vulnerability-class index the a
 METHODOLOGY_FILE = _PLAYBOOK / "methodology.md"        # the repo-review process
 MEMORY_TEMPLATE_FILE = _PLAYBOOK / "memory-template.md"  # the workspace MEMORY.md template
 COMMAND_FILE = _PLAYBOOK / "command.md"                # the slash command body shipped for install
+FALSE_POSITIVE_TRAPS_FILE = _PLAYBOOK / "false-positive-traps.md"  # recurring FP patterns for refutation
 
 DETECTION_FILE = _PKG / "detection.yaml"  # file and path classification across ecosystems

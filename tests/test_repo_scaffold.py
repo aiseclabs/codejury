@@ -73,6 +73,19 @@ def test_scaffold_surfaces_downstream_logic_layers(tmp_path):
     assert "app/managers/auth_manager.py" in targets_md
 
 
+def test_scaffold_seeds_false_positive_traps(tmp_path):
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    traps = res.workspace / "_false_positive_traps.md"
+    assert traps.is_file()
+    assert "SELECT ... FOR UPDATE" in traps.read_text()   # the lock-side-effect trap ships
+
+
+def test_methodology_has_refutation_gate(tmp_path):
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    assert "Refute Before Reporting" in res.methodology
+    assert "survived refutation" in res.methodology
+
+
 def test_scaffold_seeds_round_ledger(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     rounds = res.workspace / "analysis" / "_rounds.md"

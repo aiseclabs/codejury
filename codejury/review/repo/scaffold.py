@@ -23,7 +23,7 @@ from codejury.guides import (
     select_guides,
 )
 from codejury.review.repo.model import build_repo_model_from_dir, candidate_entrypoint_files, logic_layer_files
-from codejury.resources import METHODOLOGY_FILE, MEMORY_TEMPLATE_FILE
+from codejury.resources import FALSE_POSITIVE_TRAPS_FILE, METHODOLOGY_FILE, MEMORY_TEMPLATE_FILE
 
 _METHODOLOGY = METHODOLOGY_FILE
 _MEMORY_TEMPLATE = MEMORY_TEMPLATE_FILE
@@ -213,6 +213,10 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
         source_text=_source_sample(target, model.files),
     )
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
+
+    # seed the recurring false-positive traps the refutation step checks against
+    (ws / "_false_positive_traps.md").write_text(
+        FALSE_POSITIVE_TRAPS_FILE.read_text(encoding="utf-8"), encoding="utf-8")
 
     # flag candidate entrypoint files via the matched guides' globs and by
     # scanning content for the entrypoint markers a guide declares

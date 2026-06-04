@@ -1,0 +1,55 @@
+# False-Positive Traps
+
+Recurring ways a static read calls a finding real when it is not. The refutation
+step checks a candidate finding against every trap below before it is reported.
+Each names the controlling fact to confirm in the code. When a real run later
+proves a new recurring false positive, add it here.
+
+## Locks and Transactions
+
+- A lock acquired by `SELECT ... FOR UPDATE`, or any side-effecting query, is held
+  by the database transaction until commit. Executing the query takes the lock.
+  A discarded or unused return value does NOT mean the lock was not taken, so
+  "the result is thrown away" is not a reason to call a redeem unserialized.
+  Controlling fact: is the locking query executed inside the transaction at all,
+  on the same row two concurrent requests contend for? If yes, it serializes them.
+- `transaction.atomic()` plus a real row lock serializes concurrent redeems even
+  on READ COMMITTED. The race only exists if no lock is taken on the contended row.
+
+## Input That Looks Attacker-Controlled But Is Not
+
+- An id, ticket, or key read from the session, a signed cookie, or a server-set
+  field is not attacker-controlled even though it arrives in the request object.
+  Controlling fact: trace where the value is actually set, not where it is read.
+- A value the framework derives from an authenticated identity, not from the
+  request body, is trusted input.
+
+## Controls That Live Off the Handler Body
+
+- The auth, ownership, or signature check may be in a decorator, a middleware, a
+  permission class, a base class, or a wrapper, not in the handler you are reading.
+  Controlling fact: read the full dispatch path, including base classes and
+  decorators, before concluding a check is absent.
+
+## Replay and Freshness
+
+- "The caller is authenticated", "the scheme fails closed", or "the token is
+  single-use" do not by themselves make a request non-replayable. Conversely, if a
+  nonce IS consumed and a freshness window IS enforced, the replay concern is moot.
+  Controlling fact: is the exact signed request accepted twice, or is a nonce
+  consumed and a timestamp window checked?
+
+## Trust Boundaries
+
+- A cross-service or cross-tenant read is only a finding if the two sides are
+  actually distinct trust domains. Confirm the boundary before grading it an IDOR,
+  and once you adopt that boundary, apply it to every finding on it.
+- A self-set value is still attacker-influenced when the setter is a distinct
+  tenant, but is trusted when the setter is the same principal as the victim.
+
+## Reachability
+
+- A dangerous sink is only exploitable if attacker input actually reaches it.
+  Controlling fact: trace a concrete path from an entrypoint to the sink. If the
+  value at the sink is a constant, a server-derived value, or an internal-only
+  caller, there is no exploit.
