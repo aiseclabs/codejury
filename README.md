@@ -9,9 +9,11 @@
 
 An AI code security review tool. It works two ways. `review diff` audits a pull
 request diff for newly introduced exploitable risk in one command. `review repo`
-sets up an interactive agent such as Claude Code or Codex to audit a whole
-repository, mapping the attack surface, tracing inputs to sinks across files, and
-verifying each issue with a real PoC.
+audits a whole repository by fanning out: it maps the attack surface, splits it
+into per-unit work, runs a focused deep review on each unit, and adversarially
+verifies every finding before reporting. An interactive agent such as Claude Code
+or Codex drives the per-unit review, while the deterministic parts, the worklist,
+the dedup, the verification, and the completeness gate, are coded.
 
 Security knowledge is data, not code. Drop-in markdown guides hold the
 vulnerability classes, languages, frameworks, and protocols, so the engine names
@@ -60,8 +62,13 @@ provider and no key, and falls back to a built in demo diff when you pass none.
 
 ## Repo Review
 
-The agent path. A whole repo is too large for one LLM call, so this sets up a
-review for an interactive agent rather than running a pipeline.
+Recall-first, for a deep audit. A whole repo is too large for one LLM call and a
+single pass dilutes, so this fans out: it enumerates the attack surface, splits it
+into per-unit work, and runs a focused deep review on each unit. An interactive
+agent does the per-unit reviewing where judgment is needed; the deterministic
+scaffolding, dedup, verification, and gate are coded.
+
+Start by scaffolding the workspace:
 
 ```bash
 codejury review repo /path/to/your/repo
@@ -93,6 +100,21 @@ and follows a control into a library when an entrypoint delegates it. It iterate
 until a Completeness Gate passes, confirms each issue with a real PoC against a
 sandbox or dev environment, and asks you for any credential it needs. Only a
 reproduced PoC is a confirmed finding, and nothing runs against production.
+
+Once the fan-out has covered the surface, the agent hands off to the coded steps
+that need no judgment:
+
+```bash
+codejury review repo /path/to/your/repo --finalize   # dedup and adversarially verify, write ranked findings
+codejury review repo /path/to/your/repo --gate        # check the Completeness Gate, exit non-zero if unmet
+```
+
+`--finalize` dedups the findings and runs a recall-safe skeptic over each one, a
+verifier that refutes only what it can prove safe and never drops a finding for
+low impact, recording the refuted in `_refuted.md`. Both steps resume across
+sessions, so a usage limit costs no progress. For a headless or CI run with no
+interactive agent, `--run` drives the whole fan-out in code against a provider or
+the Claude Code backend, for example `--run --reviewer claude-cli --concurrency 1`.
 
 The supported stacks today are Python with Django, Celery, Flask, and FastAPI,
 Go with Gin and Echo, JavaScript and TypeScript with Express and NestJS, and the
