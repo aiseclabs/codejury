@@ -3,16 +3,12 @@ it needs no key: scaffold, build units, run passes to convergence, write finding
 mark units reviewed."""
 
 import json
-import pathlib
 
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.reviewer import UnitReviewer
 from codejury.review.repo.run import _parse_issue, build_units, finalize_repo_review, run_repo_review
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verify import Verdict, Verifier
-
-REPO = pathlib.Path(__file__).resolve().parents[1]
-CUSTODY = REPO / "validation" / "repo" / "targets" / "custody"
 
 _REPLY = (
     '{"findings": [{"title": "wallet idor", "category": "insecure-direct-object-reference", '
@@ -32,9 +28,9 @@ def test_build_units_groups_trace_targets_by_package():
     assert "authorization/dao/d.py" not in by["accounts/views/api.py"].files  # other package excluded
 
 
-def test_run_converges_writes_findings_and_marks_units(tmp_path):
+def test_run_converges_writes_findings_and_marks_units(custody_repo, tmp_path):
     prov = MockProvider(default=_REPLY)
-    res = run_repo_review(CUSTODY, tmp_path / "ws", provider=prov, model="mock",
+    res = run_repo_review(custody_repo, tmp_path / "ws", provider=prov, model="mock",
                           converge_after=2, max_passes=12)
     ws = res.scaffold.workspace
 
@@ -74,11 +70,11 @@ class _CountingVerifier(Verifier):
         return Verdict(real=True)
 
 
-def test_resume_skips_reviewed_units_and_verified_findings(tmp_path):
+def test_resume_skips_reviewed_units_and_verified_findings(custody_repo, tmp_path):
     ws = tmp_path / "ws"
     # run 1: full fan-out + verify
     r1v = _CountingVerifier()
-    run_repo_review(CUSTODY, ws, reviewer=_CountingReviewer(), verifier=r1v,
+    run_repo_review(custody_repo, ws, reviewer=_CountingReviewer(), verifier=r1v,
                     converge_after=1, max_passes=4)
     findings_after_1 = json.loads((ws / "custody" / "findings.json").read_text())["findings"]
     assert findings_after_1 and r1v.calls >= 1
@@ -87,7 +83,7 @@ def test_resume_skips_reviewed_units_and_verified_findings(tmp_path):
     # is verified, so neither backend is called again, and the result persists.
     r2 = _CountingReviewer()
     r2v = _CountingVerifier()
-    run_repo_review(CUSTODY, ws, reviewer=r2, verifier=r2v,
+    run_repo_review(custody_repo, ws, reviewer=r2, verifier=r2v,
                     converge_after=1, max_passes=4, fresh=False)
     assert r2.calls == 0          # reviewed units skipped
     assert r2v.calls == 0         # verified findings skipped

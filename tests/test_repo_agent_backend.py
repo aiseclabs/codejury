@@ -3,15 +3,11 @@ headless `claude -p` agent. Tested with a fake runner, so no real claude is need
 and the engine runs end to end with no provider."""
 
 import json
-import pathlib
 
 from codejury.review.repo.agent_backend import AgentReviewer, AgentVerifier, _envelope_error, _result_text
 from codejury.review.repo.reviewer import Unit
 from codejury.review.repo.run import run_repo_review
 from codejury.review.repo.union import Candidate
-
-REPO = pathlib.Path(__file__).resolve().parents[1]
-CUSTODY = REPO / "validation" / "repo" / "targets" / "custody"
 
 
 def _envelope(result_text: str) -> str:
@@ -70,14 +66,14 @@ def test_ask_retries_a_transient_failure_then_succeeds():
     assert calls["n"] == 2 and len(cands) == 1                # failed once, retried, succeeded
 
 
-def test_run_with_claude_cli_backends_needs_no_provider(tmp_path):
+def test_run_with_claude_cli_backends_needs_no_provider(custody_repo, tmp_path):
     finding = _envelope('{"findings": [{"title": "wallet idor", "category": "idor", '
                         '"endpoint": "GET /wallets/<id>", "file": "app/services/wallet.py", '
                         '"severity": "HIGH", "status": "confirmed"}]}')
     reviewer = AgentReviewer(runner=lambda p, **k: finding)
     verifier = AgentVerifier(runner=lambda p, **k: _envelope('{"real": true, "reason": "real"}'))
 
-    res = run_repo_review(CUSTODY, tmp_path / "ws", reviewer=reviewer, verifier=verifier,
+    res = run_repo_review(custody_repo, tmp_path / "ws", reviewer=reviewer, verifier=verifier,
                           converge_after=2, max_passes=8, concurrency=2)   # provider=None
 
     assert res.verify is not None and res.verify.confirmed
