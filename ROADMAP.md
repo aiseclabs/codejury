@@ -38,6 +38,6 @@ dependency scanning, dynamic testing, pentest, or runtime defense.
   diffs, measure precision and recall on real PRs, not a synthetic corpus.
 - **Vulnerabilities**: grow `knowledge/vulnerabilities/` coverage and per-language depth, it is data.
 - **Repo Review**: refine the methodology, the entrypoint seeding, and the
-  review-memory loop from real audits.
+  fan-out and verification loop from real audits.
 - **Validation**: the real measure is efficacy on real repositories with a real
   provider, which drives prompt and vulnerability-class changes.

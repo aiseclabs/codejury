@@ -1,59 +1,98 @@
 ---
-description: Run a codejury whole-repo security review on a repository, interactively
+description: Run a codejury whole-repo security review, interactively, by fanning out per unit
 ---
 Run a codejury whole-repo security review of: $ARGUMENTS
 
-1. Scaffold the workspace:
+You are the ORCHESTRATOR, not the reviewer. Recall comes from fanning out: codejury
+gives you a deterministic unit worklist, you run one focused sub-review per unit in
+parallel, union their findings across diverse passes, verify, and stop on a gate. The
+deep reading happens inside each sub-review, never in this main context. A unit you
+review in passing here is the shallow whole-repo pass this method exists to replace.
+
+1. Scaffold the workspace. This is the deterministic worklist, do not invent it:
 
    ```
    codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review
    ```
 
-   If `codejury` is not on PATH it is a pip-installed console script, so activate
-   the project venv first, for example `. .venv/bin/activate`, or run it through
-   that venv's Python, for example `python -m codejury`.
+   If `codejury` is not on PATH it is a pip-installed console script, so activate the
+   project venv first, for example `. .venv/bin/activate`, or run `python -m codejury`.
+   If it reports a previous review's output in the workspace, ask me whether to clear
+   it; if I say yes, re-run with `--fresh`.
 
-   If the output reports that a previous review's output is already in the
-   workspace, ask me whether to clear it and start fresh. If I say yes, re-run the
-   same command with `--fresh`, which clears the prior issues, PoCs, round ledger,
-   and MEMORY.md for a clean slate. If I say no, continue and build on what is
-   there.
+   RESUMING. If a previous run was interrupted, for example by a usage limit, just run
+   this command again WITHOUT clearing the workspace (answer no to clearing). It
+   resumes and does not redo finished work: a unit already marked `- Status: reviewed`
+   is skipped in the fan-out, and a finding already marked `- Verified: yes` is skipped
+   in verification. So an interruption costs nothing, keep resuming in new sessions
+   until the gate passes. If usage is tight, run on a Sonnet-tier model, it is faster,
+   cheaper, and the strongest tier for this in testing.
 
-2. Read `<workspace>/METHODOLOGY.md` and follow it to completion. It is the single
-   source of truth for how to run the review, the entrypoint map, the trace
-   targets, the Authorization Model pass, the dependency-control checks, the round
-   ledger, and the Completeness Gate. Do not improvise a different process.
+   The scaffold writes `units/` (one unit per candidate entrypoint, each carrying its
+   deep-review mandate and `- Status: open`), `inventory/_surface.md` (the coverage
+   denominator), `inventory/_auth_model.md`, and `inventory/_severity.md` (the grading
+   rubric). Read `METHODOLOGY.md` once for the full process.
 
-   Run every round to the Completeness Gate on your own and do not stop to ask me
-   anything mid-run. Do not pause between rounds, do not stop early because a round
-   felt productive, and do not report the review done until the gate passes. When
-   you lack an input to grade a finding, proceed on the conservative assumption
-   that makes it exploitable and note the assumption.
+2. MAP. Make the worklist complete. Enumerate every attacker-influenced entrypoint
+   into `inventory/_surface.md` and fill `inventory/_auth_model.md` with the access
+   model and trust boundaries. For anything the seeded units miss, add a unit file by
+   copying the mandate from a seeded one: non-HTTP sources (deserializers, queues,
+   file parsers, webhooks), entrypoint modules no guide flagged, and sequence units
+   for a multi-step flow whose invariant spans several endpoints. Every entrypoint in
+   the surface must be owned by some unit.
 
-3. Write a real PoC per issue, then refute each finding before reporting it: from a
-   fresh skeptical read, try to prove it is a false positive against the traps in
-   `_false_positive_traps.md`. Set `Status: confirmed` if it survives, `refuted` if
-   the refutation kills it and then do not report it, or `blocked` with the exact
-   `Needs:` when only a runtime fact I hold can settle it. Run a PoC only when it
-   needs no input from me, and never against production. The blocked findings are
-   settled in a separate follow-up run I start later.
+3. FAN OUT. This step is mechanical, not a matter of judgment. For EVERY unit in
+   `units/` with `- Status: open`, launch one sub-review as a subagent (Task), in
+   parallel. One subagent per unit, no unit skipped, no two merged to save calls.
+   Give each only its unit file (it carries the mandate and the files to own) plus the
+   shared `_stack.md`, `inventory/_auth_model.md`, and `inventory/_severity.md`. Each
+   sub-review reads its files, traces into the managers, dao, controllers, and
+   libraries they call, hunts the high-impact classes, verifies each control on the
+   code it actually reads, refutes its own candidates, grades every real finding by
+   the rubric (CRITICAL through LOW, never refuted for low impact), writes each to
+   `issues/<name>.md`, and flips its unit to `- Status: reviewed`.
 
-4. Drive every sweep in `analysis/_coverage.md` to done before reporting complete,
-   each class enumerated into its verdict table with no blank cell. Before you
-   report, run the Completeness Gate and let it, not your own judgment, decide
-   whether the review may stop:
+   Do NOT review units in this main context, only orchestrate. After the first pass,
+   run more passes giving the units a different lead lens each time, authorization,
+   then replay, then concurrency, then data exposure, then business logic, adding only
+   findings not already in `issues/`. The union grows along a different axis each pass.
+   Stop when two consecutive passes add no new issue.
+
+4. FINALIZE in code, do not dedup or verify in prose. Once the fan-out has covered the
+   surface, run:
+
+   ```
+   codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review --finalize --reviewer claude-cli
+   ```
+
+   This is deterministic and resumable: it dedups the findings by location and class,
+   adversarially verifies each survivor (the skeptic traces across files and judges
+   against production semantics, so a `select_for_update` held inside a
+   `transaction.atomic` is recognised as safe, not a race), drops the refuted into
+   `_refuted.md`, and writes the ranked `findings.json`. Re-run it to resume if a usage
+   limit interrupts; findings already verified are skipped. Your job is the fan-out; the
+   dedup, verification, and report are the code's job.
+
+5. GATE. Let codejury, not your judgment, decide whether the review may stop:
 
    ```
    codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review --gate
    ```
 
-   If it exits non-zero, it lists what is unmet, an unresolved ❌ entrypoint, a
-   `todo` or `partial` sweep, fewer than two rounds, or an issue graded below HIGH.
-   Run another round to address each, then re-check. Only report complete once the
-   gate passes. It is a floor, not proof of recall, so keep accumulating rounds.
+   If it exits non-zero it lists what is unmet: the surface not enumerated, a unit not
+   reviewed, or a finding with no calibrated severity. Address each, then re-check.
+   Only report complete once it passes. It is a floor, not proof of recall, so keep
+   accumulating diverse passes.
 
-   End with one report and then stop: confirmed findings, blocked findings each with
-   its `Needs:`, the consolidated verification-needs list, and the coverage status
-   with any sweep left `n/a` named as a known gap. Present findings as a table:
-   title, class, `file:line`, exploit, status. The issue files live in the workspace
-   `issues/`. Do not ask me to continue, just finish and report.
+PoC and the operator. Write a runnable PoC per finding. Run a PoC only when it needs
+no input from me, and never against production; a stateful PoC must run against an
+environment that models production locking, not a SQLite stand-in. When only a runtime
+fact I hold can settle a finding, mark it `blocked` with the exact `Needs:` and grade
+it on the conservative assumption. Gather every such need into one list for a
+follow-up run I start later, do not pause to ask me mid-run.
+
+End with one report and then stop: confirmed findings as a table (title, class,
+`file:line`, severity, status), the blocked findings each with its `Needs:`, the
+consolidated verification-needs list, and the coverage, units reviewed over units in
+the inventory. The issue files live in the workspace `issues/`. Do not ask me to
+continue, just finish and report.

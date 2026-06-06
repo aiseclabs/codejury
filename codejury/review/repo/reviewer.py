@@ -1,0 +1,139 @@
+"""The per-unit reviewer: review one unit deeply and return its candidate findings.
+
+This is the seam between the coded orchestration and the model judgment. The
+orchestration owns what is mechanical, the worklist, the passes, the lenses, the
+union, the convergence. The reviewer owns the one thing that is judgment, reading a
+small slice of code deeply and deciding what is exploitable. It is an interface so
+the judgment backend can change, a single grounded model call today, a tool-using
+agent later, without touching the orchestration.
+
+The default `ModelReviewer` makes one `provider.complete` call per unit per pass: it
+gathers the unit's code, prepends the shared mandate and the severity rubric, leads
+with the pass's lens, and parses the returned JSON into `Candidate`s. It names no
+language, the unit's files come from the data-driven worklist.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from pathlib import Path
+
+from codejury.json_parse import extract_json_object
+from codejury.providers.base import Message, Provider
+from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
+from codejury.review.repo.union import Candidate
+
+_GATHER_PER_FILE = 24_000   # chars read per file
+_GATHER_TOTAL = 120_000     # chars of code packed into one unit prompt
+
+_JSON_SHAPE = (
+    '{"findings": [{"title": "...", "category": "<class id>", '
+    '"endpoint": "METHOD /path or empty", "file": "path", "line": 0, '
+    '"severity": "CRITICAL|HIGH|MEDIUM|LOW", "evidence": "controlling fact at file:line", '
+    '"status": "confirmed|blocked"}]}'
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class Unit:
+    """One unit of the worklist: the files it owns plus the files it traces into."""
+    name: str
+    root: str
+    files: tuple[str, ...]   # relative paths, owned entrypoints first then trace targets
+
+
+def candidates_from_obj(obj: object) -> list[Candidate]:
+    """Map a model reply's `findings` list onto Candidates, tolerant of junk."""
+    if not isinstance(obj, dict) or not isinstance(obj.get("findings"), list):
+        return []
+    out: list[Candidate] = []
+    for d in obj["findings"]:
+        if not isinstance(d, dict):
+            continue
+        title = str(d.get("title") or d.get("description") or "").strip()
+        if not title:
+            continue
+        line = d.get("line")
+        sev = str(d.get("severity", "")).strip().upper()
+        out.append(Candidate(
+            title=title,
+            category=str(d.get("category", "")).strip(),
+            endpoint=str(d.get("endpoint") or d.get("source") or "").strip(),
+            file=str(d.get("file", "")).strip(),
+            line=line if isinstance(line, int) and not isinstance(line, bool) and line >= 1 else None,
+            severity=sev if sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else "MEDIUM",
+            evidence=str(d.get("evidence", "")).strip(),
+            status="blocked" if str(d.get("status", "")).strip().lower() == "blocked" else "confirmed",
+        ))
+    return out
+
+
+class UnitReviewer(ABC):
+    @abstractmethod
+    def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
+        """Deeply review one unit through one lens, return its candidate findings."""
+
+
+def _gather(unit: Unit) -> str:
+    """Pack the unit's files into one bounded block, so a single call can trace
+    across them without live file access. Unreadable or oversized files are skipped."""
+    parts: list[str] = []
+    total = 0
+    for rel in unit.files:
+        try:
+            text = (Path(unit.root) / rel).read_text(encoding="utf-8")[:_GATHER_PER_FILE]
+        except (OSError, UnicodeDecodeError):
+            continue
+        block = f"# file: {rel}\n{text}"
+        parts.append(block)
+        total += len(block)
+        if total >= _GATHER_TOTAL:
+            break
+    return "\n\n".join(parts)
+
+
+def _lens_line(lens: str) -> str:
+    if not lens:
+        return "Review for every high-impact class.\n\n"
+    return (f"This pass LEADS WITH THE {lens.upper()} LENS: prioritize finding {lens} "
+            f"issues across this unit, while still reporting any other class you see.\n\n")
+
+
+_SYSTEM = (
+    "You are a senior application security engineer reviewing one slice of a codebase. "
+    "Report only real, evidenced findings, each graded by the rubric and located at a "
+    "file:line. Respond with a single JSON object and nothing else."
+)
+
+
+class ModelReviewer(UnitReviewer):
+    """Default reviewer: one grounded model call per unit per pass."""
+
+    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096) -> None:
+        self._provider = provider
+        self._model = model
+        self._max_tokens = max_tokens
+        self._mandate = UNIT_REVIEW_FILE.read_text(encoding="utf-8")
+        self._rubric = SEVERITY_RUBRIC_FILE.read_text(encoding="utf-8")
+
+    def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
+        prompt = (
+            f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
+            f"{_lens_line(lens)}"
+            + (f"Stack and authorization model:\n{shared_context}\n\n" if shared_context else "")
+            + f"Unit `{unit.name}`, the code to review:\n```\n{_gather(unit)}\n```\n\n"
+            f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
+        )
+        # do not swallow a provider error here: a silently-empty unit would let a
+        # rate-limited or failed call masquerade as "no findings". Let it raise; the
+        # pass-loop catches it, counts it, and surfaces it, so a failure is never read
+        # as a clean unit.
+        result = self._provider.complete(
+            system=_SYSTEM,
+            messages=[Message(role="user", content=prompt)],
+            model=self._model,
+            max_tokens=self._max_tokens,
+            cache=True,
+        )
+        return candidates_from_obj(extract_json_object(result.text))

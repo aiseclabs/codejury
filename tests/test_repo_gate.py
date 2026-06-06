@@ -1,44 +1,38 @@
-"""The Completeness Gate check: a structural floor over a review workspace, it
-refuses to call a one-round or half-swept review complete. It reads structured
-cells, a table Status column, a bullet marker, a Risk line, not free prose."""
+"""The Completeness Gate check over a fan-out workspace: a structural floor that
+refuses to call a review complete while the surface is not enumerated, a unit is
+left open, or a finding is parked below HIGH. It reads structured cells, a table
+row, a Status line, a Risk line, not free prose."""
 
 from codejury.review.repo.gate import check_gate
+
+_SURFACE = (
+    "# Attack Surface Inventory\n\n"
+    "| Module | Entrypoint | Auth method | Unit | Status |\n"
+    "|---|---|---|---|---|\n"
+    "| app | GET /users | require_auth | u1 | ✅ |\n"
+    "| app | DELETE /admin/users/<uid> | require_admin | u1 | ✅ |\n"
+)
 
 
 def _complete_ws(root):
     """A workspace whose bookkeeping passes every gate item."""
     ws = root / "proj"
-    (ws / "entrypoints").mkdir(parents=True)
-    (ws / "analysis").mkdir()
+    (ws / "inventory").mkdir(parents=True)
+    (ws / "units").mkdir()
     (ws / "issues").mkdir()
     (ws / "pocs").mkdir()
-    (ws / "entrypoints" / "_entrypoints.md").write_text(
-        "# Entrypoints\n\nStatus legend: ❌ not reviewed · ⚠️ to deepen · ✅ reviewed\n\n"
-        "- ✅ app.py::list_users\n- ✅ app.py::delete_user\n")
-    (ws / "analysis" / "_coverage.md").write_text(
-        "# Coverage Ledger\n\nSet each Status to done, partial, or n/a.\n\n"
-        "| Sweep | Enumerates | Status | Verdict table |\n"
-        "|---|---|---|---|\n"
-        "| Authorization | every endpoint | done | _sweep_authz.md |\n"
-        "| Replay | every control | done | _sweep_replay.md |\n"
-        "| Data exposure | every sink | n/a | _sweep_data_exposure.md |\n"
-        "| Injection and sinks | every sink | done | _sweep_sinks.md |\n")
-    (ws / "analysis" / "_rounds.md").write_text(
-        "# Review Rounds\n\n## Round 1\n- Sources reviewed: all\n\n## Round 2\n- New issues: none\n")
-    (ws / "analysis" / "_negatives.md").write_text(
-        "# Negative-Verdict Audit Ledger\n\n"
-        "| Candidate | Controlling fact | Attack | Verdict |\n"
-        "|---|---|---|---|\n"
-        "| auth-code race | lock held in atomic | ran PoC, SELECT FOR UPDATE serializes | refuted, holds |\n")
+    (ws / "inventory" / "_surface.md").write_text(_SURFACE)
+    (ws / "units" / "u1.md").write_text(
+        "# Unit u1: user endpoints\n- Status: reviewed\n"
+        "- Entrypoints: GET /users, DELETE /admin/users/<uid>\n")
     return ws
 
 
 def test_complete_workspace_passes(tmp_path):
-    ws = _complete_ws(tmp_path)
-    result = check_gate(ws)
+    result = check_gate(_complete_ws(tmp_path))
     assert result.passed
     assert result.failures == []
-    assert result.checked  # the checked items are reported for transparency
+    assert result.checked
 
 
 def test_missing_workspace_fails(tmp_path):
@@ -47,79 +41,47 @@ def test_missing_workspace_fails(tmp_path):
     assert any("does not exist" in f for f in result.failures)
 
 
-def test_open_entrypoint_fails(tmp_path):
+def test_empty_surface_fails(tmp_path):
     ws = _complete_ws(tmp_path)
-    (ws / "entrypoints" / "_entrypoints.md").write_text(
-        "# Entrypoints\n\nStatus legend: ❌ not reviewed · ✅ reviewed\n\n"
-        "- ✅ app.py::list_users\n- ❌ app.py::delete_user\n")
+    (ws / "inventory" / "_surface.md").write_text(
+        "# Attack Surface Inventory\n\n| Module | Entrypoint | Auth method | Unit | Status |\n|---|---|---|---|---|\n")
     result = check_gate(ws)
     assert not result.passed
-    assert any("entrypoint" in f and "❌" in f for f in result.failures)
+    assert any("surface" in f for f in result.failures)
 
 
-def test_legend_alone_does_not_trip_entrypoint_check(tmp_path):
-    # the ❌ in the status legend line is not a bullet, so it must not count as open
+def test_no_units_fails(tmp_path):
     ws = _complete_ws(tmp_path)
-    result = check_gate(ws)
-    assert result.passed
-
-
-def test_partial_sweep_fails(tmp_path):
-    ws = _complete_ws(tmp_path)
-    (ws / "analysis" / "_coverage.md").write_text(
-        "# Coverage Ledger\n\nSet each Status to done, partial, or n/a.\n\n"
-        "| Sweep | Enumerates | Status | Verdict table |\n"
-        "|---|---|---|---|\n"
-        "| Authorization | every endpoint | partial | _sweep_authz.md |\n"
-        "| Replay | every control | todo | _sweep_replay.md |\n")
+    for f in (ws / "units").glob("*.md"):
+        f.unlink()
     result = check_gate(ws)
     assert not result.passed
-    assert any("sweep" in f for f in result.failures)
+    assert any("no unit files" in f for f in result.failures)
 
 
-def test_coverage_prose_partial_does_not_trip(tmp_path):
-    # the word 'partial' in the instruction prose is not a table cell
+def test_open_unit_fails(tmp_path):
     ws = _complete_ws(tmp_path)
+    (ws / "units" / "u2.md").write_text("# Unit u2\n- Status: open\n- Entrypoints: POST /transfers\n")
+    result = check_gate(ws)
+    assert not result.passed
+    assert any("not Status: reviewed" in f for f in result.failures)
+
+
+def test_unit_without_status_counts_as_open(tmp_path):
+    ws = _complete_ws(tmp_path)
+    (ws / "units" / "u3.md").write_text("# Unit u3\n- Entrypoints: GET /thing\n")  # no Status line
+    result = check_gate(ws)
+    assert not result.passed
+    assert any("not Status: reviewed" in f for f in result.failures)
+
+
+def test_medium_issue_passes(tmp_path):
+    # all four levels are valid output now: a graded MEDIUM is surfaced, not failed,
+    # so a cautious reviewer reports a bounded real finding instead of refuting it
+    ws = _complete_ws(tmp_path)
+    (ws / "issues" / "bounded-finding.md").write_text(
+        "# Some finding\n\n- Risk: MEDIUM\n- Type: info disclosure\n- Status: confirmed\n")
     assert check_gate(ws).passed
-
-
-def test_single_round_fails(tmp_path):
-    ws = _complete_ws(tmp_path)
-    (ws / "analysis" / "_rounds.md").write_text("# Review Rounds\n\n## Round 1\n- Sources reviewed: all\n")
-    result = check_gate(ws)
-    assert not result.passed
-    assert any("round" in f for f in result.failures)
-
-
-def test_unfinished_negative_audit_fails(tmp_path):
-    ws = _complete_ws(tmp_path)
-    (ws / "analysis" / "_negatives.md").write_text(
-        "# Negative-Verdict Audit Ledger\n\n"
-        "| Candidate | Controlling fact | Attack | Verdict |\n"
-        "|---|---|---|---|\n"
-        "| totp replay | idempotent so harmless |  |  |\n")  # Attack and Verdict blank
-    result = check_gate(ws)
-    assert not result.passed
-    assert any("_negatives.md" in f for f in result.failures)
-
-
-def test_empty_negatives_ledger_passes(tmp_path):
-    # the seeded ledger with no rows is not a failure, only half-filled rows are
-    ws = _complete_ws(tmp_path)
-    (ws / "analysis" / "_negatives.md").write_text(
-        "# Negative-Verdict Audit Ledger\n\n"
-        "| Candidate | Controlling fact | Attack | Verdict |\n"
-        "|---|---|---|---|\n")
-    assert check_gate(ws).passed
-
-
-def test_sub_high_issue_fails(tmp_path):
-    ws = _complete_ws(tmp_path)
-    (ws / "issues" / "weak-finding.md").write_text(
-        "# Some finding\n\n- Risk: MEDIUM\n- Type: replay\n- Status: confirmed\n")
-    result = check_gate(ws)
-    assert not result.passed
-    assert any("below HIGH" in f for f in result.failures)
 
 
 def test_high_issue_passes(tmp_path):
@@ -129,9 +91,10 @@ def test_high_issue_passes(tmp_path):
     assert check_gate(ws).passed
 
 
-def test_issue_without_risk_line_fails(tmp_path):
+def test_ungraded_or_invalid_severity_fails(tmp_path):
     ws = _complete_ws(tmp_path)
     (ws / "issues" / "no-risk.md").write_text("# Some finding\n\nNo risk stated.\n")
+    (ws / "issues" / "bogus.md").write_text("# Some finding\n\n- Risk: spicy\n- Type: idor\n")
     result = check_gate(ws)
     assert not result.passed
-    assert any("no Risk line" in f for f in result.failures)
+    assert sum("calibrated Risk" in f for f in result.failures) == 2

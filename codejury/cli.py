@@ -63,6 +63,14 @@ _MOCK_REPLY = (
     '"confidence": 0.9}]}'
 )
 
+# canned per-unit reply for `review repo --run --dry-run`: every unit "finds" this,
+# so the pipeline runs end to end, dedups to one, and converges, with no key
+_REPO_MOCK_REPLY = (
+    '{"findings": [{"title": "[mock] no backend called", "category": "other", '
+    '"endpoint": "GET /mock", "file": "mock.py", "line": 1, "severity": "MEDIUM", '
+    '"evidence": "mock.py:1", "status": "confirmed"}]}'
+)
+
 
 def _add_audit_args(p) -> None:
     """The diff-audit flags for `review diff`."""
@@ -100,10 +108,38 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("directory", help="target repository to review")
     repo.add_argument("--workspace", default="/var/tmp/codejury-review", help="where to create the review workspace")
     repo.add_argument("--fresh", action="store_true",
-                      help="clear a previous review's output in the workspace first, MEMORY.md included")
+                      help="clear a previous review's output in the workspace first")
     repo.add_argument("--gate", action="store_true",
                       help="check the existing workspace against the Completeness Gate instead of scaffolding; "
                            "exit 0 if it passes, 1 if any item is unmet")
+    repo.add_argument("--run", action="store_true",
+                      help="run the coded multi-pass engine over the repo, not just scaffold; "
+                           "covers every unit each pass, cycles lenses, unions until convergence")
+    repo.add_argument("--finalize", action="store_true",
+                      help="post-process an existing workspace's issues in code: dedup, "
+                           "adversarially verify, and write the ranked report; resumable")
+    repo.add_argument("--dry-run", action="store_true",
+                      help="run only: drive the engine with a mock provider and no key, to smoke-test the pipeline")
+    repo.add_argument("--provider", choices=PROVIDERS, default="anthropic")
+    repo.add_argument("--model", default=DEFAULT_MODEL)
+    repo.add_argument("--api-base", default=DEFAULT_API_BASE)
+    repo.add_argument("--api-key", default=DEFAULT_API_KEY)
+    repo.add_argument("--retries", type=int, default=2, help="provider retry attempts on transient failure")
+    repo.add_argument("--max-passes", type=int, default=24, dest="max_passes",
+                      help="run only: cap on diverse passes before stopping")
+    repo.add_argument("--converge-after", type=int, default=2, dest="converge_after",
+                      help="run only: stop once this many consecutive passes add no new finding")
+    repo.add_argument("--concurrency", type=int, default=6,
+                      help="run only: how many unit sub-reviews to run in parallel within a pass")
+    repo.add_argument("--no-verify", dest="verify", action="store_false", default=True,
+                      help="run only: skip the adversarial verification stage (keep every candidate)")
+    repo.add_argument("--votes", type=int, default=1,
+                      help="run only: independent skeptic votes per candidate; a candidate is "
+                           "refuted only on a majority")
+    repo.add_argument("--reviewer", choices=("model", "claude-cli"), default="model",
+                      help="run only: 'model' calls the provider once per unit; 'claude-cli' runs "
+                           "each unit and verification as a headless `claude -p` agent that reads "
+                           "files itself, using your Claude Code access, no provider key")
 
     inst = sub.add_parser("install-slash-command",
                           help="install the /codejury-review-repo slash command for an agent")
@@ -155,19 +191,88 @@ def _dispatch(args, parser) -> int:
         print("Run another round to address these, then re-check. Do not report the review complete yet.", file=sys.stderr)
         return 1
 
+    if args.command == "review" and scope == "repo" and args.finalize:
+        from codejury.review.repo.run import finalize_repo_review
+        if args.reviewer == "claude-cli":
+            from codejury.review.repo.agent_backend import AgentVerifier
+            verifier_obj, provider = AgentVerifier(), None
+        elif args.dry_run:
+            verifier_obj, provider = None, MockProvider(default='{"real": true, "reason": "[mock]"}')
+            args.model = "mock"
+        else:
+            verifier_obj = None
+            provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
+        print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
+        fr = finalize_repo_review(
+            args.directory, args.workspace, verifier=verifier_obj, provider=provider,
+            model=args.model, verify=args.verify, votes=args.votes, concurrency=args.concurrency,
+        )
+        kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
+        refuted = len(fr.verify.refuted) if fr.verify else 0
+        print(f"Finalize done: parsed {fr.parsed} issues -> {fr.deduped} after dedup -> "
+              f"{kept} confirmed, {refuted} refuted (see {fr.workspace}/_refuted.md).")
+        print(f"Ranked report in {fr.workspace}/findings.json")
+        if fr.verify and fr.verify.errors:
+            print(f"WARNING: {fr.verify.errors} verification call(s) failed; re-run to resume.", file=sys.stderr)
+        return 0
+
+    if args.command == "review" and scope == "repo" and args.run:
+        from codejury.review.repo.run import run_repo_review
+        reviewer_obj = verifier_obj = None
+        if args.reviewer == "claude-cli":
+            from codejury.review.repo.agent_backend import AgentReviewer, AgentVerifier
+            reviewer_obj, verifier_obj = AgentReviewer(), AgentVerifier()
+            provider = None   # the claude-cli backend uses your Claude Code access, no provider key
+        elif args.dry_run:
+            provider = MockProvider(default=_REPO_MOCK_REPLY)
+            args.model = "mock"
+        else:
+            provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
+
+        def _progress(p, lens, new, total):
+            print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
+
+        print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
+        res = run_repo_review(
+            args.directory, args.workspace, provider=provider, model=args.model,
+            reviewer=reviewer_obj, verifier=verifier_obj,
+            verify=args.verify, votes=args.votes,
+            max_passes=args.max_passes, converge_after=args.converge_after,
+            concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
+        )
+        acc = res.accumulator
+        reported = res.verify.confirmed if res.verify else acc.findings
+        by_sev: dict[str, int] = {}
+        for c in reported:
+            by_sev[c.severity] = by_sev.get(c.severity, 0) + 1
+        print(f"Engine done: {res.units} units, {len(acc.new_per_pass)} passes, converged={acc.converged}.")
+        if res.verify is not None:
+            print(f"Union {len(acc.findings)} -> verified {len(reported)} confirmed, "
+                  f"{len(res.verify.refuted)} refuted (see {res.scaffold.workspace}/_refuted.md).")
+        print(f"{len(reported)} findings: " + ", ".join(
+            f"{by_sev.get(s, 0)} {s}" for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")))
+        failures = acc.errors + (res.verify.errors if res.verify else 0)
+        if failures:
+            print(f"WARNING: {failures} model call(s) failed, e.g. provider errors or rate limits. "
+                  "Results may be understated; lower --concurrency or raise --retries and re-run.",
+                  file=sys.stderr)
+        print(f"Findings written to {res.scaffold.workspace}/issues/ and {res.scaffold.workspace}/findings.json")
+        return 0
+
     if args.command == "review" and scope == "repo":
         res = scaffold(args.directory, args.workspace, fresh=args.fresh)
         (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
         if res.cleared:
-            print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}, MEMORY.md included", file=sys.stderr)
+            print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}", file=sys.stderr)
         elif res.had_prior_run:
             print(f"A previous review's output is in {res.workspace}. Re-run with --fresh to clear it "
-                  "first, MEMORY.md included.", file=sys.stderr)
+                  "first.", file=sys.stderr)
         print(f"Workspace ready: {res.workspace}", file=sys.stderr)
         if res.guides:
             print(f"Detected stack: {', '.join(res.guides)}, notes in {res.workspace}/_stack.md", file=sys.stderr)
-        print(f"Flagged {len(res.candidate_files)} candidate entrypoint files into "
-              f"{res.workspace}/entrypoints/_entrypoints.md", file=sys.stderr)
+        print(f"Seeded {len(res.candidate_files)} candidate entrypoint files and "
+              f"{len(res.trace_targets)} logic-layer trace targets into "
+              f"{res.workspace}/inventory/_candidates.md", file=sys.stderr)
         print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
         print(
             "This command sets up the review, it does not find the issues itself. Next, have an "

@@ -72,11 +72,11 @@ targets from a deterministic scan, writes the methodology to
 `<workspace>/METHODOLOGY.md`, and prints a short pointer. The workspace:
 
 ```
-entrypoints/   the candidate entrypoint files to start from
+inventory/     the attack-surface map, auth model, seeded candidates, severity rubric
+units/         one unit per entrypoint, each carrying its deep-review mandate
 issues/        one write-up per confirmed or suspected issue
 pocs/          a runnable PoC per issue, same name as the issue
-analysis/      _trace_targets.md, the round ledger, and trace notes
-METHODOLOGY.md and MEMORY.md
+METHODOLOGY.md, _stack.md, and _false_positive_traps.md
 ```
 
 Then run it with an interactive agent. In Claude Code or Codex:

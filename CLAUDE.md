@@ -50,7 +50,7 @@ default behavior. Strategy: see `ROADMAP.md`.
 | Diff engine | standard `AuditRunner` for one call plus adversarial `AdversarialAuditRunner` Finder/Challenger/Judge, and `audit_diff` orchestration to chunk, normalize, and filter | `codejury/review/diff/`, `review/diff/runner.py` |
 | Vulnerabilities | rich AppSec markdown, trigger-selected and injected into the prompt | `codejury/knowledge/vulnerabilities/`, `review/diff/vulnerabilities.py` |
 | Finding + report | flat `Finding`, text/markdown/json/sarif + severity gate | `codejury/finding.py`, `codejury/report.py` |
-| Repo review | agent methodology + memory template + workspace scaffold, no pipeline | `codejury/playbook/`, `review/repo/scaffold.py` |
+| Repo review | agent methodology + workspace scaffold, no pipeline | `codejury/playbook/`, `review/repo/scaffold.py` |
 | RepoModel | language-agnostic file map, flags candidate entrypoint files via guide globs | `codejury/review/repo/model.py` |
 | Detection config | what counts as a source file, a manifest, a noise dir, or test code, across ecosystems, so the code enumerates no language | `codejury/detection.yaml`, `codejury/detection.py` |
 | Provider | anthropic · openai · litellm · mock with retry, via a factory | `codejury/providers/` |

@@ -1,9 +1,10 @@
 # False-Positive Traps
 
-Recurring ways a static read calls a finding real when it is not. The refutation
-step checks a candidate finding against every trap below before it is reported.
-Each names the controlling fact to confirm in the code. When a real run later
-proves a new recurring false positive, add it here.
+Recurring ways a static read misjudges a finding, in both directions: calling it
+real when it is safe, and the inverse, refuting a real one on an incomplete read.
+The refutation step checks a candidate against every trap below. Each names the
+controlling fact to confirm in the code. When a real run later proves a new
+recurring misjudgement, add it here.
 
 ## Locks and Transactions
 
@@ -42,8 +43,11 @@ proves a new recurring false positive, add it here.
 ## Trust Boundaries
 
 - A cross-service or cross-tenant read is only a finding if the two sides are
-  actually distinct trust domains. Confirm the boundary before grading it an IDOR,
-  and once you adopt that boundary, apply it to every finding on it.
+  actually distinct trust domains. Decide ONCE whether a given principal, an internal
+  SERVICE role, a sibling tenant, a worker, is inside or outside the boundary, then
+  apply that one answer to EVERY finding touching it. Do not confirm one finding by
+  treating the principal as hostile and refute another by treating the same principal
+  as trusted, that contradiction is itself the bug to resolve before grading either.
 - A self-set value is still attacker-influenced when the setter is a distinct
   tenant, but is trusted when the setter is the same principal as the victim.
 
@@ -53,3 +57,22 @@ proves a new recurring false positive, add it here.
   Controlling fact: trace a concrete path from an entrypoint to the sink. If the
   value at the sink is a constant, a server-derived value, or an internal-only
   caller, there is no exploit.
+
+## Refuting Safely: Recall Comes First
+
+The inverse traps. Refute ONLY when a controlling fact makes the code genuinely
+SAFE: the access is actually authorized, the input cannot reach the sink, or the
+lock genuinely holds. A real finding wrongly refuted is worse than a false
+positive kept, so these bind the refutation:
+
+- Do NOT refute for low or bounded impact, idempotency, or rate-limiting. Those
+  lower the severity, they do not delete a real finding.
+- A finding usually has several harm paths: information disclosure, denial of
+  service by inactivating a victim's resource, an unauthenticated state trigger,
+  fund movement. You must rule out EVERY path to refute. Ruling out one is not a
+  refutation: proving the attacker cannot activate their own resource does not
+  refute a finding whose harm is inactivating the victim's; proving a trigger is
+  idempotent does not refute an unauthenticated READ that leaks data.
+- An unauthenticated endpoint reachable by an enumerable id that reads sensitive
+  state or changes state is a real finding; do not refute it.
+- When you are not certain it is safe on ALL paths, KEEP it real.

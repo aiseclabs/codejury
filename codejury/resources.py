@@ -20,8 +20,9 @@ PROTOCOLS_DIR = _GUIDES / "protocols"    # protocol guides such as oauth, what t
 KNOWLEDGE_INDEX = _KNOWLEDGE / "index.md"  # the vulnerability-class index the agent reads
 
 METHODOLOGY_FILE = _PLAYBOOK / "methodology.md"        # the repo-review process
-MEMORY_TEMPLATE_FILE = _PLAYBOOK / "memory-template.md"  # the workspace MEMORY.md template
 COMMAND_FILE = _PLAYBOOK / "command.md"                # the slash command body shipped for install
+UNIT_REVIEW_FILE = _PLAYBOOK / "unit-review.md"        # the per-unit deep-review mandate, embedded in each seeded unit
+SEVERITY_RUBRIC_FILE = _PLAYBOOK / "severity-rubric.md"  # the CRITICAL/HIGH/MEDIUM/LOW grading criteria, seeded into the workspace
 FALSE_POSITIVE_TRAPS_FILE = _PLAYBOOK / "false-positive-traps.md"  # recurring FP patterns for refutation
 
 DETECTION_FILE = _PKG / "detection.yaml"  # file and path classification across ecosystems
