@@ -45,6 +45,12 @@ default behavior. Strategy: see `ROADMAP.md`.
 6. **English only.** All repo code, comments, docs, and data are English, no CJK.
 7. **No proprietary content.** This repo is public on PyPI/GitHub. Never put
    internal/proprietary code or data into it.
+8. **Fail loud, never report a failure as clean.** A failed, rate-limited, or blank
+   model call is a failure, not an empty result. The code raises or counts it and
+   keeps the finding, it never turns a failed call into zero findings, because for a
+   security tool a silent failure is a hidden miss. Owned by code: the diff path
+   surfaces the error, the repo path counts failed unit reviews and keeps a finding
+   when verification cannot complete.
 
 ## Architecture
 
