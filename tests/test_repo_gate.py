@@ -9,8 +9,8 @@ _SURFACE = (
     "# Attack Surface Inventory\n\n"
     "| Module | Entrypoint | Auth method | Unit | Status |\n"
     "|---|---|---|---|---|\n"
-    "| app | GET /users | require_auth | u1 | ✅ |\n"
-    "| app | DELETE /admin/users/<uid> | require_admin | u1 | ✅ |\n"
+    "| app | GET /users | require_auth | u1 | assigned |\n"
+    "| app | DELETE /admin/users/<uid> | require_admin | u1 | assigned |\n"
 )
 
 

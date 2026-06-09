@@ -56,7 +56,7 @@ def run_passes(
     reviewed_ok: set[str] = set()   # units that returned without error in at least one pass
 
     def review_unit(unit: Unit, lens: str):
-        # return (candidates, error): one failing unit is counted and skipped, not
+        # return the candidates and any error: one failing unit is counted and skipped, not
         # allowed to abort the pass, and never silently treated as a clean empty unit
         try:
             return reviewer.review(unit, lens, shared_context=shared_context), None

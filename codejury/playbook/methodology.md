@@ -178,7 +178,7 @@ Write each confirmed finding to `issues/<name>.md` with a runnable PoC at
 - Type: IDOR | auth bypass | replay | business logic | ...
 - Source: `<METHOD> <path>` or the non-HTTP entrypoint
 - Status: confirmed | blocked
-- Needs: (only when blocked) the exact input a follow-up run must supply
+- Needs: only when blocked, the exact input a follow-up run must supply
 ## Analysis
 (cite exact file:line)
 ## Attack Path

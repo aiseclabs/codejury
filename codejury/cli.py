@@ -217,7 +217,7 @@ def _dispatch(args, parser) -> int:
         kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
         refuted = len(fr.verify.refuted) if fr.verify else 0
         print(f"Finalize done: parsed {fr.parsed} issues -> {fr.deduped} after dedup -> "
-              f"{kept} confirmed, {refuted} refuted (see {fr.workspace}/_refuted.md).")
+              f"{kept} confirmed, {refuted} refuted, see {fr.workspace}/_refuted.md.")
         print(f"Ranked report in {fr.workspace}/findings.json")
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
@@ -256,7 +256,7 @@ def _dispatch(args, parser) -> int:
         print(f"Engine done: {res.units} units, {len(acc.new_per_pass)} passes, converged={acc.converged}.")
         if res.verify is not None:
             print(f"Union {len(acc.findings)} -> verified {len(reported)} confirmed, "
-                  f"{len(res.verify.refuted)} refuted (see {res.scaffold.workspace}/_refuted.md).")
+                  f"{len(res.verify.refuted)} refuted, see {res.scaffold.workspace}/_refuted.md.")
         print(f"{len(reported)} findings: " + ", ".join(
             f"{by_sev.get(s, 0)} {s}" for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")))
         failures = acc.errors + (res.verify.errors if res.verify else 0)

@@ -118,7 +118,7 @@ See "Phase 1: Map the Attack Surface" in METHODOLOGY.md. The seeded candidates i
 `_candidates.md` are a starting subset, not the whole surface, add non-HTTP sources
 such as deserializers, queue consumers, and file parsers.
 
-Status legend: ❌ not assigned to a unit yet, ✅ assigned to a unit in `units/`.
+Status legend: `open` not assigned to a unit yet, `assigned` assigned to a unit in `units/`.
 
 | Module | Entrypoint, METHOD path or non-HTTP source | Auth method | Unit | Status |
 |---|---|---|---|---|
