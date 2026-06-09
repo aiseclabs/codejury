@@ -112,11 +112,20 @@ def test_install_slash_command_refuses_to_clobber_without_force(tmp_path, capsys
     assert "codejury review repo" in target.read_text()
 
 
-def test_slash_command_workspace_matches_cli_default():
+def test_default_workspace_is_user_private(monkeypatch, tmp_path):
+    from codejury.cli import _default_workspace
+
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    assert _default_workspace() == str(tmp_path / "state" / "codejury" / "reviews")
+
+    monkeypatch.delenv("XDG_STATE_HOME", raising=False)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+    assert _default_workspace() == str(tmp_path / "home" / ".local" / "state" / "codejury" / "reviews")
+
+
+def test_slash_command_does_not_pin_a_shared_workspace():
     root = Path(__file__).resolve().parents[1]
-    default = "/var/tmp/codejury-review"
-    assert f'default="{default}"' in (root / "codejury" / "cli.py").read_text()
-    assert default in (root / "codejury" / "playbook" / "slash-command.md").read_text()
+    assert "/var/tmp" not in (root / "codejury" / "playbook" / "slash-command.md").read_text()
 
 
 def _flask_repo(root):

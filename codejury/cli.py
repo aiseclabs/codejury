@@ -15,6 +15,7 @@ The audit orchestration itself lives in ``codejury.review.diff.runner``.
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -37,6 +38,12 @@ from codejury.review.repo.scaffold import scaffold
 
 _FORMATS = ("text", "markdown", "json", "sarif")
 _FAIL_ON = ("critical", "high", "medium", "low")
+
+
+def _default_workspace() -> str:
+    """A user-private default, since the workspace holds the auth model, exploit paths, and PoCs."""
+    base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
+    return str(Path(base) / "codejury" / "reviews")
 
 
 def _read_diff(args) -> str:
@@ -102,7 +109,9 @@ def main(argv: list[str] | None = None) -> int:
     _add_audit_args(rsub.add_parser("diff", help="audit a unified diff (the coded engine)"))
     repo = rsub.add_parser("repo", help="scaffold a whole-repo review for an interactive agent")
     repo.add_argument("directory", help="target repository to review")
-    repo.add_argument("--workspace", default="/var/tmp/codejury-review", help="where to create the review workspace")
+    repo.add_argument("--workspace", default=_default_workspace(),
+                      help="where to create the review workspace, defaults to a user-private "
+                           "directory under XDG_STATE_HOME or ~/.local/state")
     repo.add_argument("--fresh", action="store_true",
                       help="clear a previous review's output in the workspace first")
     repo.add_argument("--gate", action="store_true",

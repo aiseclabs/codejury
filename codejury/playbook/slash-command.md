@@ -12,8 +12,12 @@ review in passing here is the shallow whole-repo pass this method exists to repl
 1. SCAFFOLD. Build the workspace, the deterministic worklist you do not invent:
 
    ```
-   codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review
+   codejury review repo $ARGUMENTS
    ```
+
+   The workspace defaults to a user-private directory under `XDG_STATE_HOME` or
+   `~/.local/state`, the same path for all three steps below, so they share one workspace.
+   Pass `--workspace <path>` to override it.
 
    If `codejury` is not on PATH it is a pip-installed console script, so activate the
    project venv first, for example `. .venv/bin/activate`, or run `python -m codejury`.
@@ -67,7 +71,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    surface, run:
 
    ```
-   codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review --finalize
+   codejury review repo $ARGUMENTS --finalize
    ```
 
    In Claude Code, add `--reviewer claude-cli` to verify through your Claude Code access
@@ -82,7 +86,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
 5. GATE. Let codejury, not your judgment, decide whether the review may stop:
 
    ```
-   codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review --gate
+   codejury review repo $ARGUMENTS --gate
    ```
 
    If it exits non-zero it lists what is unmet: the surface not enumerated, a unit not
