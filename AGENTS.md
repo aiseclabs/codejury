@@ -63,16 +63,18 @@ frontmatter as the source of truth. Even the source-extension, manifest, noise-d
 and test conventions live in `codejury/detection.yaml`, so the code enumerates no
 language.
 
-The layers, each named with where it lives:
+Where each layer lives, paths relative to `codejury/`:
 
-- **Diff engine**, `codejury/review/diff/`: the standard `AuditRunner` for one call plus the adversarial `AdversarialAuditRunner` Finder/Challenger/Judge pass, with `audit_diff` to chunk, normalize, and filter.
-- **Vulnerabilities**, `codejury/knowledge/vulnerabilities/` loaded by `review/diff/vulnerabilities.py`: rich AppSec markdown, trigger-selected and injected into the prompt.
-- **Finding and report**, `codejury/finding.py` and `codejury/report.py`: a flat `Finding`, rendered to text, markdown, json, or sarif, with a severity gate.
-- **Repo review**, `codejury/playbook/` scaffolded by `review/repo/scaffold.py`: the agent methodology and the workspace scaffold, no pipeline.
-- **RepoModel**, `codejury/review/repo/model.py`: a language-agnostic file map that flags candidate entrypoint files via the guide globs.
-- **Detection config**, `codejury/detection.yaml` and `codejury/detection.py`: what counts as a source file, a manifest, a noise dir, or test code across ecosystems, so the code enumerates no language.
-- **Provider**, `codejury/providers/`: anthropic, openai, litellm, and mock with retry, via a factory.
-- **JSON parsing**, `codejury/json_parse.py`: best-effort extraction of a JSON object from model output.
+| Layer | Lives in | Role |
+|---|---|---|
+| Diff engine | `review/diff/` | the standard `AuditRunner`, or the adversarial Finder/Challenger/Judge pass, with `audit_diff` to chunk, normalize, and filter |
+| Vulnerabilities | `knowledge/vulnerabilities/` | rich AppSec markdown, trigger-selected and injected into the prompt |
+| Finding and report | `finding.py`, `report.py` | a flat `Finding`, rendered to text, markdown, json, or sarif, with a severity gate |
+| Repo review | `playbook/`, `review/repo/scaffold.py` | the agent methodology and the workspace scaffold, no pipeline |
+| RepoModel | `review/repo/model.py` | a language-agnostic file map that flags candidate entrypoints via the guide globs |
+| Detection config | `detection.yaml`, `detection.py` | what counts as source, a manifest, a noise dir, or test code, across ecosystems |
+| Provider | `providers/` | anthropic, openai, litellm, and mock, with retry, via a factory |
+| JSON parsing | `json_parse.py` | best-effort extraction of a JSON object from model output |
 
 ## Commands
 
@@ -87,6 +89,7 @@ exclude flags.
 
 ## Contributing
 
+- Prose style: no em-dash, no semicolons or parentheses in prose, comments, or docstrings, and few hyphenated words. Keep those inside code, code fences, rule tokens, and the prompt strings sent to the model. Commit messages are `type: summary`, with few parentheses.
 - Tests run in a venv: `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`.
 - Provider keys come from the environment or the flags `CODEJURY_API_BASE`, `CODEJURY_API_KEY`, `CODEJURY_MODEL`. The tool does NOT auto-load `.env`.
 - Add a vulnerability class by dropping `knowledge/vulnerabilities/<id>.md` with frontmatter of title, impact, tags, and triggers, and a body of vulnerable and secure examples. Add a language or framework the same way under `knowledge/guides/`. It is data, no code change.
