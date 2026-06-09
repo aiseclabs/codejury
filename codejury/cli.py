@@ -110,14 +110,14 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("--fresh", action="store_true",
                       help="clear a previous review's output in the workspace first")
     repo.add_argument("--gate", action="store_true",
-                      help="check the existing workspace against the Completeness Gate instead of scaffolding; "
+                      help="check the existing workspace against the Completeness Gate instead of scaffolding, "
                            "exit 0 if it passes, 1 if any item is unmet")
     repo.add_argument("--run", action="store_true",
-                      help="run the coded multi-pass engine over the repo, not just scaffold; "
+                      help="run the coded multi-pass engine over the repo, not just scaffold, "
                            "covers every unit each pass, cycles lenses, unions until convergence")
     repo.add_argument("--finalize", action="store_true",
                       help="post-process an existing workspace's issues in code: dedup, "
-                           "adversarially verify, and write the ranked report; resumable")
+                           "adversarially verify, and write the ranked report, resumable")
     repo.add_argument("--dry-run", action="store_true",
                       help="run only: drive the engine with a mock provider and no key, to smoke-test the pipeline")
     repo.add_argument("--provider", choices=PROVIDERS, default="anthropic")
@@ -134,10 +134,10 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("--no-verify", dest="verify", action="store_false", default=True,
                       help="run only: skip the adversarial verification stage (keep every candidate)")
     repo.add_argument("--votes", type=int, default=1,
-                      help="run only: independent skeptic votes per candidate; a candidate is "
+                      help="run only: independent skeptic votes per candidate, a candidate is "
                            "refuted only on a majority")
     repo.add_argument("--reviewer", choices=("model", "claude-cli"), default="model",
-                      help="run only: 'model' calls the provider once per unit; 'claude-cli' runs "
+                      help="run only: 'model' calls the provider once per unit, 'claude-cli' runs "
                            "each unit and verification as a headless `claude -p` agent that reads "
                            "files itself, using your Claude Code access, no provider key")
 
@@ -183,7 +183,7 @@ def _dispatch(args, parser) -> int:
         result = check_gate(project_dir)
         if result.passed:
             print(f"Completeness Gate PASSED for {project_dir}")
-            print("Checked: " + "; ".join(result.checked))
+            print("Checked: " + ", ".join(result.checked))
             return 0
         print(f"Completeness Gate FAILED for {project_dir}, {len(result.failures)} item(s) unmet:", file=sys.stderr)
         for f in result.failures:
@@ -213,7 +213,7 @@ def _dispatch(args, parser) -> int:
               f"{kept} confirmed, {refuted} refuted (see {fr.workspace}/_refuted.md).")
         print(f"Ranked report in {fr.workspace}/findings.json")
         if fr.verify and fr.verify.errors:
-            print(f"WARNING: {fr.verify.errors} verification call(s) failed; re-run to resume.", file=sys.stderr)
+            print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
         return 0
 
     if args.command == "review" and scope == "repo" and args.run:
@@ -253,8 +253,8 @@ def _dispatch(args, parser) -> int:
             f"{by_sev.get(s, 0)} {s}" for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")))
         failures = acc.errors + (res.verify.errors if res.verify else 0)
         if failures:
-            print(f"WARNING: {failures} model call(s) failed, e.g. provider errors or rate limits. "
-                  "Results may be understated; lower --concurrency or raise --retries and re-run.",
+            print(f"WARNING: {failures} model calls failed, e.g. provider errors or rate limits. "
+                  "Results may be understated. Lower --concurrency or raise --retries and re-run.",
                   file=sys.stderr)
         print(f"Findings written to {res.scaffold.workspace}/issues/ and {res.scaffold.workspace}/findings.json")
         return 0

@@ -126,7 +126,7 @@ class ModelReviewer(UnitReviewer):
             f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
         )
         # do not swallow a provider error here: a silently-empty unit would let a
-        # rate-limited or failed call masquerade as "no findings". Let it raise; the
+        # rate-limited or failed call masquerade as "no findings". Let it raise. The
         # pass-loop catches it, counts it, and surfaces it, so a failure is never read
         # as a clean unit.
         result = self._provider.complete(

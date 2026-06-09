@@ -51,7 +51,7 @@ def _line_value(text: str, key: str) -> str | None:
 def check_gate(project_dir: Path) -> GateResult:
     """Check the fan-out review workspace `<workspace>/<project>` against the gate.
 
-    Returns a GateResult; the caller decides the exit code. A missing or never
+    Returns a GateResult. The caller decides the exit code. A missing or never
     scaffolded workspace is itself a failure, since nothing was reviewed."""
     failures: list[str] = []
     checked: list[str] = []
@@ -68,8 +68,7 @@ def check_gate(project_dir: Path) -> GateResult:
     else:
         failures.append("inventory/_surface.md is missing, the attack-surface inventory was not built")
 
-    # 2. Every unit was reviewed, none left open. This is the per-unit coverage check
-    #    that replaces the old class-sweep ledger.
+    # 2. Every unit was reviewed, none left open. The per-unit coverage check.
     checked.append("every unit reviewed")
     units_dir = project_dir / "units"
     unit_files = sorted(units_dir.glob("*.md")) if units_dir.is_dir() else []

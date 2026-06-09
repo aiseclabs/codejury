@@ -18,7 +18,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    If `codejury` is not on PATH it is a pip-installed console script, so activate the
    project venv first, for example `. .venv/bin/activate`, or run `python -m codejury`.
    If it reports a previous review's output in the workspace, ask me whether to clear
-   it; if I say yes, re-run with `--fresh`.
+   it, and if I say yes, re-run with `--fresh`.
 
    RESUMING. If a previous run was interrupted, for example by a usage limit, just run
    this command again WITHOUT clearing the workspace (answer no to clearing). It
@@ -70,7 +70,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    against production semantics, so a `select_for_update` held inside a
    `transaction.atomic` is recognised as safe, not a race), drops the refuted into
    `_refuted.md`, and writes the ranked `findings.json`. Re-run it to resume if a usage
-   limit interrupts; findings already verified are skipped. Your job is the fan-out; the
+   limit interrupts, findings already verified are skipped. Your job is the fan-out. The
    dedup, verification, and report are the code's job.
 
 5. GATE. Let codejury, not your judgment, decide whether the review may stop:
@@ -85,7 +85,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    accumulating diverse passes.
 
 PoC and the operator. Write a runnable PoC per finding. Run a PoC only when it needs
-no input from me, and never against production; a stateful PoC must run against an
+no input from me, and never against production. A stateful PoC must run against an
 environment that models production locking, not a SQLite stand-in. When only a runtime
 fact I hold can settle a finding, mark it `blocked` with the exact `Needs:` and grade
 it on the conservative assumption. Gather every such need into one list for a

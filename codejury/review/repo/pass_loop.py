@@ -4,7 +4,7 @@ This is the part that is mechanical, not a matter of the agent's judgment, so it
 code, not prose. It runs the whole unit worklist every pass, cycles a different lens
 each pass so the passes' blind spots land in different places, folds every pass into
 the running union, and stops only when the union has converged. The per-unit
-judgment is delegated to an injected `UnitReviewer`; everything here, coverage,
+judgment is delegated to an injected `UnitReviewer`. Everything here, coverage,
 diversity, accumulation, and the stop condition, is fixed by code so the result is
 comprehensive and does not vary run to run.
 """
@@ -45,7 +45,7 @@ def run_passes(
 ) -> Accumulator:
     """Run diverse passes over the worklist until the union converges or `max_passes`.
 
-    Every pass reviews every unit, so coverage is total each pass; the lens rotates so
+    Every pass reviews every unit, so coverage is total each pass. The lens rotates so
     diversity drives the union. Passes run in order, but the units within a pass are
     independent, so they run concurrently up to `concurrency`, since each is a network
     bound model call. Results are merged in unit order, so the converged finding set is

@@ -174,7 +174,7 @@ def _unit_md(owned: str, mandate: str) -> str:
 def _has_prior_run(ws: Path) -> bool:
     """True when the workspace already holds a previous review's output, not just a
     bare scaffold. Seeded but un-reviewed units do not count, since the scaffold now
-    seeds them; a reviewed unit, a finding, a PoC, or an edited surface does."""
+    seeds them. A reviewed unit, a finding, a PoC, or an edited surface does."""
     if not ws.exists():
         return False
     for sub in ("issues", "pocs"):
@@ -231,7 +231,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
 
     # generate the deterministic unit worklist: one unit per candidate entrypoint,
     # each carrying the same fixed deep-review mandate. Code owns the worklist and
-    # the depth mandate; the agent fans out one sub-review per unit, it does not
+    # the depth mandate. The agent fans out one sub-review per unit, it does not
     # decide the units, whether to fan out, or how deep to go. Never clobber a unit
     # an earlier run already wrote.
     mandate = UNIT_REVIEW_FILE.read_text(encoding="utf-8")

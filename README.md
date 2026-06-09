@@ -65,7 +65,7 @@ provider and no key, and falls back to a built in demo diff when you pass none.
 Recall-first, for a deep audit. A whole repo is too large for one LLM call and a
 single pass dilutes, so this fans out: it enumerates the attack surface, splits it
 into per-unit work, and runs a focused deep review on each unit. An interactive
-agent does the per-unit reviewing where judgment is needed; the deterministic
+agent does the per-unit reviewing where judgment is needed. The deterministic
 scaffolding, dedup, verification, and gate are coded.
 
 Start by scaffolding the workspace:

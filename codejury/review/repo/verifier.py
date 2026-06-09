@@ -5,9 +5,9 @@ positives and bounded-but-real-looking misreads through. This stage is the
 precision counterweight, the part that earns the right to surface everything: each
 candidate is handed to an independent skeptic whose job is to DISPROVE it by reading
 the code, judging against production semantics, not a shallow read. A select_for_update
-holds the row lock on a real RDBMS even if its result is discarded; a check defined in
-a base class still fires on the subclass; a value an attacker cannot reach is not a
-sink. A candidate that survives is confirmed; one refuted with a named controlling
+holds the row lock on a real RDBMS even if its result is discarded. A check defined in
+a base class still fires on the subclass. A value an attacker cannot reach is not a
+sink. A candidate that survives is confirmed. One refuted with a named controlling
 fact is dropped and recorded, so the drop is auditable.
 
 Injectable like the reviewer, so the skeptic can be a single grounded model call

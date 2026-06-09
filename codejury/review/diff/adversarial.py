@@ -28,10 +28,7 @@ from codejury.providers.base import Message, Provider
 @dataclass(frozen=True, kw_only=True)
 class AdversarialResult:
     findings: list[Finding]
-    downgraded: list[dict] = field(default_factory=list)
-    dismissed: list[dict] = field(default_factory=list)
-    unresolved: list[dict] = field(default_factory=list)
-    investigate: list[dict] = field(default_factory=list)
+    investigate: list[dict] = field(default_factory=list)   # open items that gate convergence
     rounds: int = 0
     converged: bool = False
     degraded: bool = False  # the judge response was unusable, findings are the unjudged fallback
@@ -156,9 +153,6 @@ class AdversarialAuditRunner:
 
             judged = AdversarialResult(
                 findings=findings_from_list(verdict.get("findings")),
-                downgraded=_dicts(verdict.get("downgraded")),
-                dismissed=_dicts(verdict.get("dismissed")),
-                unresolved=_dicts(verdict.get("unresolved")),
                 investigate=_dicts(verdict.get("investigate")),
                 rounds=rounds,
             )
@@ -177,9 +171,6 @@ class AdversarialAuditRunner:
         return AdversarialResult(
             findings=judged.findings,
             degraded=degraded,
-            downgraded=judged.downgraded,
-            dismissed=judged.dismissed,
-            unresolved=judged.unresolved,
             investigate=judged.investigate,
             rounds=rounds,
             converged=converged,

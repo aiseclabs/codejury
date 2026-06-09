@@ -1,6 +1,6 @@
 """Severity calibration: a deterministic firm-rule floor plus a median across votes.
 
-Recall (the union) and precision (the verifier) are stabilized by code and by
+Recall, the union, and precision, the verifier, are stabilized by code and by
 multiple votes, but a finding's severity was a single isolated model judgment, so the
 same finding could be graded CRITICAL on one run and MEDIUM on the next. That jitter
 does not change what is found, only how it is ranked, but it makes the report's

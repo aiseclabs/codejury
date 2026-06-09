@@ -45,7 +45,7 @@ def _envelope_error(stdout: str) -> str | None:
 
     A rate-limited or failed `claude -p` can still exit 0 while the envelope carries
     `is_error` or a non-success subtype. Treating that as success silently turns a
-    failed call into an empty (clean) result, the exact thing the fail-loud rule
+    failed call into an empty clean result, the exact thing the fail-loud rule
     forbids, so the runner must detect it and raise."""
     try:
         env = json.loads(stdout.strip())
@@ -108,7 +108,8 @@ class _ClaudeBackend:
                 last = exc
                 if attempt < self._retries and self._backoff:
                     time.sleep(self._backoff * (attempt + 1))
-        raise last   # type: ignore[misc]
+        assert last is not None
+        raise last
 
 
 class AgentReviewer(_ClaudeBackend, UnitReviewer):

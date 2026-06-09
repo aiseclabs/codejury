@@ -103,9 +103,11 @@ def test_parse_issue_captures_file_and_line_from_a_range(tmp_path):
 
 
 def test_finalize_dedups_verifies_and_reports(tmp_path):
-    target = tmp_path / "proj"; target.mkdir()
+    target = tmp_path / "proj"
+    target.mkdir()
     ws = tmp_path / "work"
-    issues = ws / "proj" / "issues"; issues.mkdir(parents=True)
+    issues = ws / "proj" / "issues"
+    issues.mkdir(parents=True)
     (issues / "a.md").write_text("# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
     (issues / "a2.md").write_text("# idor again\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/{id}`\n## Analysis\napp/v.py:10\n")
     (issues / "b.md").write_text("# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n")
@@ -118,7 +120,7 @@ def test_finalize_dedups_verifies_and_reports(tmp_path):
 
     fr = finalize_repo_review(target, ws, verifier=_V(), concurrency=1)
     assert fr.parsed == 4                       # all four issue files parsed
-    assert len(fr.verify.confirmed) == 2        # a==a2 deduped -> {a,b,fp}; fp refuted -> 2
+    assert len(fr.verify.confirmed) == 2        # a==a2 deduped to a,b,fp, then fp refuted leaves 2
     assert len(fr.verify.refuted) == 1
     data = json.loads((fr.workspace / "findings.json").read_text())
     entries = {f["entry"] for f in data["findings"]}

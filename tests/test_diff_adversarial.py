@@ -1,4 +1,4 @@
-"""RW-2: the adversarial Finder/Challenger/Judge diff engine. Deterministic with
+"""The adversarial Finder/Challenger/Judge diff engine. Deterministic with
 a MockProvider whose responses are consumed in role order per round."""
 
 import json
@@ -53,7 +53,6 @@ def test_judge_dismissal_drops_a_finding():
         max_rounds=1,
     )
     assert [f.category for f in out.findings] == ["sql_injection"]
-    assert out.dismissed and out.dismissed[0]["target"] == "app.py:5"
 
 
 def test_challenger_independent_finding_can_survive():
@@ -80,20 +79,18 @@ def test_converged_flag_ignored_while_investigate_pending():
     assert out.rounds == 2 and len(provider.calls) == 6
 
 
-def test_downgraded_is_carried():
+def test_judge_downgrade_lowers_finding_severity():
     dg = [{"target": "app.py:3", "from": "CRITICAL", "to": "MEDIUM", "reason": "needs an unlikely precondition"}]
     _, out = _run([_finder([_VULN]), _challenger(), _judge([{**_VULN, "severity": "MEDIUM"}], downgraded=dg)], max_rounds=1)
-    assert out.downgraded and out.downgraded[0]["to"] == "MEDIUM"
     assert out.findings[0].severity == "MEDIUM"
 
 
-def test_unresolved_and_investigate_are_carried():
+def test_investigate_items_are_carried():
     _, out = _run(
-        [_finder([]), _challenger(), _judge([], unresolved=[{"target": "x", "reason": "needs context"}],
-                                            investigate=[{"target": "y", "reason": "needs a runtime check"}])],
+        [_finder([]), _challenger(), _judge([], investigate=[{"target": "y", "reason": "needs a runtime check"}])],
         max_rounds=1,
     )
-    assert out.unresolved and out.investigate
+    assert out.investigate
 
 
 def test_converges_when_confirmed_set_stable():

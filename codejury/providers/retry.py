@@ -36,11 +36,6 @@ class RetryProvider(Provider):
         self._sleep = sleep
         self._retryable = retryable
 
-    @property
-    def inner(self) -> Provider:
-        """The wrapped provider, so callers need not reach into a private field."""
-        return self._inner
-
     def complete(
         self,
         *,

@@ -39,7 +39,7 @@ class Candidate:
     def key(self) -> tuple:
         """The dedup identity, location plus class. Endpoint is the precise location
         when a pass records it, path params normalized so /x/<id> and /x/{id}
-        collapse; otherwise fall back to file. The category is always part of the key,
+        collapse. Otherwise fall back to file. The category is always part of the key,
         so two distinct classes on the same endpoint, a missing binding and a race on
         the same token route, stay separate findings and are not merged away."""
         cat = self.category.strip().lower()

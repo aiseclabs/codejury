@@ -52,8 +52,8 @@ Workspace: `<workspace>/<project>/`, created for you, holding `inventory/`,
 Enumerate EVERY attacker-influenced entrypoint into `inventory/`, one row each,
 grouped by module. Untrusted input enters at more than HTTP:
 
-- HTTP, GraphQL, gRPC, WebSocket handlers; CLI commands; scheduled jobs; queue and
-  topic consumers; webhooks and third-party callbacks.
+- HTTP, GraphQL, gRPC, WebSocket handlers, CLI commands, scheduled jobs, queue and
+  topic consumers, webhooks and third-party callbacks.
 - Deserialization points (pickle, yaml.load, marshal), file and document parsers
   (XML, YAML, CSV, zip, image), template rendering of user input.
 - File uploads, archive extraction, any filesystem path built from user input.

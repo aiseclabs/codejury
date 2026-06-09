@@ -48,7 +48,7 @@ you read the code. Everything else that is real is reported, graded by the rubri
 A weaker signal is a LOWER severity, not a dropped finding. A best-practice or
 hardening gap, a config default, a debug or env-gated path, or a finding whose impact
 looks bounded is graded LOW or MEDIUM and surfaced, never suppressed. Noise is managed
-by severity, the reader sorts by it; it is not managed by you hiding findings. An
+by severity, the reader sorts by it, it is not managed by you hiding findings. An
 unauthenticated endpoint reachable by an enumerable id, or any missing-auth or IDOR, is
 concrete: report it at least MEDIUM, a request with the enumerated id is its PoC.
 

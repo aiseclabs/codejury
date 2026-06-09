@@ -1,14 +1,13 @@
 """Finding: the unit a diff audit reports.
 
 A single, flat record of one security problem with its location, an exploit
-scenario, and a confidence. This is the rewrite's domain object, replacing the
-verdict/observation model: the audit engine asks the model for findings and maps
+scenario, and a confidence. The audit engine asks the model for findings and maps
 its JSON onto these.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 
 SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW")

@@ -71,8 +71,8 @@ positive kept, so these bind the refutation:
   service by inactivating a victim's resource, an unauthenticated state trigger,
   fund movement. You must rule out EVERY path to refute. Ruling out one is not a
   refutation: proving the attacker cannot activate their own resource does not
-  refute a finding whose harm is inactivating the victim's; proving a trigger is
+  refute a finding whose harm is inactivating the victim's. Proving a trigger is
   idempotent does not refute an unauthenticated READ that leaks data.
 - An unauthenticated endpoint reachable by an enumerable id that reads sensitive
-  state or changes state is a real finding; do not refute it.
+  state or changes state is a real finding, do not refute it.
 - When you are not certain it is safe on ALL paths, KEEP it real.

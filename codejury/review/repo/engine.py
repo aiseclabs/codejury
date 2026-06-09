@@ -6,8 +6,8 @@ model-backed reviewer until the union converges, then writes the findings into t
 workspace and marks every unit reviewed. The orchestration is fully coded, so a run
 covers every unit every pass and stops on convergence, not on the agent's whim.
 
-Recall is the union across diverse passes; precision is tightened by a later
-verification stage (not yet wired). Findings are written both as `issues/*.md` and a
+Recall is the union across diverse passes. Precision is tightened by a later
+verification stage. Findings are written both as `issues/*.md` and a
 machine-readable `findings.json`, so a run can be scored against an answer key.
 """
 
@@ -203,8 +203,8 @@ def finalize_repo_review(
     """The coded post-fan-out pipeline: dedup, verify, report over the agent's issues.
 
     These steps are mechanical, so they are code, not agent prose: it reads
-    `issues/*.md`, dedups by location and class, adversarially verifies each survivor
-    (resumable, skipping any already in `_verified.json`), drops the refuted into
+    `issues/*.md`, dedups by location and class, adversarially verifies each survivor,
+    resumable and skipping any already in `_verified.json`, drops the refuted into
     `_refuted.md`, and writes the ranked `findings.json`."""
     ws = Path(workspace) / Path(target).resolve().name
     root = str(Path(target).resolve())
