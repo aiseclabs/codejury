@@ -1,8 +1,9 @@
 """The rich vulnerability-class library loads, and trigger-based selection
 picks the relevant classes for a diff to inject into the audit prompt."""
 
+import re
+
 from codejury.review.diff.vulnerabilities import (
-    Vulnerability,
     allowed_categories,
     load_vulnerabilities,
     normalize_category,
@@ -19,7 +20,7 @@ _EXPECTED_IDS = {
     "code-injection", "cross-site-scripting", "xml-external-entity",
     "server-side-template-injection", "http-response-splitting", "business-logic",
     "replay-attack", "race-condition", "mass-assignment", "improper-authentication",
-    "jwt-validation", "session-fixation", "insecure-deserialization",
+    "jwt-validation", "insecure-session-management", "insecure-deserialization",
     "server-side-request-forgery",
 }
 
@@ -90,3 +91,10 @@ def test_knowledge_index_ships_and_is_not_a_vulnerability():
     assert "index" not in {v.id for v in _VULNS}        # the index is not loaded as a class
     assert KNOWLEDGE_INDEX.is_file()                    # it ships beside vulnerabilities/, not inside it
     assert KNOWLEDGE_INDEX.parent == VULNERABILITIES_DIR.parent
+
+
+def test_knowledge_index_lists_exactly_the_class_set():
+    # the index is hand-maintained, so guard against it drifting from the shipped files:
+    # every `id` bullet under an OWASP section must be a real class, and every class listed
+    listed = set(re.findall(r"^- `([a-z0-9-]+)`", KNOWLEDGE_INDEX.read_text(encoding="utf-8"), re.MULTILINE))
+    assert listed == _EXPECTED_IDS

@@ -17,7 +17,7 @@ VULNERABILITIES_DIR = _KNOWLEDGE / "vulnerabilities"  # vulnerability-class defi
 LANGUAGES_DIR = _GUIDES / "languages"    # per-language review guides
 FRAMEWORKS_DIR = _GUIDES / "frameworks"  # per-framework review guides
 PROTOCOLS_DIR = _GUIDES / "protocols"    # protocol guides such as oauth, what to check
-KNOWLEDGE_INDEX = _KNOWLEDGE / "index.md"  # the vulnerability-class index the agent reads
+KNOWLEDGE_INDEX = _KNOWLEDGE / "index.md"  # the OWASP/CWE catalog of the classes, a human reference, not loaded as a class
 
 METHODOLOGY_FILE = _PLAYBOOK / "methodology.md"        # the repo-review process
 SLASH_COMMAND_FILE = _PLAYBOOK / "slash-command.md"    # the slash command body shipped for install

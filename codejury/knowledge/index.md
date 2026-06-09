@@ -40,7 +40,7 @@ of these ids.
 ### A07 Identification and Authentication
 - `improper-authentication` CWE-287
 - `jwt-validation` CWE-347
-- `session-fixation` CWE-384
+- `insecure-session-management` CWE-384/613/614
 
 ### A08 Software and Data Integrity
 - `insecure-deserialization` CWE-502

@@ -1,5 +1,5 @@
 ---
-id: session-fixation
+id: insecure-session-management
 title: Insecure Session Management
 impact: MEDIUM
 tags: [cwe-384, cwe-613, cwe-614, owasp-a07]
