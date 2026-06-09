@@ -3,9 +3,9 @@
 Project instructions for coding agents. Codex reads `AGENTS.md` directly. Claude Code
 reads it through the `@AGENTS.md` import in `CLAUDE.md`.
 
-Codejury is an AI-assisted security review tool for code diffs and whole repositories.
-Diff Review is the coded path. Repo Review is the fan-out path where code owns the
-deterministic orchestration and agents or model calls provide per-unit judgment.
+An AI-assisted security review tool for code diffs and whole repositories. Diff Review
+is the coded path. Repo Review is the fan-out path where code owns the deterministic
+orchestration and agents or model calls provide per-unit judgment.
 
 ## Non-Negotiable Invariants
 
