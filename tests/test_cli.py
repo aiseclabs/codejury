@@ -43,7 +43,7 @@ def test_large_diff_is_audited_per_file(monkeypatch):
     resp = ('{"findings": [{"file": "a.py", "line": 1, "severity": "HIGH", '
             '"category": "sql_injection", "description": "x", "confidence": 0.9}]}')
     provider = MockProvider(default=resp)
-    kept, _ = audit_diff(_FILE_A + _FILE_B, provider=provider, model="mock")
+    kept, _, _ = audit_diff(_FILE_A + _FILE_B, provider=provider, model="mock")
     # one call per file chunk, not a single whole-diff call
     assert len(provider.calls) == 2
     # category normalized onto the rule-id set
@@ -53,7 +53,7 @@ def test_large_diff_is_audited_per_file(monkeypatch):
 def test_audit_diff_honors_exclude_paths():
     resp = ('{"findings": [{"file": "vendor/lib.py", "line": 1, "severity": "HIGH", '
             '"category": "sql_injection", "description": "x", "confidence": 0.9}]}')
-    kept, dropped = audit_diff(
+    kept, dropped, _ = audit_diff(
         _FILE_A, provider=MockProvider(default=resp), model="mock", exclude_paths=("vendor/",)
     )
     assert kept == [] and dropped and "excluded path" in dropped[0][1]

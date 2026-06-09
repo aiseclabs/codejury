@@ -9,6 +9,7 @@ from codejury.review.diff.adversarial import (
     finder_prompt,
     judge_prompt,
 )
+from codejury.review.diff.runner import audit_diff
 from codejury.providers.mock import MockProvider
 
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
@@ -133,6 +134,21 @@ def test_unusable_judge_includes_challenger_independent_findings():
     missed = {"file": "a.py", "line": 9, "severity": "HIGH", "category": "idor", "confidence": 0.8}
     _, out = _run([_finder([]), _challenger(new_findings=[missed]), "not json"], max_rounds=1)
     assert [f.category for f in out.findings] == ["idor"] and out.degraded is True
+
+
+def test_audit_diff_surfaces_degraded_on_unusable_judge():
+    # the runner degrades to keep recall, but audit_diff must surface that so the CLI
+    # never reports a degraded adversarial audit as a clean pass, invariant 3
+    provider = MockProvider(responses=[_finder([_VULN]), _challenger(), "not json", "not json"], default="{}")
+    kept, _, degraded = audit_diff(_DIFF, provider=provider, model="m", mode="adversarial", max_rounds=1)
+    assert degraded is True
+    assert [f.category for f in kept] == ["sql-injection"]   # the recall-safe fallback still returns findings
+
+
+def test_audit_diff_standard_mode_is_never_degraded():
+    provider = MockProvider(default=_finder([_VULN]))
+    kept, _, degraded = audit_diff(_DIFF, provider=provider, model="m", mode="standard")
+    assert degraded is False and len(kept) == 1
 
 
 def test_provider_exception_degrades_rather_than_crashes():

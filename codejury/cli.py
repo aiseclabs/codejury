@@ -170,14 +170,19 @@ def _dispatch(args, parser) -> int:
             provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
             model = args.model
             diff = _read_diff(args)
-        kept, _ = audit_diff(
+        kept, _, degraded = audit_diff(
             diff, provider=provider, model=model,
             mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
             finder_model=args.finder_model, challenger_model=args.challenger_model, judge_model=args.judge_model,
             exclude_paths=tuple(args.exclude or ()),
         )
         print(render(args.fmt, kept))
-        return 1 if gate(kept, args.fail_on) else 0
+        if degraded:
+            # the adversarial judge was unusable and the result fell back to the
+            # unjudged set, so this is a failed audit, not a clean pass, invariant 3
+            print("error: the adversarial audit degraded on an unusable judge reply, "
+                  "the result is incomplete and not a clean pass", file=sys.stderr)
+        return 1 if degraded or gate(kept, args.fail_on) else 0
 
     if args.command == "review" and scope == "repo" and args.gate:
         from codejury.review.repo.gate import check_gate

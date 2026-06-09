@@ -58,18 +58,26 @@ def audit_diff(
     challenger_model: str | None = None,
     judge_model: str | None = None,
     exclude_paths: tuple[str, ...] = (),
-) -> tuple[list[Finding], list[tuple[Finding, str]]]:
-    """Audit a diff and return the kept findings and the dropped finding-reason pairs.
+) -> tuple[list[Finding], list[tuple[Finding, str]], bool]:
+    """Audit a diff and return the kept findings, the dropped finding-reason pairs, and
+    a degraded flag.
 
     A diff over the size budget is audited one file at a time so it does not
     overflow the context. Finding categories are normalized to the rule-id set.
-    ``exclude_paths`` are operator-supplied path substrings to drop."""
+    ``exclude_paths`` are operator-supplied path substrings to drop. ``degraded`` is
+    True when adversarial mode fell back on an unusable judge, so the caller can
+    surface a degraded audit as a failure rather than a clean pass, invariant 3."""
+    degraded = False
+
     def _run_one(d: str) -> list[Finding]:
+        nonlocal degraded
         if mode == "adversarial":
-            return AdversarialAuditRunner(
+            result = AdversarialAuditRunner(
                 provider=provider, model=model,
                 finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
-            ).run(d, max_rounds=max_rounds).findings
+            ).run(d, max_rounds=max_rounds)
+            degraded = degraded or result.degraded
+            return result.findings
         return AuditRunner(provider=provider, model=model).run(d)
 
     if len(diff) > _MAX_DIFF_CHARS:
@@ -81,5 +89,6 @@ def audit_diff(
     allowed = set(allowed_categories())
     findings = [dataclasses.replace(f, category=normalize_category(f.category, allowed)) for f in findings]
     if filter_findings:
-        return FindingsFilter(exclude_paths=exclude_paths).filter(findings)
-    return findings, []
+        kept, dropped = FindingsFilter(exclude_paths=exclude_paths).filter(findings)
+        return kept, dropped, degraded
+    return findings, [], degraded
