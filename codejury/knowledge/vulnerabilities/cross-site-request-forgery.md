@@ -16,6 +16,7 @@ Vulnerable:
 @app.route("/account/email", methods=["POST"])
 @csrf.exempt            # disables CSRF protection on a state-changing route
 def change_email():
-    current_user.email = request.form["email"]; db.commit()
+    current_user.email = request.form["email"]
+    db.commit()
 ```
 Secure: keep CSRF protection on. Validate the token, or set the session cookie `SameSite="Lax"` and check the Origin header.

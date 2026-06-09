@@ -15,12 +15,14 @@ Vulnerable:
 ```python
 acct = Account.objects.get(pk=pk)
 if acct.balance >= amount:
-    acct.balance -= amount; acct.save()   # concurrent requests both pass
+    acct.balance -= amount   # concurrent requests both pass
+    acct.save()
 ```
 Secure:
 ```python
 with transaction.atomic():
     acct = Account.objects.select_for_update().get(pk=pk)
     if acct.balance >= amount:
-        acct.balance -= amount; acct.save()
+        acct.balance -= amount
+        acct.save()
 ```

@@ -19,7 +19,8 @@ return jsonify(error=traceback.format_exc()), 500
 Secure:
 ```python
 logger.info("auth attempt for user %s", user_id)
-app.logger.exception("auth failed"); return jsonify(error="internal error"), 500
+app.logger.exception("auth failed")
+return jsonify(error="internal error"), 500
 ```
 
 ### Not a Finding

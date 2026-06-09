@@ -24,3 +24,10 @@ fed an external value. Non-HTTP sources matter as much as routes.
 - filesystem: `open()` / `os.path.join` on a path built from user input
 - network: `requests.get(user_url)` and similar, the SSRF sink
 - template: rendering user input through a template engine
+
+## Gotchas
+- A secret compared with `==` instead of `hmac.compare_digest` leaks via timing.
+- A bare `except:` around an auth or validation call swallows the failure, so the
+  code proceeds as if it passed.
+- `assert` used for an authorization check is stripped under `python -O`, so the
+  check vanishes in production.
