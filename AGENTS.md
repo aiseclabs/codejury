@@ -59,11 +59,11 @@ orchestration and agents or model calls provide per-unit judgment.
 
 - Vulnerability classes live in `codejury/knowledge/vulnerabilities/`.
 - Language, framework, and protocol guides live in `codejury/knowledge/guides/`.
-- Source extensions, manifests, noise directories, and test conventions live in
-  `codejury/detection.yaml`.
 - Framework guides belong under their language, for example
   `knowledge/guides/frameworks/python/django.md`, and declare `language:` in
   frontmatter.
+- Source extensions, manifests, noise directories, and test conventions live in
+  `codejury/detection.yaml`.
 
 ### Providers and Integrations
 
@@ -78,12 +78,12 @@ orchestration and agents or model calls provide per-unit judgment.
 - Read nearby code and tests before changing behavior.
 - Keep changes scoped to the requested behavior and the surrounding module boundaries.
 - Prefer existing helper APIs and local patterns over new abstractions.
-- Do not move security knowledge from markdown data into Python logic.
 - When changing model-call handling, preserve fail-loud semantics.
 - When changing Repo Review, think through scaffold, run, resume, finalize,
   verification, gate, and tests as one workflow.
 - When changing output formats, keep text, markdown, JSON, SARIF, and severity gates in
   sync.
+- Do not move security knowledge from markdown data into Python logic.
 - Do not delete or overwrite user changes. If the worktree is dirty, work around
   unrelated changes and mention relevant conflicts.
 
@@ -103,9 +103,8 @@ orchestration and agents or model calls provide per-unit judgment.
   `codejury review repo <dir> --gate`
 - Install slash command:
   `codejury install-slash-command --agent claude|codex`
-- Provider configuration comes from flags or environment:
+- Provider configuration comes from flags or environment, not an auto-loaded `.env`:
   `CODEJURY_API_BASE`, `CODEJURY_API_KEY`, `CODEJURY_MODEL`
-- The tool does not auto-load `.env`.
 
 ## Contributing Rules
 
@@ -140,7 +139,7 @@ Code:
 
 - One statement per line, no `;` separator.
 - No linter or type-checker suppression comments. Fix the cause instead, narrow a type with `isinstance` or turn an unreachable line into a real guard.
-- A comment earns its place only as the why or an invariant. Delete one that restates the code or narrates history.
+- A comment earns its place only as the why or an invariant. Delete one that restates the code or narrates history. A docstring states the why in one line, it does not narrate what the next line of code plainly does. A test needs no comment that repeats its own name.
 - Module names are plural for a collection and singular for one concept, a single word where one reads cleanly.
 
 Commit messages are `type: summary` in the present tense, with few parentheses.
@@ -148,8 +147,8 @@ Commit messages are `type: summary` in the present tense, with few parentheses.
 ## Detection Quality
 
 - Measure detection quality on real diffs. Synthetic golden sets are not the main signal.
-- Model choice dominates detection quality, then mode. Default to standard mode with a
-  strong model.
+- Pick the model first, it dominates detection quality, mode comes second. Default to
+  standard mode with a strong model.
 - Use adversarial mode for extra recall on subtle cross-file logic, not as a
   false-positive reducer.
 - Keep false positives down with the do-not-report guidance, deterministic filters, and
