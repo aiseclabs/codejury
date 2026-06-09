@@ -2,8 +2,8 @@
 
 An AI code security review tool. Two paths matched to their nature: a
 coded **diff-audit engine** and a fan-out **whole-repo review** where code owns
-the orchestration and an agent does the per-unit depth. This file is loaded every session and takes precedence over
-default behavior. Strategy: see `ROADMAP.md`.
+the orchestration and an agent does the per-unit depth. This file is loaded every
+session and takes precedence over default behavior.
 
 ## Invariants, Never Violate
 
