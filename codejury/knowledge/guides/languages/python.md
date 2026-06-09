@@ -12,7 +12,7 @@ logic_layers: ["*/services/*.py", "*services.py", "*/managers/*.py", "*managers.
 ---
 # Python Review Notes
 
-Where untrusted input enters beyond web routes, which the framework guide covers:
+Where untrusted input enters beyond web routes, which the framework guides cover:
 CLI such as `argparse` or `click`, scheduled jobs, queue consumers, and any function
 fed an external value. Non-HTTP sources matter as much as routes.
 
