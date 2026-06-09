@@ -108,3 +108,68 @@ def test_install_slash_command_writes_the_file(tmp_path):
     assert rc == 0
     f = tmp_path / "codejury-review-repo.md"
     assert f.is_file() and "codejury review repo" in f.read_text()
+
+
+# --- CLI mode validation and exit-code contract ---
+
+def _flask_repo(root):
+    root.mkdir()
+    (root / "app.py").write_text(
+        "from flask import Flask, request\napp = Flask(__name__)\n"
+        '@app.route("/x/<i>")\ndef h(i):\n    return request.args.get("y", "")\n')
+    (root / "requirements.txt").write_text("Flask==3.0\n")
+    return root
+
+
+def test_diff_fail_on_high_exits_nonzero():
+    # the dry-run emits one HIGH finding, so --fail-on high is a non-zero exit for CI,
+    # while no --fail-on is a clean exit even with findings
+    assert main(["review", "diff", "--dry-run", "--fail-on", "high"]) == 1
+    assert main(["review", "diff", "--dry-run"]) == 0
+
+
+def test_repo_gate_exit_codes(tmp_path):
+    repo = _flask_repo(tmp_path / "svc")
+    ws = tmp_path / "ws"
+    # nothing scaffolded yet, so the gate fails: nothing was reviewed
+    assert main(["review", "repo", str(repo), "--workspace", str(ws), "--gate"]) == 1
+    # a full dry-run builds a complete workspace, so the gate passes
+    assert main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--dry-run"]) == 0
+    assert main(["review", "repo", str(repo), "--workspace", str(ws), "--gate"]) == 0
+
+
+def test_review_diff_bad_file_exits_nonzero(capsys):
+    rc = main(["review", "diff", "--file", "/nonexistent/nope.diff"])
+    assert rc == 1
+    assert "failed" in capsys.readouterr().err
+
+
+def test_review_diff_empty_stdin_is_clean(monkeypatch, capsys):
+    import io
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+    monkeypatch.setattr("codejury.cli.make_provider",
+                        lambda *a, **k: MockProvider(default='{"findings": []}'))
+    rc = main(["review", "diff"])
+    assert rc == 0
+    assert "no findings" in capsys.readouterr().out.lower()
+
+
+def test_repo_run_and_gate_flags_gate_takes_precedence(tmp_path):
+    repo = _flask_repo(tmp_path / "svc")
+    ws = tmp_path / "ws"
+    # --gate is evaluated before --run, so with both flags the gate runs against the
+    # un-scaffolded workspace and fails, the engine never runs
+    rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--gate", "--dry-run"])
+    assert rc == 1
+    assert not (ws / "svc" / "findings.json").exists()
+
+
+def test_repo_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
+    repo = _flask_repo(tmp_path / "svc")
+    ws = tmp_path / "ws"
+    # a provider that returns unparseable text makes ModelReviewer raise, the pass-loop
+    # counts it, and a partial run must not exit clean
+    monkeypatch.setattr("codejury.cli.make_provider",
+                        lambda *a, **k: MockProvider(default="not json at all"))
+    rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--no-verify"])
+    assert rc == 1

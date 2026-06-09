@@ -67,17 +67,20 @@ def _write_findings(ws: Path, findings: list[Candidate]) -> None:
                       for c in findings]}, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def _write_surface(ws: Path, units: list[Unit]) -> None:
+def _write_surface(ws: Path, units: list[Unit], failed: set) -> None:
     """Populate the attack-surface inventory from the unit worklist: in a coded run
     the enumerated surface IS the worklist, one row per unit, so the denominator is
-    explicit and the gate's surface check is satisfied."""
+    explicit and the gate's surface check is satisfied. A unit that never reviewed
+    cleanly this run is marked open, not reviewed, so the surface does not claim a
+    failed unit was covered."""
     lines = ["# Attack Surface Inventory", "",
              "Enumerated by the coded engine from the unit worklist, one row per unit.", "",
              "| Package | Entrypoint file | Unit | Status |", "|---|---|---|---|"]
     for u in units:
         owned = u.files[0] if u.files else u.name
         pkg = Path(owned).parts[0] if Path(owned).parts else ""
-        lines.append(f"| {pkg} | {owned} | {u.name} | reviewed |")
+        status = "open" if u.name in failed else "reviewed"
+        lines.append(f"| {pkg} | {owned} | {u.name} | {status} |")
     (ws / "inventory" / "_surface.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -91,8 +94,13 @@ def _write_refuted(ws: Path, refuted: list[tuple[Candidate, str]]) -> None:
     (ws / "_refuted.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _mark_units_reviewed(ws: Path) -> None:
+def _mark_units_reviewed(ws: Path, reviewed_slugs: set) -> None:
+    """Flip a unit from open to reviewed only when it reviewed cleanly this run. A unit
+    that raised on every pass is left open, so the gate catches it and a later resume
+    retries it, never reporting a failed review as covered."""
     for u in (ws / "units").glob("*.md"):
+        if u.stem not in reviewed_slugs:
+            continue
         text = u.read_text(encoding="utf-8")
         u.write_text(re.sub(r"(?im)^-\s*Status:\s*open\s*$", "- Status: reviewed", text), encoding="utf-8")
 
@@ -121,12 +129,24 @@ def _save_union(ws: Path, cands: list[Candidate]) -> None:
         encoding="utf-8")
 
 
+def _resume_corrupt(p: Path, exc: Exception) -> ValueError:
+    # a present-but-corrupt checkpoint must fail loud, never fall back to an empty pool:
+    # on a resume the units are already reviewed, so an empty pool would write a zero
+    # finding report and exit clean, hiding the lost progress. Invariant 3.
+    return ValueError(
+        f"resume checkpoint {p} is unreadable or corrupt: {exc}. "
+        "Re-run with --fresh to discard prior state and start over."
+    )
+
+
 def _load_union(ws: Path) -> dict:
     p = ws / "_union.json"
-    try:
-        data = json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {}
-    except (OSError, json.JSONDecodeError):
+    if not p.is_file():
         return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise _resume_corrupt(p, exc) from exc
     pool: dict = {}
     for d in data.get("findings", []):
         c = _cand_from_dict(d)
@@ -136,10 +156,12 @@ def _load_union(ws: Path) -> dict:
 
 def _load_verified(ws: Path) -> dict:
     p = ws / "_verified.json"
-    try:
-        return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else {}
-    except (OSError, json.JSONDecodeError):
+    if not p.is_file():
         return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise _resume_corrupt(p, exc) from exc
 
 
 def _save_verified(ws: Path, verified: dict) -> None:
@@ -169,15 +191,18 @@ def _parse_issue(path: Path) -> Candidate | None:
     # the body cites a location as `path.ext:line` or `path.ext:line-range`, capture
     # both so the report carries a precise location and dedup can use the line
     fm = re.search(r"([\w./-]+\.(?:py|js|ts|go|java|rb|php))(?::(\d+))?", text)
+    if fm is None:
+        return None   # invariant 2: with no file location the issue is not reportable
+    status_raw = _md_field(text, "status").lower()
     return Candidate(
         title=title or path.stem,
         category=_md_field(text, "type"),
         endpoint=_md_field(text, "source"),
-        file=fm.group(1) if fm else "",
-        line=int(fm.group(2)) if (fm and fm.group(2)) else None,
+        file=fm.group(1),
+        line=int(fm.group(2)) if fm.group(2) else None,
         severity=severity,
         evidence=path.name,
-        status="confirmed",
+        status="blocked" if status_raw == "blocked" else "confirmed",
     )
 
 
@@ -292,7 +317,9 @@ def run_repo_review(
         persist=lambda f: _save_union(ws, f), accumulator=acc,
     )
     _save_union(ws, acc.findings)
-    _mark_units_reviewed(ws)
+    # a unit that never reviewed cleanly this run stays open, the rest are marked reviewed
+    reviewed_slugs = {unit_slug(u.name) for u in open_units if u.name not in acc.failed_units}
+    _mark_units_reviewed(ws, reviewed_slugs)
 
     # adversarial verification: refute the union's candidates, keep survivors. Resumable,
     # a finding already in _verified.json is not re-verified.
@@ -318,6 +345,6 @@ def run_repo_review(
         _write_refuted(ws, refuted)
         findings = confirmed
 
-    _write_surface(ws, units)
+    _write_surface(ws, units, acc.failed_units)
     _write_findings(ws, findings)
     return RunResult(scaffold=res, accumulator=acc, units=len(units), verify=vr)

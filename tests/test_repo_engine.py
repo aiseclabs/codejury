@@ -4,9 +4,13 @@ mark units reviewed."""
 
 import json
 
+import pytest
+
 from codejury.providers.mock import MockProvider
+from codejury.review.repo.gate import check_gate
 from codejury.review.repo.reviewer import UnitReviewer
 from codejury.review.repo.engine import _parse_issue, build_units, finalize_repo_review, run_repo_review
+from codejury.review.repo.scaffold import unit_slug
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import Verdict, Verifier
 
@@ -126,3 +130,116 @@ def test_finalize_dedups_verifies_and_reports(tmp_path):
     entries = {f["entry"] for f in data["findings"]}
     assert any("/x/" in e for e in entries) and any("/t" in e for e in entries)
     assert not any("/r" in e for e in entries)  # the refuted FP is gone from the report
+
+
+class _RaisingReviewer(UnitReviewer):
+    """Raises for a unit whose name contains a marker, reviews the rest cleanly. Models
+    a provider that rate-limits one unit on every pass."""
+
+    def __init__(self, fail_substr):
+        self.fail_substr = fail_substr
+
+    def review(self, unit, lens, *, shared_context=""):
+        if self.fail_substr in unit.name:
+            raise RuntimeError("provider rate limited")
+        return [Candidate(title="ok", category="idor", endpoint=f"GET /{unit.name}",
+                          file=unit.name, line=1, severity="HIGH")]
+
+
+def _two_entrypoint_repo(root):
+    for pkg in ("alpha", "beta"):
+        (root / pkg).mkdir(parents=True)
+        (root / pkg / "routes.py").write_text(
+            "from flask import Flask, request\napp = Flask(__name__)\n"
+            f'@app.route("/{pkg}/<x>")\ndef h_{pkg}(x):\n    return request.args.get("y", "")\n')
+    (root / "requirements.txt").write_text("Flask==3.0\n")
+    return root
+
+
+def test_failed_unit_stays_open_and_fails_the_gate(tmp_path):
+    # invariant 3: a unit that raises on every pass is a failed review, not a clean unit.
+    # It must stay open, the surface must not claim it reviewed, and the gate must fail.
+    repo = _two_entrypoint_repo(tmp_path / "twop")
+    ws = tmp_path / "ws"
+    res = run_repo_review(repo, ws, reviewer=_RaisingReviewer("beta"),
+                          verify=False, converge_after=1, max_passes=4)
+    proj = ws / "twop"
+
+    assert "beta/routes.py" in res.accumulator.failed_units
+    assert res.accumulator.errors > 0
+
+    units = {u.stem: u.read_text() for u in (proj / "units").glob("*.md")}
+    assert "Status: open" in units[unit_slug("beta/routes.py")]       # the failed unit stays open
+    assert "Status: reviewed" in units[unit_slug("alpha/routes.py")]  # the clean unit is reviewed
+
+    surface = (proj / "inventory" / "_surface.md").read_text()
+    beta_row = next(line for line in surface.splitlines() if "beta/routes.py" in line)
+    assert "open" in beta_row and "reviewed" not in beta_row
+
+    assert check_gate(proj).passed is False   # an open unit keeps the gate red
+
+
+def test_corrupt_union_on_resume_raises_loud_and_keeps_report(custody_repo, tmp_path):
+    # invariant 3: a corrupt checkpoint on resume must fail loud, never overwrite the
+    # prior report with a clean-looking empty run.
+    ws = tmp_path / "ws"
+    run_repo_review(custody_repo, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
+                    converge_after=1, max_passes=4)
+    proj = ws / "custody"
+    before = (proj / "findings.json").read_text()
+
+    (proj / "_union.json").write_text("{ this is not valid json", encoding="utf-8")
+    with pytest.raises(ValueError, match="corrupt"):
+        run_repo_review(custody_repo, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
+                        converge_after=1, max_passes=4, fresh=False)
+    assert (proj / "findings.json").read_text() == before   # the prior report survives untouched
+
+
+def test_corrupt_verified_on_finalize_raises_loud(tmp_path):
+    target = tmp_path / "proj"
+    target.mkdir()
+    ws = tmp_path / "work"
+    issues = ws / "proj" / "issues"
+    issues.mkdir(parents=True)
+    (issues / "a.md").write_text("# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
+    (ws / "proj" / "_verified.json").write_text("{corrupt", encoding="utf-8")
+
+    class _V(Verifier):
+        def verify(self, c, root):
+            return Verdict(real=True)
+
+    with pytest.raises(ValueError, match="corrupt"):
+        finalize_repo_review(target, ws, verifier=_V(), concurrency=1)
+
+
+def test_finalize_drops_issue_with_no_file_location(tmp_path):
+    # invariant 2: no file location means not reportable, so the issue is dropped, not
+    # carried into the report with an empty location.
+    target = tmp_path / "proj"
+    target.mkdir()
+    ws = tmp_path / "work"
+    issues = ws / "proj" / "issues"
+    issues.mkdir(parents=True)
+    (issues / "noloc.md").write_text(
+        "# missing location\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n"
+        "## Analysis\nno concrete location was cited.\n")
+    fr = finalize_repo_review(target, ws, verify=False)
+    assert fr.parsed == 0
+    data = json.loads((fr.workspace / "findings.json").read_text())
+    assert data["findings"] == []
+
+
+def test_finalize_preserves_blocked_status(tmp_path):
+    # the confirmed/blocked distinction must survive parsing into the report
+    target = tmp_path / "proj"
+    target.mkdir()
+    ws = tmp_path / "work"
+    issues = ws / "proj" / "issues"
+    issues.mkdir(parents=True)
+    (issues / "blocked.md").write_text(
+        "# needs poc\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n- Status: blocked\n"
+        "## Analysis\napp/s.py:5 no nonce, a PoC needs credentials.\n")
+    fr = finalize_repo_review(target, ws, verify=False)
+    data = json.loads((fr.workspace / "findings.json").read_text())
+    assert len(data["findings"]) == 1
+    assert data["findings"][0]["status"] == "blocked"

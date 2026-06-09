@@ -95,6 +95,7 @@ class Accumulator:
     pool: dict[tuple, Candidate] = field(default_factory=dict)
     new_per_pass: list[int] = field(default_factory=list)
     errors: int = 0                  # unit reviews that raised, e.g. provider rate limits, never silently dropped
+    failed_units: set[str] = field(default_factory=set)  # units that never reviewed cleanly this run, left open so the gate catches them
     sev_votes: dict[tuple, list[str]] = field(default_factory=dict)  # every severity each finding was graded, for the median
 
     def add_pass(self, candidates: list[Candidate]) -> int:

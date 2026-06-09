@@ -53,6 +53,7 @@ def run_passes(
     is called after each pass for progress."""
     acc = accumulator if accumulator is not None else Accumulator(converge_after=converge_after)
     lenses = lenses or ("",)
+    reviewed_ok: set[str] = set()   # units that returned without error in at least one pass
 
     def review_unit(unit: Unit, lens: str):
         # return (candidates, error): one failing unit is counted and skipped, not
@@ -71,6 +72,7 @@ def run_passes(
             per_unit = [review_unit(u, lens) for u in units]
         candidates = [c for cands, _err in per_unit for c in cands]
         acc.errors += sum(1 for _cands, err in per_unit if err is not None)
+        reviewed_ok.update(u.name for u, (_cands, err) in zip(units, per_unit) if err is None)
         n_new = acc.add_pass(candidates)
         if persist is not None:
             persist(acc.findings)   # checkpoint the union each pass, so a kill mid-run can resume
@@ -78,4 +80,6 @@ def run_passes(
             on_pass(i + 1, lens, n_new, len(acc.findings))
         if acc.converged:
             break
+    # a unit that never once reviewed cleanly is a failed review, not a clean empty unit
+    acc.failed_units = {u.name for u in units} - reviewed_ok
     return acc
