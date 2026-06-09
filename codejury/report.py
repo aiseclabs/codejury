@@ -71,7 +71,7 @@ def to_sarif(findings: list[Finding]) -> str:
     results = []
     for f in _sorted(findings):
         if not f.file:
-            continue  # a finding needs a location to be reportable
+            continue
         rule_id = f.category or "security"
         if rule_id not in rule_index:
             rule_index[rule_id] = len(rules)

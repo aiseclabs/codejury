@@ -69,15 +69,13 @@ def test_open_unit_fails(tmp_path):
 
 def test_unit_without_status_counts_as_open(tmp_path):
     ws = _complete_ws(tmp_path)
-    (ws / "units" / "u3.md").write_text("# Unit u3\n- Entrypoints: GET /thing\n")  # no Status line
+    (ws / "units" / "u3.md").write_text("# Unit u3\n- Entrypoints: GET /thing\n")
     result = check_gate(ws)
     assert not result.passed
     assert any("not Status: reviewed" in f for f in result.failures)
 
 
 def test_medium_issue_passes(tmp_path):
-    # all four levels are valid output now: a graded MEDIUM is surfaced, not failed,
-    # so a cautious reviewer reports a bounded real finding instead of refuting it
     ws = _complete_ws(tmp_path)
     (ws / "issues" / "bounded-finding.md").write_text(
         "# Some finding\n\n- Risk: MEDIUM\n- Type: info disclosure\n- Status: confirmed\n")

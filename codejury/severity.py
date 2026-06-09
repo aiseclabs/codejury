@@ -8,12 +8,11 @@ their ordering cannot drift apart.
 
 from __future__ import annotations
 
-SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW")   # most severe to least
+SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
 
-# SARIF has three levels, so HIGH and CRITICAL both map to error.
 SARIF_LEVEL = {"CRITICAL": "error", "HIGH": "error", "MEDIUM": "warning", "LOW": "note"}
 
-_INDEX = {s: i for i, s in enumerate(SEVERITIES)}     # CRITICAL is 0, LOW is 3
+_INDEX = {s: i for i, s in enumerate(SEVERITIES)}
 
 
 def normalize(severity: str) -> str:

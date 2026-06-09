@@ -24,8 +24,8 @@ from codejury.severity import SEVERITIES
 @dataclass(frozen=True)
 class GateResult:
     passed: bool
-    failures: list[str]   # one human-readable line per unmet gate item
-    checked: list[str]    # the items that were checked, for a transparent report
+    failures: list[str]
+    checked: list[str]
 
 
 def _table_data_rows(text: str) -> list[list[str]]:
@@ -37,9 +37,9 @@ def _table_data_rows(text: str) -> list[list[str]]:
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
         if not "".join(cells) or set("".join(cells)) <= {"-", ":"}:
-            continue  # separator row
+            continue
         if any(c.lower() == "module" for c in cells):
-            continue  # header row
+            continue
         rows.append(cells)
     return rows
 
@@ -60,7 +60,6 @@ def check_gate(project_dir: Path) -> GateResult:
     if not project_dir.is_dir():
         return GateResult(False, [f"workspace {project_dir} does not exist, nothing was reviewed"], [])
 
-    # 1. The attack surface is enumerated: the coverage denominator exists.
     checked.append("attack surface enumerated")
     surface = project_dir / "inventory" / "_surface.md"
     if surface.is_file():
@@ -69,7 +68,6 @@ def check_gate(project_dir: Path) -> GateResult:
     else:
         failures.append("inventory/_surface.md is missing, the attack-surface inventory was not built")
 
-    # 2. Every unit was reviewed, none left open. The per-unit coverage check.
     checked.append("every unit reviewed")
     units_dir = project_dir / "units"
     unit_files = sorted(units_dir.glob("*.md")) if units_dir.is_dir() else []
@@ -84,11 +82,6 @@ def check_gate(project_dir: Path) -> GateResult:
             shown = ", ".join(open_units[:5]) + (" ..." if len(open_units) > 5 else "")
             failures.append(f"{len(open_units)} unit(s) in units/ are not Status: reviewed, run their sub-review: {shown}")
 
-    # 3. Every finding carries a calibrated severity. All four levels are valid output,
-    #    the goal is to surface every real issue at its level, so MEDIUM and LOW are
-    #    not failures. The check is that a finding is graded against the rubric, never
-    #    that it clears a floor, since a floor pushes a cautious reviewer to refute a
-    #    real finding rather than report it as MEDIUM.
     checked.append("findings graded by the rubric")
     _LEVELS = tuple(s.lower() for s in SEVERITIES)
     issues_dir = project_dir / "issues"

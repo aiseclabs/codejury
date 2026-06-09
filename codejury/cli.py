@@ -55,16 +55,12 @@ def _dry_run_diff() -> str:
     return "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
 
 
-# canned reply for `review diff --dry-run`: a mock provider returns this so the
-# pipeline runs end to end with no key and no backend call
 _MOCK_REPLY = (
     '{"findings": [{"file": "app.py", "line": 1, "severity": "HIGH", '
     '"category": "sql_injection", "description": "[mock] no backend called", '
     '"confidence": 0.9}]}'
 )
 
-# canned per-unit reply for `review repo --run --dry-run`: every unit "finds" this,
-# so the pipeline runs end to end, dedups to one, and converges, with no key
 _REPO_MOCK_REPLY = (
     '{"findings": [{"title": "[mock] no backend called", "category": "other", '
     '"endpoint": "GET /mock", "file": "mock.py", "line": 1, "severity": "MEDIUM", '
@@ -164,7 +160,6 @@ def _dispatch(args, parser) -> int:
         if args.dry_run:
             provider = MockProvider(default=_MOCK_REPLY)
             model = "mock"
-            # zero-config smoke test: fall back to a built-in demo diff when none is supplied
             diff = _read_diff(args) if (args.file or args.git_range) else _dry_run_diff()
         else:
             provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
@@ -221,7 +216,7 @@ def _dispatch(args, parser) -> int:
         print(f"Ranked report in {fr.workspace}/findings.json")
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
-            return 1   # fail loud: an incomplete verification is not a clean finalize
+            return 1
         return 0
 
     if args.command == "review" and scope == "repo" and args.run:
@@ -230,7 +225,7 @@ def _dispatch(args, parser) -> int:
         if args.reviewer == "claude-cli":
             from codejury.review.repo.agent import AgentReviewer, AgentVerifier
             reviewer_obj, verifier_obj = AgentReviewer(), AgentVerifier()
-            provider = None   # the claude-cli backend uses your Claude Code access, no provider key
+            provider = None
         elif args.dry_run:
             provider = MockProvider(default=_REPO_MOCK_REPLY)
             args.model = "mock"
@@ -265,7 +260,7 @@ def _dispatch(args, parser) -> int:
                   "Results may be understated. Lower --concurrency or raise --retries and re-run.",
                   file=sys.stderr)
         print(f"Findings written to {res.scaffold.workspace}/issues/ and {res.scaffold.workspace}/findings.json")
-        return 1 if failures else 0   # fail loud: a partial run must not exit clean
+        return 1 if failures else 0
 
     if args.command == "review" and scope == "repo":
         res = scaffold(args.directory, args.workspace, fresh=args.fresh)
@@ -292,7 +287,6 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "install-slash-command":
         from codejury.resources import SLASH_COMMAND_FILE
-        # the command body is portable, only the directory differs per agent
         agent_dirs = {
             "claude": Path.home() / ".claude" / "commands",
             "codex": Path.home() / ".codex" / "prompts",
@@ -308,7 +302,7 @@ def _dispatch(args, parser) -> int:
         print("Run it in the agent with: /codejury-review-repo <repository>")
         return 0
 
-    if args.command == "review":  # no scope given
+    if args.command == "review":
         print("usage: codejury review {diff,repo} ...", file=sys.stderr)
         print("  diff   audit a unified diff for security findings", file=sys.stderr)
         print("  repo   scaffold a whole-repo review for an interactive agent", file=sys.stderr)

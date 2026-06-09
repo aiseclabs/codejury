@@ -33,14 +33,11 @@ from codejury.resources import (
     VULNERABILITIES_DIR,
 )
 
-_DETECT_PER_FILE = 16_000   # bytes read per file
-_DETECT_TOTAL = 8_000_000   # bytes of source sampled overall
+_DETECT_PER_FILE = 16_000
+_DETECT_TOTAL = 8_000_000
 
-# the workspace directories the fan-out methodology writes into
 _DIRS = ("inventory", "units", "issues", "pocs")
 
-# a marker file written at the project workspace root, so a destructive --fresh clear can
-# tell a codejury workspace from an arbitrary directory it must never wipe
 _MARKER = ".codejury-workspace"
 
 
@@ -49,8 +46,8 @@ class ScaffoldResult:
     project: str
     workspace: Path
     methodology: str
-    candidate_files: tuple[str, ...] = ()   # files a matched guide flags as likely entrypoints
-    trace_targets: tuple[str, ...] = ()     # downstream logic-layer files to trace into
+    candidate_files: tuple[str, ...] = ()
+    trace_targets: tuple[str, ...] = ()
     guides: tuple[str, ...] = ()
     created: list[str] = field(default_factory=list)
     had_prior_run: bool = False
@@ -237,7 +234,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
     # private: 0700 on the workspace root and every directory under it, not the umask
     # default that leaves them world-readable on a shared host
     ws.mkdir(parents=True, exist_ok=True, mode=0o700)
-    ws.chmod(0o700)   # tighten an existing workspace too, mkdir's mode is ignored when it exists
+    ws.chmod(0o700)
     (ws / _MARKER).write_text(f"{project}\n", encoding="utf-8")
 
     created: list[str] = []
@@ -282,18 +279,14 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
             p.write_text(template, encoding="utf-8")
             created.append(str(p))
 
-    # seed the severity rubric the units grade against, so every severity is surfaced
-    # by one shared standard, never refuted away for low impact
     sev = ws / "inventory" / "_severity.md"
     if not sev.exists():
         sev.write_text(SEVERITY_RUBRIC_FILE.read_text(encoding="utf-8"), encoding="utf-8")
         created.append(str(sev))
 
-    # seed the recurring false-positive traps the verification step refutes against
     (ws / "_false_positive_traps.md").write_text(
         FALSE_POSITIVE_TRAPS_FILE.read_text(encoding="utf-8"), encoding="utf-8")
 
-    # seed the vulnerability class definitions the methodology has each unit apply
     (ws / "_vulnerabilities.md").write_text(_vulnerabilities_md(), encoding="utf-8")
 
     return ScaffoldResult(

@@ -30,12 +30,8 @@ from codejury.review.repo.severity import calibrated, median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
 from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier, verify_findings
 
-_MAX_RELATED = 20   # trace-target files packed into a unit beyond the owned file
+_MAX_RELATED = 20
 
-# A hidden marker stamped into every issue file the code writes, so a later write can
-# clear its own prior output without touching an agent's hand-written issue file. It is
-# an HTML comment, invisible in rendered markdown, and carries no severity line, so it
-# does not disturb the gate or the issue parser.
 _GENERATED_MARKER = "<!-- codejury:generated, do not edit by hand -->"
 
 
@@ -128,8 +124,6 @@ def _mark_units_reviewed(ws: Path, reviewed_slugs: set) -> None:
         text = u.read_text(encoding="utf-8")
         u.write_text(re.sub(r"(?im)^-\s*Status:\s*open\s*$", "- Status: reviewed", text), encoding="utf-8")
 
-
-# --- resume support: a run interrupted by a usage limit picks up where it stopped ---
 
 def _cand_to_dict(c: Candidate) -> dict:
     return {"title": c.title, "category": c.category, "endpoint": c.endpoint, "file": c.file,
@@ -259,8 +253,6 @@ def _parse_issue(path: Path) -> Candidate | None:
     title = next((ln[2:].strip() for ln in text.splitlines() if ln.startswith("# ")), path.stem)
     sev_raw = _md_field(text, "(?:risk|severity)").upper()
     severity = next((s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if s in sev_raw), "MEDIUM")
-    # the body cites a location as `path.ext:line` or `path.ext:line-range`, capture
-    # both so the report carries a precise location and dedup can use the line
     fm = _location_re().search(text)
     if fm is None or is_unsafe_rel(fm.group(1)):
         # invariant 2: with no file location the issue is not reportable. An absolute or
@@ -310,7 +302,7 @@ def finalize_repo_review(
 
     cands = [c for c in (_parse_issue(p) for p in sorted((ws / "issues").glob("*.md"))) if c]
     sev_votes: dict = {}
-    for c in cands:                       # duplicate issue files for one finding are its severity votes
+    for c in cands:
         sev_votes.setdefault(c.key(), []).append(c.severity)
     pool: dict = {}
     merge(pool, cands)
@@ -321,7 +313,6 @@ def finalize_repo_review(
 
     vr: VerifyResult | None = None
     if verify and deduped:
-        # finalize always resumes from any prior verification, there is no fresh here
         deduped, vr = apply_verification(
             ws, deduped, root=root, verifier=verifier, provider=provider, model=model,
             votes=votes, concurrency=concurrency, fresh=False,
@@ -336,7 +327,7 @@ class RunResult:
     scaffold: ScaffoldResult
     accumulator: Accumulator
     units: int
-    verify: VerifyResult | None = None   # None when verification was skipped
+    verify: VerifyResult | None = None
 
 
 def run_repo_review(
@@ -369,7 +360,6 @@ def run_repo_review(
             "review. Add a guide for this stack or seed inventory/_candidates.md, then re-run."
         )
 
-    # resume: skip units a prior run already reviewed, carry its union forward
     reviewed = set() if fresh else _reviewed_slugs(ws)
     open_units = [u for u in units if unit_slug(u.name) not in reviewed]
     acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws)))
@@ -387,12 +377,9 @@ def run_repo_review(
         persist=lambda f: _save_union(ws, f), accumulator=acc,
     )
     _save_union(ws, acc.findings)
-    # a unit that never reviewed cleanly this run stays open, the rest are marked reviewed
     reviewed_slugs = {unit_slug(u.name) for u in open_units if u.name not in acc.failed_units}
     _mark_units_reviewed(ws, reviewed_slugs)
 
-    # adversarial verification: refute the union's candidates, keep survivors. Resumable,
-    # a finding already in _verified.json is not re-verified.
     findings = acc.findings
     vr: VerifyResult | None = None
     if verify:

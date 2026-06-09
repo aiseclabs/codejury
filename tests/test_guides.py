@@ -9,34 +9,30 @@ def test_shipped_guides_load():
     assert {"python", "django", "oauth"} <= set(by_id)
     assert by_id["python"].kind == "language"
     assert by_id["django"].kind == "framework"
-    assert by_id["django"].language == "python"   # a framework belongs to a language
+    assert by_id["django"].language == "python"
     assert by_id["oauth"].kind == "protocol"
     assert "IDOR" in by_id["django"].body or "idor" in by_id["django"].body.lower()
 
 
 def test_every_guide_declares_a_kind_in_frontmatter():
-    # kind is sourced from frontmatter, the single source of truth, so a drop-in
-    # that forgets it must fail loudly rather than be silently miscategorised
     for g in load_guides():
         assert g.kind in {"language", "framework", "protocol"}, f"{g.id} has kind {g.kind!r}"
 
 
 def test_protocol_guide_selected_by_protocol_token():
-    # language-neutral detection: an OAuth wire field in source, no ecosystem library name
     matched = {g.id for g in select_guides(["main.py"], source_text="grant_type=authorization_code\nredirect_uri\n")}
     assert "oauth" in matched
 
 
 def test_manifest_name_does_not_match_a_word_in_source():
-    # a dependency name is scanned in manifests only, so the word in source does not fire it
     assert "flask" not in {g.id for g in select_guides(["app.py"], source_text="x = some_expression_flask_like\n")}
     assert "flask" in {g.id for g in select_guides(["app.py"], manifest_text="Flask==3.0\n")}
 
 
 def test_select_by_file_glob():
     matched = {g.id for g in select_guides(["app/urls.py", "app/views.py", "manage.py"])}
-    assert "python" in matched      # *.py
-    assert "django" in matched      # *urls.py / manage.py
+    assert "python" in matched
+    assert "django" in matched
 
 
 def test_select_by_manifest_substring():
@@ -45,7 +41,7 @@ def test_select_by_manifest_substring():
 
 
 def test_no_signal_no_match():
-    assert select_guides(["index.html", "style.css"]) == []   # no .py, no django manifest
+    assert select_guides(["index.html", "style.css"]) == []
 
 
 def test_select_respects_injected_pool():

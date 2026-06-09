@@ -20,12 +20,12 @@ from codejury.resources import DETECTION_FILE
 
 @dataclass(frozen=True)
 class Detection:
-    skip_dirs: frozenset[str]            # directory names that are noise, never walked
-    source_extensions: frozenset[str]    # extensions whose content is scanned for markers
-    config_extensions: frozenset[str]    # config extensions also sampled when detecting the stack
-    manifests: tuple[str, ...]           # dependency-manifest filenames read to detect the stack
-    test_dirs: frozenset[str]            # directory segments that mark test code
-    test_name_patterns: tuple[str, ...]  # filename globs that mark a test file
+    skip_dirs: frozenset[str]
+    source_extensions: frozenset[str]
+    config_extensions: frozenset[str]
+    manifests: tuple[str, ...]
+    test_dirs: frozenset[str]
+    test_name_patterns: tuple[str, ...]
 
     @property
     def detection_extensions(self) -> frozenset[str]:

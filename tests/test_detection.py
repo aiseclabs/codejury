@@ -7,9 +7,9 @@ from codejury.detection import load_detection
 
 def test_detection_config_loads_with_content():
     d = load_detection()
-    assert ".py" in d.source_extensions and ".go" in d.source_extensions   # many ecosystems
+    assert ".py" in d.source_extensions and ".go" in d.source_extensions
     assert ".yaml" in d.config_extensions
-    assert ".py" in d.detection_extensions and ".yaml" in d.detection_extensions  # source plus config
+    assert ".py" in d.detection_extensions and ".yaml" in d.detection_extensions
     assert "requirements.txt" in d.manifests and "package.json" in d.manifests
     assert ".venv" in d.skip_dirs and "node_modules" in d.skip_dirs
 
@@ -23,10 +23,10 @@ def test_is_test_path_by_directory_segment():
 
 def test_is_test_path_by_naming_convention_across_ecosystems():
     d = load_detection()
-    assert d.is_test_path("app/test_views.py")      # python prefix
-    assert d.is_test_path("app/views_test.go")      # go suffix
-    assert d.is_test_path("app/billing.spec.js")    # js spec
-    assert d.is_test_path("app/api.test.ts")        # js test
+    assert d.is_test_path("app/test_views.py")
+    assert d.is_test_path("app/views_test.go")
+    assert d.is_test_path("app/billing.spec.js")
+    assert d.is_test_path("app/api.test.ts")
 
 
 def test_is_test_path_keeps_production_sampleish_names():

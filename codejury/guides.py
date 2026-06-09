@@ -24,16 +24,16 @@ from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR, PROTOCOLS_DIR
 @dataclass(frozen=True, kw_only=True)
 class Guide:
     id: str
-    kind: str            # "language", "framework", or "protocol"
-    language: str        # for a framework, the id of the language it belongs to, otherwise empty
+    kind: str
+    language: str
     title: str
     detect_files: tuple[str, ...]
     detect_manifest: tuple[str, ...]
     detect_imports: tuple[str, ...]
-    detect_content: tuple[str, ...]       # language-neutral content tokens, for example a protocol's wire fields
-    entrypoint_files: tuple[str, ...]     # globs for files likely to define entrypoints
-    entrypoint_markers: tuple[str, ...]   # content markers for files that define entrypoints
-    logic_layers: tuple[str, ...]         # globs for downstream business-logic files to trace into, for example managers and dao
+    detect_content: tuple[str, ...]
+    entrypoint_files: tuple[str, ...]
+    entrypoint_markers: tuple[str, ...]
+    logic_layers: tuple[str, ...]
     body: str
 
 
@@ -85,9 +85,6 @@ def logic_layer_globs(guides: list[Guide]) -> tuple[str, ...]:
 
 
 def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR, protocols_dir=PROTOCOLS_DIR) -> list[Guide]:
-    # kind comes from each guide's frontmatter, the single source of truth. The
-    # directories are a convenience for humans and never decide kind, so the two
-    # cannot drift.
     out: list[Guide] = []
     for directory in (languages_dir, frameworks_dir, protocols_dir):
         out += [_guide(path, meta, body) for path, meta, body in iter_md_docs(directory)]
@@ -97,11 +94,11 @@ def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR, prot
 def _matches(guide: Guide, files: list[str], manifest_text: str, source_text: str) -> bool:
     if any(fnmatch.fnmatch(f, pat) for pat in guide.detect_files for f in files):
         return True
-    if any(m in manifest_text for m in guide.detect_manifest):     # dependency names, manifests only
+    if any(m in manifest_text for m in guide.detect_manifest):
         return True
-    if any(i in source_text for i in guide.detect_imports):        # import markers, source only
+    if any(i in source_text for i in guide.detect_imports):
         return True
-    if any(c in source_text for c in guide.detect_content):        # content tokens, source only
+    if any(c in source_text for c in guide.detect_content):
         return True
     return False
 

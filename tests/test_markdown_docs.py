@@ -25,4 +25,4 @@ def test_iter_md_docs_skips_index_and_missing(tmp_path):
     docs = list(iter_md_docs(tmp_path))
     assert [p.name for p, _, _ in docs] == ["a.md"]
     assert docs[0][1] == {"id": "a"} and docs[0][2] == "A"
-    assert list(iter_md_docs(tmp_path / "nope")) == []   # missing dir -> empty
+    assert list(iter_md_docs(tmp_path / "nope")) == []

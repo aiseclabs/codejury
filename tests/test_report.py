@@ -43,7 +43,7 @@ def test_markdown_has_summary_and_sections():
 def test_json_shape():
     doc = json.loads(to_json(_FINDINGS))
     assert set(doc) == {"findings", "summary"}
-    assert doc["findings"][0]["severity"] == "CRITICAL"  # sorted, critical first
+    assert doc["findings"][0]["severity"] == "CRITICAL"
 
 
 def test_sarif_validates_against_schema():
@@ -60,7 +60,7 @@ def test_empty_render():
 
 
 def test_gate():
-    assert gate(_FINDINGS, "high") is True       # a CRITICAL clears the high gate
+    assert gate(_FINDINGS, "high") is True
     assert gate(_FINDINGS, "critical") is True
-    assert gate([_FINDINGS[1]], "high") is False  # only a MEDIUM left
+    assert gate([_FINDINGS[1]], "high") is False
     assert gate(_FINDINGS, None) is False

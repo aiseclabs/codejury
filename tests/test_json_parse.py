@@ -28,7 +28,6 @@ def test_no_object_returns_none(text):
 
 
 def test_braces_inside_string_value_do_not_corrupt_depth():
-    # a brace in a description must not be counted as structure
     text = '{"description": "the sink is cursor.execute({user})", "line": 7}'
     assert extract_json_object(text) == {"description": "the sink is cursor.execute({user})", "line": 7}
 
@@ -38,6 +37,5 @@ def test_trailing_comma_is_repaired():
 
 
 def test_truncated_object_is_repaired():
-    # reply cut off at the token limit: an unterminated string and no closing brace
     out = extract_json_object('{"findings": [{"file": "a.py", "description": "unterminated')
     assert isinstance(out, dict) and "findings" in out

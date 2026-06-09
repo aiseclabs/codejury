@@ -20,7 +20,7 @@ from codejury.detection import load_detection
 class FindingsFilter:
     min_confidence: float = 0.5
     drop_test_paths: bool = True
-    exclude_paths: tuple[str, ...] = field(default_factory=tuple)  # operator-configured path substrings
+    exclude_paths: tuple[str, ...] = field(default_factory=tuple)
 
     def filter(self, findings: list) -> tuple[list, list[tuple[object, str]]]:
         kept: list = []

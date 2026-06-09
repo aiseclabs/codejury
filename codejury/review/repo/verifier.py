@@ -28,7 +28,7 @@ from codejury.resources import FALSE_POSITIVE_TRAPS_FILE
 from codejury.review.repo.paths import safe_repo_path
 from codejury.review.repo.union import Candidate
 
-_READ_MAX = 40_000   # chars of the cited file read for the skeptic
+_READ_MAX = 40_000
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -61,8 +61,6 @@ _JSON_SHAPE = '{"real": true, "reason": "the controlling fact at file:line, refu
 
 
 def _read_file(root: str, rel: str) -> str:
-    # the candidate path may come from model output or a workspace issue file, so it is
-    # untrusted: an out-of-root path yields no code context, never a read outside the repo
     path = safe_repo_path(root, rel)
     if path is None:
         return ""
@@ -95,8 +93,6 @@ class ModelVerifier(Verifier):
             f"Code at {candidate.file}:\n```\n{code}\n```\n\n"
             f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
         )
-        # let a provider error raise: the orchestrator counts it and keeps the finding,
-        # it must never silently refute a real one
         result = self._provider.complete(
             system=_SYSTEM,
             messages=[Message(role="user", content=prompt)],
@@ -133,9 +129,9 @@ def verify_findings(
             except Exception:
                 errors += 1
         if not verdicts:
-            return candidate, True, "", errors           # no vote completed, keep it
+            return candidate, True, "", errors
         refuted = sum(1 for v in verdicts if not v.real)
-        if refuted * 2 > len(verdicts):                   # majority refuted
+        if refuted * 2 > len(verdicts):
             reason = next((v.reason for v in verdicts if not v.real), "")
             return candidate, False, reason, errors
         return candidate, True, "", errors

@@ -29,7 +29,7 @@ def test_build_units_groups_trace_targets_by_package():
     )
     by = {u.name: u for u in units}
     assert "accounts/managers/m.py" in by["accounts/views/api.py"].files
-    assert "authorization/dao/d.py" not in by["accounts/views/api.py"].files  # other package excluded
+    assert "authorization/dao/d.py" not in by["accounts/views/api.py"].files
 
 
 def test_run_converges_writes_findings_and_marks_units(custody_repo, tmp_path):
@@ -38,17 +38,14 @@ def test_run_converges_writes_findings_and_marks_units(custody_repo, tmp_path):
                           converge_after=2, max_passes=12)
     ws = res.scaffold.workspace
 
-    # same finding every pass, so it dedups to one and the union converges fast
     assert res.accumulator.converged
     assert len(res.accumulator.findings) == 1
 
-    # findings written both ways
     data = json.loads((ws / "findings.json").read_text())
     assert any(f["entry"] == "GET /wallets/<wallet_id>" for f in data["findings"])
     issues = list((ws / "issues").glob("*.md"))
     assert issues and "Risk: HIGH" in issues[0].read_text()
 
-    # every unit marked reviewed, so the gate's coverage check is satisfied
     units = list((ws / "units").glob("*.md"))
     assert units and all("Status: reviewed" in u.read_text() for u in units)
     assert not any("Status: open" in u.read_text() for u in units)
@@ -76,27 +73,23 @@ class _CountingVerifier(Verifier):
 
 def test_resume_skips_reviewed_units_and_verified_findings(custody_repo, tmp_path):
     ws = tmp_path / "ws"
-    # run 1: full fan-out + verify
     r1v = _CountingVerifier()
     run_repo_review(custody_repo, ws, reviewer=_CountingReviewer(), verifier=r1v,
                     converge_after=1, max_passes=4)
     findings_after_1 = json.loads((ws / "custody" / "findings.json").read_text())["findings"]
     assert findings_after_1 and r1v.calls >= 1
 
-    # run 2: resume the SAME workspace (fresh=False). Units are reviewed, the finding
-    # is verified, so neither backend is called again, and the result persists.
     r2 = _CountingReviewer()
     r2v = _CountingVerifier()
     run_repo_review(custody_repo, ws, reviewer=r2, verifier=r2v,
                     converge_after=1, max_passes=4, fresh=False)
-    assert r2.calls == 0          # reviewed units skipped
-    assert r2v.calls == 0         # verified findings skipped
+    assert r2.calls == 0
+    assert r2v.calls == 0
     findings_after_2 = json.loads((ws / "custody" / "findings.json").read_text())["findings"]
     assert {f["entry"] for f in findings_after_2} == {f["entry"] for f in findings_after_1}
 
 
 def test_parse_issue_captures_file_and_line_from_a_range(tmp_path):
-    # the body cites a location as a line range, the start line must be captured, not dropped
     p = tmp_path / "i.md"
     p.write_text("# freshness gap\n- Risk: HIGH\n- Type: replay\n- Source: `POST /v1/check`\n"
                  "## Analysis\n`authorizer/controllers/registrar.py:58-75` no nonce.\n")
@@ -107,8 +100,6 @@ def test_parse_issue_captures_file_and_line_from_a_range(tmp_path):
 
 
 def test_parse_issue_drops_an_out_of_root_cited_path(tmp_path):
-    # a tampered or hallucinated issue file citing a traversing or absolute path has no
-    # location inside the repo, so it is not reportable and is never read or shipped
     traversing = tmp_path / "t.md"
     traversing.write_text("# leak\n- Risk: HIGH\n- Type: idor\n"
                           "## Analysis\nsee `../../etc/secret.py:1` for the key.\n")
@@ -136,13 +127,13 @@ def test_finalize_dedups_verifies_and_reports(tmp_path):
             return Verdict(real=not bad, reason="lock holds on prod" if bad else "")
 
     fr = finalize_repo_review(target, ws, verifier=_V(), concurrency=1)
-    assert fr.parsed == 4                       # all four issue files parsed
-    assert len(fr.verify.confirmed) == 2        # a==a2 deduped to a,b,fp, then fp refuted leaves 2
+    assert fr.parsed == 4
+    assert len(fr.verify.confirmed) == 2
     assert len(fr.verify.refuted) == 1
     data = json.loads((fr.workspace / "findings.json").read_text())
     entries = {f["entry"] for f in data["findings"]}
     assert any("/x/" in e for e in entries) and any("/t" in e for e in entries)
-    assert not any("/r" in e for e in entries)  # the refuted FP is gone from the report
+    assert not any("/r" in e for e in entries)
 
 
 class _RaisingReviewer(UnitReviewer):
@@ -182,14 +173,14 @@ def test_failed_unit_stays_open_and_fails_the_gate(tmp_path):
     assert res.accumulator.errors > 0
 
     units = {u.stem: u.read_text() for u in (proj / "units").glob("*.md")}
-    assert "Status: open" in units[unit_slug("beta/routes.py")]       # the failed unit stays open
-    assert "Status: reviewed" in units[unit_slug("alpha/routes.py")]  # the clean unit is reviewed
+    assert "Status: open" in units[unit_slug("beta/routes.py")]
+    assert "Status: reviewed" in units[unit_slug("alpha/routes.py")]
 
     surface = (proj / "inventory" / "_surface.md").read_text()
     beta_row = next(line for line in surface.splitlines() if "beta/routes.py" in line)
     assert "open" in beta_row and "reviewed" not in beta_row
 
-    assert check_gate(proj).passed is False   # an open unit keeps the gate red
+    assert check_gate(proj).passed is False
 
 
 def test_corrupt_union_on_resume_raises_loud_and_keeps_report(custody_repo, tmp_path):
@@ -205,7 +196,7 @@ def test_corrupt_union_on_resume_raises_loud_and_keeps_report(custody_repo, tmp_
     with pytest.raises(ValueError, match="corrupt"):
         run_repo_review(custody_repo, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
                         converge_after=1, max_passes=4, fresh=False)
-    assert (proj / "findings.json").read_text() == before   # the prior report survives untouched
+    assert (proj / "findings.json").read_text() == before
 
 
 def test_corrupt_verified_on_finalize_raises_loud(tmp_path):
@@ -243,7 +234,6 @@ def test_finalize_drops_issue_with_no_file_location(tmp_path):
 
 
 def test_finalize_preserves_blocked_status(tmp_path):
-    # the confirmed/blocked distinction must survive parsing into the report
     target = tmp_path / "proj"
     target.mkdir()
     ws = tmp_path / "work"
@@ -259,15 +249,12 @@ def test_finalize_preserves_blocked_status(tmp_path):
 
 
 def test_parse_issue_accepts_data_driven_extensions(tmp_path):
-    # language knowledge is data, not code: a location in any extension detection.yaml
-    # lists must parse, not just the once-hardcoded py/js/ts/go/java/rb/php set
     rs = tmp_path / "rust.md"
     rs.write_text("# rust handler idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x`\n"
                   "- Status: confirmed\n## Analysis\nsrc/handler.rs:42 no owner check\n")
     c = _parse_issue(rs)
     assert c is not None and c.file == "src/handler.rs" and c.line == 42
 
-    # longest-first ordering: a .tsx path must not be truncated to the .ts prefix
     tsx = tmp_path / "tsx.md"
     tsx.write_text("# react xss\n- Risk: MEDIUM\n- Type: xss\n- Source: `x`\n"
                    "- Status: confirmed\n## Analysis\nweb/App.tsx:10 dangerouslySetInnerHTML\n")
@@ -286,8 +273,6 @@ def test_run_fails_loud_on_zero_units(tmp_path):
 
 
 def test_write_findings_clears_stale_generated_keeps_agent_files(tmp_path):
-    # a shrunk finding set must not leave a stale generated issue file behind, but an
-    # agent's hand-written issue file must never be removed
     from codejury.review.repo.engine import _write_findings
 
     ws = tmp_path / "ws"
@@ -301,9 +286,8 @@ def test_write_findings_clears_stale_generated_keeps_agent_files(tmp_path):
     generated = {p.name for p in (ws / "issues").glob("*.md")} - {"agent-note.md"}
     assert len(generated) == 2
 
-    # the set shrinks to one, so the other generated file must be gone
     _write_findings(ws, two[:1])
     names = {p.name for p in (ws / "issues").glob("*.md")}
-    assert "agent-note.md" in names                                  # never touched
-    assert len([n for n in names if n != "agent-note.md"]) == 1      # stale generated removed
+    assert "agent-note.md" in names
+    assert len([n for n in names if n != "agent-note.md"]) == 1
     assert len(json.loads((ws / "findings.json").read_text())["findings"]) == 1

@@ -17,8 +17,6 @@ from typing import Callable
 from codejury.review.repo.reviewer import Unit, UnitReviewer
 from codejury.review.repo.union import Accumulator
 
-# the per-pass lead lenses, cycled across passes so each pass hunts a different class
-# first and the union grows along a different axis each time. "" is a general pass.
 DEFAULT_LENSES = (
     "authorization",
     "replay",
@@ -53,11 +51,9 @@ def run_passes(
     is called after each pass for progress."""
     acc = accumulator if accumulator is not None else Accumulator(converge_after=converge_after)
     lenses = lenses or ("",)
-    reviewed_ok: set[str] = set()   # units that returned without error in at least one pass
+    reviewed_ok: set[str] = set()
 
     def review_unit(unit: Unit, lens: str):
-        # return the candidates and any error: one failing unit is counted and skipped, not
-        # allowed to abort the pass, and never silently treated as a clean empty unit
         try:
             return reviewer.review(unit, lens, shared_context=shared_context), None
         except Exception as exc:
@@ -67,7 +63,7 @@ def run_passes(
         lens = lenses[i % len(lenses)]
         if concurrency > 1 and len(units) > 1:
             with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                per_unit = list(pool.map(lambda u: review_unit(u, lens), units))   # order preserved
+                per_unit = list(pool.map(lambda u: review_unit(u, lens), units))
         else:
             per_unit = [review_unit(u, lens) for u in units]
         candidates = [c for cands, _err in per_unit for c in cands]
@@ -75,11 +71,10 @@ def run_passes(
         reviewed_ok.update(u.name for u, (_cands, err) in zip(units, per_unit) if err is None)
         n_new = acc.add_pass(candidates)
         if persist is not None:
-            persist(acc.findings)   # checkpoint the union each pass, so a kill mid-run can resume
+            persist(acc.findings)
         if on_pass is not None:
             on_pass(i + 1, lens, n_new, len(acc.findings))
         if acc.converged:
             break
-    # a unit that never once reviewed cleanly is a failed review, not a clean empty unit
     acc.failed_units = {u.name for u in units} - reviewed_ok
     return acc

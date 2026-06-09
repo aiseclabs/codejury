@@ -37,7 +37,7 @@ def test_agent_reviewer_parses_findings_from_claude_output():
     rev = AgentReviewer(runner=fake_runner)
     cands = rev.review(Unit(name="u", root="/repo", files=("a.py", "svc/b.py")), "authorization")
     assert len(cands) == 1 and cands[0].endpoint == "GET /x/<id>" and cands[0].severity == "HIGH"
-    assert captured["cwd"] == "/repo"                       # runs in the repo so it can read files
+    assert captured["cwd"] == "/repo"
     assert "a.py" in captured["prompt"] and "AUTHORIZATION LENS" in captured["prompt"]
 
 
@@ -47,14 +47,14 @@ def test_agent_verifier_parses_refutation_and_keeps_on_garbage():
     assert v.real is False and "lock holds" in v.reason
 
     garbage = AgentVerifier(runner=lambda p, **k: _envelope("no json"))
-    assert garbage.verify(Candidate(title="x"), "/repo").real is True   # unparseable keeps the finding
+    assert garbage.verify(Candidate(title="x"), "/repo").real is True
 
 
 def test_envelope_error_is_detected_not_treated_as_empty():
-    assert _envelope_error(_envelope("ok")) is None                       # success envelope
+    assert _envelope_error(_envelope("ok")) is None
     assert _envelope_error(json.dumps({"is_error": True, "subtype": "error_max_turns"})) is not None
     assert _envelope_error(json.dumps({"subtype": "success", "api_error_status": "rate_limited"})) is not None
-    assert _envelope_error("plain text, no envelope") is None             # nothing to flag
+    assert _envelope_error("plain text, no envelope") is None
 
 
 def test_ask_retries_a_transient_failure_then_succeeds():
@@ -67,19 +67,16 @@ def test_ask_retries_a_transient_failure_then_succeeds():
             raise RuntimeError("rate limited")
         return findings
 
-    rev = AgentReviewer(runner=flaky, retries=2, backoff=0)   # backoff 0 so the test does not sleep
+    rev = AgentReviewer(runner=flaky, retries=2, backoff=0)
     cands = rev.review(Unit(name="u", root=".", files=()), "")
-    assert calls["n"] == 2 and len(cands) == 1                # failed once, retried, succeeded
+    assert calls["n"] == 2 and len(cands) == 1
 
 
 def test_read_only_allowlist_is_mandatory_and_extra_args_cannot_remove_it():
-    # extra args may add a flag, but the read-only --allowedTools stays
     args = _compose_claude_args(("--model", "claude-x"), unsafe=False)
     assert "Read,Grep,Glob,LS" in args and "--model" in args and "claude-x" in args
-    # an extra --allowedTools is dropped, so a misconfigured env cannot widen the tools
     widened = _compose_claude_args(("--allowedTools", "Bash,Write", "--model", "x"), unsafe=False)
     assert "Bash,Write" not in widened and "Read,Grep,Glob,LS" in widened
-    # only the explicit unsafe opt-out hands tool selection to the extra args
     unsafe = _compose_claude_args(("--allowedTools", "Bash"), unsafe=True)
     assert "Bash" in unsafe and "Read,Grep,Glob,LS" not in unsafe
 
@@ -94,8 +91,8 @@ def test_env_args_are_shlex_parsed_and_cannot_drop_the_read_only_guard(monkeypat
 
     AgentReviewer(runner=fake_runner).review(Unit(name="u", root=".", files=()), "")
     args = captured["args"]
-    assert "Read,Grep,Glob,LS" in args and "Bash" not in args      # guard held
-    assert "be terse" in args                                       # shlex kept the quoted value as one token
+    assert "Read,Grep,Glob,LS" in args and "Bash" not in args
+    assert "be terse" in args
 
 
 def test_run_with_claude_cli_backends_needs_no_provider(custody_repo, tmp_path):
@@ -106,7 +103,7 @@ def test_run_with_claude_cli_backends_needs_no_provider(custody_repo, tmp_path):
     verifier = AgentVerifier(runner=lambda p, **k: _envelope('{"real": true, "reason": "real"}'))
 
     res = run_repo_review(custody_repo, tmp_path / "ws", reviewer=reviewer, verifier=verifier,
-                          converge_after=2, max_passes=8, concurrency=2)   # provider=None
+                          converge_after=2, max_passes=8, concurrency=2)
 
     assert res.verify is not None and res.verify.confirmed
     data = json.loads((res.scaffold.workspace / "findings.json").read_text())

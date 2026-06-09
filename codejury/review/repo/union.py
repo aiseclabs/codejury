@@ -29,12 +29,12 @@ class Candidate:
     """One finding a pass proposed, before cross-pass dedup and verification."""
     title: str
     category: str = ""
-    endpoint: str = ""          # METHOD path, the primary dedup key when present
+    endpoint: str = ""
     file: str = ""
     line: int | None = None
     severity: str = "HIGH"
-    evidence: str = ""          # the controlling fact, file:line
-    status: str = "confirmed"   # confirmed | blocked
+    evidence: str = ""
+    status: str = "confirmed"
 
     def key(self) -> tuple:
         """The dedup identity, location plus class. Endpoint is the precise location
@@ -91,15 +91,15 @@ def collapse_colocated(cands: list[Candidate]) -> list[Candidate]:
 @dataclass
 class Accumulator:
     """The running union plus the convergence signal across passes."""
-    converge_after: int = 2          # stop once this many consecutive passes add nothing
+    converge_after: int = 2
     pool: dict[tuple, Candidate] = field(default_factory=dict)
     new_per_pass: list[int] = field(default_factory=list)
-    errors: int = 0                  # unit reviews that raised, e.g. provider rate limits, never silently dropped
-    failed_units: set[str] = field(default_factory=set)  # units that never reviewed cleanly this run, left open so the gate catches them
-    sev_votes: dict[tuple, list[str]] = field(default_factory=dict)  # every severity each finding was graded, for the median
+    errors: int = 0
+    failed_units: set[str] = field(default_factory=set)
+    sev_votes: dict[tuple, list[str]] = field(default_factory=dict)
 
     def add_pass(self, candidates: list[Candidate]) -> int:
-        for c in candidates:                       # record the grade before dedup, so each pass is a vote
+        for c in candidates:
             self.sev_votes.setdefault(c.key(), []).append(c.severity)
         n = merge(self.pool, candidates)
         self.new_per_pass.append(n)

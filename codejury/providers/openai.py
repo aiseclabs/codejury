@@ -54,6 +54,6 @@ class OpenAIProvider(Provider):
             messages=api_messages,
             max_tokens=max_tokens,
             temperature=0,  # determinism: same input gives the same verdicts, invariant 2
-            timeout=600,    # bound a hung request rather than hang the audit
+            timeout=600,
         )
         return CompletionResult(text=choice_text(response))

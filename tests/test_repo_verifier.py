@@ -36,7 +36,7 @@ def test_error_keeps_finding_and_is_counted_never_silently_refuted():
     vr = verify_findings([Candidate(title="boom", endpoint="GET /a")],
                          FlakyVerifier(), ".", votes=1, concurrency=1)
     assert vr.errors >= 1
-    assert [c.title for c in vr.confirmed] == ["boom"]   # kept on error, not dropped
+    assert [c.title for c in vr.confirmed] == ["boom"]
     assert not vr.refuted
 
 
@@ -53,7 +53,7 @@ class SequenceVerifier(Verifier):
 def test_majority_vote_keeps_when_only_a_minority_refutes():
     vr = verify_findings([Candidate(title="x", endpoint="GET /a")],
                          SequenceVerifier(), ".", votes=3, concurrency=1)
-    assert [c.title for c in vr.confirmed] == ["x"]      # 2 real vs 1 refute -> kept
+    assert [c.title for c in vr.confirmed] == ["x"]
 
 
 def test_model_verifier_parses_a_refutation():
@@ -66,13 +66,12 @@ def test_model_verifier_parses_a_refutation():
 def test_model_verifier_keeps_on_unparseable_reply():
     prov = MockProvider(default="no json here")
     verdict = ModelVerifier(provider=prov, model="mock").verify(Candidate(title="x"), ".")
-    assert verdict.real is True   # unparseable verification keeps the finding, never refutes it
+    assert verdict.real is True
 
 
 def test_safe_repo_path_contains_reads_to_the_root(tmp_path):
     (tmp_path / "in.py").write_text("inside")
     assert safe_repo_path(tmp_path, "in.py") == (tmp_path / "in.py").resolve()
-    # an out-of-root candidate path must not resolve, so its file is never read or shipped
     assert safe_repo_path(tmp_path, "../in.py") is None
     assert safe_repo_path(tmp_path, "/etc/passwd") is None
     assert safe_repo_path(tmp_path, "") is None
@@ -92,6 +91,5 @@ def test_read_file_returns_empty_for_an_out_of_root_path(tmp_path):
     secret.write_text("token = 'sk-live'")
     root = tmp_path / "repo"
     root.mkdir()
-    # the exfiltration path: a traversing or absolute candidate file must read nothing
     assert _read_file(str(root), "../secret.py") == ""
     assert _read_file(str(root), str(secret)) == ""

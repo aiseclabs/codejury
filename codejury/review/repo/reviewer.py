@@ -32,8 +32,8 @@ class RepoReviewError(RuntimeError):
     reply such as a refusal or an error page as a clean unit."""
 
 
-_GATHER_PER_FILE = 24_000   # chars read per file
-_GATHER_TOTAL = 120_000     # chars of code packed into one unit prompt
+_GATHER_PER_FILE = 24_000
+_GATHER_TOTAL = 120_000
 
 _JSON_SHAPE = (
     '{"findings": [{"title": "...", "category": "<class id>", '
@@ -48,7 +48,7 @@ class Unit:
     """One unit of the worklist: the files it owns plus the files it traces into."""
     name: str
     root: str
-    files: tuple[str, ...]   # relative paths, owned entrypoints first then trace targets
+    files: tuple[str, ...]
 
 
 def candidates_from_obj(obj: object) -> list[Candidate]:
@@ -64,8 +64,6 @@ def candidates_from_obj(obj: object) -> list[Candidate]:
             continue
         line = d.get("line")
         sev = str(d.get("severity", "")).strip().upper()
-        # a model reply is untrusted: an absolute or parent-traversing file is not a
-        # location inside the repo, so drop it rather than plant an out-of-root location
         rel = str(d.get("file", "")).strip()
         file = "" if is_unsafe_rel(rel) else rel
         out.append(Candidate(
@@ -140,10 +138,6 @@ class ModelReviewer(UnitReviewer):
             + f"Unit `{unit.name}`, the code to review:\n```\n{_gather(unit)}\n```\n\n"
             f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
         )
-        # do not swallow a provider error or an unparseable reply: a silently-empty unit
-        # would let a rate-limited, failed, or refusal reply masquerade as "no findings".
-        # Raise instead. The pass-loop catches it, counts it, and surfaces it, so a
-        # failure is never read as a clean unit.
         result = self._provider.complete(
             system=_SYSTEM,
             messages=[Message(role="user", content=prompt)],

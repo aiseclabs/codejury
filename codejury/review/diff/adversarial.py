@@ -18,11 +18,6 @@ from codejury.finding import Finding, findings_from_list
 from codejury.json_parse import optional_json_object
 from codejury.providers.base import Message, Provider
 
-# The three role prompts. Finder is the red team, exhaustive and not self-filtering.
-# Challenger is the blue team, rebutting false positives and independently re-scanning.
-# Judge cross-validates both scans and keeps the survivors. The focus areas and the
-# do-not-report list are reused from the standard prompt so the two modes hunt the same
-# things.
 
 _FINDING_FIELDS = (
     '{"file": "path", "line": 0, "severity": "CRITICAL|HIGH|MEDIUM|LOW", '
@@ -125,10 +120,10 @@ def judge_prompt(diff: str, finder_findings: list, rebuttals: list, new_findings
 @dataclass(frozen=True, kw_only=True)
 class AdversarialResult:
     findings: list[Finding]
-    investigate: list[dict] = field(default_factory=list)   # open items that gate convergence
+    investigate: list[dict] = field(default_factory=list)
     rounds: int = 0
     converged: bool = False
-    degraded: bool = False  # the judge response was unusable, findings are the unjudged fallback
+    degraded: bool = False
 
 
 def _dicts(items: object) -> list[dict]:
@@ -185,7 +180,6 @@ class AdversarialAuditRunner:
     ) -> None:
         self._provider = provider
         self._max_tokens = max_tokens
-        # each role can run on its own model, each defaults to the base model
         self._finder_model = finder_model or model
         self._challenger_model = challenger_model or model
         self._judge_model = judge_model or model
@@ -234,8 +228,6 @@ class AdversarialAuditRunner:
             jp = judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context)
             verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge_model)
             if not judge_ok:
-                # the judge is the filter that controls false positives, and an
-                # unusable reply is usually transient, so re-ask once before degrading
                 verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge_model)
             if not judge_ok:
                 # judge still unusable: degrade, but apply the recall-safe
@@ -253,8 +245,6 @@ class AdversarialAuditRunner:
                 rounds=rounds,
             )
 
-            # converge when the Judge says so, or the confirmed set is unchanged
-            # since last round, but only once nothing is left to investigate
             keys = {_key(f) for f in judged.findings}
             judge_converged = bool(verdict.get("converged", False))
             stable = prev_keys is not None and keys == prev_keys

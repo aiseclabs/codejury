@@ -27,8 +27,8 @@ def test_retries_then_succeeds():
     inner = _Flaky(fail_times=2)
     provider = RetryProvider(inner, max_attempts=3, sleep=slept.append)
     assert _call(provider).text == "ok"
-    assert inner.calls == 3       # two failures, one success
-    assert slept == [1.0, 2.0]    # linear backoff between attempts, no real sleep
+    assert inner.calls == 3
+    assert slept == [1.0, 2.0]
 
 
 def test_reraises_after_exhausting_attempts():
@@ -64,7 +64,7 @@ class _Blank(Provider):
 def test_retries_blank_body_then_succeeds():
     inner = _Blank(blank_times=1)
     provider = RetryProvider(inner, max_attempts=3, sleep=lambda _: None)
-    assert _call(provider).text == "ok"      # the blank 200 is retried, not passed through
+    assert _call(provider).text == "ok"
     assert inner.calls == 2
 
 

@@ -16,8 +16,6 @@ import re
 
 _FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
-# Defensive ceiling: model output is bounded by max_tokens, but never scan an
-# unbounded string, the balanced-brace pass is superlinear on pathological input.
 _MAX_SCAN = 1_000_000
 
 

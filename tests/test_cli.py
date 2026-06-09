@@ -25,7 +25,6 @@ def test_split_diff_by_file():
 
 def test_split_diff_empty_and_unbounded():
     assert split_diff_by_file("") == []
-    # a fragment with no `diff --git` boundary is returned as one chunk
     assert split_diff_by_file("just text\n") == ["just text\n"]
 
 
@@ -38,15 +37,12 @@ def test_dedup_findings_collapses_identical():
 
 
 def test_large_diff_is_audited_per_file(monkeypatch):
-    # force the chunking path on a small diff
     monkeypatch.setattr("codejury.review.diff.runner._MAX_DIFF_CHARS", 1)
     resp = ('{"findings": [{"file": "a.py", "line": 1, "severity": "HIGH", '
             '"category": "sql_injection", "description": "x", "confidence": 0.9}]}')
     provider = MockProvider(default=resp)
     kept, _, _ = audit_diff(_FILE_A + _FILE_B, provider=provider, model="mock")
-    # one call per file chunk, not a single whole-diff call
     assert len(provider.calls) == 2
-    # category normalized onto the rule-id set
     assert all(f.category == "sql-injection" for f in kept)
 
 
@@ -59,8 +55,6 @@ def test_audit_diff_honors_exclude_paths():
     assert kept == [] and dropped and "excluded path" in dropped[0][1]
 
 
-# --- CLI surface ---
-
 def test_version_flag_exits_zero(capsys):
     with pytest.raises(SystemExit) as exc:
         main(["--version"])
@@ -69,7 +63,6 @@ def test_version_flag_exits_zero(capsys):
 
 
 def test_review_diff_dry_run_is_zero_config(capsys):
-    # no diff input, no key: the built-in demo diff runs through the mock provider
     rc = main(["review", "diff", "--dry-run"])
     assert rc == 0
     assert "sql-injection" in capsys.readouterr().out
@@ -82,13 +75,11 @@ def test_review_diff_dry_run_respects_exclude(capsys):
 
 
 def test_old_audit_command_is_gone(capsys):
-    with pytest.raises(SystemExit):   # argparse rejects the removed command
+    with pytest.raises(SystemExit):
         main(["audit", "--dry-run"])
 
 
 def test_review_repo_writes_methodology_to_workspace(tmp_path):
-    # the scaffold drops the methodology into the workspace so the slash command and
-    # the agent can read it, alongside printing it
     repo = tmp_path / "svc"
     repo.mkdir()
     (repo / "app.py").write_text("x = 1\n")
@@ -99,7 +90,6 @@ def test_review_repo_writes_methodology_to_workspace(tmp_path):
 
 
 def test_python_dash_m_codejury_runs():
-    # `python -m codejury` must work, for a shell without the console script on PATH
     import subprocess, sys
     r = subprocess.run([sys.executable, "-m", "codejury", "--version"], capture_output=True, text=True)
     assert r.returncode == 0 and "codejury" in r.stdout.lower()
@@ -116,22 +106,18 @@ def test_install_slash_command_refuses_to_clobber_without_force(tmp_path, capsys
     target = tmp_path / "codejury-review-repo.md"
     target.write_text("my own prompt")
     assert main(["install-slash-command", "--dir", str(tmp_path)]) == 1
-    assert target.read_text() == "my own prompt"          # not overwritten
+    assert target.read_text() == "my own prompt"
     assert "already exists" in capsys.readouterr().err
     assert main(["install-slash-command", "--dir", str(tmp_path), "--force"]) == 0
-    assert "codejury review repo" in target.read_text()    # --force overwrites
+    assert "codejury review repo" in target.read_text()
 
 
 def test_slash_command_workspace_matches_cli_default():
-    # the slash command hardcodes the workspace path, so it must match the CLI default,
-    # guarding against a half-migration that moves one but not the other
     root = Path(__file__).resolve().parents[1]
     default = "/var/tmp/codejury-review"
     assert f'default="{default}"' in (root / "codejury" / "cli.py").read_text()
     assert default in (root / "codejury" / "playbook" / "slash-command.md").read_text()
 
-
-# --- CLI mode validation and exit-code contract ---
 
 def _flask_repo(root):
     root.mkdir()
@@ -143,8 +129,6 @@ def _flask_repo(root):
 
 
 def test_diff_fail_on_high_exits_nonzero():
-    # the dry-run emits one HIGH finding, so --fail-on high is a non-zero exit for CI,
-    # while no --fail-on is a clean exit even with findings
     assert main(["review", "diff", "--dry-run", "--fail-on", "high"]) == 1
     assert main(["review", "diff", "--dry-run"]) == 0
 
@@ -152,9 +136,7 @@ def test_diff_fail_on_high_exits_nonzero():
 def test_repo_gate_exit_codes(tmp_path):
     repo = _flask_repo(tmp_path / "svc")
     ws = tmp_path / "ws"
-    # nothing scaffolded yet, so the gate fails: nothing was reviewed
     assert main(["review", "repo", str(repo), "--workspace", str(ws), "--gate"]) == 1
-    # a full dry-run builds a complete workspace, so the gate passes
     assert main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--dry-run"]) == 0
     assert main(["review", "repo", str(repo), "--workspace", str(ws), "--gate"]) == 0
 
@@ -178,8 +160,6 @@ def test_review_diff_empty_stdin_is_clean(monkeypatch, capsys):
 def test_repo_run_and_gate_flags_gate_takes_precedence(tmp_path):
     repo = _flask_repo(tmp_path / "svc")
     ws = tmp_path / "ws"
-    # --gate is evaluated before --run, so with both flags the gate runs against the
-    # un-scaffolded workspace and fails, the engine never runs
     rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--gate", "--dry-run"])
     assert rc == 1
     assert not (ws / "svc" / "findings.json").exists()
@@ -188,8 +168,6 @@ def test_repo_run_and_gate_flags_gate_takes_precedence(tmp_path):
 def test_repo_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
     repo = _flask_repo(tmp_path / "svc")
     ws = tmp_path / "ws"
-    # a provider that returns unparseable text makes ModelReviewer raise, the pass-loop
-    # counts it, and a partial run must not exit clean
     monkeypatch.setattr("codejury.cli.make_provider",
                         lambda *a, **k: MockProvider(default="not json at all"))
     rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--no-verify"])

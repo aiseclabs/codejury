@@ -22,42 +22,39 @@ def test_candidate_entrypoint_files_by_glob():
 
 
 def test_candidate_entrypoint_files_by_content_markers(tmp_path):
-    # a DRF viewset in an oddly named file no glob would catch, flagged by marker
     (tmp_path / "handlers.py").write_text("class TokenViewSet(ViewSet):\n    pass\n")
     (tmp_path / "notes.md").write_text("ViewSet mentioned in prose, not code\n")
     (tmp_path / "util.py").write_text("def helper():\n    return 1\n")
     got = candidate_entrypoint_files(
         ["handlers.py", "notes.md", "util.py"], root=tmp_path, markers=["ViewSet"]
     )
-    assert got == ["handlers.py"]   # .md is not scanned, util has no marker
+    assert got == ["handlers.py"]
 
 
 def test_candidate_entrypoint_files_sorted_and_deduped(tmp_path):
-    # a file can be flagged by both a glob and a marker, and the input can repeat, so
-    # the promised sorted-unique contract must hold
     (tmp_path / "a").mkdir()
     (tmp_path / "b").mkdir()
     (tmp_path / "a" / "urls.py").write_text("class ViewSet:\n    pass\n")
     (tmp_path / "b" / "urls.py").write_text("x = 1\n")
     files = ["b/urls.py", "a/urls.py", "a/urls.py"]
     got = candidate_entrypoint_files(files, root=tmp_path, globs=["*urls.py"], markers=["ViewSet"])
-    assert got == ["a/urls.py", "b/urls.py"]   # sorted, no duplicate from the double match
+    assert got == ["a/urls.py", "b/urls.py"]
 
 
 def test_build_from_dir_walks_tree_and_skips_noise(tmp_path):
     (tmp_path / "app.py").write_text("x = 1")
     (tmp_path / "pkg").mkdir()
     (tmp_path / "pkg" / "urls.py").write_text("x = 1")
-    (tmp_path / "go.mod").write_text("module x")          # non-.py files are listed too
+    (tmp_path / "go.mod").write_text("module x")
     (tmp_path / "__pycache__").mkdir()
     (tmp_path / "__pycache__" / "junk.py").write_text("x = 1")
     (tmp_path / "build" / "lib" / "pkg").mkdir(parents=True)
-    (tmp_path / "build" / "lib" / "pkg" / "urls.py").write_text("x = 1")  # build artifact, a duplicate of source
+    (tmp_path / "build" / "lib" / "pkg" / "urls.py").write_text("x = 1")
 
     m = build_repo_model_from_dir(tmp_path)
     assert {"app.py", "pkg/urls.py", "go.mod"} <= set(m.files)
-    assert all("__pycache__" not in f for f in m.files)   # noise dir skipped
-    assert all(not f.startswith("build/") for f in m.files)   # build output skipped, no duplicate source
+    assert all("__pycache__" not in f for f in m.files)
+    assert all(not f.startswith("build/") for f in m.files)
 
 
 def test_build_is_deterministic():

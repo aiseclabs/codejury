@@ -44,7 +44,6 @@ def test_scaffold_seeds_the_inventory_templates(tmp_path):
     sev = res.workspace / "inventory" / "_severity.md"
     assert surface.is_file() and "Attack Surface Inventory" in surface.read_text()
     assert auth.is_file() and "Authorization Model" in auth.read_text()
-    # the severity rubric is seeded and surfaces all four levels, not a HIGH floor
     rubric = sev.read_text()
     assert sev.is_file() and "Severity Rubric" in rubric
     for level in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
@@ -81,15 +80,13 @@ def test_scaffold_surfaces_downstream_logic_layers(tmp_path):
 
 
 def test_scaffold_seeds_a_unit_per_candidate(tmp_path):
-    # the worklist is code-owned: the scaffold writes one unit per candidate
-    # entrypoint, each Status: open and carrying the fixed deep-review mandate
     res = scaffold(_target(tmp_path), tmp_path / "work")
     units = list((res.workspace / "units").glob("*.md"))
-    assert units  # app.py is a flask candidate, so at least one unit is seeded
+    assert units
     body = (res.workspace / "units" / "app.md").read_text()
     assert "- Status: open" in body
     assert "app.py" in body
-    assert "trace" in body.lower() and "_severity.md" in body  # mandate embedded, grades by the rubric
+    assert "trace" in body.lower() and "_severity.md" in body
 
 
 def test_methodology_is_a_fan_out(tmp_path):
@@ -98,13 +95,13 @@ def test_methodology_is_a_fan_out(tmp_path):
     assert "Why Fan Out" in res.methodology
     for phase in ("Map the Attack Surface", "Fan Out", "Aggregate"):
         assert phase in res.methodology
-    assert "Status: reviewed" in res.methodology  # the per-unit coverage convention
+    assert "Status: reviewed" in res.methodology
 
 
 def test_methodology_accumulates_across_runs(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert "Accumulate Across Runs" in res.methodology
-    assert "Status: reviewed" in res.methodology  # resume skips reviewed units, not a MEMORY.md
+    assert "Status: reviewed" in res.methodology
 
 
 def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):
@@ -125,13 +122,11 @@ def test_scaffold_seeds_stack_guides(tmp_path):
 
 
 def test_scaffold_seeds_vulnerability_classes(tmp_path):
-    # the methodology has each unit read `_vulnerabilities.md`, so the scaffold must seed it
     res = scaffold(_target(tmp_path), tmp_path / "work")
     vulns = res.workspace / "_vulnerabilities.md"
     assert vulns.is_file()
     text = vulns.read_text()
     assert "Vulnerability Classes" in text
-    # several shipped class bodies are concatenated in, not just a header
     assert text.count("\n---\n") >= 5
 
 
@@ -155,7 +150,7 @@ def test_scaffold_fresh_clears_prior_output(tmp_path):
     assert fresh.had_prior_run is True and fresh.cleared
     assert not (fresh.workspace / "issues" / "found.md").exists()
     assert not (fresh.workspace / "units" / "u1.md").exists()
-    assert (fresh.workspace / "inventory" / "_surface.md").is_file()  # reseeded
+    assert (fresh.workspace / "inventory" / "_surface.md").is_file()
 
 
 def test_scaffold_creates_a_private_workspace(tmp_path):
@@ -166,15 +161,13 @@ def test_scaffold_creates_a_private_workspace(tmp_path):
 
 
 def test_fresh_refuses_to_clear_an_unmarked_directory(tmp_path):
-    # --workspace is arbitrary and a target name such as `api` is common, so --fresh must
-    # not wipe a directory that is not a codejury workspace
     ws_root = tmp_path / "work"
     project_ws = ws_root / "myservice"
     project_ws.mkdir(parents=True)
     (project_ws / "important.txt").write_text("not codejury data")
     with pytest.raises(ValueError, match="codejury workspace"):
         scaffold(_target(tmp_path), ws_root, fresh=True)
-    assert (project_ws / "important.txt").exists()   # refused, nothing deleted
+    assert (project_ws / "important.txt").exists()
 
 
 def test_plain_repo_still_scaffolds(tmp_path):

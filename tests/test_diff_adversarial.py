@@ -43,14 +43,13 @@ def _run(responses, **kw):
 
 def test_three_roles_run_in_order_one_round():
     provider, out = _run([_finder([_VULN]), _challenger(), _judge([_VULN])], max_rounds=1)
-    assert len(provider.calls) == 3                      # finder, challenger, judge
-    assert [c["system"][:10] for c in provider.calls]    # three distinct system prompts
+    assert len(provider.calls) == 3
+    assert [c["system"][:10] for c in provider.calls]
     assert len(out.findings) == 1 and out.findings[0].category == "sql_injection"
     assert out.rounds == 1
 
 
 def test_judge_dismissal_drops_a_finding():
-    # finder reports two, judge keeps one and dismisses the other
     second = {**_VULN, "line": 5, "category": "xss"}
     _, out = _run(
         [_finder([_VULN, second]), _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "escaped"}]),
@@ -66,18 +65,16 @@ def test_challenger_independent_finding_can_survive():
         [_finder([]), _challenger(new_findings=[missed]), _judge([missed])],
         max_rounds=1,
     )
-    assert [f.category for f in out.findings] == ["idor"]   # finder missed it, challenger caught it
+    assert [f.category for f in out.findings] == ["idor"]
 
 
 def test_judge_converged_flag_stops_early():
-    # the Judge declares converged in round 1 (no investigate) -> stop after one round
     provider, out = _run([_finder([_VULN]), _challenger(), _judge([_VULN], converged=True)], max_rounds=5)
     assert out.converged is True and out.rounds == 1
     assert len(provider.calls) == 3
 
 
 def test_converged_flag_ignored_while_investigate_pending():
-    # even if the Judge says converged, an open investigate item forces another round
     r1 = [_finder([_VULN]), _challenger(), _judge([_VULN], converged=True,
                                                   investigate=[{"target": "x", "reason": "runtime check"}])]
     provider, out = _run(r1 + r1, max_rounds=2)
@@ -99,16 +96,14 @@ def test_investigate_items_are_carried():
 
 
 def test_converges_when_confirmed_set_stable():
-    # two identical rounds -> the judged set is unchanged -> converge after round 2
     rounds = [_finder([_VULN]), _challenger(), _judge([_VULN])] * 2
     provider, out = _run(rounds, max_rounds=5)
     assert out.converged is True
     assert out.rounds == 2
-    assert len(provider.calls) == 6                       # 2 rounds * 3 roles, not 5
+    assert len(provider.calls) == 6
 
 
 def test_runs_to_max_rounds_when_unstable():
-    # the judged set changes every round -> never converges -> capped
     r1 = [_finder([_VULN]), _challenger(), _judge([_VULN])]
     r2 = [_finder([_VULN]), _challenger(), _judge([{**_VULN, "line": 7}])]
     provider, out = _run(r1 + r2, max_rounds=2)
@@ -125,7 +120,7 @@ def test_unusable_judge_falls_back_to_finder_findings_not_empty():
     # finder finds a real issue, but the judge reply is unparseable (provider error,
     # blocked request): the finding must survive as a degraded result, not vanish.
     _, out = _run([_finder([_VULN]), _challenger(), "<html>blocked by WAF</html>"], max_rounds=1)
-    assert [f.category for f in out.findings] == ["sql_injection"]   # finder finding preserved
+    assert [f.category for f in out.findings] == ["sql_injection"]
     assert out.degraded is True
     assert out.converged is False
 
@@ -189,11 +184,11 @@ def test_degraded_fallback_drops_challenger_dismissed_findings():
     _, out = _run(
         [_finder([_VULN, second]),
          _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "output is escaped"}]),
-         "blocked", "blocked"],   # judge call + its one retry both unusable
+         "blocked", "blocked"],
         max_rounds=1,
     )
     assert out.degraded is True
-    assert [f.category for f in out.findings] == ["sql_injection"]   # the dismissed xss at app.py:5 is dropped
+    assert [f.category for f in out.findings] == ["sql_injection"]
 
 
 def test_per_role_models_are_used():
@@ -212,7 +207,7 @@ def test_role_models_default_to_base():
 
 
 def test_prompts_carry_role_context():
-    assert "red-team" not in finder_prompt(_DIFF)          # role is in the system prompt
+    assert "red-team" not in finder_prompt(_DIFF)
     assert "SELECT * FROM u" in finder_prompt(_DIFF)
     fp = challenger_prompt(_DIFF, [_VULN])
     assert "rebuttal" in fp and "Independently" in fp and "sql_injection" in fp

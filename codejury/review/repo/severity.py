@@ -24,7 +24,7 @@ import re
 
 from codejury.severity import SEVERITIES, normalize
 
-LEVELS = tuple(reversed(SEVERITIES))   # lowest to highest, for the median's ordering
+LEVELS = tuple(reversed(SEVERITIES))
 _RANK = {s: i for i, s in enumerate(LEVELS)}
 
 
@@ -45,24 +45,16 @@ def median(severities: list[str]) -> str:
     return LEVELS[ordered[len(ordered) // 2]]
 
 
-# the firm rules from severity-rubric.md, made code so a determinable severity does
-# not depend on the model's mood. Matched on the finding's class and title text. Each
-# returns the minimum level for that class, or None when no rule applies.
 def floor_for(category: str, title: str = "") -> str | None:
     text = f"{category} {title}".lower()
-    # a live credential, token, signing key, or secret disclosed: the harm is the
-    # access it grants, not the bytes
     if re.search(r"credential|secret|private[ _-]?key|signing[ _-]?key|bearer token|"
                  r"api[ _-]?key|token.{0,20}(leak|logged|exposed|disclos)", text):
         return "HIGH"
-    # a privileged signed or authenticated request with no nonce or freshness window
     if re.search(r"\breplay\b|missing freshness|no (consumed )?nonce|no freshness", text):
         return "HIGH"
-    # authentication or signature forgery / bypass: a trust control defeated
     if re.search(r"auth(entication)?[ _-]?bypass|signature forg|forge.{0,15}(signature|token|jwt)|"
                  r"jwt forg|self.?cert", text):
         return "HIGH"
-    # cross-user / cross-tenant IDOR or a missing authorization check
     if re.search(r"\bidor\b|insecure direct object|missing author|broken access|"
                  r"cross.?(user|tenant|service).{0,20}(read|idor|access|disclos)", text):
         return "MEDIUM"

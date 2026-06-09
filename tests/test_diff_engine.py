@@ -16,15 +16,13 @@ def _reply(findings):
     return json.dumps({"findings": findings})
 
 
-# --- Finding domain ---
-
 def test_finding_from_dict_maps_fields():
     f = finding_from_dict({
         "file": "app.py", "line": 3, "severity": "high", "category": "sql_injection",
         "description": "concat", "exploit_scenario": "send ' OR 1=1", "confidence": 0.9,
     })
     assert f.file == "app.py" and f.line == 3
-    assert f.severity == "HIGH"            # normalized
+    assert f.severity == "HIGH"
     assert f.category == "sql_injection" and f.confidence == 0.9
 
 
@@ -34,17 +32,15 @@ def test_finding_without_file_is_dropped():
 
 def test_finding_coerces_bad_values():
     f = finding_from_dict({"file": "a.py", "line": 0, "severity": "SCARY", "confidence": 5})
-    assert f.line is None              # line 0 invalid
-    assert f.severity == "MEDIUM"      # unknown severity falls back
-    assert f.confidence == 0.5         # out-of-range confidence falls back
+    assert f.line is None
+    assert f.severity == "MEDIUM"
+    assert f.confidence == 0.5
 
 
 def test_findings_from_list_filters_bad_entries():
     out = findings_from_list([{"file": "a.py"}, "not a dict", {"no": "file"}])
     assert len(out) == 1 and out[0].file == "a.py"
 
-
-# --- standard engine ---
 
 def test_engine_parses_findings():
     reply = _reply([
@@ -74,7 +70,6 @@ def test_engine_raises_on_unparseable_reply():
 
 
 def test_engine_raises_on_wrong_shape_json():
-    # valid JSON but no `findings` key is a malformed reply, not a clean audit
     import pytest
 
     from codejury.review.diff.engine import AuditError
@@ -89,21 +84,19 @@ def test_guides_for_diff_selects_by_path_and_content():
     diff = ("diff --git a/app/urls.py b/app/urls.py\n"
             "+from django.urls import path\n+urlpatterns = []\n")
     notes = guides_for_diff(diff)
-    assert "Django" in notes and "Python" in notes        # urls.py + .py + the django import
-    assert guides_for_diff("+++ b/README.md\n+hello\n") == ""   # nothing relevant
+    assert "Django" in notes and "Python" in notes
+    assert guides_for_diff("+++ b/README.md\n+hello\n") == ""
 
 
 def test_prompt_carries_diff_focus_and_do_not_report():
     p = standard_audit_prompt(_DIFF, vulnerabilities="VULN-X", context="def caller(): ...", stack="STACK-NOTE")
-    assert "SELECT * FROM u" in p          # the diff
-    assert "Do NOT report" in p            # the noise-control list
-    assert "IDOR" in p                     # the focus
-    assert "VULN-X" in p                   # vulnerability excerpt
-    assert "STACK-NOTE" in p               # language/framework conventions block
-    assert "def caller()" in p             # context block
+    assert "SELECT * FROM u" in p
+    assert "Do NOT report" in p
+    assert "IDOR" in p
+    assert "VULN-X" in p
+    assert "STACK-NOTE" in p
+    assert "def caller()" in p
 
-
-# --- findings filter ---
 
 def _f(file, conf=0.9):
     return Finding(file=file, line=1, severity="HIGH", category="sql_injection", confidence=conf)
@@ -116,13 +109,11 @@ def test_filter_drops_test_paths():
 
 
 def test_filter_drops_test_file_naming_outside_test_dir():
-    # a test-file naming convention is enough, even in a non-test directory
     kept, dropped = FindingsFilter().filter([_f("app/views_test.go"), _f("app/billing.spec.js")])
     assert kept == [] and len(dropped) == 2
 
 
 def test_filter_keeps_production_file_with_sampleish_name():
-    # a bare sample_/mock_ prefix is production code, not a test, so it must not be dropped
     kept, dropped = FindingsFilter().filter(
         [_f("app/sample_rate.py"), _f("app/mock_billing.py"), _f("app/example_config.py")]
     )

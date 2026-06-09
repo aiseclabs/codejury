@@ -57,7 +57,7 @@ class AnthropicProvider(Provider):
             model=model,
             max_tokens=max_tokens,
             temperature=0,  # determinism: same input gives the same verdicts, invariant 2
-            timeout=600,    # bound a hung request rather than hang the audit
+            timeout=600,
             system=system_param,
             messages=[{"role": m.role, "content": m.content} for m in messages],
         )

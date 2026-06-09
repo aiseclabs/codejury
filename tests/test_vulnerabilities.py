@@ -12,7 +12,6 @@ from codejury.review.diff.vulnerabilities import (
 )
 from codejury.resources import KNOWLEDGE_INDEX, VULNERABILITIES_DIR
 
-# The frozen 25-class application-security set (id = category = SARIF ruleId).
 _EXPECTED_IDS = {
     "missing-authorization", "insecure-direct-object-reference", "cross-site-request-forgery",
     "path-traversal", "open-redirect", "insecure-cryptography", "insecure-transport",
@@ -38,20 +37,20 @@ def test_vulnerabilities_are_exactly_the_frozen_set():
 
 def test_normalize_category_maps_onto_vulnerability_id_set():
     allowed = set(allowed_categories())
-    assert normalize_category("sql_injection", allowed) == "sql-injection"   # underscore -> hyphen
-    assert normalize_category("SQL Injection", allowed) == "sql-injection"   # case + space
-    assert normalize_category("sql-injection", allowed) == "sql-injection"   # already canonical
-    assert normalize_category("buffer overflow", allowed) == "other"         # not in the closed set
-    assert normalize_category("", allowed) == ""                             # empty stays empty
+    assert normalize_category("sql_injection", allowed) == "sql-injection"
+    assert normalize_category("SQL Injection", allowed) == "sql-injection"
+    assert normalize_category("sql-injection", allowed) == "sql-injection"
+    assert normalize_category("buffer overflow", allowed) == "other"
+    assert normalize_category("", allowed) == ""
 
 
 def test_vulnerabilities_load_with_frontmatter():
     sqli = _BY_ID["sql-injection"]
     assert sqli.impact == "CRITICAL"
     assert "cwe-89" in sqli.tags
-    assert sqli.triggers and "Parameterized" not in sqli.triggers  # triggers, not prose
-    assert "parameterized queries" in sqli.body.lower()           # body carries the guidance
-    assert _BY_ID["insecure-direct-object-reference"].impact == "HIGH"  # renamed from idor (B convention)
+    assert sqli.triggers and "Parameterized" not in sqli.triggers
+    assert "parameterized queries" in sqli.body.lower()
+    assert _BY_ID["insecure-direct-object-reference"].impact == "HIGH"
 
 
 def test_shipped_vulnerabilities_are_well_formed():
@@ -64,21 +63,18 @@ def test_shipped_vulnerabilities_are_well_formed():
 def test_select_matches_by_trigger():
     sel = select_vulnerabilities(_SQL_DIFF, _VULNS)
     assert "sql-injection" in [v.id for v in sel]
-    assert "server-side-request-forgery" not in [v.id for v in sel]   # unrelated class not pulled in
+    assert "server-side-request-forgery" not in [v.id for v in sel]
 
 
 def test_select_is_capped_and_severity_ordered():
-    # a diff that trips many triggers
     busy = "os.system(x)\ncursor.execute(q)\nrequests.get(u)\npickle.loads(d)\nopen(p)\njwt.decode(t)\n"
     sel = select_vulnerabilities(busy, _VULNS, limit=3)
     assert len(sel) == 3
     impacts = [v.impact for v in sel]
-    assert impacts == sorted(impacts, key=lambda i: {"CRITICAL": 0, "HIGH": 1}.get(i, 2))   # criticals first
+    assert impacts == sorted(impacts, key=lambda i: {"CRITICAL": 0, "HIGH": 1}.get(i, 2))
 
 
 def test_jwt_triggers_skip_generic_decode_and_none():
-    # a bytes .decode() and a None literal are everywhere, so they must not drag in
-    # the JWT class, but a real jwt.decode must still select it
     generic = "+    text = payload.decode('utf-8')\n+    cfg = None\n"
     assert "jwt-validation" not in [v.id for v in select_vulnerabilities(generic, _VULNS)]
     real = "+    claims = jwt.decode(token, options={'verify_signature': False})\n"
@@ -93,17 +89,15 @@ def test_no_match_is_empty():
 def test_vulnerabilities_for_diff_returns_relevant_body():
     text = vulnerabilities_for_diff(_CMDI_DIFF)
     assert "Command Injection" in text and "shell=False" in text
-    assert "SQL Injection" not in text                  # only the matched class
+    assert "SQL Injection" not in text
 
 
 def test_knowledge_index_ships_and_is_not_a_vulnerability():
-    assert "index" not in {v.id for v in _VULNS}        # the index is not loaded as a class
-    assert KNOWLEDGE_INDEX.is_file()                    # it ships beside vulnerabilities/, not inside it
+    assert "index" not in {v.id for v in _VULNS}
+    assert KNOWLEDGE_INDEX.is_file()
     assert KNOWLEDGE_INDEX.parent == VULNERABILITIES_DIR.parent
 
 
 def test_knowledge_index_lists_exactly_the_class_set():
-    # the index is hand-maintained, so guard against it drifting from the shipped files:
-    # every `id` bullet under an OWASP section must be a real class, and every class listed
     listed = set(re.findall(r"^- `([a-z0-9-]+)`", KNOWLEDGE_INDEX.read_text(encoding="utf-8"), re.MULTILINE))
     assert listed == _EXPECTED_IDS

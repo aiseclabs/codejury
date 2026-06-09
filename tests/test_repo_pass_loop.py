@@ -42,17 +42,17 @@ def test_lenses_cycle_and_union_converges_then_stops_early():
     reviewer = LensReviewer({"x": [a], "y": [b]})
     acc = run_passes(_U, reviewer, lenses=("x", "y"), converge_after=2, max_passes=24)
 
-    assert {c.title for c in acc.findings} == {"a", "b"}     # union of both lenses
+    assert {c.title for c in acc.findings} == {"a", "b"}
     assert acc.converged
-    assert reviewer.lenses_seen == ["x", "y", "x", "y"]      # cycled, stopped early at 4 passes
-    assert acc.new_per_pass == [1, 1, 0, 0]                  # grew, then two empty -> converged
+    assert reviewer.lenses_seen == ["x", "y", "x", "y"]
+    assert acc.new_per_pass == [1, 1, 0, 0]
 
 
 def test_runs_to_max_passes_when_never_converges():
     reviewer = NewEachPassReviewer()
     acc = run_passes(_U, reviewer, lenses=("",), converge_after=2, max_passes=5)
     assert not acc.converged
-    assert len(acc.new_per_pass) == 5                        # never stops early
+    assert len(acc.new_per_pass) == 5
     assert len(acc.findings) == 5
 
 
@@ -67,7 +67,7 @@ def test_concurrency_yields_same_union_as_serial():
     serial = run_passes(units, PerUnitReviewer(), lenses=("",), concurrency=1, max_passes=3)
     parallel = run_passes(units, PerUnitReviewer(), lenses=("",), concurrency=4, max_passes=3)
     assert {c.key() for c in serial.findings} == {c.key() for c in parallel.findings}
-    assert len(parallel.findings) == 6   # one per unit, no loss under concurrency
+    assert len(parallel.findings) == 6
 
 
 class FlakyReviewer(UnitReviewer):
@@ -83,15 +83,15 @@ def test_unit_failures_are_counted_not_silent():
              Unit(name="bad", root=".", files=()),
              Unit(name="ok2", root=".", files=())]
     acc = run_passes(units, FlakyReviewer(), lenses=("",), concurrency=2, max_passes=2)
-    assert acc.errors >= 1                                   # the failure was surfaced, not swallowed
-    assert {c.title for c in acc.findings} == {"ok1", "ok2"}  # a failing unit does not abort the others
+    assert acc.errors >= 1
+    assert {c.title for c in acc.findings} == {"ok1", "ok2"}
 
 
 def test_candidates_from_obj_is_tolerant():
     obj = {"findings": [
         {"title": "real", "severity": "CRITICAL", "endpoint": "POST /t", "category": "idor"},
-        {"no_title": 1},     # dropped, no title
-        "junk",              # dropped, not a dict
+        {"no_title": 1},
+        "junk",
     ]}
     cands = candidates_from_obj(obj)
     assert len(cands) == 1
@@ -99,7 +99,6 @@ def test_candidates_from_obj_is_tolerant():
 
 
 def test_candidates_default_severity_is_medium_not_dropped():
-    # a finding with a junk severity is kept at MEDIUM, never silently dropped
     cands = candidates_from_obj({"findings": [{"title": "x", "severity": "spicy"}]})
     assert len(cands) == 1 and cands[0].severity == "MEDIUM"
 
@@ -118,14 +117,12 @@ def test_model_reviewer_builds_prompt_and_parses(tmp_path):
     assert cands[0].endpoint == "GET /x/<id>" and cands[0].severity == "HIGH"
 
     sent = prov.calls[0]["messages"][0].content
-    assert "AUTHORIZATION LENS" in sent          # the pass lens
-    assert "Severity rubric" in sent             # the rubric is embedded
-    assert "def handler" in sent                 # the unit's code was gathered in
+    assert "AUTHORIZATION LENS" in sent
+    assert "Severity rubric" in sent
+    assert "def handler" in sent
 
 
 def test_model_reviewer_raises_on_unparseable_reply():
-    # a 200 reply with no parseable findings object is a failed review, not an empty one,
-    # so it raises rather than reading the failure as a clean unit
     prov = MockProvider(default="sorry, no JSON here")
     reviewer = ModelReviewer(provider=prov, model="mock")
     with pytest.raises(RepoReviewError):
@@ -133,14 +130,12 @@ def test_model_reviewer_raises_on_unparseable_reply():
 
 
 def test_model_reviewer_empty_findings_is_not_an_error():
-    # a valid `{"findings": []}` means reviewed and nothing found, which is not a failure
     prov = MockProvider(default='{"findings": []}')
     reviewer = ModelReviewer(provider=prov, model="mock")
     assert reviewer.review(Unit(name="u", root=".", files=()), "") == []
 
 
 def test_run_passes_counts_an_unparseable_reply_as_an_error():
-    # the unparseable reply propagates as an error the pass-loop counts, never as findings
     prov = MockProvider(default="sorry, no JSON here")
     acc = run_passes(_U, ModelReviewer(provider=prov, model="mock"), lenses=("",), max_passes=2)
     assert acc.errors >= 1 and acc.findings == []

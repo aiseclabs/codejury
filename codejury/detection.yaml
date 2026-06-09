@@ -1,8 +1,4 @@
-# File and path classification, across ecosystems: what the engine treats as a
-# source file, a dependency manifest, a noise directory, or test code. Kept here
-# so the implementation enumerates no language itself, adding a language is a
-# data edit. This is distinct from a guide's stack detection, which decides which
-# language, framework, or protocol applies.
+# File and path classification across ecosystems, so the code enumerates no language. Loaded by detection.py.
 
 skip_dirs: [".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache", "build", "dist", "target", "out", ".tox", ".eggs", ".next", ".nuxt"]
 

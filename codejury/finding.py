@@ -17,12 +17,12 @@ from codejury.severity import SEVERITIES
 class Finding:
     file: str
     line: int | None = None
-    severity: str = "MEDIUM"      # CRITICAL | HIGH | MEDIUM | LOW
-    category: str = ""            # sql_injection | idor | auth_bypass | ...
+    severity: str = "MEDIUM"
+    category: str = ""
     description: str = ""
-    exploit_scenario: str = ""    # how an attacker reaches and abuses it, end to end
+    exploit_scenario: str = ""
     recommendation: str = ""
-    confidence: float = 0.5       # 0.0 - 1.0
+    confidence: float = 0.5
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -49,7 +49,7 @@ def finding_from_dict(data: dict[str, Any]) -> Finding | None:
         return None
     file = str(data.get("file", "")).strip()
     if not file:
-        return None  # no location -> not reportable
+        return None
     severity = str(data.get("severity", "MEDIUM")).upper()
     return Finding(
         file=file,

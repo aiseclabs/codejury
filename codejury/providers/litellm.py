@@ -58,7 +58,7 @@ class LiteLLMProvider(Provider):
             "messages": api_messages,
             "max_tokens": max_tokens,
             "temperature": self._temperature,
-            "timeout": 600,  # bound a hung request rather than hang the audit
+            "timeout": 600,
         }
         if self._api_key:
             kwargs["api_key"] = self._api_key
