@@ -89,7 +89,7 @@ def candidate_entrypoint_files(files, *, root=None, globs=(), markers=()) -> lis
             text = _read_text(base / f)
             if text and any(m in text for m in markers):
                 out.append(f)
-    return out
+    return sorted(dict.fromkeys(out))
 
 
 def logic_layer_files(files, *, globs=()) -> list[str]:

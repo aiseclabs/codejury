@@ -32,6 +32,18 @@ def test_candidate_entrypoint_files_by_content_markers(tmp_path):
     assert got == ["handlers.py"]   # .md is not scanned, util has no marker
 
 
+def test_candidate_entrypoint_files_sorted_and_deduped(tmp_path):
+    # a file can be flagged by both a glob and a marker, and the input can repeat, so
+    # the promised sorted-unique contract must hold
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    (tmp_path / "a" / "urls.py").write_text("class ViewSet:\n    pass\n")
+    (tmp_path / "b" / "urls.py").write_text("x = 1\n")
+    files = ["b/urls.py", "a/urls.py", "a/urls.py"]
+    got = candidate_entrypoint_files(files, root=tmp_path, globs=["*urls.py"], markers=["ViewSet"])
+    assert got == ["a/urls.py", "b/urls.py"]   # sorted, no duplicate from the double match
+
+
 def test_build_from_dir_walks_tree_and_skips_noise(tmp_path):
     (tmp_path / "app.py").write_text("x = 1")
     (tmp_path / "pkg").mkdir()
