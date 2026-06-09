@@ -9,7 +9,7 @@
 
 AI-assisted security review for code diffs and whole repositories.
 
-Codejury has two review paths:
+The tool has two review paths:
 
 - **Diff Review** audits a pull request or unified diff in one command.
 - **Repo Review** fans out across a whole repository, reviews focused units, deduplicates
@@ -86,7 +86,7 @@ no API key.
 ## Repo Review
 
 Repo Review is the recall-first path for whole repositories. A whole codebase is too large
-for one useful model call, so Codejury creates a workspace, builds a unit worklist, and
+for one useful model call, so the tool creates a workspace, builds a unit worklist, and
 reviews focused units instead of doing one shallow pass.
 
 Start by scaffolding a workspace:
@@ -159,7 +159,7 @@ Every reportable finding should have:
 - recommendation
 - confidence or verification status
 
-Codejury is intentionally scoped to real exploitable application security issues. It should
+The tool is intentionally scoped to real exploitable application security issues. It should
 not report dependency CVEs, style notes, generic best practices, speculation, or risks that
 only matter if production configuration leaks.
 
@@ -183,7 +183,7 @@ cp examples/codejury-pr-review.yml .github/workflows/codejury-pr-review.yml
 Add `CODEJURY_API_KEY` as a repository secret. The workflow reviews the pull request diff,
 uploads SARIF to code scanning, and fails on HIGH or CRITICAL findings.
 
-## Extend Codejury
+## Extend The Knowledge
 
 Add security knowledge as markdown:
 
