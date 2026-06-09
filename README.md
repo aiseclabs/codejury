@@ -231,9 +231,3 @@ python -m venv .venv
 pip install -e ".[dev]"
 pytest
 ```
-
-Release process:
-
-1. Bump `pyproject.toml`.
-2. Create a GitHub Release named `vX.Y.Z`.
-3. OIDC Trusted Publishing builds and publishes to PyPI.
