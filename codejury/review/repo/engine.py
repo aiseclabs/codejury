@@ -18,11 +18,11 @@ import re
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
-from codejury.review.repo.passloop import run_passes
+from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
-from codejury.review.repo.scaffold import ScaffoldResult, scaffold
-from codejury.review.repo.scaffold import _slug as _unit_slug   # the slug the scaffold names unit files by
+from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
 from codejury.review.repo.severity import calibrated, median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
 from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier, verify_findings
@@ -30,7 +30,7 @@ from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier,
 _MAX_RELATED = 20   # trace-target files packed into a unit beyond the owned file
 
 
-def _slug(text: str) -> str:
+def _finding_slug(text: str) -> str:
     return ("".join(c if c.isalnum() else "-" for c in text).strip("-").lower() or "finding")[:80]
 
 
@@ -60,7 +60,7 @@ def _issue_md(c: Candidate) -> str:
 def _write_findings(ws: Path, findings: list[Candidate]) -> None:
     issues = ws / "issues"
     for c in findings:
-        (issues / f"{_slug(c.endpoint or c.title)}.md").write_text(_issue_md(c), encoding="utf-8")
+        (issues / f"{_finding_slug(c.endpoint or c.title)}.md").write_text(_issue_md(c), encoding="utf-8")
     (ws / "findings.json").write_text(json.dumps(
         {"findings": [{"title": c.title, "category": c.category, "entry": c.endpoint,
                        "file": c.file, "line": c.line, "severity": c.severity, "status": c.status}
@@ -152,8 +152,8 @@ def _reviewed_slugs(ws: Path) -> set:
 
 
 def _md_field(text: str, key: str) -> str:
-    m = re.search(rf"(?im)^\s*-?\s*{key}\s*:\s*(.+?)\s*$", text)
-    return m.group(1).strip().strip("`").strip() if m else ""
+    v = md_field(text, key)
+    return v.strip("`").strip() if v is not None else ""
 
 
 def _parse_issue(path: Path) -> Candidate | None:
@@ -276,7 +276,7 @@ def run_repo_review(
 
     # resume: skip units a prior run already reviewed, carry its union forward
     reviewed = set() if fresh else _reviewed_slugs(ws)
-    open_units = [u for u in units if _unit_slug(u.name) not in reviewed]
+    open_units = [u for u in units if unit_slug(u.name) not in reviewed]
     acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws)))
 
     shared = (ws / "_stack.md").read_text(encoding="utf-8")

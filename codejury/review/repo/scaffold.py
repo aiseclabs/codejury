@@ -152,7 +152,9 @@ def _candidates_md(candidates: list[str], layers: list[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _slug(path: str) -> str:
+def unit_slug(path: str) -> str:
+    """The slug a unit file is named by, derived from the path it owns. Public so the
+    engine can recompute the same name when resuming, instead of reaching for a private."""
     s = path.replace("\\", "/").removesuffix(".py")
     return "".join(c if c.isalnum() else "-" for c in s).strip("-").lower() or "unit"
 
@@ -234,7 +236,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
     # an earlier run already wrote.
     mandate = UNIT_REVIEW_FILE.read_text(encoding="utf-8")
     for cand in candidates:
-        up = ws / "units" / f"{_slug(cand)}.md"
+        up = ws / "units" / f"{unit_slug(cand)}.md"
         if not up.exists():
             up.write_text(_unit_md(cand, mandate), encoding="utf-8")
             created.append(str(up))

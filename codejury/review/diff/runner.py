@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from codejury.review.diff.debate import AdversarialAuditRunner
+from codejury.review.diff.adversarial import AdversarialAuditRunner
 from codejury.review.diff.engine import AuditRunner
 from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.vulnerabilities import allowed_categories, normalize_category

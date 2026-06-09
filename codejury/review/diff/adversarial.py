@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from codejury.review.diff.debate_prompts import (
+from codejury.review.diff.adversarial_prompts import (
     CHALLENGER_SYSTEM,
     FINDER_SYSTEM,
     JUDGE_SYSTEM,

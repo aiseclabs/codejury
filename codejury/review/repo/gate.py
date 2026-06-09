@@ -14,9 +14,10 @@ free-prose claim, so the agent cannot clear it by writing a word.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
+
+from codejury.markdown_docs import md_field
 
 
 @dataclass(frozen=True)
@@ -43,8 +44,8 @@ def _table_data_rows(text: str) -> list[list[str]]:
 
 
 def _line_value(text: str, key: str) -> str | None:
-    m = re.search(rf"(?im)^\s*-?\s*{key}\s*:\s*(.+?)\s*$", text)
-    return m.group(1).strip().lower() if m else None
+    v = md_field(text, key)
+    return v.lower() if v is not None else None
 
 
 def check_gate(project_dir: Path) -> GateResult:
