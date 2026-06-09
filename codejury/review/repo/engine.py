@@ -32,6 +32,12 @@ from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier,
 
 _MAX_RELATED = 20   # trace-target files packed into a unit beyond the owned file
 
+# A hidden marker stamped into every issue file the code writes, so a later write can
+# clear its own prior output without touching an agent's hand-written issue file. It is
+# an HTML comment, invisible in rendered markdown, and carries no severity line, so it
+# does not disturb the gate or the issue parser.
+_GENERATED_MARKER = "<!-- codejury:generated, do not edit by hand -->"
+
 
 def _finding_slug(text: str) -> str:
     return ("".join(c if c.isalnum() else "-" for c in text).strip("-").lower() or "finding")[:80]
@@ -57,11 +63,26 @@ def _issue_md(c: Candidate) -> str:
             f"- Type: {c.category or 'other'}\n"
             f"- Source: `{src}`\n"
             f"- Status: {c.status}\n\n"
-            f"## Analysis\n{c.evidence or '(see code)'}\n")
+            f"## Analysis\n{c.evidence or '(see code)'}\n\n"
+            f"{_GENERATED_MARKER}\n")
+
+
+def _clear_generated_issues(ws: Path) -> None:
+    """Remove the issue files a prior write produced, so a shrunk or refuted finding
+    set never leaves a stale confirmed-looking file behind. Only files carrying the
+    generation marker are removed, so an agent's hand-written issue file is never
+    touched."""
+    for p in (ws / "issues").glob("*.md"):
+        try:
+            if _GENERATED_MARKER in p.read_text(encoding="utf-8"):
+                p.unlink()
+        except OSError:
+            continue
 
 
 def _write_findings(ws: Path, findings: list[Candidate]) -> None:
     issues = ws / "issues"
+    _clear_generated_issues(ws)
     for c in findings:
         (issues / f"{_finding_slug(c.endpoint or c.title)}.md").write_text(_issue_md(c), encoding="utf-8")
     (ws / "findings.json").write_text(json.dumps(

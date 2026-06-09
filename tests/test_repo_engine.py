@@ -283,3 +283,27 @@ def test_run_fails_loud_on_zero_units(tmp_path):
     (repo / "README.md").write_text("nothing to review here\n")
     with pytest.raises(ValueError, match="no candidate entrypoints"):
         run_repo_review(repo, tmp_path / "ws")
+
+
+def test_write_findings_clears_stale_generated_keeps_agent_files(tmp_path):
+    # a shrunk finding set must not leave a stale generated issue file behind, but an
+    # agent's hand-written issue file must never be removed
+    from codejury.review.repo.engine import _write_findings
+
+    ws = tmp_path / "ws"
+    (ws / "issues").mkdir(parents=True)
+    agent = ws / "issues" / "agent-note.md"
+    agent.write_text("# hand written\n- Risk: HIGH\n## Analysis\napp/x.py:1\n")
+
+    two = [Candidate(title="A", endpoint="GET /a", file="a.py", line=1, severity="HIGH"),
+           Candidate(title="B", endpoint="GET /b", file="b.py", line=2, severity="HIGH")]
+    _write_findings(ws, two)
+    generated = {p.name for p in (ws / "issues").glob("*.md")} - {"agent-note.md"}
+    assert len(generated) == 2
+
+    # the set shrinks to one, so the other generated file must be gone
+    _write_findings(ws, two[:1])
+    names = {p.name for p in (ws / "issues").glob("*.md")}
+    assert "agent-note.md" in names                                  # never touched
+    assert len([n for n in names if n != "agent-note.md"]) == 1      # stale generated removed
+    assert len(json.loads((ws / "findings.json").read_text())["findings"]) == 1
