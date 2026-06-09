@@ -39,6 +39,10 @@ _DETECT_TOTAL = 8_000_000   # bytes of source sampled overall
 # the workspace directories the fan-out methodology writes into
 _DIRS = ("inventory", "units", "issues", "pocs")
 
+# a marker file written at the project workspace root, so a destructive --fresh clear can
+# tell a codejury workspace from an arbitrary directory it must never wipe
+_MARKER = ".codejury-workspace"
+
 
 @dataclass(frozen=True, kw_only=True)
 class ScaffoldResult:
@@ -194,7 +198,15 @@ def _has_prior_run(ws: Path) -> bool:
 
 def _clear_prior_run(ws: Path) -> list[str]:
     """Remove a previous review's output so a fresh run starts clean, so no stale
-    judgment suppresses a finding."""
+    judgment suppresses a finding. Refuse to wipe a non-empty directory that is not a
+    codejury workspace: --workspace is arbitrary and a target name such as `api` or
+    `app` is common, so a marker check stops --fresh deleting unrelated data."""
+    if any(ws.iterdir()) and not (ws / _MARKER).is_file():
+        raise ValueError(
+            f"{ws} is not empty and has no {_MARKER} marker, so it does not look like a "
+            "codejury workspace. Refusing to clear it. Choose another --workspace or "
+            "remove the directory by hand."
+        )
     removed: list[str] = []
     for child in ws.iterdir():
         shutil.rmtree(child) if child.is_dir() else child.unlink()
@@ -221,11 +233,18 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
     had_prior_run = _has_prior_run(ws)
     cleared = _clear_prior_run(ws) if (fresh and ws.exists()) else []
 
+    # the workspace holds the auth model, issue exploit paths, and PoCs, so keep it
+    # private: 0700 on the workspace root and every directory under it, not the umask
+    # default that leaves them world-readable on a shared host
+    ws.mkdir(parents=True, exist_ok=True, mode=0o700)
+    ws.chmod(0o700)   # tighten an existing workspace too, mkdir's mode is ignored when it exists
+    (ws / _MARKER).write_text(f"{project}\n", encoding="utf-8")
+
     created: list[str] = []
     for sub in _DIRS:
         d = ws / sub
         if not d.exists():
-            d.mkdir(parents=True, exist_ok=True)
+            d.mkdir(parents=True, exist_ok=True, mode=0o700)
             created.append(str(d))
 
     model = build_repo_model_from_dir(target)

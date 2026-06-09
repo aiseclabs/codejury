@@ -21,11 +21,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from pathlib import Path
 
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE
+from codejury.review.repo.paths import safe_repo_path
 from codejury.review.repo.union import Candidate
 
 _READ_MAX = 40_000   # chars of the cited file read for the skeptic
@@ -61,10 +61,13 @@ _JSON_SHAPE = '{"real": true, "reason": "the controlling fact at file:line, refu
 
 
 def _read_file(root: str, rel: str) -> str:
-    if not rel:
+    # the candidate path may come from model output or a workspace issue file, so it is
+    # untrusted: an out-of-root path yields no code context, never a read outside the repo
+    path = safe_repo_path(root, rel)
+    if path is None:
         return ""
     try:
-        return (Path(root) / rel).read_text(encoding="utf-8")[:_READ_MAX]
+        return path.read_text(encoding="utf-8")[:_READ_MAX]
     except (OSError, UnicodeDecodeError):
         return ""
 

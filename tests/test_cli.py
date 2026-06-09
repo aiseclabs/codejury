@@ -5,6 +5,8 @@ big PR does not overflow the model context and silently truncate the reply. The
 per-file findings are then de-duplicated.
 """
 
+from pathlib import Path
+
 import pytest
 
 from codejury.cli import main
@@ -108,6 +110,25 @@ def test_install_slash_command_writes_the_file(tmp_path):
     assert rc == 0
     f = tmp_path / "codejury-review-repo.md"
     assert f.is_file() and "codejury review repo" in f.read_text()
+
+
+def test_install_slash_command_refuses_to_clobber_without_force(tmp_path, capsys):
+    target = tmp_path / "codejury-review-repo.md"
+    target.write_text("my own prompt")
+    assert main(["install-slash-command", "--dir", str(tmp_path)]) == 1
+    assert target.read_text() == "my own prompt"          # not overwritten
+    assert "already exists" in capsys.readouterr().err
+    assert main(["install-slash-command", "--dir", str(tmp_path), "--force"]) == 0
+    assert "codejury review repo" in target.read_text()    # --force overwrites
+
+
+def test_slash_command_workspace_matches_cli_default():
+    # the slash command hardcodes the workspace path, so it must match the CLI default,
+    # guarding against a half-migration that moves one but not the other
+    root = Path(__file__).resolve().parents[1]
+    default = "/var/tmp/codejury-review"
+    assert f'default="{default}"' in (root / "codejury" / "cli.py").read_text()
+    assert default in (root / "codejury" / "playbook" / "slash-command.md").read_text()
 
 
 # --- CLI mode validation and exit-code contract ---

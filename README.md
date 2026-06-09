@@ -58,6 +58,27 @@ Useful flags:
 - `--api-base <url>`
 - `--retries <n>`
 
+## Data Boundary
+
+The tool sends code-derived content to the model provider you configure, so know what
+leaves the machine before reviewing a proprietary repository:
+
+- Diff Review sends the unified diff under review.
+- Repo Review with `--reviewer model` sends bounded source snippets, the detected stack
+  notes, the vulnerability guidance, and the findings.
+- Verification with `--reviewer model` sends the cited source file and the finding
+  details. With `--reviewer claude-cli`, Claude Code receives the finding details and
+  reads the code itself through its read-only tools.
+- `--reviewer claude-cli` does not use the configured provider key. It runs Claude Code
+  with read-only file tools, and Claude Code may send prompts and the code it reads
+  through your Claude Code account, so the code does not stay local.
+
+A custom `--api-base` or a LiteLLM proxy becomes part of the trust boundary, so the data
+above also reaches that gateway. Prefer the `CODEJURY_API_KEY` environment variable over
+`--api-key`, since a flag can leak through shell history and process listings. The review
+workspace and the generated reports hold exploit paths, sensitive file locations, and
+PoCs, so treat them as sensitive. The workspace is created private, mode `0700`.
+
 ## Diff Review
 
 Diff Review is the fast coded path. It audits a unified diff with either a standard

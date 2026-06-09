@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import time
 from typing import Callable
@@ -35,10 +36,38 @@ from codejury.review.repo.reviewer import (
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import Verdict, Verifier
 
-# read-only tools so a headless run does not prompt and cannot write
-DEFAULT_CLAUDE_ARGS = ("--output-format", "json", "--allowedTools", "Read,Grep,Glob,LS")
+_OUTPUT_ARGS = ("--output-format", "json")
+# read-only tools so a headless run does not prompt and cannot write. This is the
+# security boundary for a review of an untrusted repo, so it is mandatory: extra args
+# may not remove it without the explicit unsafe opt-out below.
+READ_ONLY_TOOLS = ("--allowedTools", "Read,Grep,Glob,LS")
+DEFAULT_CLAUDE_ARGS = (*_OUTPUT_ARGS, *READ_ONLY_TOOLS)
+_UNSAFE_TOOLS_ENV = "CODEJURY_CLAUDE_UNSAFE_TOOLS"
 
 Runner = Callable[..., str]
+
+
+def _drop_flag(args: tuple[str, ...], flag: str) -> tuple[str, ...]:
+    """Drop `flag` and the value token following it from an arg tuple."""
+    out: list[str] = []
+    it = iter(args)
+    for a in it:
+        if a == flag:
+            next(it, None)   # skip its value
+            continue
+        out.append(a)
+    return tuple(out)
+
+
+def _compose_claude_args(extra: tuple[str, ...], *, unsafe: bool) -> tuple[str, ...]:
+    """The effective `claude -p` args. The read-only `--allowedTools` is mandatory: extra
+    args from `CODEJURY_CLAUDE_ARGS` or the constructor are appended, but any
+    `--allowedTools` they carry is dropped, so a misconfigured environment cannot silently
+    turn a read-only review into a writing agent. `CODEJURY_CLAUDE_UNSAFE_TOOLS=1` is the
+    one explicit way to hand tool selection to the extra args."""
+    if unsafe:
+        return (*_OUTPUT_ARGS, *extra)
+    return (*_OUTPUT_ARGS, *READ_ONLY_TOOLS, *_drop_flag(extra, "--allowedTools"))
 
 
 def _envelope_error(stdout: str) -> str | None:
@@ -92,7 +121,10 @@ class _ClaudeBackend:
                  runner: Runner = _default_runner) -> None:
         self._bin = claude_bin or os.environ.get("CODEJURY_CLAUDE_BIN", "claude")
         env_args = os.environ.get("CODEJURY_CLAUDE_ARGS")
-        self._args = tuple(env_args.split()) if env_args else (args or DEFAULT_CLAUDE_ARGS)
+        # shlex so a quoted value such as --append-system-prompt "be terse" stays one token
+        extra = tuple(shlex.split(env_args)) if env_args else (tuple(args) if args else ())
+        unsafe = os.environ.get(_UNSAFE_TOOLS_ENV) == "1"
+        self._args = _compose_claude_args(extra, unsafe=unsafe)
         self._timeout = timeout
         self._retries = retries
         self._backoff = backoff

@@ -4,7 +4,13 @@ and the engine runs end to end with no provider."""
 
 import json
 
-from codejury.review.repo.agent import AgentReviewer, AgentVerifier, _envelope_error, _result_text
+from codejury.review.repo.agent import (
+    AgentReviewer,
+    AgentVerifier,
+    _compose_claude_args,
+    _envelope_error,
+    _result_text,
+)
 from codejury.review.repo.reviewer import Unit
 from codejury.review.repo.engine import run_repo_review
 from codejury.review.repo.union import Candidate
@@ -64,6 +70,32 @@ def test_ask_retries_a_transient_failure_then_succeeds():
     rev = AgentReviewer(runner=flaky, retries=2, backoff=0)   # backoff 0 so the test does not sleep
     cands = rev.review(Unit(name="u", root=".", files=()), "")
     assert calls["n"] == 2 and len(cands) == 1                # failed once, retried, succeeded
+
+
+def test_read_only_allowlist_is_mandatory_and_extra_args_cannot_remove_it():
+    # extra args may add a flag, but the read-only --allowedTools stays
+    args = _compose_claude_args(("--model", "claude-x"), unsafe=False)
+    assert "Read,Grep,Glob,LS" in args and "--model" in args and "claude-x" in args
+    # an extra --allowedTools is dropped, so a misconfigured env cannot widen the tools
+    widened = _compose_claude_args(("--allowedTools", "Bash,Write", "--model", "x"), unsafe=False)
+    assert "Bash,Write" not in widened and "Read,Grep,Glob,LS" in widened
+    # only the explicit unsafe opt-out hands tool selection to the extra args
+    unsafe = _compose_claude_args(("--allowedTools", "Bash"), unsafe=True)
+    assert "Bash" in unsafe and "Read,Grep,Glob,LS" not in unsafe
+
+
+def test_env_args_are_shlex_parsed_and_cannot_drop_the_read_only_guard(monkeypatch):
+    monkeypatch.setenv("CODEJURY_CLAUDE_ARGS", '--allowedTools Bash --append-system-prompt "be terse"')
+    captured = {}
+
+    def fake_runner(prompt, *, cwd, claude_bin, args, timeout):
+        captured["args"] = args
+        return _envelope('{"findings": []}')
+
+    AgentReviewer(runner=fake_runner).review(Unit(name="u", root=".", files=()), "")
+    args = captured["args"]
+    assert "Read,Grep,Glob,LS" in args and "Bash" not in args      # guard held
+    assert "be terse" in args                                       # shlex kept the quoted value as one token
 
 
 def test_run_with_claude_cli_backends_needs_no_provider(custody_repo, tmp_path):

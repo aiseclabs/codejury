@@ -17,11 +17,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
 
 from codejury.json_parse import extract_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
+from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.union import Candidate
 
 
@@ -64,11 +64,15 @@ def candidates_from_obj(obj: object) -> list[Candidate]:
             continue
         line = d.get("line")
         sev = str(d.get("severity", "")).strip().upper()
+        # a model reply is untrusted: an absolute or parent-traversing file is not a
+        # location inside the repo, so drop it rather than plant an out-of-root location
+        rel = str(d.get("file", "")).strip()
+        file = "" if is_unsafe_rel(rel) else rel
         out.append(Candidate(
             title=title,
             category=str(d.get("category", "")).strip(),
             endpoint=str(d.get("endpoint") or d.get("source") or "").strip(),
-            file=str(d.get("file", "")).strip(),
+            file=file,
             line=line if isinstance(line, int) and not isinstance(line, bool) and line >= 1 else None,
             severity=sev if sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else "MEDIUM",
             evidence=str(d.get("evidence", "")).strip(),
@@ -89,8 +93,11 @@ def _gather(unit: Unit) -> str:
     parts: list[str] = []
     total = 0
     for rel in unit.files:
+        path = safe_repo_path(unit.root, rel)
+        if path is None:
+            continue
         try:
-            text = (Path(unit.root) / rel).read_text(encoding="utf-8")[:_GATHER_PER_FILE]
+            text = path.read_text(encoding="utf-8")[:_GATHER_PER_FILE]
         except (OSError, UnicodeDecodeError):
             continue
         block = f"# file: {rel}\n{text}"

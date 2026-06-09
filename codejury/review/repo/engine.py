@@ -20,6 +20,7 @@ from pathlib import Path
 
 from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
+from codejury.review.repo.paths import is_unsafe_rel
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
@@ -191,8 +192,11 @@ def _parse_issue(path: Path) -> Candidate | None:
     # the body cites a location as `path.ext:line` or `path.ext:line-range`, capture
     # both so the report carries a precise location and dedup can use the line
     fm = re.search(r"([\w./-]+\.(?:py|js|ts|go|java|rb|php))(?::(\d+))?", text)
-    if fm is None:
-        return None   # invariant 2: with no file location the issue is not reportable
+    if fm is None or is_unsafe_rel(fm.group(1)):
+        # invariant 2: with no file location the issue is not reportable. An absolute or
+        # parent-traversing path is not a location inside the repo, a tampered or
+        # hallucinated issue file, so it is dropped, not read.
+        return None
     status_raw = _md_field(text, "status").lower()
     return Candidate(
         title=title or path.stem,

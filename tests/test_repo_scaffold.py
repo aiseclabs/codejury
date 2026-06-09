@@ -2,6 +2,10 @@
 pocs + seeded candidates) and returns the methodology. It does not run an
 LLM pipeline."""
 
+import stat
+
+import pytest
+
 from codejury.review.repo.scaffold import scaffold
 
 APP = '''
@@ -152,6 +156,25 @@ def test_scaffold_fresh_clears_prior_output(tmp_path):
     assert not (fresh.workspace / "issues" / "found.md").exists()
     assert not (fresh.workspace / "units" / "u1.md").exists()
     assert (fresh.workspace / "inventory" / "_surface.md").is_file()  # reseeded
+
+
+def test_scaffold_creates_a_private_workspace(tmp_path):
+    # the workspace holds the auth model, exploit paths, and PoCs, so it must not be
+    # world-readable on a shared host
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    assert stat.S_IMODE(res.workspace.stat().st_mode) == 0o700
+
+
+def test_fresh_refuses_to_clear_an_unmarked_directory(tmp_path):
+    # --workspace is arbitrary and a target name such as `api` is common, so --fresh must
+    # not wipe a directory that is not a codejury workspace
+    ws_root = tmp_path / "work"
+    project_ws = ws_root / "myservice"
+    project_ws.mkdir(parents=True)
+    (project_ws / "important.txt").write_text("not codejury data")
+    with pytest.raises(ValueError, match="codejury workspace"):
+        scaffold(_target(tmp_path), ws_root, fresh=True)
+    assert (project_ws / "important.txt").exists()   # refused, nothing deleted
 
 
 def test_plain_repo_still_scaffolds(tmp_path):

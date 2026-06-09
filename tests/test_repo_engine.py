@@ -106,6 +106,19 @@ def test_parse_issue_captures_file_and_line_from_a_range(tmp_path):
     assert c.severity == "HIGH"
 
 
+def test_parse_issue_drops_an_out_of_root_cited_path(tmp_path):
+    # a tampered or hallucinated issue file citing a traversing or absolute path has no
+    # location inside the repo, so it is not reportable and is never read or shipped
+    traversing = tmp_path / "t.md"
+    traversing.write_text("# leak\n- Risk: HIGH\n- Type: idor\n"
+                          "## Analysis\nsee `../../etc/secret.py:1` for the key.\n")
+    assert _parse_issue(traversing) is None
+    absolute = tmp_path / "a.md"
+    absolute.write_text("# leak\n- Risk: HIGH\n- Type: idor\n"
+                        "## Analysis\nsee `/home/user/secret.py:1` for the key.\n")
+    assert _parse_issue(absolute) is None
+
+
 def test_finalize_dedups_verifies_and_reports(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()

@@ -2,8 +2,9 @@
 a finding on a failed call, decide by majority when multiple votes are cast."""
 
 from codejury.providers.mock import MockProvider
+from codejury.review.repo.paths import safe_repo_path
 from codejury.review.repo.union import Candidate
-from codejury.review.repo.verifier import ModelVerifier, Verdict, Verifier, verify_findings
+from codejury.review.repo.verifier import ModelVerifier, Verdict, Verifier, _read_file, verify_findings
 
 
 class StubVerifier(Verifier):
@@ -66,3 +67,31 @@ def test_model_verifier_keeps_on_unparseable_reply():
     prov = MockProvider(default="no json here")
     verdict = ModelVerifier(provider=prov, model="mock").verify(Candidate(title="x"), ".")
     assert verdict.real is True   # unparseable verification keeps the finding, never refutes it
+
+
+def test_safe_repo_path_contains_reads_to_the_root(tmp_path):
+    (tmp_path / "in.py").write_text("inside")
+    assert safe_repo_path(tmp_path, "in.py") == (tmp_path / "in.py").resolve()
+    # an out-of-root candidate path must not resolve, so its file is never read or shipped
+    assert safe_repo_path(tmp_path, "../in.py") is None
+    assert safe_repo_path(tmp_path, "/etc/passwd") is None
+    assert safe_repo_path(tmp_path, "") is None
+
+
+def test_safe_repo_path_rejects_a_symlink_escaping_the_root(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    secret = tmp_path / "secret.py"
+    secret.write_text("token = 'sk-live'")
+    (root / "link.py").symlink_to(secret)
+    assert safe_repo_path(root, "link.py") is None
+
+
+def test_read_file_returns_empty_for_an_out_of_root_path(tmp_path):
+    secret = tmp_path / "secret.py"
+    secret.write_text("token = 'sk-live'")
+    root = tmp_path / "repo"
+    root.mkdir()
+    # the exfiltration path: a traversing or absolute candidate file must read nothing
+    assert _read_file(str(root), "../secret.py") == ""
+    assert _read_file(str(root), str(secret)) == ""
