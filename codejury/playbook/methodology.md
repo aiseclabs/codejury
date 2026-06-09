@@ -5,7 +5,7 @@ or Codex. The agent does not review the repo in one pass. It maps the attack
 surface, splits it into small units, runs a focused deep review on each unit in
 parallel, and aggregates the results.
 
-## Why fan out
+## Why Fan Out
 
 A single agent reviewing a whole large repo dilutes. Its attention spreads across
 the entire surface, every endpoint gets a shallow look, and the deep cross-file
@@ -192,9 +192,9 @@ not report it.
 
 ---
 
-# Phase 2 of the engagement: Operator Verification
+# Operator Verification
 
-Phase 1 runs unattended to completion and never pauses to ask the operator anything.
+The review above runs unattended to completion and never pauses to ask the operator anything.
 When a finding needs a runtime fact you cannot read, a credential, a deploy-config
 value, or live behavior, mark it `blocked` with the exact `Needs:`, grade it on the
 conservative assumption, and keep going. Gather every operator need into one list at

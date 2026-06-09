@@ -23,8 +23,8 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    RESUMING. If a previous run was interrupted, for example by a usage limit, just run
    this command again WITHOUT clearing the workspace (answer no to clearing). It
    resumes and does not redo finished work: a unit already marked `- Status: reviewed`
-   is skipped in the fan-out, and a finding already marked `- Verified: yes` is skipped
-   in verification. So an interruption costs nothing, keep resuming in new sessions
+   is skipped in the fan-out, and `--finalize` does not re-verify a finding it already
+   settled. So an interruption costs nothing, keep resuming in new sessions
    until the gate passes. If usage is tight, run on a Sonnet-tier model, it is faster,
    cheaper, and the strongest tier for this in testing.
 

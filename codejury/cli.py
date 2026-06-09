@@ -283,7 +283,7 @@ def _dispatch(args, parser) -> int:
         return 0
 
     if args.command == "install-slash-command":
-        from codejury.resources import COMMAND_FILE
+        from codejury.resources import SLASH_COMMAND_FILE
         # the command body is portable, only the directory differs per agent
         agent_dirs = {
             "claude": Path.home() / ".claude" / "commands",
@@ -292,7 +292,7 @@ def _dispatch(args, parser) -> int:
         target_dir = Path(args.dir) if args.dir else agent_dirs[args.agent]
         target_dir.mkdir(parents=True, exist_ok=True)
         dst = target_dir / "codejury-review-repo.md"
-        dst.write_text(COMMAND_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+        dst.write_text(SLASH_COMMAND_FILE.read_text(encoding="utf-8"), encoding="utf-8")
         print(f"Installed slash command to {dst}")
         print("Run it in the agent with: /codejury-review-repo <repository>")
         return 0

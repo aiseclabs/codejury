@@ -43,7 +43,7 @@ Firm rules, these override a cautious instinct to downgrade to nothing:
 - When you are unsure between two levels, report at the higher and say why. Unsure
   how to grade is not a reason to drop, only an unreal finding is dropped.
 
-## Out of scope vs LOW
+## Out of Scope vs LOW
 
 Recall comes first, so almost nothing is dropped. Only two things are out of scope and
 not reported: dependency or component CVEs (this tool does not do dependency scanning),

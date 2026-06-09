@@ -91,7 +91,7 @@ def test_scaffold_seeds_a_unit_per_candidate(tmp_path):
 def test_methodology_is_a_fan_out(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert "Agent Methodology" in res.methodology
-    assert "Why fan out" in res.methodology
+    assert "Why Fan Out" in res.methodology
     for phase in ("Map the Attack Surface", "Fan Out", "Aggregate"):
         assert phase in res.methodology
     assert "Status: reviewed" in res.methodology  # the per-unit coverage convention

@@ -81,7 +81,7 @@ a recall-safe skeptic that refutes only what it can prove safe, and `review repo
 <dir> --gate` checks the existing workspace against the Completeness Gate, the
 surface enumerated, every unit reviewed, every finding graded by the rubric, and
 exits non-zero listing each unmet item. All three resume across sessions.
-The slash command ships as package data in `playbook/command.md`, and `codejury
+The slash command ships as package data in `playbook/slash-command.md`, and `codejury
 install-slash-command [--agent claude|codex]` copies it into the agent's command
 directory so a pip install can use it. The body is portable, only the directory
 differs, and the review itself is agent neutral. `codejury --version` prints the version.
