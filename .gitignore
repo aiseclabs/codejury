@@ -18,4 +18,3 @@ dist/
 
 # Local detection-quality probe (not a committed golden set)
 validation/
-codex/
