@@ -1,100 +1,123 @@
 # AGENTS.md
 
-The project's agent instructions, loaded every session and taking precedence over
-default behavior. Codex reads `AGENTS.md` directly, and Claude Code reads it through
-the `@AGENTS.md` import in `CLAUDE.md`.
+Project instructions for coding agents. Codex reads `AGENTS.md` directly. Claude Code
+reads it through the `@AGENTS.md` import in `CLAUDE.md`.
 
-An AI code security review tool with two paths matched to their nature. Diff review
-is a coded engine, a single balanced LLM call or an adversarial Finder, Challenger,
-and Judge pass. Whole-repo review is recall-first and too large for one call, so it
-fans out, with code owning the orchestration and an agent doing the per-unit depth.
+Codejury is an AI-assisted security review tool for code diffs and whole repositories.
+Diff Review is the coded path. Repo Review is the fan-out path where code owns the
+deterministic orchestration and agents or model calls provide per-unit judgment.
 
-## Invariants, Never Violate
+## Non-Negotiable Invariants
 
-1. **Knowledge is data, the engine is generic.** Security knowledge lives in
-   `codejury/knowledge/` markdown and in the prompts that reference it, never
-   hardcoded in Python. Detection logic is generic, what to detect is data,
-   reviewable in a PR. The implementation outside the content directories names no
-   specific language or framework, so adding a stack or a class is a drop-in file
-   with no code change.
-2. **Findings are real, evidenced, and sharply scoped.** Report only real,
-   exploitable, high-confidence problems, each with a file location and a concrete
-   exploit scenario. No location means not reportable. Hunt the high-impact classes,
-   business logic, authz and IDOR, signature flaws, state bypass and replay, auth
-   bypass, injection, and mass assignment. Do not report dependency CVEs, style or
-   best-practice notes, speculation with no concrete exploit, or config-leak-only
-   risks.
-3. **Fail loud, never report a failure as clean.** A failed, rate-limited, blank, or
-   unparsable model call is a failure, not an empty result. The code raises or counts
-   it and keeps the finding, it never turns a failed call into zero findings, because
-   for a security tool a silent failure is a hidden miss. The diff path surfaces the
-   error. The repo path counts failed unit reviews, keeps a finding when verification
-   cannot complete, and surfaces the failure rather than reporting incomplete work as
-   clean.
-4. **PoC verification is safe and human-in-the-loop.** The repo-review agent confirms
-   an issue with a real PoC against a sandbox or dev environment, asking the operator
-   for credentials and test data. It never touches production or real credentials,
-   and never runs a destructive action without explicit go-ahead.
-5. **English only.** All repo code, comments, docs, and data are English, no CJK.
-6. **No proprietary content.** This repo is public on PyPI and GitHub. Never put
-   internal or proprietary code or data into it.
+1. **Knowledge is data, the engine is generic.** Security knowledge belongs in
+   `codejury/knowledge/` markdown and in prompts that reference it. Do not hardcode
+   language, framework, or vulnerability-specific detection logic in Python. Adding a
+   stack or vulnerability class should usually be a data change.
+2. **Findings are real, evidenced, and scoped.** Report only exploitable,
+   high-confidence issues with a concrete file location and exploit scenario. No
+   location means not reportable. Prioritize high-impact classes such as business
+   logic, authorization, IDOR, signature flaws, replay, authentication bypass,
+   injection, and mass assignment. Do not report dependency CVEs, style notes, generic
+   best practices, speculation, or config-leak-only risks.
+3. **Fail loud, never report failure as clean.** A failed, rate-limited, blank,
+   malformed, or unparsable model call is a failed review step, not zero findings.
+   Diff Review must surface the error. Repo Review must count failed unit reviews,
+   preserve candidates when verification cannot complete, and avoid marking incomplete
+   work as complete.
+4. **PoC verification is safe and human-in-the-loop.** Repo Review PoCs run only
+   against sandbox or dev environments. Ask the operator for credentials and test data.
+   Never use production systems, real credentials, or destructive actions without
+   explicit approval.
+5. **English only.** Repo code, comments, docs, prompts, and data are English only.
+6. **No proprietary content.** The project is public on GitHub and PyPI. Do not add
+   internal, confidential, or proprietary code or data.
 
-## Architecture
+## Architecture Map
 
-Two paths, matched to nature. Diff review is coded end to end: `audit_diff` chunks
-and normalizes the diff, runs the standard `AuditRunner` for one call or the
-adversarial `AdversarialAuditRunner` Finder/Challenger/Judge pass, then filters the
-result.
+### Diff Review
 
-Whole-repo review fans out. `review repo` scaffolds a workspace and a per-unit
-worklist, then the work splits in two: an agent does the per-unit deep review where
-judgment is needed, and code owns everything deterministic, the worklist, the
-multi-pass union, the dedup, the adversarial verification, and the completeness gate.
-The interactive `/codejury-review-repo` slash command drives the fan-out in a session,
-which keeps PoC verification human-in-the-loop. `review repo --run` drives the same
-fan-out headless, `--finalize` runs the coded dedup and verification, and `--gate`
-checks coverage against the rubric. All resume across sessions. The agent reviews, the
-code owns determinism and coverage.
+- Lives under `codejury/review/diff/`.
+- `audit_diff` chunks large diffs, runs the selected engine, normalizes categories, and
+  applies the deterministic false-positive filter.
+- `AuditRunner` is the standard single-call engine.
+- `AdversarialAuditRunner` runs Finder, Challenger, and Judge passes for higher recall.
+- Findings use `codejury/finding.py` and render through `codejury/report.py`.
 
-Knowledge is split by axis and stays decoupled. Vulnerability classes name the
-weakness, languages and frameworks carry the concrete idioms and the entrypoint
-markers, and protocols and the methodology stay language-neutral. A framework belongs
-to a language, so it lives under that language, for example
-`knowledge/guides/frameworks/python/django.md`, and declares `language:` in its
-frontmatter as the source of truth. Even the source-extension, manifest, noise-dir,
-and test conventions live in `codejury/detection.yaml`, so the code enumerates no
-language.
+### Repo Review
 
-Where each layer lives, paths relative to `codejury/`:
+- Lives under `codejury/review/repo/` with playbook assets in `codejury/playbook/`.
+- `scaffold.py` builds the workspace, stack notes, candidate files, unit files, and
+  methodology assets.
+- `model.py` builds a language-agnostic repository file map from data-driven detection
+  config and guide globs.
+- `engine.py`, `pass_loop.py`, `union.py`, and `verifier.py` own the coded `--run`,
+  `--finalize`, resume, dedup, verification, and gate-facing output.
+- Agents or model-backed reviewers provide per-unit security judgment. Code owns
+  determinism, coverage bookkeeping, and failure accounting.
 
-| Layer | Lives in | Role |
-|---|---|---|
-| Diff engine | `review/diff/` | the standard `AuditRunner`, or the adversarial Finder/Challenger/Judge pass, with `audit_diff` to chunk, normalize, and filter |
-| Vulnerabilities | `knowledge/vulnerabilities/` | rich AppSec markdown, trigger-selected and injected into the prompt |
-| Finding and report | `finding.py`, `report.py` | a flat `Finding`, rendered to text, markdown, json, or sarif, with a severity gate |
-| Repo review | `playbook/`, `review/repo/scaffold.py` | the agent methodology and the workspace scaffold, no pipeline |
-| RepoModel | `review/repo/model.py` | a language-agnostic file map that flags candidate entrypoints via the guide globs |
-| Detection config | `detection.yaml`, `detection.py` | what counts as source, a manifest, a noise dir, or test code, across ecosystems |
-| Provider | `providers/` | anthropic, openai, litellm, and mock, with retry, via a factory |
-| JSON parsing | `json_parse.py` | best-effort extraction of a JSON object from model output |
+### Knowledge And Detection
+
+- Vulnerability classes live in `codejury/knowledge/vulnerabilities/`.
+- Language, framework, and protocol guides live in `codejury/knowledge/guides/`.
+- Source extensions, manifests, noise directories, and test conventions live in
+  `codejury/detection.yaml`.
+- Framework guides belong under their language, for example
+  `knowledge/guides/frameworks/python/django.md`, and declare `language:` in
+  frontmatter.
+
+### Providers And Integrations
+
+- Providers live in `codejury/providers/`: Anthropic, OpenAI, LiteLLM, mock, and retry.
+- JSON extraction lives in `codejury/json_parse.py`.
+- The CLI entry point is `codejury.cli:main`.
+- `install-slash-command` copies `playbook/slash-command.md` into the selected agent's
+  command directory.
+
+## Agent Workflow
+
+- Read nearby code and tests before changing behavior.
+- Keep changes scoped to the requested behavior and the surrounding module boundaries.
+- Prefer existing helper APIs and local patterns over new abstractions.
+- Do not move security knowledge from markdown data into Python logic.
+- When changing model-call handling, preserve fail-loud semantics.
+- When changing Repo Review, think through scaffold, run, resume, finalize,
+  verification, gate, and tests as one workflow.
+- When changing output formats, keep text, markdown, JSON, SARIF, and severity gates in
+  sync.
+- Do not delete or overwrite user changes. If the worktree is dirty, work around
+  unrelated changes and mention relevant conflicts.
 
 ## Commands
 
-One verb `review`, split by scope. `review diff` audits a unified diff from `--file`,
-`--repo --git-range`, or stdin, in `--mode standard` or `adversarial`. `review repo
-<dir>` scaffolds the fan-out workspace and drives it with `--run`, `--finalize`, and
-`--gate`, described under Architecture. `codejury install-slash-command [--agent
-claude|codex]` copies the portable `playbook/slash-command.md` into the agent's
-command directory, and `codejury --version` prints the version. Run a command with
-`--help` for the full flag set, including the provider, model, format, fail-on, and
-exclude flags.
+- Run tests in a venv:
+  `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`
+- Diff Review:
+  `codejury review diff --file changes.diff`
+- Repo Review scaffold:
+  `codejury review repo <dir>`
+- Repo Review coded run:
+  `codejury review repo <dir> --run`
+- Repo Review finalize:
+  `codejury review repo <dir> --finalize`
+- Repo Review gate:
+  `codejury review repo <dir> --gate`
+- Install slash command:
+  `codejury install-slash-command --agent claude|codex`
+- Provider configuration comes from flags or environment:
+  `CODEJURY_API_BASE`, `CODEJURY_API_KEY`, `CODEJURY_MODEL`
+- The tool does not auto-load `.env`.
 
-## Contributing
+## Contributing Rules
 
-- Tests run in a venv: `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`.
-- Provider keys come from the environment or the flags `CODEJURY_API_BASE`, `CODEJURY_API_KEY`, `CODEJURY_MODEL`. The tool does NOT auto-load `.env`.
-- Add a vulnerability class by dropping `knowledge/vulnerabilities/<id>.md` with frontmatter of title, impact, tags, and triggers, and a body of vulnerable and secure examples. Add a language, framework, or protocol guide under `knowledge/guides/` with its detect signals, entrypoint markers, and logic-layer globs in frontmatter, plus review guidance in the body. Both are data, no code change.
-- Release: bump the `pyproject.toml` version, create a GitHub Release `vX.Y.Z`, and OIDC Trusted Publishing pushes to PyPI.
+- Add a vulnerability class by adding `knowledge/vulnerabilities/<id>.md` with
+  frontmatter for title, impact, tags, and triggers, plus vulnerable and secure
+  examples.
+- Add a language, framework, or protocol guide under `knowledge/guides/` with detection
+  signals, entrypoint markers, logic-layer globs, and review guidance.
+- Add or update tests when behavior changes, especially for failure handling, parsing,
+  filtering, gates, and report formats.
+- Release by bumping `pyproject.toml`, creating a GitHub Release `vX.Y.Z`, and relying
+  on OIDC Trusted Publishing to push to PyPI.
 
 ## Style Guide
 
@@ -124,5 +147,10 @@ Commit messages are `type: summary` in the present tense, with few parentheses.
 
 ## Detection Quality
 
-- Measure on real diffs, not a synthetic golden set. Real-world detection quality is the only thing that matters.
-- The model dominates detection quality, then the mode. On real-diff probes a strong model at the Sonnet tier in standard mode caught every planted vulnerability with near-zero false positives, while a weaker model raised false positives in both modes. Default to standard mode with a strong model. The do-not-report list and the post-filter keep false positives down. Adversarial mode did not lower them over standard and costs about 3x, so reach for it for extra recall on subtle cross-file logic, not as a false-positive reducer.
+- Measure detection quality on real diffs. Synthetic golden sets are not the main signal.
+- Model choice dominates detection quality, then mode. Default to standard mode with a
+  strong model.
+- Use adversarial mode for extra recall on subtle cross-file logic, not as a
+  false-positive reducer.
+- Keep false positives down with the do-not-report guidance, deterministic filters, and
+  verification, not by weakening the finding criteria.
