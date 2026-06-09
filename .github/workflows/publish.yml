@@ -1,7 +1,9 @@
 name: Publish to PyPI
 
 # Publishes on GitHub Release. Uses PyPI Trusted Publishing via OIDC, so no API
-# token is stored anywhere; PyPI verifies this repo and environment instead.
+# token is stored anywhere, PyPI verifies this repo and environment instead.
+# The build job verifies the artifact before publish runs, so a release cannot
+# ship failing tests, broken metadata, or a wheel missing its bundled resources.
 on:
   release:
     types: [published]
@@ -14,8 +16,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade build
-      - run: python -m build
+      - name: Install tooling
+        run: python -m pip install --upgrade build twine
+      - name: Run tests
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pytest -q
+      - name: Build wheel and sdist
+        run: |
+          rm -rf dist/ build/
+          python -m build
+      - name: Check metadata
+        run: python -m twine check --strict dist/*
+      - name: Smoke-test the built wheel in a clean venv
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/python -m pip install dist/*.whl
+          cd /tmp
+          /tmp/smoke/bin/codejury --version
+          /tmp/smoke/bin/python -m codejury --version
+          /tmp/smoke/bin/codejury review diff --dry-run --format json
+          /tmp/smoke/bin/python -c "from codejury.resources import SLASH_COMMAND_FILE, DETECTION_FILE; from codejury.review.diff.vulnerabilities import load_vulnerabilities; from codejury.guides import load_guides; assert SLASH_COMMAND_FILE.is_file(); assert DETECTION_FILE.is_file(); assert len(load_vulnerabilities()) >= 20; assert len(load_guides()) >= 1"
       - uses: actions/upload-artifact@v4
         with:
           name: dist
