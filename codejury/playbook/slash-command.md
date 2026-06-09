@@ -3,7 +3,7 @@ description: Run a codejury whole-repo security review, interactively, by fannin
 ---
 Run a codejury whole-repo security review of: $ARGUMENTS
 
-You are the ORCHESTRATOR, not the reviewer. Recall comes from fanning out: codejury
+You are the orchestrator, not the reviewer. Recall comes from fanning out: codejury
 gives you a deterministic unit worklist, you run one focused sub-review per unit in
 parallel, union their findings across diverse passes, verify, and stop on a gate. The
 deep reading happens inside each sub-review, never in this main context. A unit you
@@ -45,19 +45,19 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    for a multi-step flow whose invariant spans several endpoints. Every entrypoint in
    the surface must be owned by some unit.
 
-3. FAN OUT. This step is mechanical, not a matter of judgment. For EVERY unit in
+3. FAN OUT. This step is mechanical, not a matter of judgment. For every unit in
    `units/` with `- Status: open`, launch one sub-review per unit as a separate
    subagent or task, in parallel. One per unit, no unit skipped, no two merged to save calls.
    Give each only its unit file, which carries the mandate and the files to own, plus
    the shared `_stack.md`, `inventory/_auth_model.md`, `inventory/_severity.md`, and
    `_vulnerabilities.md`. Each
-   sub-review reads its files, traces into the managers, dao, controllers, and
+   sub-review reads its files, traces into the managers, DAO, controllers, and
    libraries they call, hunts the high-impact classes, verifies each control on the
    code it actually reads, refutes its own candidates, grades every real finding by
    the rubric, CRITICAL through LOW, never refuted for low impact, writes each to
    `issues/<name>.md`, and flips its unit to `- Status: reviewed`.
 
-   Do NOT review units in this main context, only orchestrate. After the first pass,
+   Do not review units in this main context, only orchestrate. After the first pass,
    run more passes giving the units a different lead lens each time, authorization,
    then replay, then concurrency, then data exposure, then business logic, adding only
    findings not already in `issues/`. The union grows along a different axis each pass.

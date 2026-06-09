@@ -10,7 +10,7 @@ recurring misjudgement, add it here.
 
 - A lock acquired by `SELECT ... FOR UPDATE`, or any side-effecting query, is held
   by the database transaction until commit. Executing the query takes the lock.
-  A discarded or unused return value does NOT mean the lock was not taken, so
+  A discarded or unused return value does not mean the lock was not taken, so
   "the result is thrown away" is not a reason to call a redeem unserialized.
   Controlling fact: is the locking query executed inside the transaction at all,
   on the same row two concurrent requests contend for? If yes, it serializes them.
@@ -44,8 +44,8 @@ recurring misjudgement, add it here.
 
 - A cross-service or cross-tenant read is only a finding if the two sides are
   actually distinct trust domains. Decide ONCE whether a given principal, an internal
-  SERVICE role, a sibling tenant, a worker, is inside or outside the boundary, then
-  apply that one answer to EVERY finding touching it. Do not confirm one finding by
+  service role, a sibling tenant, a worker, is inside or outside the boundary, then
+  apply that one answer to every finding touching it. Do not confirm one finding by
   treating the principal as hostile and refute another by treating the same principal
   as trusted, that contradiction is itself the bug to resolve before grading either.
 - A self-set value is still attacker-influenced when the setter is a distinct
@@ -60,19 +60,19 @@ recurring misjudgement, add it here.
 
 ## Refuting Safely: Recall Comes First
 
-The inverse traps. Refute ONLY when a controlling fact makes the code genuinely
-SAFE: the access is actually authorized, the input cannot reach the sink, or the
+The inverse traps. Refute only when a controlling fact makes the code genuinely
+safe: the access is actually authorized, the input cannot reach the sink, or the
 lock genuinely holds. A real finding wrongly refuted is worse than a false
 positive kept, so these bind the refutation:
 
-- Do NOT refute for low or bounded impact, idempotency, or rate-limiting. Those
+- Do not refute for low or bounded impact, idempotency, or rate-limiting. Those
   lower the severity, they do not delete a real finding.
 - A finding usually has several harm paths: information disclosure, denial of
   service by inactivating a victim's resource, an unauthenticated state trigger,
-  fund movement. You must rule out EVERY path to refute. Ruling out one is not a
+  fund movement. You must rule out every path to refute. Ruling out one is not a
   refutation: proving the attacker cannot activate their own resource does not
   refute a finding whose harm is inactivating the victim's. Proving a trigger is
   idempotent does not refute an unauthenticated READ that leaks data.
 - An unauthenticated endpoint reachable by an enumerable id that reads sensitive
   state or changes state is a real finding, do not refute it.
-- When you are not certain it is safe on ALL paths, KEEP it real.
+- When you are not certain it is safe on all paths, keep it real.

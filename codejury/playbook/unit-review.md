@@ -1,9 +1,11 @@
-You own ONLY the files listed in this unit. Going deep on them is your whole job, do
+# Unit Review Mandate
+
+You own only the files listed in this unit. Going deep on them is your whole job, do
 not review anything else.
 
 Read every entrypoint these files expose and trace each one into the managers,
-controllers, dao, and libraries it calls, down to the real sink. The flaw usually
-lives below the entrypoint, in a manager or dao, not in the view. Read the shared
+controllers, DAO, and libraries it calls, down to the real sink. The flaw usually
+lives below the entrypoint, in a manager or DAO, not in the view. Read the shared
 `_stack.md` and `inventory/_auth_model.md` for how this stack enforces access,
 `_vulnerabilities.md` for the class definitions with vulnerable and secure examples,
 and `_false_positive_traps.md` for the recurring ways a static read misjudges them.
@@ -13,7 +15,7 @@ state-machine bypass, replay, signature and key-trust flaws, race conditions,
 injection, mass assignment, SSRF, missing authentication.
 
 When attacker-influenced input reaches a sink, a downstream service, an AI or LLM
-call, a callback, a log, or a cache, enumerate EVERY harm it enables, not just the
+call, a callback, a log, or a cache, enumerate every harm it enables, not just the
 first one you see, and grade by the worst. The same flow is usually several findings
 at once: injection of the content, the data that sink then returns or exposes,
 cross-tenant disclosure, denial of service, an unauthenticated trigger. A
@@ -27,8 +29,8 @@ presence of a named control:
 - **Authorization granularity**: does the check scope to the right principal, owner
   vs tenant vs service, or only prove the caller is some valid user? Compare sibling
   endpoints and endpoint versions for a check present on one and dropped on another.
-- **Replay**: does a signed or authenticated privileged request BOTH consume a
-  one-time nonce AND enforce a freshness window? A signature alone is not enough.
+- **Replay**: does a signed or authenticated privileged request both consume a
+  one-time nonce and enforce a freshness window? A signature alone is not enough.
 - **Concurrency**: is a check-then-act serialized by a lock held across the act? A
   `select_for_update` whose result is discarded still holds the row lock on a
   production RDBMS inside a transaction, so judge against production semantics, not a
@@ -40,7 +42,7 @@ Refute in place: name the one controlling fact that would make the code safe, re
 that exact code, and settle it. Confirmed if the control is absent or bypassable,
 refuted if it holds, blocked if it turns on a runtime fact you cannot read.
 
-Recall comes first: when in doubt, surface it. NEVER drop a real finding to keep the
+Recall comes first: when in doubt, surface it. Never drop a real finding to keep the
 report clean. The only things you do not report are dependency or component CVEs, out
 of this tool's scope, and a candidate the facts refute, the controlling fact holds when
 you read the code. Everything else that is real is reported, graded by the rubric.

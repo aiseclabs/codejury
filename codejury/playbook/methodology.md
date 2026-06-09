@@ -49,7 +49,7 @@ Workspace: `<workspace>/<project>/`, created for you, holding `inventory/`,
 
 *Build the denominator. A unit you never list is a unit you never review.*
 
-Enumerate EVERY attacker-influenced entrypoint into `inventory/`, one row each,
+Enumerate every attacker-influenced entrypoint into `inventory/`, one row each,
 grouped by module. Untrusted input enters at more than HTTP:
 
 - HTTP, GraphQL, gRPC, WebSocket handlers, CLI commands, scheduled jobs, queue and
@@ -83,7 +83,7 @@ Then record two cross-cutting artifacts in `inventory/`:
 
 The scaffold has already written the unit worklist into `units/`, one unit per
 candidate entrypoint the stack guides flagged, each opening with `- Status: open`
-and carrying the same fixed deep-review mandate. You do NOT invent the units or
+and carrying the same fixed deep-review mandate. You do not invent the units or
 decide how deep each goes, that is fixed by the scaffold so per-unit depth does not
 vary with your judgment. Your job is to make the worklist complete, then run it.
 
@@ -105,12 +105,12 @@ is still open, so the unit list is the coverage ledger.
 
 ### Review Each Unit, in Parallel
 
-This step decides recall, so it is mechanical, not discretionary. For EVERY unit in
+This step decides recall, so it is mechanical, not discretionary. For every unit in
 `units/`, launch one dedicated sub-review, a subagent that owns only that unit. One
 subagent per unit, no unit skipped, no two units merged to save calls. Run them in
 parallel.
 
-Do NOT review units yourself in this main context. Your job here is to orchestrate:
+Do not review units yourself in this main context. Your job here is to orchestrate:
 enumerate, decompose, spawn one sub-review per unit, and aggregate. Keep this context
 lean so it does not dilute. The deep reading happens inside each subagent, never here.
 A unit looked at in passing by the orchestrator is the shallow whole-repo pass this
@@ -121,8 +121,8 @@ inventory's auth model, and `_vulnerabilities.md`. Each sub-review follows the f
 mandate below:
 
 1. **Traces** every entrypoint in its unit out of the view into the managers,
-   controllers, dao, and libraries it calls, to the real sink. The flaw usually
-   lives below the entrypoint, in a manager or dao, not in the view.
+   controllers, DAO, and libraries it calls, to the real sink. The flaw usually
+   lives below the entrypoint, in a manager or DAO, not in the view.
 2. **Hunts** the high-impact classes: broken authorization and IDOR, business-logic
    and state-machine bypass, replay, signature and key-trust flaws, race conditions,
    injection, mass assignment, SSRF, missing authentication.
