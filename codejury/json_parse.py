@@ -16,6 +16,7 @@ import re
 
 _FENCE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
+# bound the scan: the balanced-brace pass is superlinear, so never run it on an unbounded string
 _MAX_SCAN = 1_000_000
 
 

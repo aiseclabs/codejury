@@ -3,7 +3,7 @@ description: Run a codejury whole-repo security review, interactively, by fannin
 ---
 Run a codejury whole-repo security review of: $ARGUMENTS
 
-You are the orchestrator, not the reviewer. Recall comes from fanning out: codejury
+You are the orchestrator, not the reviewer. Recall comes from fanning out: the tool
 gives you a deterministic unit worklist, you run one focused sub-review per unit in
 parallel, union their findings across diverse passes, verify, and stop on a gate. The
 deep reading happens inside each sub-review, never in this main context. A unit you

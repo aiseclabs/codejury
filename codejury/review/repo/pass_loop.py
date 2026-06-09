@@ -63,7 +63,7 @@ def run_passes(
         lens = lenses[i % len(lenses)]
         if concurrency > 1 and len(units) > 1:
             with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                per_unit = list(pool.map(lambda u: review_unit(u, lens), units))
+                per_unit = list(pool.map(lambda u: review_unit(u, lens), units))   # order preserved, the zip below relies on it
         else:
             per_unit = [review_unit(u, lens) for u in units]
         candidates = [c for cands, _err in per_unit for c in cands]
@@ -71,7 +71,7 @@ def run_passes(
         reviewed_ok.update(u.name for u, (_cands, err) in zip(units, per_unit) if err is None)
         n_new = acc.add_pass(candidates)
         if persist is not None:
-            persist(acc.findings)
+            persist(acc.findings)   # checkpoint the union each pass, so a kill mid-run can resume
         if on_pass is not None:
             on_pass(i + 1, lens, n_new, len(acc.findings))
         if acc.converged:

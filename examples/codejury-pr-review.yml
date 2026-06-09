@@ -1,4 +1,4 @@
-# codejury PR security review. Copy into .github/workflows/ in your repo.
+# PR security review with codejury. Copy into .github/workflows/ in your repo.
 #
 # Audits the pull request's diff, uploads findings to GitHub code scanning as
 # SARIF, and fails the check on a HIGH or CRITICAL finding. Set a provider key

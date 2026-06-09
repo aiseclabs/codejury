@@ -16,6 +16,7 @@ from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.vulnerabilities import allowed_categories, normalize_category
 from codejury.finding import Finding
 
+# audit a diff over this size file-by-file, so a big PR does not overflow context and silently truncate the reply
 _MAX_DIFF_CHARS = 60_000
 
 
