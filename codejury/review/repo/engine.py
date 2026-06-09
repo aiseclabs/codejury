@@ -174,6 +174,43 @@ def _reviewed_slugs(ws: Path) -> set:
             if re.search(r"(?im)^-\s*Status:\s*reviewed\s*$", u.read_text(encoding="utf-8"))}
 
 
+def apply_verification(
+    ws: Path,
+    findings: list[Candidate],
+    *,
+    root: str,
+    verifier: Verifier | None,
+    provider: Provider | None,
+    model: str,
+    votes: int,
+    concurrency: int,
+    fresh: bool,
+) -> tuple[list[Candidate], VerifyResult]:
+    """Adversarially verify a finding list, resumable via `_verified.json`, and record
+    the refuted. The single home for the verify step the coded run and the finalize pass
+    both share, so a change to the cache format or the refuted output cannot drift
+    between them. A finding already verified is not re-verified, and on fresh the cache
+    is ignored. A failed verification is counted in the result and the finding is kept,
+    never silently dropped, invariant 3."""
+    if verifier is None:
+        if provider is None:
+            raise ValueError("verification needs a provider, or an injected verifier")
+        verifier = ModelVerifier(provider=provider, model=model)
+    verified = {} if fresh else _load_verified(ws)
+    to_verify = [c for c in findings if _keystr(c) not in verified]
+    new_vr = verify_findings(to_verify, verifier, root, votes=votes, concurrency=concurrency)
+    for c in new_vr.confirmed:
+        verified[_keystr(c)] = {"real": True, "reason": ""}
+    for c, reason in new_vr.refuted:
+        verified[_keystr(c)] = {"real": False, "reason": reason}
+    _save_verified(ws, verified)
+    confirmed = [c for c in findings if verified.get(_keystr(c), {"real": True})["real"]]
+    refuted = [(c, verified[_keystr(c)]["reason"]) for c in findings
+               if not verified.get(_keystr(c), {"real": True})["real"]]
+    _write_refuted(ws, refuted)
+    return confirmed, VerifyResult(confirmed=confirmed, refuted=refuted, errors=new_vr.errors)
+
+
 def _md_field(text: str, key: str) -> str:
     v = md_field(text, key)
     return v.strip("`").strip() if v is not None else ""
@@ -251,24 +288,11 @@ def finalize_repo_review(
 
     vr: VerifyResult | None = None
     if verify and deduped:
-        if verifier is None:
-            if provider is None:
-                raise ValueError("finalize needs a provider, or an injected verifier")
-            verifier = ModelVerifier(provider=provider, model=model)
-        verified = _load_verified(ws)
-        to_verify = [c for c in deduped if _keystr(c) not in verified]
-        new_vr = verify_findings(to_verify, verifier, root, votes=votes, concurrency=concurrency)
-        for c in new_vr.confirmed:
-            verified[_keystr(c)] = {"real": True, "reason": ""}
-        for c, reason in new_vr.refuted:
-            verified[_keystr(c)] = {"real": False, "reason": reason}
-        _save_verified(ws, verified)
-        confirmed = [c for c in deduped if verified.get(_keystr(c), {"real": True})["real"]]
-        refuted = [(c, verified[_keystr(c)]["reason"]) for c in deduped
-                   if not verified.get(_keystr(c), {"real": True})["real"]]
-        vr = VerifyResult(confirmed=confirmed, refuted=refuted, errors=new_vr.errors)
-        _write_refuted(ws, refuted)
-        deduped = confirmed
+        # finalize always resumes from any prior verification, there is no fresh here
+        deduped, vr = apply_verification(
+            ws, deduped, root=root, verifier=verifier, provider=provider, model=model,
+            votes=votes, concurrency=concurrency, fresh=False,
+        )
 
     _write_findings(ws, deduped)
     return FinalizeResult(workspace=ws, parsed=len(cands), deduped=len(deduped), verify=vr)
@@ -330,24 +354,10 @@ def run_repo_review(
     findings = acc.findings
     vr: VerifyResult | None = None
     if verify:
-        if verifier is None:
-            if provider is None:
-                raise ValueError("verification needs a provider, or an injected verifier")
-            verifier = ModelVerifier(provider=provider, model=model)
-        verified = {} if fresh else _load_verified(ws)
-        to_verify = [c for c in findings if _keystr(c) not in verified]
-        new_vr = verify_findings(to_verify, verifier, root, votes=votes, concurrency=concurrency)
-        for c in new_vr.confirmed:
-            verified[_keystr(c)] = {"real": True, "reason": ""}
-        for c, reason in new_vr.refuted:
-            verified[_keystr(c)] = {"real": False, "reason": reason}
-        _save_verified(ws, verified)
-        confirmed = [c for c in findings if verified.get(_keystr(c), {"real": True})["real"]]
-        refuted = [(c, verified[_keystr(c)]["reason"]) for c in findings
-                   if not verified.get(_keystr(c), {"real": True})["real"]]
-        vr = VerifyResult(confirmed=confirmed, refuted=refuted, errors=new_vr.errors)
-        _write_refuted(ws, refuted)
-        findings = confirmed
+        findings, vr = apply_verification(
+            ws, findings, root=root, verifier=verifier, provider=provider, model=model,
+            votes=votes, concurrency=concurrency, fresh=fresh,
+        )
 
     _write_surface(ws, units, acc.failed_units)
     _write_findings(ws, findings)
