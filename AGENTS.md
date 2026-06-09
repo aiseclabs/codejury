@@ -1,7 +1,8 @@
 # AGENTS.md
 
 The project's agent instructions, loaded every session and taking precedence over
-default behavior. Claude Code reads it through the `@AGENTS.md` import in `CLAUDE.md`.
+default behavior. Codex reads `AGENTS.md` directly, and Claude Code reads it through
+the `@AGENTS.md` import in `CLAUDE.md`.
 
 An AI code security review tool with two paths matched to their nature. Diff review
 is a coded engine, a single balanced LLM call or an adversarial Finder, Challenger,
@@ -23,12 +24,13 @@ fans out, with code owning the orchestration and an agent doing the per-unit dep
    bypass, injection, and mass assignment. Do not report dependency CVEs, style or
    best-practice notes, speculation with no concrete exploit, or config-leak-only
    risks.
-3. **Fail loud, never report a failure as clean.** A failed, rate-limited, or blank
-   model call is a failure, not an empty result. The code raises or counts it and
-   keeps the finding, it never turns a failed call into zero findings, because for a
-   security tool a silent failure is a hidden miss. The diff path surfaces the error,
-   the repo path counts failed unit reviews and keeps a finding when verification
-   cannot complete.
+3. **Fail loud, never report a failure as clean.** A failed, rate-limited, blank, or
+   unparsable model call is a failure, not an empty result. The code raises or counts
+   it and keeps the finding, it never turns a failed call into zero findings, because
+   for a security tool a silent failure is a hidden miss. The diff path surfaces the
+   error. The repo path counts failed unit reviews, keeps a finding when verification
+   cannot complete, and surfaces the failure rather than reporting incomplete work as
+   clean.
 4. **PoC verification is safe and human-in-the-loop.** The repo-review agent confirms
    an issue with a real PoC against a sandbox or dev environment, asking the operator
    for credentials and test data. It never touches production or real credentials,
@@ -91,7 +93,7 @@ exclude flags.
 
 - Tests run in a venv: `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`.
 - Provider keys come from the environment or the flags `CODEJURY_API_BASE`, `CODEJURY_API_KEY`, `CODEJURY_MODEL`. The tool does NOT auto-load `.env`.
-- Add a vulnerability class by dropping `knowledge/vulnerabilities/<id>.md` with frontmatter of title, impact, tags, and triggers, and a body of vulnerable and secure examples. Add a language or framework the same way under `knowledge/guides/`. It is data, no code change.
+- Add a vulnerability class by dropping `knowledge/vulnerabilities/<id>.md` with frontmatter of title, impact, tags, and triggers, and a body of vulnerable and secure examples. Add a language, framework, or protocol guide under `knowledge/guides/` with its detect signals, entrypoint markers, and logic-layer globs in frontmatter, plus review guidance in the body. Both are data, no code change.
 - Release: bump the `pyproject.toml` version, create a GitHub Release `vX.Y.Z`, and OIDC Trusted Publishing pushes to PyPI.
 
 ## Style Guide
