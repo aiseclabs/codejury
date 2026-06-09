@@ -5,9 +5,11 @@ cycles lenses, unions, and stops on convergence. Tested with a mock reviewer so 
 orchestration is verified without a model. The default ModelReviewer's parsing is
 tested with a mock provider."""
 
+import pytest
+
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.passloop import run_passes
-from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer, candidates_from_obj
+from codejury.review.repo.reviewer import ModelReviewer, RepoReviewError, Unit, UnitReviewer, candidates_from_obj
 from codejury.review.repo.union import Candidate
 
 _U = [Unit(name="u", root=".", files=())]
@@ -121,7 +123,24 @@ def test_model_reviewer_builds_prompt_and_parses(tmp_path):
     assert "def handler" in sent                 # the unit's code was gathered in
 
 
-def test_model_reviewer_empty_on_unparseable_reply():
+def test_model_reviewer_raises_on_unparseable_reply():
+    # a 200 reply with no parseable findings object is a failed review, not an empty one,
+    # so it raises rather than reading the failure as a clean unit
     prov = MockProvider(default="sorry, no JSON here")
     reviewer = ModelReviewer(provider=prov, model="mock")
+    with pytest.raises(RepoReviewError):
+        reviewer.review(Unit(name="u", root=".", files=()), "")
+
+
+def test_model_reviewer_empty_findings_is_not_an_error():
+    # a valid `{"findings": []}` means reviewed and nothing found, which is not a failure
+    prov = MockProvider(default='{"findings": []}')
+    reviewer = ModelReviewer(provider=prov, model="mock")
     assert reviewer.review(Unit(name="u", root=".", files=()), "") == []
+
+
+def test_run_passes_counts_an_unparseable_reply_as_an_error():
+    # the unparseable reply propagates as an error the pass-loop counts, never as findings
+    prov = MockProvider(default="sorry, no JSON here")
+    acc = run_passes(_U, ModelReviewer(provider=prov, model="mock"), lenses=("",), max_passes=2)
+    assert acc.errors >= 1 and acc.findings == []

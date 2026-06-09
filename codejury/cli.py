@@ -214,6 +214,7 @@ def _dispatch(args, parser) -> int:
         print(f"Ranked report in {fr.workspace}/findings.json")
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
+            return 1   # fail loud: an incomplete verification is not a clean finalize
         return 0
 
     if args.command == "review" and scope == "repo" and args.run:
@@ -257,7 +258,7 @@ def _dispatch(args, parser) -> int:
                   "Results may be understated. Lower --concurrency or raise --retries and re-run.",
                   file=sys.stderr)
         print(f"Findings written to {res.scaffold.workspace}/issues/ and {res.scaffold.workspace}/findings.json")
-        return 0
+        return 1 if failures else 0   # fail loud: a partial run must not exit clean
 
     if args.command == "review" and scope == "repo":
         res = scaffold(args.directory, args.workspace, fresh=args.fresh)

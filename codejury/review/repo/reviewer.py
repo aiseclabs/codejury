@@ -24,6 +24,14 @@ from codejury.providers.base import Message, Provider
 from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.union import Candidate
 
+
+class RepoReviewError(RuntimeError):
+    """A unit review reply could not be parsed into a result, so it is a failed review,
+    not an empty one. Raised instead of returning no findings, mirroring the diff
+    engine's AuditError, so the pass-loop counts the failure and never reads an unusable
+    reply such as a refusal or an error page as a clean unit."""
+
+
 _GATHER_PER_FILE = 24_000   # chars read per file
 _GATHER_TOTAL = 120_000     # chars of code packed into one unit prompt
 
@@ -125,10 +133,10 @@ class ModelReviewer(UnitReviewer):
             + f"Unit `{unit.name}`, the code to review:\n```\n{_gather(unit)}\n```\n\n"
             f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
         )
-        # do not swallow a provider error here: a silently-empty unit would let a
-        # rate-limited or failed call masquerade as "no findings". Let it raise. The
-        # pass-loop catches it, counts it, and surfaces it, so a failure is never read
-        # as a clean unit.
+        # do not swallow a provider error or an unparseable reply: a silently-empty unit
+        # would let a rate-limited, failed, or refusal reply masquerade as "no findings".
+        # Raise instead. The pass-loop catches it, counts it, and surfaces it, so a
+        # failure is never read as a clean unit.
         result = self._provider.complete(
             system=_SYSTEM,
             messages=[Message(role="user", content=prompt)],
@@ -136,4 +144,10 @@ class ModelReviewer(UnitReviewer):
             max_tokens=self._max_tokens,
             cache=True,
         )
-        return candidates_from_obj(extract_json_object(result.text))
+        obj = extract_json_object(result.text)
+        if obj is None or "findings" not in obj:
+            raise RepoReviewError(
+                "the unit review reply had no JSON object, or a JSON object without a "
+                "findings key, so it is a failed review rather than a clean unit"
+            )
+        return candidates_from_obj(obj)

@@ -26,6 +26,7 @@ from codejury.json_parse import extract_json_object
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE, SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.reviewer import (
     _JSON_SHAPE,
+    RepoReviewError,
     Unit,
     UnitReviewer,
     _lens_line,
@@ -129,7 +130,13 @@ class AgentReviewer(_ClaudeBackend, UnitReviewer):
             f"managers, dao, controllers, and libraries they call:\n{files}\n\n"
             f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
         )
-        return candidates_from_obj(extract_json_object(_result_text(self._ask(prompt, unit.root))))
+        obj = extract_json_object(_result_text(self._ask(prompt, unit.root)))
+        if obj is None or "findings" not in obj:
+            raise RepoReviewError(
+                "the unit review reply had no JSON object, or a JSON object without a "
+                "findings key, so it is a failed review rather than a clean unit"
+            )
+        return candidates_from_obj(obj)
 
 
 _VERIFY_SHAPE = '{"real": true, "reason": "the controlling fact at file:line"}'
