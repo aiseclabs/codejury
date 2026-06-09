@@ -89,11 +89,36 @@ exclude flags.
 
 ## Contributing
 
-- Prose style: no em-dash, no semicolons or parentheses in prose, comments, or docstrings, and few hyphenated words. Keep those inside code, code fences, rule tokens, and the prompt strings sent to the model. Commit messages are `type: summary`, with few parentheses.
 - Tests run in a venv: `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`.
 - Provider keys come from the environment or the flags `CODEJURY_API_BASE`, `CODEJURY_API_KEY`, `CODEJURY_MODEL`. The tool does NOT auto-load `.env`.
 - Add a vulnerability class by dropping `knowledge/vulnerabilities/<id>.md` with frontmatter of title, impact, tags, and triggers, and a body of vulnerable and secure examples. Add a language or framework the same way under `knowledge/guides/`. It is data, no code change.
 - Release: bump the `pyproject.toml` version, create a GitHub Release `vX.Y.Z`, and OIDC Trusted Publishing pushes to PyPI.
+
+## Style Guide
+
+A tight prose and code style, mirrored from the maintainer's checklist and
+enforced, so match it.
+
+Prose, in comments, docstrings, and markdown:
+
+- No em-dash, neither the unicode em-dash nor a spaced double hyphen. Use two sentences, a comma, or a colon.
+- No semicolons. Use a period or a comma.
+- No parentheses. Reword the aside with "such as", "for example", or a comma.
+- Few hyphenated words. Keep the hyphen only where it is part of an identifier, a CLI flag like `--git-range`, a rule id like `sql-injection`, or a file path.
+- No sentence begins with the lowercase brand. Start with "It", "The tool", or a rewording.
+- Title Case headings. Name the two paths "Diff Review" and "Repo Review" in headings, lowercase "diff review" and "whole-repo review" in running text.
+- English only, no CJK, see invariant 5.
+
+Semicolons and parentheses stay where they are code, not prose: code fences, inline code, rule trigger tokens, a method reference like `complete()`, and the prompt strings sent to the model.
+
+Code:
+
+- One statement per line, no `;` separator.
+- No linter or type-checker suppression comments. Fix the cause instead, narrow a type with `isinstance` or turn an unreachable line into a real guard.
+- A comment earns its place only as the why or an invariant. Delete one that restates the code or narrates history.
+- Module names are plural for a collection and singular for one concept, a single word where one reads cleanly.
+
+Commit messages are `type: summary` in the present tense, with few parentheses.
 
 ## Detection Quality
 
