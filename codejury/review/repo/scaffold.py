@@ -23,7 +23,7 @@ from codejury.guides import (
     logic_layer_globs,
     select_guides,
 )
-from codejury.mddocs import iter_md_docs
+from codejury.markdown_docs import iter_md_docs
 from codejury.review.repo.model import build_repo_model_from_dir, candidate_entrypoint_files, logic_layer_files
 from codejury.resources import (
     FALSE_POSITIVE_TRAPS_FILE,

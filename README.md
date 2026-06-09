@@ -7,168 +7,212 @@
  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚════╝  ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 ```
 
-An AI code security review tool. It works two ways. `review diff` audits a pull
-request diff for newly introduced exploitable risk in one command. `review repo`
-audits a whole repository by fanning out: it maps the attack surface, splits it
-into per-unit work, runs a focused deep review on each unit, and adversarially
-verifies every finding before reporting. An interactive agent such as Claude Code
-or Codex drives the per-unit review, while the deterministic parts, the worklist,
-the dedup, the verification, and the completeness gate, are coded.
+AI-assisted security review for code diffs and whole repositories.
 
-Security knowledge is data, not code. Drop-in markdown guides hold the
-vulnerability classes, languages, frameworks, and protocols, so the engine names
-no language and adding a stack is a new file.
+Codejury has two review paths:
+
+- **Diff Review** audits a pull request or unified diff in one command.
+- **Repo Review** fans out across a whole repository, reviews focused units, deduplicates
+  candidates, verifies findings, and checks coverage with a gate.
+
+Security knowledge is data. Vulnerability classes, language guides, framework guides, and
+protocol guides live in markdown under `codejury/knowledge/`, so adding a stack or class is
+usually a data change rather than a Python code change.
 
 ## Install
 
+Install the core package and one model backend:
+
 ```bash
-pip install codejury                       # core
-pip install "codejury[anthropic]"          # add a backend, also openai or litellm
-codejury install-slash-command             # Claude Code, ~/.claude/commands/
-codejury install-slash-command --agent codex   # Codex, ~/.codex/prompts/
+pip install codejury
+pip install "codejury[anthropic]"   # or "codejury[openai]" or "codejury[litellm]"
 ```
 
-`install-slash-command` copies the `/codejury-review-repo` command into the
-agent's command directory. The command body is the same for every agent, only the
-directory differs, so pass `--dir` for any other agent.
+Install the Repo Review slash command for an agent:
+
+```bash
+codejury install-slash-command                  # Claude Code
+codejury install-slash-command --agent codex    # Codex
+```
+
+`install-slash-command` copies `/codejury-review-repo` into the selected agent's command
+directory. Pass `--dir` to install it somewhere else.
+
+## Configure A Model Backend
+
+Set a provider key through flags or environment variables:
+
+```bash
+export CODEJURY_API_KEY=...
+export CODEJURY_MODEL=claude-sonnet-4-6
+export CODEJURY_API_BASE=...   # optional gateway or proxy
+```
+
+The tool does not auto-load `.env`.
+
+Useful flags:
+
+- `--provider anthropic|openai|litellm`
+- `--model <model>`
+- `--api-key <key>`
+- `--api-base <url>`
+- `--retries <n>`
 
 ## Diff Review
 
-The coded engine. It audits a diff in one command, as a single balanced LLM call
-or an adversarial Finder, Challenger, and Judge pass that trades roughly 3x the
-cost for extra recall on subtle flaws that span files.
+Diff Review is the fast coded path. It audits a unified diff with either a standard
+single model call or an adversarial Finder, Challenger, and Judge pass.
 
 ```bash
-# a diff file
+# Review a diff file
 codejury review diff --file changes.diff
 
-# a git range in a repo
+# Review a git range
 codejury review diff --repo /path/to/app --git-range origin/main...HEAD
 
-# from stdin
+# Review stdin
 git diff HEAD~1 | codejury review diff
 
-# adversarial mode, more recall on subtle flaws, about 3x the cost
+# Use adversarial mode for extra recall on subtle cross-file logic
 codejury review diff --file changes.diff --mode adversarial
 
-# CI gate and SARIF
+# Emit SARIF and fail on HIGH or CRITICAL findings
 codejury review diff --file changes.diff --format sarif --fail-on high
 ```
 
-Configure a backend with `--provider`, `--model`, `--api-key`, `--api-base`, or
-the `CODEJURY_API_KEY`, `CODEJURY_MODEL`, and `CODEJURY_API_BASE` environment
-variables. `codejury review diff --dry-run` exercises the engine with a mock
-provider and no key, and falls back to a built in demo diff when you pass none.
+`codejury review diff --dry-run` uses a mock provider and a built-in demo diff, so it needs
+no API key.
 
 ## Repo Review
 
-Recall-first, for a deep audit. A whole repo is too large for one LLM call and a
-single pass dilutes, so this fans out: it enumerates the attack surface, splits it
-into per-unit work, and runs a focused deep review on each unit. An interactive
-agent does the per-unit reviewing where judgment is needed. The deterministic
-scaffolding, dedup, verification, and gate are coded.
+Repo Review is the recall-first path for whole repositories. A whole codebase is too large
+for one useful model call, so Codejury creates a workspace, builds a unit worklist, and
+reviews focused units instead of doing one shallow pass.
 
-Start by scaffolding the workspace:
+Start by scaffolding a workspace:
 
 ```bash
-codejury review repo /path/to/your/repo
+codejury review repo /path/to/repo
 ```
 
-It detects the stack, seeds the entrypoint inventory and the downstream trace
-targets from a deterministic scan, writes the methodology to
-`<workspace>/METHODOLOGY.md`, and prints a short pointer. The workspace:
+The workspace contains:
 
-```
-inventory/     the attack-surface map, auth model, seeded candidates, severity rubric
-units/         one unit per entrypoint, each carrying its deep-review mandate
-issues/        one write-up per confirmed or suspected issue
-pocs/          a runnable PoC per issue, same name as the issue
-METHODOLOGY.md, _stack.md, and _false_positive_traps.md
-```
-
-Then run it with an interactive agent. In Claude Code or Codex:
-
-```
-/codejury-review-repo /path/to/your/repo
+```text
+inventory/      attack surface, authorization model, candidates, severity rubric
+units/          one review unit per candidate entrypoint
+issues/         issue write-ups
+pocs/           runnable PoCs, when available
+METHODOLOGY.md  full review process
+_stack.md       detected stack notes
 ```
 
-Any agent works, the slash command is just a shortcut. Without it, tell the agent
-to follow the `METHODOLOGY.md` the scaffold wrote. The agent maps the attack
-surface including non HTTP sources, traces each input to its sink through the
-downstream layers, runs an Authorization Model pass for missing-auth and IDOR,
-and follows a control into a library when an entrypoint delegates it. It iterates
-until a Completeness Gate passes, confirms each issue with a real PoC against a
-sandbox or dev environment, and asks you for any credential it needs. Only a
-reproduced PoC is a confirmed finding, and nothing runs against production.
+Then run the interactive slash command in Claude Code or Codex:
 
-Once the fan-out has covered the surface, the agent hands off to the coded steps
-that need no judgment:
+```text
+/codejury-review-repo /path/to/repo
+```
+
+The agent maps the attack surface, fills the authorization model, runs one focused
+sub-review per unit, records findings, and leaves deterministic post-processing to code.
+PoCs must run only against sandbox or dev environments, never production.
+
+After the fan-out review, run the coded finalization and gate:
 
 ```bash
-codejury review repo /path/to/your/repo --finalize   # dedup and adversarially verify, write ranked findings
-codejury review repo /path/to/your/repo --gate        # check the Completeness Gate, exit non-zero if unmet
+codejury review repo /path/to/repo --finalize
+codejury review repo /path/to/repo --gate
 ```
 
-`--finalize` dedups the findings and runs a recall-safe skeptic over each one, a
-verifier that refutes only what it can prove safe and never drops a finding for
-low impact, recording the refuted in `_refuted.md`. Both steps resume across
-sessions, so a usage limit costs no progress. For a headless or CI run with no
-interactive agent, `--run` drives the whole fan-out in code against a provider or
-the Claude Code backend, for example `--run --reviewer claude-cli --concurrency 1`.
+`--finalize` deduplicates issue files, verifies survivors, records refuted candidates in
+`_refuted.md`, and writes ranked `findings.json`. `--gate` fails until the workspace has
+an enumerated surface, reviewed units, and calibrated findings.
 
-The supported stacks today are Python with Django, Celery, Flask, and FastAPI,
-Go with Gin and Echo, JavaScript and TypeScript with Express and NestJS, and the
-OAuth and OIDC protocol. The methodology still works on an unguided stack, it just
-leans more on the agent's own knowledge.
+For a headless run, use:
 
-## Choosing a Model and Mode
+```bash
+codejury review repo /path/to/repo --run
+```
 
-Detection quality is dominated by the model first, then the mode. On real diff
-probes:
+Use `--reviewer claude-cli` only when you want the Claude Code backend to run unit reviews
+and verification through local Claude CLI access.
 
-- A strong model at the Claude Sonnet tier in standard mode caught every planted
-  vulnerability with almost no false positives. A weaker model raised false
-  positives in both modes, so the model is the lever that matters most.
-- Adversarial mode did not lower false positives over standard on those probes
-  and costs about 3x. Reach for it to gain recall on subtle logic that spans
-  files, not as a way to cut false positives.
+## Supported Knowledge
 
-Default to standard mode with a strong model, set with `--model` or
-`CODEJURY_MODEL`. False positives are held down by the do not report list and the
-post filter, not by the mode.
+Current guide coverage includes:
 
-## Use in CI with GitHub Actions
+- Python: Django, Flask, FastAPI, Celery
+- Go: Gin, Echo
+- JavaScript and TypeScript: Express, NestJS
+- Protocols: OAuth and OIDC
 
-Audit every pull request and surface findings in the code scanning tab. Copy
-`examples/codejury-pr-review.yml` into `.github/workflows/`, add a
-`CODEJURY_API_KEY` repository secret, and it will
-
-1. diff the pull request against its base with `--git-range origin/<base>...HEAD`,
-2. write SARIF and upload it with `github/codeql-action/upload-sarif`,
-3. fail the check on a HIGH or CRITICAL finding with `--fail-on high`.
-
-The job makes one model call per pull request in standard mode. The SARIF is
-uploaded even when the gate fails, so findings always show up on the pull
-request.
+Unguided stacks still work, but the agent relies more on general methodology and model
+knowledge.
 
 ## Findings
 
-Each finding carries a file and line, a severity and category, a concrete exploit
-scenario, a recommendation, and a confidence. A false positive filter drops test
-paths, mock paths, and low confidence noise. The model is also told not to report
-dependency CVEs, style notes, speculation, or risks that only matter when
-production config leaks.
+Every reportable finding should have:
 
-## Extending
+- file and line
+- severity
+- category
+- exploit scenario
+- recommendation
+- confidence or verification status
 
-Knowledge is data, so extending codejury is a drop-in markdown file with no code
-change.
+Codejury is intentionally scoped to real exploitable application security issues. It should
+not report dependency CVEs, style notes, generic best practices, speculation, or risks that
+only matter if production configuration leaks.
 
-- A vulnerability class: `codejury/knowledge/vulnerabilities/<class>.md` with
-  frontmatter of title, impact, tags, and triggers, plus a vulnerable and a
-  secure example.
-- A language or framework: `codejury/knowledge/guides/languages/<lang>.md` or
-  `codejury/knowledge/guides/frameworks/<lang>/<framework>.md`, declaring its detect
-  signals, entrypoint markers, and downstream logic layers.
-- A protocol such as OAuth: `codejury/knowledge/guides/protocols/<name>.md`, detected
-  by language neutral content tokens.
+## Model And Mode Guidance
+
+Detection quality is dominated by model quality first, then mode.
+
+- Use standard mode with a strong model by default.
+- Use adversarial mode when you want extra recall on subtle cross-file logic.
+- Do not use adversarial mode as a false-positive reducer. False positives are controlled
+  by the do-not-report guidance, deterministic filtering, and verification.
+
+## GitHub Actions
+
+Use the example workflow:
+
+```bash
+cp examples/codejury-pr-review.yml .github/workflows/codejury-pr-review.yml
+```
+
+Add `CODEJURY_API_KEY` as a repository secret. The workflow reviews the pull request diff,
+uploads SARIF to code scanning, and fails on HIGH or CRITICAL findings.
+
+## Extend Codejury
+
+Add security knowledge as markdown:
+
+- Vulnerability class:
+  `codejury/knowledge/vulnerabilities/<id>.md`
+- Language guide:
+  `codejury/knowledge/guides/languages/<language>.md`
+- Framework guide:
+  `codejury/knowledge/guides/frameworks/<language>/<framework>.md`
+- Protocol guide:
+  `codejury/knowledge/guides/protocols/<protocol>.md`
+
+Keep frontmatter and detection signals data-driven. Avoid adding language, framework, or
+vulnerability-specific detection logic to Python unless the engine itself needs a generic
+capability.
+
+## Development
+
+Run tests in a virtual environment:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -e ".[dev]"
+pytest
+```
+
+Release process:
+
+1. Bump `pyproject.toml`.
+2. Create a GitHub Release named `vX.Y.Z`.
+3. OIDC Trusted Publishing builds and publishes to PyPI.

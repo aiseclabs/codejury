@@ -8,7 +8,7 @@ tested with a mock provider."""
 import pytest
 
 from codejury.providers.mock import MockProvider
-from codejury.review.repo.passloop import run_passes
+from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, RepoReviewError, Unit, UnitReviewer, candidates_from_obj
 from codejury.review.repo.union import Candidate
 

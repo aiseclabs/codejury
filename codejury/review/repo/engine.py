@@ -18,9 +18,9 @@ import re
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from codejury.mddocs import md_field
+from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
-from codejury.review.repo.passloop import run_passes
+from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
 from codejury.review.repo.severity import calibrated, median

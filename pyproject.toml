@@ -1,7 +1,7 @@
 [project]
 name = "codejury"
 version = "0.23.0"
-description = "AI code security review for diffs and repos."
+description = "AI-assisted security review for code diffs and whole repositories."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

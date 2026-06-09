@@ -17,7 +17,7 @@ from __future__ import annotations
 import fnmatch
 from dataclasses import dataclass
 
-from codejury.mddocs import iter_md_docs
+from codejury.markdown_docs import iter_md_docs
 from codejury.resources import FRAMEWORKS_DIR, LANGUAGES_DIR, PROTOCOLS_DIR
 
 
