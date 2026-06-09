@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from codejury.markdown_docs import md_field
+from codejury.mddocs import md_field
 
 
 @dataclass(frozen=True)

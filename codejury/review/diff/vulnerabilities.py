@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from codejury.markdown_docs import iter_md_docs
+from codejury.mddocs import iter_md_docs
 from codejury.resources import VULNERABILITIES_DIR
 
 _IMPACT_RANK = {"CRITICAL": 3, "HIGH": 2, "MEDIUM": 1, "LOW": 0}

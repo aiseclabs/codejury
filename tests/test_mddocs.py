@@ -1,6 +1,6 @@
 """Shared markdown-doc plumbing: frontmatter split and directory loading."""
 
-from codejury.markdown_docs import iter_md_docs, parse_frontmatter
+from codejury.mddocs import iter_md_docs, parse_frontmatter
 
 
 def test_parse_frontmatter_well_formed():

@@ -6,7 +6,7 @@ orchestration is verified without a model. The default ModelReviewer's parsing i
 tested with a mock provider."""
 
 from codejury.providers.mock import MockProvider
-from codejury.review.repo.pass_loop import run_passes
+from codejury.review.repo.passloop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer, candidates_from_obj
 from codejury.review.repo.union import Candidate
 
