@@ -7,10 +7,7 @@ from __future__ import annotations
 import json
 
 from codejury.finding import Finding
-
-_SARIF_LEVEL = {"CRITICAL": "error", "HIGH": "error", "MEDIUM": "warning", "LOW": "note"}
-_SEVERITY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-_GATE_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+from codejury.severity import SARIF_LEVEL, SEVERITIES, index
 
 
 def _loc(f: Finding) -> str:
@@ -18,11 +15,11 @@ def _loc(f: Finding) -> str:
 
 
 def _sorted(findings: list[Finding]) -> list[Finding]:
-    return sorted(findings, key=lambda f: (_SEVERITY_ORDER.get(f.severity, 4), f.file, f.line or 0))
+    return sorted(findings, key=lambda f: (index(f.severity), f.file, f.line or 0))
 
 
 def severity_breakdown(findings: list[Finding]) -> dict[str, int]:
-    out = {s: 0 for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")}
+    out = {s: 0 for s in SEVERITIES}
     for f in findings:
         out[f.severity] = out.get(f.severity, 0) + 1
     return out
@@ -89,7 +86,7 @@ def to_sarif(findings: list[Finding]) -> str:
         results.append({
             "ruleId": rule_id,
             "ruleIndex": rule_index[rule_id],
-            "level": _SARIF_LEVEL.get(f.severity, "warning"),
+            "level": SARIF_LEVEL.get(f.severity, "warning"),
             "message": {"text": f.description or f.category or "security finding"},
             "locations": [{"physicalLocation": physical}],
             "properties": {"severity": f.severity, "category": f.category,
@@ -112,9 +109,7 @@ def render(fmt: str, findings: list[Finding]) -> str:
 
 def gate(findings: list[Finding], fail_on: str | None) -> bool:
     """True if any finding is at or above ``fail_on``, one of critical, high, medium, or low."""
-    if not fail_on:
+    if not fail_on or fail_on.strip().upper() not in SEVERITIES:
         return False
-    threshold = _GATE_RANK.get(fail_on.lower())
-    if threshold is None:
-        return False
-    return any(_GATE_RANK.get(f.severity.lower(), 9) <= threshold for f in findings)
+    threshold = index(fail_on)
+    return any(index(f.severity) <= threshold for f in findings)

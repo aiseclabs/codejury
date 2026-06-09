@@ -22,14 +22,10 @@ from __future__ import annotations
 
 import re
 
-LEVELS = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
+from codejury.severity import SEVERITIES, normalize
+
+LEVELS = tuple(reversed(SEVERITIES))   # lowest to highest, for the median's ordering
 _RANK = {s: i for i, s in enumerate(LEVELS)}
-
-
-def normalize(severity: str) -> str:
-    """The canonical level named in a free-text severity, defaulting to MEDIUM."""
-    s = (severity or "").strip().upper()
-    return next((level for level in reversed(LEVELS) if level in s), "MEDIUM")
 
 
 def rank(severity: str) -> int:

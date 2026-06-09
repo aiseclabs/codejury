@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-SEVERITIES = ("CRITICAL", "HIGH", "MEDIUM", "LOW")
+from codejury.severity import SEVERITIES
 
 
 @dataclass(frozen=True, kw_only=True)

@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from codejury.markdown_docs import md_field
+from codejury.severity import SEVERITIES
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,7 @@ def check_gate(project_dir: Path) -> GateResult:
     #    that it clears a floor, since a floor pushes a cautious reviewer to refute a
     #    real finding rather than report it as MEDIUM.
     checked.append("findings graded by the rubric")
-    _LEVELS = ("critical", "high", "medium", "low")
+    _LEVELS = tuple(s.lower() for s in SEVERITIES)
     issues_dir = project_dir / "issues"
     if issues_dir.is_dir():
         for f in sorted(issues_dir.glob("*.md")):
