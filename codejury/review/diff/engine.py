@@ -13,7 +13,7 @@ from codejury.finding import Finding, findings_from_list
 from codejury.review.diff.prompts import SYSTEM, standard_audit_prompt
 from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.guides import select_guides
-from codejury.json_parse import extract_json_object
+from codejury.json_parse import require_json_object
 from codejury.providers.base import Message, Provider
 
 _DIFF_PATH = re.compile(r"^(?:\+\+\+ b/|diff --git a/\S+ b/)(\S+)", re.MULTILINE)
@@ -54,11 +54,10 @@ class AuditRunner:
             model=self._model,
             max_tokens=self._max_tokens,
         )
-        obj = extract_json_object(result.text)
-        if obj is None or "findings" not in obj:
-            raise AuditError(
-                "the model reply was not a valid audit result. it had no JSON object, "
-                "or a JSON object without a findings key, so it is a failed audit "
-                "rather than a clean pass"
-            )
+        obj = require_json_object(
+            result.text, required_key="findings", error=AuditError,
+            message="the model reply was not a valid audit result. it had no JSON object, "
+                    "or a JSON object without a findings key, so it is a failed audit "
+                    "rather than a clean pass",
+        )
         return findings_from_list(obj.get("findings"))

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, category_block
 from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.finding import Finding, findings_from_list
-from codejury.json_parse import extract_json_object
+from codejury.json_parse import optional_json_object
 from codejury.providers.base import Message, Provider
 
 # The three role prompts. Finder is the red team, exhaustive and not self-filtering.
@@ -206,8 +206,7 @@ class AdversarialAuditRunner:
             # a provider error such as exhausted retries or a transport failure
             # is an unusable reply, not an empty result, so degrade gracefully
             return {}, False
-        obj = extract_json_object(result.text)
-        return (obj or {}), bool(obj)
+        return optional_json_object(result.text)
 
     def run(self, diff: str, *, vulnerabilities: str = "", context: str = "", max_rounds: int = 3) -> AdversarialResult:
         if not vulnerabilities:

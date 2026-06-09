@@ -18,7 +18,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from codejury.json_parse import extract_json_object
+from codejury.json_parse import require_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
@@ -151,10 +151,9 @@ class ModelReviewer(UnitReviewer):
             max_tokens=self._max_tokens,
             cache=True,
         )
-        obj = extract_json_object(result.text)
-        if obj is None or "findings" not in obj:
-            raise RepoReviewError(
-                "the unit review reply had no JSON object, or a JSON object without a "
-                "findings key, so it is a failed review rather than a clean unit"
-            )
+        obj = require_json_object(
+            result.text, required_key="findings", error=RepoReviewError,
+            message="the unit review reply had no JSON object, or a JSON object without a "
+                    "findings key, so it is a failed review rather than a clean unit",
+        )
         return candidates_from_obj(obj)

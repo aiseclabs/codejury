@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
-from codejury.json_parse import extract_json_object
+from codejury.json_parse import optional_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE
 from codejury.review.repo.paths import safe_repo_path
@@ -104,8 +104,8 @@ class ModelVerifier(Verifier):
             max_tokens=self._max_tokens,
             cache=True,
         )
-        obj = extract_json_object(result.text)
-        if not isinstance(obj, dict) or "real" not in obj:
+        obj, ok = optional_json_object(result.text, required_key="real")
+        if not ok:
             return Verdict(real=True, reason="unparseable verification, kept")
         return Verdict(real=bool(obj.get("real")), reason=str(obj.get("reason", "")))
 

@@ -23,7 +23,7 @@ import subprocess
 import time
 from typing import Callable
 
-from codejury.json_parse import extract_json_object
+from codejury.json_parse import optional_json_object, require_json_object
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE, SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.reviewer import (
     _JSON_SHAPE,
@@ -162,12 +162,11 @@ class AgentReviewer(_ClaudeBackend, UnitReviewer):
             f"managers, dao, controllers, and libraries they call:\n{files}\n\n"
             f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
         )
-        obj = extract_json_object(_result_text(self._ask(prompt, unit.root)))
-        if obj is None or "findings" not in obj:
-            raise RepoReviewError(
-                "the unit review reply had no JSON object, or a JSON object without a "
-                "findings key, so it is a failed review rather than a clean unit"
-            )
+        obj = require_json_object(
+            _result_text(self._ask(prompt, unit.root)), required_key="findings", error=RepoReviewError,
+            message="the unit review reply had no JSON object, or a JSON object without a "
+                    "findings key, so it is a failed review rather than a clean unit",
+        )
         return candidates_from_obj(obj)
 
 
@@ -197,7 +196,7 @@ class AgentVerifier(_ClaudeBackend, Verifier):
             "Read the code under the current directory, starting at the cited file, then "
             f"respond with a single JSON object exactly like:\n{_VERIFY_SHAPE}"
         )
-        obj = extract_json_object(_result_text(self._ask(prompt, root)))
-        if not isinstance(obj, dict) or "real" not in obj:
+        obj, ok = optional_json_object(_result_text(self._ask(prompt, root)), required_key="real")
+        if not ok:
             return Verdict(real=True, reason="unparseable verification, kept")
         return Verdict(real=bool(obj.get("real")), reason=str(obj.get("reason", "")))
