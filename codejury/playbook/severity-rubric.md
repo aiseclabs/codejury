@@ -46,9 +46,9 @@ Firm rules, these override a cautious instinct to downgrade to nothing:
 ## Out of Scope vs LOW
 
 Recall comes first, so almost nothing is dropped. Only two things are out of scope and
-not reported: dependency or component CVEs (this tool does not do dependency scanning),
-and a candidate the facts refute (the controlling fact holds when read in code, the
-verifier's job).
+not reported: dependency or component CVEs, since this tool does not do dependency
+scanning, and a candidate the facts refute, where the controlling fact holds when you
+read the code, the verifier's job.
 
 Everything else real is reported, graded. A weak signal is LOW, not dropped: a
 best-practice or hardening gap, a config default, a debug or env-gated path, and a

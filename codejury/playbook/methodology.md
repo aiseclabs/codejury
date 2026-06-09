@@ -21,7 +21,7 @@ So the work is three phases:
   sensitive-data map. The inventory is the coverage denominator: a real repo has
   100+ endpoints, and you cannot claim coverage against what you happened to
   notice, only against an enumerated list.
-- **Fan out**, decompose the surface into units and run a focused deep sub-review on
+- **Fan Out**, decompose the surface into units and run a focused deep sub-review on
   each, in parallel. Each unit gets full attention on a small slice, traces it to
   its real sink, and challenges every control. This is where findings are made.
 - **Aggregate**, collect the unit verdicts, derive coverage against the inventory,
@@ -39,9 +39,9 @@ Workspace: `<workspace>/<project>/`, created for you, holding `inventory/`,
 
 1. Read `_stack.md`, the seeded languages, frameworks, and protocols plus their
    review notes, so you know where this stack's entrypoints and sinks live.
-2. Read the relevant vulnerability files under the shipped `vulnerabilities/` for
-   this stack. They carry the class definitions, the control axes, and the
-   false-positive traps. You apply them per unit, not from memory.
+2. Read the relevant classes in `_vulnerabilities.md`, the shipped class definitions
+   with vulnerable and secure examples, and `_false_positive_traps.md`, the recurring
+   ways a static read misjudges them. You apply both per unit, not from memory.
 
 ---
 
@@ -54,8 +54,8 @@ grouped by module. Untrusted input enters at more than HTTP:
 
 - HTTP, GraphQL, gRPC, WebSocket handlers, CLI commands, scheduled jobs, queue and
   topic consumers, webhooks and third-party callbacks.
-- Deserialization points (pickle, yaml.load, marshal), file and document parsers
-  (XML, YAML, CSV, zip, image), template rendering of user input.
+- Deserialization points such as pickle, yaml.load, or marshal, file and document
+  parsers for XML, YAML, CSV, zip, or images, and template rendering of user input.
 - File uploads, archive extraction, any filesystem path built from user input.
 - Inbound inter-service calls, and headers, cookies, or config read as trusted.
 
@@ -65,8 +65,8 @@ record the module, the route, the auth method, and a review status.
 
 Then record two cross-cutting artifacts in `inventory/`:
 
-- **The authorization model**: how this codebase enforces access control (decorator,
-  middleware, permission class, signature, guard), the actors, tenants, and services,
+- **The authorization model**: how this codebase enforces access control, by a
+  decorator, middleware, permission class, signature, or guard, the actors, tenants, and services,
   and the trust boundaries between them. Every unit refers to this instead of
   re-deriving it.
 - **The sensitive-data map**: where tokens, secrets, PII, keys, and other tenants'
@@ -79,7 +79,7 @@ Then record two cross-cutting artifacts in `inventory/`:
 
 *Decompose the surface into units and review each deeply, in parallel.*
 
-## Define the units
+## Define the Units
 
 The scaffold has already written the unit worklist into `units/`, one unit per
 candidate entrypoint the stack guides flagged, each opening with `- Status: open`
@@ -103,7 +103,7 @@ sub-review flips its status to `- Status: reviewed` when it returns with finding
 an evidenced clear, and the gate refuses to call the review complete while any unit
 is still open, so the unit list is the coverage ledger.
 
-## Review each unit, in parallel
+## Review Each Unit, in Parallel
 
 This step decides recall, so it is mechanical, not discretionary. For EVERY unit in
 `units/`, launch one dedicated sub-review, a subagent that owns only that unit. One
@@ -116,9 +116,9 @@ lean so it does not dilute. The deep reading happens inside each subagent, never
 A unit looked at in passing by the orchestrator is the shallow whole-repo pass this
 method exists to replace, and it is the single thing that drops recall.
 
-Give each sub-review only its slice and the shared artifacts (`_stack.md`, the
-inventory's auth model, the relevant vulnerability files), and the full mandate
-below. Each sub-review:
+Give each sub-review only its slice plus the shared artifacts: `_stack.md`, the
+inventory's auth model, and `_vulnerabilities.md`. Each sub-review follows the full
+mandate below:
 
 1. **Traces** every entrypoint in its unit out of the view into the managers,
    controllers, dao, and libraries it calls, to the real sink. The flaw usually
@@ -154,7 +154,7 @@ cleared it, so a wrong clear is visible.
 
 # Phase 3: Aggregate
 
-Collect the unit results.
+*Pull the unit results together, derive coverage, and report what survived.*
 
 - **Coverage** is the units with a verdict over the units in the inventory. Every
   unit must come back with findings or an evidenced clear. An un-reviewed unit is a
@@ -174,7 +174,7 @@ Write each confirmed finding to `issues/<name>.md` with a runnable PoC at
 
 ```markdown
 # <title>
-- Risk: HIGH | CRITICAL
+- Risk: CRITICAL | HIGH | MEDIUM | LOW
 - Type: IDOR | auth bypass | replay | business logic | ...
 - Source: `<METHOD> <path>` or the non-HTTP entrypoint
 - Status: confirmed | blocked

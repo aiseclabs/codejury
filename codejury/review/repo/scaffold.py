@@ -23,12 +23,14 @@ from codejury.guides import (
     logic_layer_globs,
     select_guides,
 )
+from codejury.mddocs import iter_md_docs
 from codejury.review.repo.model import build_repo_model_from_dir, candidate_entrypoint_files, logic_layer_files
 from codejury.resources import (
     FALSE_POSITIVE_TRAPS_FILE,
     METHODOLOGY_FILE,
     SEVERITY_RUBRIC_FILE,
     UNIT_REVIEW_FILE,
+    VULNERABILITIES_DIR,
 )
 
 _DETECT_PER_FILE = 16_000   # bytes read per file
@@ -200,6 +202,18 @@ def _clear_prior_run(ws: Path) -> list[str]:
     return removed
 
 
+def _vulnerabilities_md() -> str:
+    """Concatenate the shipped vulnerability class definitions into one seeded file, so the
+    workspace carries the knowledge the methodology has each unit apply, rather than the
+    agent working from memory. Same shape as the seeded stack notes."""
+    parts = ["# Vulnerability Classes", "",
+             "The shipped class definitions, each with vulnerable and secure examples. A unit "
+             "applies the relevant ones to the code it reads, not from memory.", ""]
+    for _path, _meta, body in iter_md_docs(VULNERABILITIES_DIR):
+        parts += ["---", "", body, ""]
+    return "\n".join(parts) + "\n"
+
+
 def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) -> ScaffoldResult:
     target = Path(target).resolve()
     project = target.name
@@ -259,6 +273,9 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
     # seed the recurring false-positive traps the verification step refutes against
     (ws / "_false_positive_traps.md").write_text(
         FALSE_POSITIVE_TRAPS_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+
+    # seed the vulnerability class definitions the methodology has each unit apply
+    (ws / "_vulnerabilities.md").write_text(_vulnerabilities_md(), encoding="utf-8")
 
     return ScaffoldResult(
         project=project,

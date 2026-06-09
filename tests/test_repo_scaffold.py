@@ -120,6 +120,17 @@ def test_scaffold_seeds_stack_guides(tmp_path):
     assert "python" in stack and "flask" in stack
 
 
+def test_scaffold_seeds_vulnerability_classes(tmp_path):
+    # the methodology has each unit read `_vulnerabilities.md`, so the scaffold must seed it
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    vulns = res.workspace / "_vulnerabilities.md"
+    assert vulns.is_file()
+    text = vulns.read_text()
+    assert "Vulnerability Classes" in text
+    # several shipped class bodies are concatenated in, not just a header
+    assert text.count("\n---\n") >= 5
+
+
 def test_scaffold_flags_a_prior_run(tmp_path):
     ws_root = tmp_path / "work"
     first = scaffold(_target(tmp_path), ws_root)
