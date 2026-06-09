@@ -17,7 +17,7 @@ recurring misjudgement, add it here.
 - `transaction.atomic()` plus a real row lock serializes concurrent redeems even
   on READ COMMITTED. The race only exists if no lock is taken on the contended row.
 
-## Input That Looks Attacker-Controlled But Is Not
+## Input That Looks Attacker-Controlled but Is Not
 
 - An id, ticket, or key read from the session, a signed cookie, or a server-set
   field is not attacker-controlled even though it arrives in the request object.
@@ -25,7 +25,7 @@ recurring misjudgement, add it here.
 - A value the framework derives from an authenticated identity, not from the
   request body, is trusted input.
 
-## Controls That Live Off the Handler Body
+## Controls That Live off the Handler Body
 
 - The auth, ownership, or signature check may be in a decorator, a middleware, a
   permission class, a base class, or a wrapper, not in the handler you are reading.

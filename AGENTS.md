@@ -55,7 +55,7 @@ orchestration and agents or model calls provide per-unit judgment.
 - Agents or model-backed reviewers provide per-unit security judgment. Code owns
   determinism, coverage bookkeeping, and failure accounting.
 
-### Knowledge And Detection
+### Knowledge and Detection
 
 - Vulnerability classes live in `codejury/knowledge/vulnerabilities/`.
 - Language, framework, and protocol guides live in `codejury/knowledge/guides/`.
@@ -65,7 +65,7 @@ orchestration and agents or model calls provide per-unit judgment.
   `knowledge/guides/frameworks/python/django.md`, and declare `language:` in
   frontmatter.
 
-### Providers And Integrations
+### Providers and Integrations
 
 - Providers live in `codejury/providers/`: Anthropic, OpenAI, LiteLLM, mock, and retry.
 - JSON extraction lives in `codejury/json_parse.py`.

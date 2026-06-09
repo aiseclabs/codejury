@@ -38,7 +38,7 @@ codejury install-slash-command --agent codex    # Codex
 `install-slash-command` copies `/codejury-review-repo` into the selected agent's command
 directory. Pass `--dir` to install it somewhere else.
 
-## Configure A Model Backend
+## Configure a Model Backend
 
 Set a provider key through flags or environment variables:
 
@@ -184,7 +184,7 @@ The tool is intentionally scoped to real exploitable application security issues
 not report dependency CVEs, style notes, generic best practices, speculation, or risks that
 only matter if production configuration leaks.
 
-## Model And Mode Guidance
+## Model and Mode Guidance
 
 Detection quality is dominated by model quality first, then mode.
 
@@ -204,7 +204,7 @@ cp examples/codejury-pr-review.yml .github/workflows/codejury-pr-review.yml
 Add `CODEJURY_API_KEY` as a repository secret. The workflow reviews the pull request diff,
 uploads SARIF to code scanning, and fails on HIGH or CRITICAL findings.
 
-## Extend The Knowledge
+## Extend the Knowledge
 
 Add security knowledge as markdown:
 
