@@ -3,7 +3,7 @@ a finding on a failed call, decide by majority when multiple votes are cast."""
 
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.union import Candidate
-from codejury.review.repo.verify import ModelVerifier, Verdict, Verifier, verify_findings
+from codejury.review.repo.verifier import ModelVerifier, Verdict, Verifier, verify_findings
 
 
 class StubVerifier(Verifier):

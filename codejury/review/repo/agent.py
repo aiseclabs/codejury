@@ -32,7 +32,7 @@ from codejury.review.repo.reviewer import (
     candidates_from_obj,
 )
 from codejury.review.repo.union import Candidate
-from codejury.review.repo.verify import Verdict, Verifier
+from codejury.review.repo.verifier import Verdict, Verifier
 
 # read-only tools so a headless run does not prompt and cannot write
 DEFAULT_CLAUDE_ARGS = ("--output-format", "json", "--allowedTools", "Read,Grep,Glob,LS")

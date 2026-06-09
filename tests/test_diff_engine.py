@@ -4,7 +4,7 @@ false-positive filter. Deterministic with a MockProvider, no key."""
 import json
 
 from codejury.review.diff.engine import AuditRunner
-from codejury.review.diff.findings_filter import FindingsFilter
+from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.prompts import standard_audit_prompt
 from codejury.finding import Finding, finding_from_dict, findings_from_list
 from codejury.providers.mock import MockProvider

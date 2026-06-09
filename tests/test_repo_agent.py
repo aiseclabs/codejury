@@ -4,9 +4,9 @@ and the engine runs end to end with no provider."""
 
 import json
 
-from codejury.review.repo.agent_backend import AgentReviewer, AgentVerifier, _envelope_error, _result_text
+from codejury.review.repo.agent import AgentReviewer, AgentVerifier, _envelope_error, _result_text
 from codejury.review.repo.reviewer import Unit
-from codejury.review.repo.run import run_repo_review
+from codejury.review.repo.engine import run_repo_review
 from codejury.review.repo.union import Candidate
 
 

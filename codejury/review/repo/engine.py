@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from codejury.providers.base import Provider
@@ -23,8 +23,9 @@ from codejury.review.repo.passloop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold
 from codejury.review.repo.scaffold import _slug as _unit_slug   # the slug the scaffold names unit files by
+from codejury.review.repo.severity import calibrated, median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
-from codejury.review.repo.verify import ModelVerifier, VerifyResult, Verifier, verify_findings
+from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier, verify_findings
 
 _MAX_RELATED = 20   # trace-target files packed into a unit beyond the owned file
 
@@ -209,9 +210,15 @@ def finalize_repo_review(
     root = str(Path(target).resolve())
 
     cands = [c for c in (_parse_issue(p) for p in sorted((ws / "issues").glob("*.md"))) if c]
+    sev_votes: dict = {}
+    for c in cands:                       # duplicate issue files for one finding are its severity votes
+        sev_votes.setdefault(c.key(), []).append(c.severity)
     pool: dict = {}
     merge(pool, cands)
-    deduped = collapse_colocated(list(pool.values()))
+    deduped = [
+        replace(c, severity=calibrated(median(sev_votes.get(c.key(), [c.severity])), c.category, c.title))
+        for c in collapse_colocated(list(pool.values()))
+    ]
 
     vr: VerifyResult | None = None
     if verify and deduped:

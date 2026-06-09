@@ -19,7 +19,9 @@ The per-pass review that produces candidates is injected, see the engine.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+
+from codejury.review.repo.severity import calibrated, median
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -93,8 +95,11 @@ class Accumulator:
     pool: dict[tuple, Candidate] = field(default_factory=dict)
     new_per_pass: list[int] = field(default_factory=list)
     errors: int = 0                  # unit reviews that raised, e.g. provider rate limits, never silently dropped
+    sev_votes: dict[tuple, list[str]] = field(default_factory=dict)  # every severity each finding was graded, for the median
 
     def add_pass(self, candidates: list[Candidate]) -> int:
+        for c in candidates:                       # record the grade before dedup, so each pass is a vote
+            self.sev_votes.setdefault(c.key(), []).append(c.severity)
         n = merge(self.pool, candidates)
         self.new_per_pass.append(n)
         return n
@@ -109,4 +114,10 @@ class Accumulator:
 
     @property
     def findings(self) -> list[Candidate]:
-        return list(self.pool.values())
+        """The union, each finding's severity calibrated: the median of the grades it
+        was given across passes, raised to the firm-rule floor for its class."""
+        out: list[Candidate] = []
+        for k, c in self.pool.items():
+            sev = calibrated(median(self.sev_votes.get(k, [c.severity])), c.category, c.title)
+            out.append(replace(c, severity=sev) if sev != c.severity else c)
+        return out

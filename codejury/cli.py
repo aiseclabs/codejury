@@ -192,9 +192,9 @@ def _dispatch(args, parser) -> int:
         return 1
 
     if args.command == "review" and scope == "repo" and args.finalize:
-        from codejury.review.repo.run import finalize_repo_review
+        from codejury.review.repo.engine import finalize_repo_review
         if args.reviewer == "claude-cli":
-            from codejury.review.repo.agent_backend import AgentVerifier
+            from codejury.review.repo.agent import AgentVerifier
             verifier_obj, provider = AgentVerifier(), None
         elif args.dry_run:
             verifier_obj, provider = None, MockProvider(default='{"real": true, "reason": "[mock]"}')
@@ -217,10 +217,10 @@ def _dispatch(args, parser) -> int:
         return 0
 
     if args.command == "review" and scope == "repo" and args.run:
-        from codejury.review.repo.run import run_repo_review
+        from codejury.review.repo.engine import run_repo_review
         reviewer_obj = verifier_obj = None
         if args.reviewer == "claude-cli":
-            from codejury.review.repo.agent_backend import AgentReviewer, AgentVerifier
+            from codejury.review.repo.agent import AgentReviewer, AgentVerifier
             reviewer_obj, verifier_obj = AgentReviewer(), AgentVerifier()
             provider = None   # the claude-cli backend uses your Claude Code access, no provider key
         elif args.dry_run:

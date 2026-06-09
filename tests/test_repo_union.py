@@ -89,3 +89,21 @@ def test_a_late_new_finding_resets_convergence():
     acc.add_pass([])
     acc.add_pass([_c("late", endpoint="GET /late")])  # new finding on an otherwise quiet run
     assert not acc.converged                          # the union grew, keep going
+
+
+def test_findings_calibrate_severity_by_median_across_passes():
+    # one finding graded LOW, HIGH, MEDIUM across three passes -> median MEDIUM, not first-seen
+    acc = Accumulator(converge_after=1)
+    for sev in ("LOW", "HIGH", "MEDIUM"):
+        acc.add_pass([_c("idor", category="idor", endpoint="GET /x/<id>", severity=sev)])
+    (f,) = acc.findings
+    assert f.severity == "MEDIUM"
+
+
+def test_findings_apply_firm_rule_floor():
+    # a credential leak the model under-graded LOW is lifted to the HIGH firm-rule floor
+    acc = Accumulator(converge_after=1)
+    acc.add_pass([_c("token in log", category="Credential / Secret Exposure",
+                     file="a.py", severity="LOW")])
+    (f,) = acc.findings
+    assert f.severity == "HIGH"

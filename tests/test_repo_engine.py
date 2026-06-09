@@ -6,9 +6,9 @@ import json
 
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.reviewer import UnitReviewer
-from codejury.review.repo.run import _parse_issue, build_units, finalize_repo_review, run_repo_review
+from codejury.review.repo.engine import _parse_issue, build_units, finalize_repo_review, run_repo_review
 from codejury.review.repo.union import Candidate
-from codejury.review.repo.verify import Verdict, Verifier
+from codejury.review.repo.verifier import Verdict, Verifier
 
 _REPLY = (
     '{"findings": [{"title": "wallet idor", "category": "insecure-direct-object-reference", '
