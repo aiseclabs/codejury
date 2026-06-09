@@ -16,8 +16,10 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, replace
+from functools import lru_cache
 from pathlib import Path
 
+from codejury.detection import load_detection
 from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
 from codejury.review.repo.paths import is_unsafe_rel
@@ -216,6 +218,16 @@ def _md_field(text: str, key: str) -> str:
     return v.strip("`").strip() if v is not None else ""
 
 
+@lru_cache(maxsize=1)
+def _location_re() -> re.Pattern:
+    """The location matcher, built from the data-driven source extensions so no
+    language is named in code. Extensions are sorted longest first so a path like
+    `app.tsx` matches the `tsx` alternative, not the `ts` prefix of it."""
+    exts = sorted((e.lstrip(".") for e in load_detection().source_extensions), key=len, reverse=True)
+    alt = "|".join(re.escape(e) for e in exts)
+    return re.compile(rf"([\w./-]+\.(?:{alt}))(?::(\d+))?")
+
+
 def _parse_issue(path: Path) -> Candidate | None:
     """Parse an agent-written issues/<name>.md into a Candidate for coded dedup and
     verification, so those steps do not depend on the agent's prose."""
@@ -228,7 +240,7 @@ def _parse_issue(path: Path) -> Candidate | None:
     severity = next((s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if s in sev_raw), "MEDIUM")
     # the body cites a location as `path.ext:line` or `path.ext:line-range`, capture
     # both so the report carries a precise location and dedup can use the line
-    fm = re.search(r"([\w./-]+\.(?:py|js|ts|go|java|rb|php))(?::(\d+))?", text)
+    fm = _location_re().search(text)
     if fm is None or is_unsafe_rel(fm.group(1)):
         # invariant 2: with no file location the issue is not reportable. An absolute or
         # parent-traversing path is not a location inside the repo, a tampered or
@@ -326,6 +338,15 @@ def run_repo_review(
     res = scaffold(target, workspace, fresh=fresh)
     ws = res.workspace
     units = build_units(root, res.candidate_files, res.trace_targets)
+    if not units:
+        # zero units means the stack detection flagged no entrypoint, so a run would
+        # review nothing and still look clean. Fail loud, invariant 3: a review that
+        # covered nothing is not a clean pass. The operator scaffolds and seeds the
+        # candidates by hand, or adds a guide for the stack, then re-runs.
+        raise ValueError(
+            f"no candidate entrypoints detected under {root}, so there is nothing to "
+            "review. Add a guide for this stack or seed inventory/_candidates.md, then re-run."
+        )
 
     # resume: skip units a prior run already reviewed, carry its union forward
     reviewed = set() if fresh else _reviewed_slugs(ws)

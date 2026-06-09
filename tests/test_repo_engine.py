@@ -256,3 +256,30 @@ def test_finalize_preserves_blocked_status(tmp_path):
     data = json.loads((fr.workspace / "findings.json").read_text())
     assert len(data["findings"]) == 1
     assert data["findings"][0]["status"] == "blocked"
+
+
+def test_parse_issue_accepts_data_driven_extensions(tmp_path):
+    # language knowledge is data, not code: a location in any extension detection.yaml
+    # lists must parse, not just the once-hardcoded py/js/ts/go/java/rb/php set
+    rs = tmp_path / "rust.md"
+    rs.write_text("# rust handler idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x`\n"
+                  "- Status: confirmed\n## Analysis\nsrc/handler.rs:42 no owner check\n")
+    c = _parse_issue(rs)
+    assert c is not None and c.file == "src/handler.rs" and c.line == 42
+
+    # longest-first ordering: a .tsx path must not be truncated to the .ts prefix
+    tsx = tmp_path / "tsx.md"
+    tsx.write_text("# react xss\n- Risk: MEDIUM\n- Type: xss\n- Source: `x`\n"
+                   "- Status: confirmed\n## Analysis\nweb/App.tsx:10 dangerouslySetInnerHTML\n")
+    c2 = _parse_issue(tsx)
+    assert c2 is not None and c2.file == "web/App.tsx" and c2.line == 10
+
+
+def test_run_fails_loud_on_zero_units(tmp_path):
+    # a target with no detectable entrypoint reviews nothing, so a run must fail loud
+    # rather than report a clean pass, invariant 3
+    repo = tmp_path / "empty"
+    repo.mkdir()
+    (repo / "README.md").write_text("nothing to review here\n")
+    with pytest.raises(ValueError, match="no candidate entrypoints"):
+        run_repo_review(repo, tmp_path / "ws")
