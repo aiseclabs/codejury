@@ -17,13 +17,13 @@ CLI such as `argparse` or `click`, scheduled jobs, queue consumers, and any func
 fed an external value. Non-HTTP sources matter as much as routes.
 
 ## Common Sinks
-- deserialization: `pickle.loads`, `yaml.load` without `SafeLoader`, `marshal`
-- code execution: `eval`, `exec`, `subprocess(..., shell=True)`, `os.system`
-- SQL: a string-built query handed to a DB cursor or ORM `.raw()`/`.extra()`
-- XML/XXE: `lxml`/`xml.etree` parsing attacker XML
-- filesystem: `open()` / `os.path.join` on a path built from user input
-- network: `requests.get(user_url)` and similar, the SSRF sink
-- template: rendering user input through a template engine
+- Code execution: `eval`, `exec`, `subprocess(..., shell=True)`, `os.system`.
+- Deserialization: `pickle.loads`, `yaml.load` without `SafeLoader`, `marshal`.
+- SQL: a string-built query handed to a DB cursor or ORM `.raw()`/`.extra()`.
+- XML/XXE: `lxml`/`xml.etree` parsing attacker XML.
+- Path: `open()` / `os.path.join` on a path built from user input.
+- SSRF: `requests.get(user_url)` and similar, a fetch of a URL from input.
+- Template: rendering user input through a template engine.
 
 ## Gotchas
 - A secret compared with `==` instead of `hmac.compare_digest` leaks via timing.

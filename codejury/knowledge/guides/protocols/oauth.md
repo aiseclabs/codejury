@@ -27,7 +27,7 @@ authorization, and replay flaws rather than injection.
 - Expiry enforced. An expired code is rejected. Confirm the expiry is read and
   compared, not merely stored.
 
-## redirect_uri and State
+## Redirect URI and State
 - redirect_uri is validated against a registered allowlist by exact match, not a
   prefix or a substring, so an open redirect or a code leak is not possible.
 - A state or equivalent anti-forgery value is present and checked, to stop login
