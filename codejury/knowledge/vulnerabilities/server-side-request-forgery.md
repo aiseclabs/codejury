@@ -21,3 +21,9 @@ if urlparse(url).hostname not in ALLOWED_HOSTS:
     raise ValueError("host not allowed")
 return requests.get(url).text
 ```
+
+A hostname allowlist alone is often not enough. Enforce `https`, reject credentials in the URL, resolve the host and block private, loopback, and link-local ranges, and re-check after each redirect. Prefer an exact destination allowlist.
+
+### Not a Finding
+
+A URL fetched only after an exact allowlist plus internal-IP blocking, with redirects controlled, is not SSRF. A constant or trusted-config URL is not SSRF.

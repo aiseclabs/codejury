@@ -14,10 +14,15 @@ An XML parser that resolves external entities on untrusted input lets an attacke
 Vulnerable:
 ```python
 from lxml import etree
-doc = etree.fromstring(untrusted_xml)   # resolves entities by default
+parser = etree.XMLParser(resolve_entities=True, load_dtd=True, no_network=False)
+doc = etree.fromstring(untrusted_xml, parser)   # external entities resolved
 ```
 Secure:
 ```python
 import defusedxml.ElementTree as ET
 doc = ET.fromstring(untrusted_xml)
 ```
+
+### Not a Finding
+
+Parsing with defusedxml, or with a parser that disables DTD and external entities such as `etree.XMLParser(resolve_entities=False, no_network=True)`, is not a finding. Plain XML parsing is a finding only when external entity resolution is actually enabled.

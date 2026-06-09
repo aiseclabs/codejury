@@ -21,3 +21,7 @@ Secure:
 bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 token = secrets.token_urlsafe(32)
 ```
+
+### Not a Finding
+
+A weak hash such as MD5 used only for a non-security checksum, a cache key, deduplication, or an ETag is not a finding. The class applies to security-sensitive use, password hashing, signatures, token or key generation, IV or nonce reuse, and randomness for secrets.

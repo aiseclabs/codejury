@@ -26,3 +26,7 @@ with transaction.atomic():
         acct.balance -= amount
         acct.save()
 ```
+
+### Not a Finding
+
+A check and its action already inside `transaction.atomic()` with `select_for_update()`, or expressed as one atomic conditional update such as an `F()` expression or a database constraint, is not a race. The secure pattern above is not a finding.

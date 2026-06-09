@@ -76,6 +76,15 @@ def test_select_is_capped_and_severity_ordered():
     assert impacts == sorted(impacts, key=lambda i: {"CRITICAL": 0, "HIGH": 1}.get(i, 2))   # criticals first
 
 
+def test_jwt_triggers_skip_generic_decode_and_none():
+    # a bytes .decode() and a None literal are everywhere, so they must not drag in
+    # the JWT class, but a real jwt.decode must still select it
+    generic = "+    text = payload.decode('utf-8')\n+    cfg = None\n"
+    assert "jwt-validation" not in [v.id for v in select_vulnerabilities(generic, _VULNS)]
+    real = "+    claims = jwt.decode(token, options={'verify_signature': False})\n"
+    assert "jwt-validation" in [v.id for v in select_vulnerabilities(real, _VULNS)]
+
+
 def test_no_match_is_empty():
     assert select_vulnerabilities("x = 1 + 2\n", _VULNS) == []
     assert vulnerabilities_for_diff("x = 1 + 2\n") == ""

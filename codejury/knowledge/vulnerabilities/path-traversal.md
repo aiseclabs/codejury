@@ -17,8 +17,9 @@ open(os.path.join(UPLOAD_DIR, request.args["filename"]))
 ```
 Secure:
 ```python
-target = (UPLOAD_DIR / filename).resolve()
-if not target.is_relative_to(UPLOAD_DIR):
+base = UPLOAD_DIR.resolve()
+target = (base / filename).resolve()
+if not target.is_relative_to(base):
     raise ValueError("path escapes base dir")
 ```
 

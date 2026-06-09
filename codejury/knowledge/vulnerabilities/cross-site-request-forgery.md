@@ -20,3 +20,7 @@ def change_email():
     db.commit()
 ```
 Secure: keep CSRF protection on. Validate the token, or set the session cookie `SameSite="Lax"` and check the Origin header.
+
+### Not a Finding
+
+An endpoint authenticated by a bearer token read from JavaScript and sent in the `Authorization` header, not by an ambient cookie, is not CSRF. CSRF needs a credential the browser attaches automatically.

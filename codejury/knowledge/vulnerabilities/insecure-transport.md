@@ -20,3 +20,7 @@ Secure:
 ```python
 requests.get("https://api.example.com/data")   # verify defaults to True
 ```
+
+### Not a Finding
+
+`http://localhost`, `http://127.0.0.1`, a test fixture, or a non-sensitive documentation link is not insecure transport. The class applies to sensitive data sent in cleartext to a real destination, or to disabled certificate or hostname verification.

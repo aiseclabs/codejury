@@ -8,7 +8,7 @@ triggers: ["login", "authenticate", "password ==", "== token", "auth", "bypass",
 
 ## Improper Authentication
 
-Authentication is missing on a protected path, can be bypassed by a logic flaw, or compares credentials unsafely, for example a hardcoded bypass token, a non-constant-time compare, or trusting a client-asserted identity. Verify identity server-side against a trusted store before granting access. Compare secrets in constant time.
+Authentication is missing on a protected path, can be bypassed by a logic flaw, or compares credentials unsafely, for example a hardcoded bypass token, a non-constant-time compare, or trusting a client-asserted identity. Verify identity server-side against a trusted store before granting access. Compare secrets in constant time. Authentication answers who the caller is. Compare missing-authorization, which answers whether the caller may perform the action, so route client-asserted identity or a bypass token here.
 
 ### Python
 Vulnerable:
