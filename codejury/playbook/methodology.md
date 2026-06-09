@@ -45,7 +45,7 @@ Workspace: `<workspace>/<project>/`, created for you, holding `inventory/`,
 
 ---
 
-# Phase 1: Map the Attack Surface
+## Phase 1: Map the Attack Surface
 
 *Build the denominator. A unit you never list is a unit you never review.*
 
@@ -75,11 +75,11 @@ Then record two cross-cutting artifacts in `inventory/`:
 
 ---
 
-# Phase 2: Fan Out
+## Phase 2: Fan Out
 
 *Decompose the surface into units and review each deeply, in parallel.*
 
-## Define the Units
+### Define the Units
 
 The scaffold has already written the unit worklist into `units/`, one unit per
 candidate entrypoint the stack guides flagged, each opening with `- Status: open`
@@ -103,7 +103,7 @@ sub-review flips its status to `- Status: reviewed` when it returns with finding
 an evidenced clear, and the gate refuses to call the review complete while any unit
 is still open, so the unit list is the coverage ledger.
 
-## Review Each Unit, in Parallel
+### Review Each Unit, in Parallel
 
 This step decides recall, so it is mechanical, not discretionary. For EVERY unit in
 `units/`, launch one dedicated sub-review, a subagent that owns only that unit. One
@@ -152,7 +152,7 @@ cleared it, so a wrong clear is visible.
 
 ---
 
-# Phase 3: Aggregate
+## Phase 3: Aggregate
 
 *Pull the unit results together, derive coverage, and report what survived.*
 
@@ -187,12 +187,14 @@ Write each confirmed finding to `issues/<name>.md` with a runnable PoC at
 ## Fix
 ```
 
-If you cannot write a concrete runnable PoC, the finding is most likely a guess, do
-not report it.
+A finding needs a concrete controlling fact traced to a `file:line`. A runnable PoC
+strengthens it, but when a runtime fact or credential is missing, mark it `blocked`
+with the exact `Needs:` rather than dropping it. Only a finding with no traced
+evidence at all is a guess, do not report that.
 
 ---
 
-# Operator Verification
+## Operator Verification
 
 The review above runs unattended to completion and never pauses to ask the operator anything.
 When a finding needs a runtime fact you cannot read, a credential, a deploy-config
@@ -210,7 +212,7 @@ evidence.
 
 ---
 
-# Accumulate Across Runs
+## Accumulate Across Runs
 
 The persistent workspace carries the settled work across runs, so a re-run extends
 coverage instead of restarting. A unit already marked `- Status: reviewed` is not

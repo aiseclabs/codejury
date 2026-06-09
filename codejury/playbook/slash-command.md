@@ -24,7 +24,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    this command again WITHOUT clearing the workspace, answer no when it asks to clear. It
    resumes and does not redo finished work: a unit already marked `- Status: reviewed`
    is skipped in the fan-out, and `--finalize` does not re-verify a finding it already
-   settled. So an interruption costs nothing, keep resuming in new sessions
+   settled. So an interruption loses no completed work, keep resuming in new sessions
    until the gate passes. If usage is tight, run on a Sonnet-tier model, it is faster,
    cheaper, and the strongest tier for this in testing.
 
@@ -46,8 +46,8 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    the surface must be owned by some unit.
 
 3. FAN OUT. This step is mechanical, not a matter of judgment. For EVERY unit in
-   `units/` with `- Status: open`, launch one sub-review as a Task subagent, in
-   parallel. One subagent per unit, no unit skipped, no two merged to save calls.
+   `units/` with `- Status: open`, launch one sub-review per unit as a separate
+   subagent or task, in parallel. One per unit, no unit skipped, no two merged to save calls.
    Give each only its unit file, which carries the mandate and the files to own, plus
    the shared `_stack.md`, `inventory/_auth_model.md`, `inventory/_severity.md`, and
    `_vulnerabilities.md`. Each
@@ -67,14 +67,15 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    surface, run:
 
    ```
-   codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review --finalize --reviewer claude-cli
+   codejury review repo $ARGUMENTS --workspace /var/tmp/codejury-review --finalize
    ```
 
-   This is deterministic and resumable: it dedups the findings by location and class,
-   adversarially verifies each survivor, drops the refuted into `_refuted.md`, and
-   writes the ranked `findings.json`. The skeptic traces across files and judges against
-   production semantics, so a `select_for_update` held inside a `transaction.atomic` is
-   recognised as safe, not a race. Re-run it to resume if a usage
+   In Claude Code, add `--reviewer claude-cli` to verify through your Claude Code access
+   with no provider key. This is deterministic and resumable: it dedups the findings by
+   location and class, adversarially verifies each survivor, drops the refuted into
+   `_refuted.md`, and writes the ranked `findings.json`. The skeptic traces across files
+   and judges against production semantics, so a `select_for_update` held inside a
+   `transaction.atomic` is recognized as safe, not a race. Re-run it to resume if a usage
    limit interrupts, findings already verified are skipped. Your job is the fan-out. The
    dedup, verification, and report are the code's job.
 
