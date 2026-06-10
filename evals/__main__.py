@@ -4,6 +4,7 @@
   python -m evals repo openwebui --findings-json findings.json --json before.json
   python -m evals diff --mode standard --model <id>
   python -m evals compare before.json after.json
+  python -m evals coverage
 
 The repo path scores the output an agent or a coded run already wrote, it does not run the
 review. Resolve a benchmark by name across the public benchmarks and any private source in
@@ -73,6 +74,18 @@ def _cmd_compare(args) -> int:
     return 0
 
 
+def _cmd_coverage(args) -> int:
+    from evals.knowledge import coverage_matrix, coverage_problems, format_matrix
+
+    cov = coverage_matrix()
+    problems = coverage_problems(cov)
+    print(format_matrix(cov, problems))
+    # a missing case is a known gap the case library fills over time, but a reference to a
+    # knowledge file that does not exist is broken benchmark data, so fail loud on it
+    unresolved = [p for p in problems if p.kind == "unresolved-reference"]
+    return 1 if unresolved else 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="evals", description="detection-quality eval ruler")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -96,6 +109,9 @@ def main(argv=None) -> int:
     c.add_argument("before")
     c.add_argument("after")
     c.set_defaults(func=_cmd_compare)
+
+    cov = sub.add_parser("coverage", help="knowledge coverage matrix, which files lack eval coverage")
+    cov.set_defaults(func=_cmd_coverage)
 
     args = p.parse_args(argv)
     if args.cmd == "repo" and not (args.findings_dir or args.findings_json or args.workspace):

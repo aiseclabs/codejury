@@ -31,15 +31,28 @@ class Report:
                    category=category_of(category), files=tuple(files))
 
 
+def knowledge_refs(block) -> tuple[str, ...]:
+    """Flatten a knowledge block, {vulnerabilities: [...], guides: [...]}, into the single
+    namespaced form the coverage matrix indexes on, vuln:<id> and guide:<path>. Both an
+    answer key entry and a benchmark manifest carry this block, so they attribute alike."""
+    block = block or {}
+    refs = [f"vuln:{v}" for v in block.get("vulnerabilities") or []]
+    refs += [f"guide:{g}" for g in block.get("guides") or []]
+    return tuple(refs)
+
+
 @dataclass(frozen=True, kw_only=True)
 class KeyEntry:
-    """A planted issue or a safe lookalike from the answer key."""
+    """A planted issue or a safe lookalike from the answer key. `knowledge` names the
+    vulnerability classes and guides the entry exercises, so the coverage matrix can
+    attribute it, empty for a legacy key authored before the rename."""
     id: str
     entry: str = ""
     file: str = ""
     category: str = ""
     severity: str = ""
     note: str = ""
+    knowledge: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -67,6 +80,7 @@ def _key_entries(rows, *, require_category: bool, where: str) -> tuple[KeyEntry,
             category=category_of(str(r.get("category", ""))),
             severity=str(r.get("severity", "")),
             note=str(r.get("note", "")),
+            knowledge=knowledge_refs(r.get("knowledge")),
         ))
     return tuple(out)
 

@@ -44,9 +44,9 @@ evals/
     repo.py        score a whole-repo review's findings output
     diff.py        run the diff capability probe and score
   diff_cases.py    the shipped synthetic diff cases
-  config.py        discover public benchmarks plus private sources
-  compare.py       diff two results, the per-issue flips and deltas
   registry.py      discover benchmarks across public and private sources
+  knowledge.py     scan the knowledge tree, build the coverage matrix
+  compare.py       diff two results, the per-issue flips and deltas
   benchmarks/
     repo/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
     repo/<name>/answer_key.yaml  planted issues and safe lookalikes
@@ -60,6 +60,23 @@ not be reshaped.
 An answer key has `planted` issues a complete review must surface and `safe` lookalikes a
 report would be a false positive on. Each entry may name the knowledge it exercises. The
 legacy `issues` key is accepted as an alias. The review under test never reads the key.
+
+## Knowledge Coverage
+
+Knowledge is data and the engine is generic, so a vulnerability class or a guide with no
+eval is a gap that should be visible, not silent. `python -m evals coverage` scans the
+knowledge tree and crosses it against the registry, counting the positive and safe diff
+cases and the repo planted and safe entries that exercise each file, public and private:
+
+```bash
+python -m evals coverage
+```
+
+It names the uncovered files, the worklist for the case library, and reports the gate
+problems: a vulnerability with no positive or no safe diff case, a benchmark reference that
+resolves to no real knowledge file, and an answer key entry that names no knowledge. An
+unresolved reference is broken benchmark data, so the command exits nonzero on it, while a
+missing case is a known gap and exits zero.
 
 ## Private Benchmarks, Not Committed
 

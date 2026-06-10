@@ -161,3 +161,54 @@ def test_default_diff_cases_split_positive_and_safe():
     assert any(c.is_positive for c in cases)
     assert any(not c.is_positive for c in cases)
     assert all(c.diff.startswith("diff --git") for c in cases)
+
+
+def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypatch):
+    _public_only(tmp_path, monkeypatch)
+    from evals.knowledge import coverage_matrix
+    cov = coverage_matrix()
+    # the openwebui benchmark plants three IDORs and guards two safe siblings, and every
+    # entry names languages/python, so both the vuln and the guide attribute to it
+    idor = cov["vuln:insecure-direct-object-reference"]
+    assert idor.repo_planted == 3 and idor.repo_safe == 2
+    assert idor.diff_positive >= 1
+    py = cov["guide:languages/python"]
+    assert py.repo_planted == 3 and py.public >= 1
+
+
+def test_coverage_problems_flag_missing_safe_diff_case(tmp_path, monkeypatch):
+    _public_only(tmp_path, monkeypatch)
+    from evals.knowledge import coverage_problems
+    problems = coverage_problems()
+    # sql-injection has positive diff cases but no safe sibling yet, the gap the case
+    # library fills, so it surfaces as a missing-safe problem
+    assert any(p.kind == "missing-safe" and p.ref == "vuln:sql-injection" for p in problems)
+
+
+def test_coverage_problems_flag_unresolved_reference(tmp_path, monkeypatch):
+    # a benchmark that names a knowledge file which does not exist is broken data, the gate
+    # must see it rather than score against a phantom class
+    src = tmp_path / "private"
+    (src / "repo" / "ghost").mkdir(parents=True)
+    (src / "repo" / "ghost" / "answer_key.yaml").write_text(
+        "target: ghost\nplanted:\n  - id: g1\n    category: idor\n    entry: GET /g/<id>\n"
+        "    knowledge:\n      vulnerabilities:\n        - no-such-class\n", encoding="utf-8")
+    cfg = tmp_path / "local.yaml"
+    cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
+    monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
+    from evals.knowledge import coverage_problems
+    problems = coverage_problems()
+    assert any(p.kind == "unresolved-reference" and p.ref == "vuln:no-such-class" for p in problems)
+
+
+def test_coverage_problems_flag_entry_without_knowledge(tmp_path, monkeypatch):
+    src = tmp_path / "private"
+    (src / "groundtruth").mkdir(parents=True)
+    (src / "groundtruth" / "bare.yaml").write_text(
+        "target: bare\nissues:\n  - id: b1\n    category: idor\n    entry: GET /b/<id>\n", encoding="utf-8")
+    cfg = tmp_path / "local.yaml"
+    cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
+    monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
+    from evals.knowledge import coverage_problems
+    problems = coverage_problems()
+    assert any(p.kind == "entry-without-knowledge" and p.ref == "b1" for p in problems)
