@@ -1,7 +1,7 @@
 """The one boundary for reading a reviewed repo's files from a path that may be untrusted.
 
 A candidate's `file` can come from model output during a run or from a workspace
-`issues/*.md` a prompt-injected agent or a manual edit wrote. Joined naively, an absolute
+`candidates/*.md` a prompt-injected agent or a manual edit wrote. Joined naively, an absolute
 path discards the root and a `../` segment escapes it, so the verifier could read and then
 ship a file outside the target repo to the provider. Every workspace-to-source read goes
 through `safe_repo_path`, which resolves under the root and refuses anything that escapes,

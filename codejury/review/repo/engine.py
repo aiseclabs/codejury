@@ -394,7 +394,7 @@ def run_repo_review(
         # candidates by hand, or adds a guide for the stack, then re-runs.
         raise ValueError(
             f"no candidate entrypoints detected under {root}, so there is nothing to "
-            "review. Add a guide for this stack or seed inventory/_candidates.md, then re-run."
+            "review. Add a guide for this stack or seed inventory/_entrypoints.md, then re-run."
         )
 
     reviewed = set() if fresh else _reviewed_slugs(ws)
