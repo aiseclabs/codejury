@@ -35,7 +35,7 @@ Two tiers, kept honest:
 ```
 evals/
   schema.py        answer key, key entry, and the normalized report shape
-  results.py       the score of one review, recall and precision
+  results.py       the score of one review, and N runs folded by frequency
   scorers/
     match.py       endpoint and category matching
     parse.py       read findings markdown and json into reports
@@ -46,9 +46,11 @@ evals/
   diff_cases.py    load the shipped diff cases, engine-free so the matrix can read them
   registry.py      discover benchmarks across public and private sources
   knowledge.py     scan the knowledge tree, build the coverage matrix
+  suites.py        a named tag selection over the cases and benchmarks
   compare.py       diff two results, the per-issue flips and deltas
   benchmarks/
     diff/cases.yaml              the shipped synthetic diff cases, each with knowledge
+    suites/<name>.yaml           a tag selection, public-smoke and knowledge-coverage
     repo/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
     repo/<name>/answer_key.yaml  planted issues and safe lookalikes
 ```
@@ -112,12 +114,26 @@ python -m evals repo openwebui --findings-json /tmp/cj-owui/webui/findings.json 
 # 3. compare two versions
 python -m evals compare before.json after.json
 
-# diff capability probe, needs provider creds in the environment
-python -m evals diff --mode standard --model <id>
+# diff capability probe, needs provider creds in the environment. --runs N repeats and
+# folds by frequency, so a planted issue counts as caught only by a strict majority of runs
+python -m evals diff --mode standard --model <id> --runs 3
+
+# a suite is a tag selection over the library, public-smoke is a fast subset
+python -m evals run public-smoke --model <id> --runs 3
+
+# what the registry sees, benchmarks and suites with the cases each selects
+python -m evals list
 ```
+
+Repeated runs are how a change is judged honestly, the review is not deterministic. A single
+run is one `Result`, `--runs N` folds N runs into a frequency verdict, found by strict
+majority, so one lucky or unlucky run does not move the score and the spread is visible. The
+repo path stays score-only, aggregate N agent runs by scoring each and reading the flips.
 
 A benchmark grows by adding more planted issues and lookalikes, or a new `repo/<name>/`
 directory with its `benchmark.yaml` and `answer_key.yaml`. The diff probe grows by adding a
 row to `benchmarks/diff/cases.yaml`, a positive with a category or a safe lookalike without
-one, each naming the knowledge it exercises so `coverage` attributes it. Keep public
-benchmarks public and non-proprietary, this repo ships to PyPI and GitHub.
+one, each naming the knowledge it exercises so `coverage` attributes it. A suite grows by
+adding `benchmarks/suites/<name>.yaml` naming the tags it selects, no second list of cases
+to keep in sync. Keep public benchmarks public and non-proprietary, this repo ships to PyPI
+and GitHub.

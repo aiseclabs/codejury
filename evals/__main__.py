@@ -1,8 +1,10 @@
 """Eval CLI: score a review, run the diff probe, or compare two results.
 
+  python -m evals list
   python -m evals repo openwebui --findings-dir /tmp/cj-owui/webui/findings
   python -m evals repo openwebui --findings-json findings.json --json before.json
-  python -m evals diff --mode standard --model <id>
+  python -m evals diff --mode standard --model <id> --runs 3
+  python -m evals run public-smoke --model <id> --runs 3
   python -m evals compare before.json after.json
   python -m evals coverage
 
@@ -20,27 +22,34 @@ from pathlib import Path
 
 from evals import registry
 from evals.compare import compare_files, format_compare
-from evals.results import Result
+from evals.results import Result, SuiteResult
 from evals.runners.repo import reports_from_findings_dir, reports_from_json, score_repo
 from evals.schema import load_answer_key
 
 
-def _format_result(res: Result) -> str:
+def _format_result(res) -> str:
     lines = [f"=== {res.target} ===",
              f"  recall    {len(res.found)}/{res.n_planted} = {res.recall:.0%}",
-             f"  precision {res.precision_known:.0%}  (over {len(res.found) + len(res.false_positives)} known-matched of {res.n_reports} reports)"]
+             f"  precision {res.precision_known:.0%}  over {len(res.found) + len(res.false_positives)} known-matched of {res.n_reports} reports"]
+    runs = getattr(res, "runs", None)
+    if runs:
+        lines.insert(1, f"  runs      {runs}, found by strict majority")
+        flaky = {i: c for i, c in res.found_freq.items() if 0 < c < runs}
+        if flaky:
+            spread = ", ".join(f"{i} {c}/{runs}" for i, c in sorted(flaky.items()))
+            lines.append(f"  flaky, found in some runs not all: {spread}")
     if res.missed:
         lines.append(f"  MISSED: {', '.join(res.missed)}")
     if res.false_positives:
         lines.append(f"  false positive on safe: {', '.join(res.false_positives)}")
     if res.extra:
-        lines.append(f"  extra (unkeyed, read by hand): {len(res.extra)}")
+        lines.append(f"  extra, unkeyed, read by hand: {len(res.extra)}")
     if res.errors:
         lines.append(f"  errors: {res.errors}")
     return "\n".join(lines)
 
 
-def _emit(res: Result, json_out: str | None) -> int:
+def _emit(res: Result | SuiteResult, json_out: str | None) -> int:
     print(_format_result(res))
     if json_out:
         Path(json_out).write_text(json.dumps(res.to_dict(), indent=2), encoding="utf-8")
@@ -59,14 +68,60 @@ def _cmd_repo(args) -> int:
     return _emit(score_repo(key, reports), args.json)
 
 
-def _cmd_diff(args) -> int:
+def _run_diff(cases, args, target: str = "diff"):
+    """Run the cases through the probe args.runs times. One run returns a Result, repeated
+    runs fold into a SuiteResult by frequency, the anti-noise verdict, invariant 3 errors
+    summed across runs."""
     from codejury.providers.factory import DEFAULT_API_BASE, DEFAULT_API_KEY, DEFAULT_MODEL, make_provider
-    from evals.runners.diff import default_cases, load_cases, run_diff_cases
+    from evals.runners.diff import run_diff_cases
+
+    provider = make_provider("litellm", api_key=DEFAULT_API_KEY, api_base=DEFAULT_API_BASE, retries=2)
+    model = args.model or DEFAULT_MODEL
+    n = max(1, args.runs)
+    runs = []
+    for _ in range(n):
+        r = run_diff_cases(cases, provider=provider, model=model, mode=args.mode)
+        r.target = target
+        runs.append(r)
+    return SuiteResult.from_runs(target, runs) if n > 1 else runs[0]
+
+
+def _cmd_diff(args) -> int:
+    from evals.runners.diff import default_cases, load_cases
 
     cases = load_cases(args.cases) if args.cases else default_cases()
-    provider = make_provider("litellm", api_key=DEFAULT_API_KEY, api_base=DEFAULT_API_BASE, retries=2)
-    res = run_diff_cases(cases, provider=provider, model=args.model or DEFAULT_MODEL, mode=args.mode)
-    return _emit(res, args.json)
+    return _emit(_run_diff(cases, args), args.json)
+
+
+def _cmd_run(args) -> int:
+    from evals.runners.diff import default_cases
+    from evals.suites import load_suite, select_cases
+
+    suite = load_suite(args.suite)
+    cases = select_cases(suite, default_cases())
+    if not cases:
+        raise SystemExit(f"suite '{suite.name}' selects no diff cases")
+    return _emit(_run_diff(cases, args, target=suite.name), args.json)
+
+
+def _cmd_list(args) -> int:
+    from evals.diff_cases import default_cases
+    from evals.registry import all_benchmarks
+    from evals.suites import all_suites, select_benchmarks, select_cases
+
+    benches = all_benchmarks()
+    cases = default_cases()
+    print("benchmarks:")
+    for name, b in sorted(benches.items()):
+        print(f"  {name:24} {b.kind:5} {b.provenance:8} tags={','.join(b.tags) or '-'}")
+    n_pos = sum(c.is_positive for c in cases)
+    print(f"diff cases: {len(cases)}, {n_pos} positive, {len(cases) - n_pos} safe")
+    print("suites:")
+    for s in all_suites():
+        nc = len(select_cases(s, cases))
+        nb = len(select_benchmarks(s, list(benches.values())))
+        print(f"  {s.name:24} {nc} cases, {nb} benchmarks  tags={','.join(s.tags) or 'all'}")
+    return 0
 
 
 def _cmd_compare(args) -> int:
@@ -98,12 +153,23 @@ def main(argv=None) -> int:
     r.add_argument("--json", default=None, help="write the structured result here for compare")
     r.set_defaults(func=_cmd_repo)
 
-    d = sub.add_parser("diff", help="run the diff capability probe and score")
+    d = sub.add_parser("diff", help="run the diff capability probe over the whole library and score")
     d.add_argument("--mode", default="standard")
     d.add_argument("--model", default=None)
     d.add_argument("--cases", default=None, help="cases yaml, defaults to the shipped diff cases")
+    d.add_argument("--runs", type=int, default=1, help="repeat N times and fold by frequency")
     d.add_argument("--json", default=None)
     d.set_defaults(func=_cmd_diff)
+
+    rn = sub.add_parser("run", help="run a suite of diff cases selected by tag and score")
+    rn.add_argument("suite", help="suite name, e.g. public-smoke or knowledge-coverage")
+    rn.add_argument("--mode", default="standard")
+    rn.add_argument("--model", default=None)
+    rn.add_argument("--runs", type=int, default=1, help="repeat N times and fold by frequency")
+    rn.add_argument("--json", default=None)
+    rn.set_defaults(func=_cmd_run)
+
+    sub.add_parser("list", help="benchmarks and suites the registry sees").set_defaults(func=_cmd_list)
 
     c = sub.add_parser("compare", help="compare two result json files")
     c.add_argument("before")

@@ -15,7 +15,7 @@ cases:
     category: sql-injection
     knowledge:
       vulnerabilities: [sql-injection]
-    tags: [injection, python]
+    tags: [injection, python, smoke]
     diff: |
       diff --git a/app.py b/app.py
       --- a/app.py
@@ -246,7 +246,7 @@ cases:
     category: insecure-direct-object-reference
     knowledge:
       vulnerabilities: [insecure-direct-object-reference]
-    tags: [authz, python]
+    tags: [authz, python, smoke]
     diff: |
       diff --git a/orders.py b/orders.py
       --- a/orders.py
@@ -291,7 +291,7 @@ cases:
     category: jwt-validation
     knowledge:
       vulnerabilities: [jwt-validation]
-    tags: [auth, python]
+    tags: [auth, python, smoke]
     diff: |
       diff --git a/auth.py b/auth.py
       --- a/auth.py
@@ -438,7 +438,7 @@ cases:
   - name: safe-param-sql
     knowledge:
       vulnerabilities: [sql-injection]
-    tags: [injection, python, safe]
+    tags: [injection, python, safe, smoke]
     diff: |
       diff --git a/app.py b/app.py
       --- a/app.py
@@ -642,7 +642,7 @@ cases:
   - name: safe-ownership-idor
     knowledge:
       vulnerabilities: [insecure-direct-object-reference]
-    tags: [authz, python, safe]
+    tags: [authz, python, safe, smoke]
     diff: |
       diff --git a/orders.py b/orders.py
       --- a/orders.py
@@ -688,7 +688,7 @@ cases:
   - name: safe-jwt-verified
     knowledge:
       vulnerabilities: [jwt-validation]
-    tags: [auth, python, safe]
+    tags: [auth, python, safe, smoke]
     diff: |
       diff --git a/auth.py b/auth.py
       --- a/auth.py

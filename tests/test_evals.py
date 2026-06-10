@@ -196,6 +196,59 @@ def test_shipped_diff_library_covers_every_vulnerability_class(tmp_path, monkeyp
     assert gaps == [], f"uncovered vulnerability classes: {gaps}"
 
 
+def _run(target, found, missed, fps, n_planted, n_reports=0, errors=0):
+    from evals.results import Result
+    return Result(target=target, found=list(found), missed=list(missed),
+                  false_positives=list(fps), n_planted=n_planted, n_reports=n_reports, errors=errors)
+
+
+def test_suite_result_folds_runs_by_strict_majority():
+    from evals.results import SuiteResult
+    # three runs, a is found every time, b in two of three, c once, so a and b clear the
+    # strict majority and c does not, the anti-noise verdict
+    runs = [
+        _run("diff", ["a", "b"], ["c"], [], 3, n_reports=2),
+        _run("diff", ["a", "b"], ["c"], [], 3, n_reports=2),
+        _run("diff", ["a", "c"], ["b"], ["safe-x"], 3, n_reports=3, errors=1),
+    ]
+    sr = SuiteResult.from_runs("diff", runs)
+    assert sr.runs == 3
+    assert sr.found == ["a", "b"]
+    assert sr.missed == ["c"]
+    assert sr.false_positives == []        # safe-x flagged once of three, not a majority
+    assert sr.errors == 1                  # summed across runs, not hidden, invariant 3
+    assert sr.n_reports == 7
+    assert sr.found_freq == {"a": 3, "b": 2, "c": 1}
+    d = sr.to_dict()
+    assert d["recall"] == round(2 / 3, 4)
+    assert d["found_freq"]["b"] == 2
+
+
+def test_suite_result_to_dict_is_compare_compatible():
+    from evals.compare import compare
+    from evals.results import SuiteResult
+    before = SuiteResult.from_runs("diff", [_run("diff", ["a"], ["b"], [], 2)]).to_dict()
+    after = SuiteResult.from_runs("diff", [_run("diff", ["a", "b"], [], [], 2)]).to_dict()
+    d = compare(before, after)
+    assert d["newly_found"] == ["b"]
+
+
+def test_load_suite_selects_cases_by_tag_and_fails_loud_on_unknown():
+    import pytest
+    from evals.diff_cases import default_cases
+    from evals.suites import load_suite, select_cases
+    smoke = load_suite("public-smoke")
+    cases = select_cases(smoke, default_cases())
+    names = {c.name for c in cases}
+    assert "sqli" in names and "safe-param-sql" in names
+    assert all("smoke" in c.tags for c in cases)
+    # the whole-library suite selects every shipped case
+    full = select_cases(load_suite("knowledge-coverage"), default_cases())
+    assert len(full) == len(default_cases())
+    with pytest.raises(ValueError, match="no suite 'nope'"):
+        load_suite("nope")
+
+
 def test_coverage_problems_flag_unresolved_reference(tmp_path, monkeypatch):
     # a benchmark that names a knowledge file which does not exist is broken data, the gate
     # must see it rather than score against a phantom class
