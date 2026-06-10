@@ -246,8 +246,8 @@ def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypa
     from evals.coverage import coverage_matrix
     cov = coverage_matrix()
     # the openwebui benchmark plants three IDORs and guards two safe siblings, so the vuln
-    # attributes to its repo entries. Assert a lower bound, another target adding a scoped
-    # route as an IDOR safe sibling, such as insatutorat, must not break this
+    # attributes to its repo entries. Assert a lower bound, another target adding an IDOR,
+    # such as vikunja's task attachment IDOR, must not break this
     idor = cov["vuln:insecure-direct-object-reference"]
     assert idor.repo_planted >= 3 and idor.repo_safe >= 2
     assert idor.diff_positive >= 1

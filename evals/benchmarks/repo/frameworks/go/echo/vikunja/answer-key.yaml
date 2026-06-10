@@ -1,0 +1,74 @@
+# Answer key for the Vikunja real-repo target. This is real third-party code at a real
+# vulnerable release, not authored here, see benchmark.yaml for the clone pointer. The review
+# under test never reads this file.
+#
+# Checked out at v2.2.0, commit b365be1, the last release before the 2.2.1 fixes. Both planted
+# issues were confirmed by reading the real code at this commit, not from the advisory text
+# alone. It is a public GHSA chain, so this target carries a leakage caveat and measures
+# regression more than true recall, the unseen private targets carry the real signal. This is
+# a two-finding chain probe, GHSA-2pv8-4c52-mf8j, can the review catch both halves, the link
+# share ReadAll that leaks other shares' hashes and the attachment ReadOne that fetches by id
+# without binding to the task. The owner-gated ReadOne path is the precision guard. A report
+# that matches neither a planted issue nor a safe sibling is listed as extra, it may be another
+# real bug this one does not cover.
+
+target: vikunja
+
+planted:
+  - id: linkshare-readall-hash-disclosure
+    category: missing-authorization
+    entry: GET /projects/{project}/shares
+    file: pkg/models/link_sharing.go
+    severity: HIGH
+    note: CVE-2026-33680, GHSA-8hp8-9fhr-pfm9, the auth-bypass half of chain GHSA-2pv8-4c52-mf8j.
+          LinkSharing.ReadAll lists every link share for a project, including the hash of write
+          and admin shares, and unlike LinkSharing.CanRead it never rejects a link-share
+          authenticated caller. A read-only share user calls GET /projects/{project}/shares,
+          reads a write or admin share hash from the response, then authenticates with that
+          hash to escalate from read-only to write or admin on the same project. Confirmed at
+          v2.2.0, ReadAll begins straight at project.CanRead with no caller-type guard. The fix
+          9efe1fadb adds the same link-share caller rejection that CanRead already has, the
+          a.(*LinkSharing) type assertion guard.
+    knowledge:
+      vulnerabilities:
+        - missing-authorization
+      guides:
+        - languages/go
+        - frameworks/go/echo
+
+  - id: attachment-readone-cross-task-idor
+    category: insecure-direct-object-reference
+    entry: GET /tasks/{task}/attachments/{attachment}
+    file: pkg/models/task_attachment.go
+    severity: HIGH
+    note: CVE-2026-33678, GHSA-jfmm-mjcp-8wq2, the IDOR half of chain GHSA-2pv8-4c52-mf8j. The
+          handler authorizes the caller against the task id in the URL, but TaskAttachment.ReadOne
+          fetches the attachment with s.Where("id = ?", ta.ID) alone, it never binds the
+          attachment to that task. So a caller with access to any one task supplies that task id
+          for authorization and any other attachment id in the same request, and reads or deletes
+          an attachment from a task in a project they cannot access. The delete path goes through
+          the same ReadOne, so it leaks and destroys attachments across all projects. Confirmed at
+          v2.2.0, ReadOne queries by id only. The fix b8edc8f17 adds an And("task_id = ?", ta.TaskID)
+          when the task id is present.
+    knowledge:
+      vulnerabilities:
+        - insecure-direct-object-reference
+      guides:
+        - languages/go
+        - frameworks/go/echo
+
+safe:
+  - id: safe-linkshare-readone-owner-gated
+    category: missing-authorization
+    entry: GET /projects/{project}/shares/{share}
+    file: pkg/models/link_sharing_permissions.go
+    note: LinkSharing.CanRead, which gates the single-share ReadOne, rejects a link-share
+          authenticated caller up front with the a.(*LinkSharing) type assertion guard, then
+          defers to the project's own CanRead. It is the direct contrast to the unguarded ReadAll, reporting the
+          single-share ReadOne path as an authorization bypass is a false positive.
+    knowledge:
+      vulnerabilities:
+        - missing-authorization
+      guides:
+        - languages/go
+        - frameworks/go/echo

@@ -60,7 +60,7 @@ evals/
 Benchmarks group under the same three buckets the knowledge guides use, `languages/`,
 `frameworks/`, and `protocols/`, so the eval tree mirrors the knowledge taxonomy. A repo
 target sits at `repo/frameworks/<language>/<framework>/<name>`, for example
-`repo/frameworks/python/flask/pyload` and `repo/frameworks/go/gin/insatutorat`. A target may
+`repo/frameworks/python/flask/pyload` and `repo/frameworks/go/gin/answer`. A target may
 also sit flat at `repo/<name>`, the id is the leaf directory name either way, so the grouping
 path never renames a benchmark.
 
