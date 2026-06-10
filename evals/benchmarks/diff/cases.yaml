@@ -87,7 +87,7 @@ cases:
     knowledge:
       vulnerabilities: [server-side-template-injection]
       guides: [frameworks/python/flask]
-    tags: [injection, python]
+    tags: [injection, python, flask]
     diff: |
       diff --git a/render.py b/render.py
       --- a/render.py
@@ -230,7 +230,7 @@ cases:
     knowledge:
       vulnerabilities: [cross-site-request-forgery]
       guides: [frameworks/python/django]
-    tags: [web, python]
+    tags: [web, python, django]
     diff: |
       diff --git a/views.py b/views.py
       --- a/views.py
@@ -543,7 +543,7 @@ cases:
     knowledge:
       vulnerabilities: [server-side-template-injection]
       guides: [frameworks/python/flask]
-    tags: [injection, python, safe]
+    tags: [injection, python, flask, safe]
     diff: |
       diff --git a/render.py b/render.py
       --- a/render.py
@@ -629,7 +629,7 @@ cases:
     knowledge:
       vulnerabilities: [cross-site-request-forgery]
       guides: [frameworks/python/django]
-    tags: [web, python, safe]
+    tags: [web, python, django, safe]
     diff: |
       diff --git a/views.py b/views.py
       --- a/views.py
@@ -825,3 +825,725 @@ cases:
       @@ -1,2 +1,3 @@
        import os, stripe
       +stripe.api_key = os.environ["STRIPE_API_KEY"]
+
+  # FastAPI framework cases, frameworks/python/fastapi
+  - name: fastapi-idor
+    category: insecure-direct-object-reference
+    knowledge:
+      vulnerabilities: [insecure-direct-object-reference]
+      guides: [frameworks/python/fastapi]
+    tags: [authz, python, fastapi]
+    diff: |
+      diff --git a/api.py b/api.py
+      --- a/api.py
+      +++ b/api.py
+      @@ -10,3 +10,4 @@ async def get_order(order_id: int, user=Depends(get_current_user)):
+      -    return None
+      +    order = await db.get(Order, order_id)
+      +    return order.dict()
+
+  - name: fastapi-missing-auth
+    category: missing-authorization
+    knowledge:
+      vulnerabilities: [missing-authorization]
+      guides: [frameworks/python/fastapi]
+    tags: [authz, python, fastapi]
+    diff: |
+      diff --git a/admin.py b/admin.py
+      --- a/admin.py
+      +++ b/admin.py
+      @@ -6,2 +6,4 @@ @app.post("/admin/users/{user_id}/promote")
+      -async def promote(user_id: int):
+      -    pass
+      +async def promote(user_id: int):
+      +    await db.execute(update(User).where(User.id == user_id).values(is_admin=True))
+      +    return {"ok": True}
+
+  - name: fastapi-mass-assignment
+    category: mass-assignment
+    knowledge:
+      vulnerabilities: [mass-assignment]
+      guides: [frameworks/python/fastapi]
+    tags: [logic, python, fastapi]
+    diff: |
+      diff --git a/users.py b/users.py
+      --- a/users.py
+      +++ b/users.py
+      @@ -9,2 +9,4 @@ async def update_me(payload: dict, user=Depends(get_current_user)):
+      -    return user
+      +    for key, value in payload.items():
+      +        setattr(user, key, value)
+      +    await db.commit()
+
+  - name: fastapi-sqli
+    category: sql-injection
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/python/fastapi]
+    tags: [injection, python, fastapi]
+    diff: |
+      diff --git a/search.py b/search.py
+      --- a/search.py
+      +++ b/search.py
+      @@ -7,2 +7,3 @@ async def search(q: str):
+      -    return []
+      +    rows = await db.execute(text(f"SELECT * FROM items WHERE name LIKE '%{q}%'"))
+      +    return rows.fetchall()
+
+  - name: fastapi-ssrf
+    category: server-side-request-forgery
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+      guides: [frameworks/python/fastapi]
+    tags: [web, python, fastapi]
+    diff: |
+      diff --git a/proxy.py b/proxy.py
+      --- a/proxy.py
+      +++ b/proxy.py
+      @@ -6,2 +6,3 @@ async def preview(url: str):
+      -    return ""
+      +    async with httpx.AsyncClient() as client:
+      +        return (await client.get(url)).text
+
+  - name: fastapi-open-redirect
+    category: open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [frameworks/python/fastapi]
+    tags: [web, python, fastapi]
+    diff: |
+      diff --git a/auth.py b/auth.py
+      --- a/auth.py
+      +++ b/auth.py
+      @@ -8,2 +8,3 @@ async def login_done(next: str):
+      -    return {}
+      +    from fastapi.responses import RedirectResponse
+      +    return RedirectResponse(url=next)
+
+  - name: fastapi-path-traversal
+    category: path-traversal
+    knowledge:
+      vulnerabilities: [path-traversal]
+      guides: [frameworks/python/fastapi]
+    tags: [injection, python, fastapi]
+    diff: |
+      diff --git a/files.py b/files.py
+      --- a/files.py
+      +++ b/files.py
+      @@ -7,2 +7,3 @@ async def download(name: str):
+      -    return None
+      +    from fastapi.responses import FileResponse
+      +    return FileResponse(os.path.join("/srv/files", name))
+
+  - name: safe-fastapi-idor
+    knowledge:
+      vulnerabilities: [insecure-direct-object-reference]
+      guides: [frameworks/python/fastapi]
+    tags: [authz, python, fastapi, safe]
+    diff: |
+      diff --git a/api.py b/api.py
+      --- a/api.py
+      +++ b/api.py
+      @@ -10,3 +10,6 @@ async def get_order(order_id: int, user=Depends(get_current_user)):
+      -    return None
+      +    order = await db.get(Order, order_id)
+      +    if order.owner_id != user.id:
+      +        raise HTTPException(status_code=403)
+      +    return order.dict()
+
+  - name: safe-fastapi-missing-auth
+    knowledge:
+      vulnerabilities: [missing-authorization]
+      guides: [frameworks/python/fastapi]
+    tags: [authz, python, fastapi, safe]
+    diff: |
+      diff --git a/admin.py b/admin.py
+      --- a/admin.py
+      +++ b/admin.py
+      @@ -6,2 +6,4 @@ @app.post("/admin/users/{user_id}/promote")
+      -async def promote(user_id: int):
+      -    pass
+      +async def promote(user_id: int, admin=Depends(require_admin)):
+      +    await db.execute(update(User).where(User.id == user_id).values(is_admin=True))
+      +    return {"ok": True}
+
+  - name: safe-fastapi-mass-assignment
+    knowledge:
+      vulnerabilities: [mass-assignment]
+      guides: [frameworks/python/fastapi]
+    tags: [logic, python, fastapi, safe]
+    diff: |
+      diff --git a/users.py b/users.py
+      --- a/users.py
+      +++ b/users.py
+      @@ -9,2 +9,4 @@ async def update_me(payload: ProfileUpdate, user=Depends(get_current_user)):
+      -    return user
+      +    user.display_name = payload.display_name
+      +    user.bio = payload.bio
+      +    await db.commit()
+
+  - name: safe-fastapi-sqli
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/python/fastapi]
+    tags: [injection, python, fastapi, safe]
+    diff: |
+      diff --git a/search.py b/search.py
+      --- a/search.py
+      +++ b/search.py
+      @@ -7,2 +7,3 @@ async def search(q: str):
+      -    return []
+      +    rows = await db.execute(text("SELECT * FROM items WHERE name LIKE :q"), {"q": f"%{q}%"})
+      +    return rows.fetchall()
+
+  - name: safe-fastapi-ssrf
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+      guides: [frameworks/python/fastapi]
+    tags: [web, python, fastapi, safe]
+    diff: |
+      diff --git a/proxy.py b/proxy.py
+      --- a/proxy.py
+      +++ b/proxy.py
+      @@ -6,2 +6,5 @@ async def preview(url: str):
+      -    return ""
+      +    if urlparse(url).hostname not in {"images.example.com"}:
+      +        raise HTTPException(status_code=400)
+      +    async with httpx.AsyncClient() as client:
+      +        return (await client.get(url)).text
+
+  - name: safe-fastapi-open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [frameworks/python/fastapi]
+    tags: [web, python, fastapi, safe]
+    diff: |
+      diff --git a/auth.py b/auth.py
+      --- a/auth.py
+      +++ b/auth.py
+      @@ -8,2 +8,4 @@ async def login_done(next: str):
+      -    return {}
+      +    from fastapi.responses import RedirectResponse
+      +    target = next if next in {"/", "/home", "/account"} else "/"
+      +    return RedirectResponse(url=target)
+
+  - name: safe-fastapi-path-traversal
+    knowledge:
+      vulnerabilities: [path-traversal]
+      guides: [frameworks/python/fastapi]
+    tags: [injection, python, fastapi, safe]
+    diff: |
+      diff --git a/files.py b/files.py
+      --- a/files.py
+      +++ b/files.py
+      @@ -7,2 +7,4 @@ async def download(name: str):
+      -    return None
+      +    from fastapi.responses import FileResponse
+      +    safe = os.path.basename(name)
+      +    return FileResponse(os.path.join("/srv/files", safe))
+
+  # Django framework cases, frameworks/python/django
+  - name: django-sqli-raw
+    category: sql-injection
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/python/django]
+    tags: [injection, python, django]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -9,2 +9,3 @@ def search(request):
+      -    return JsonResponse({})
+      +    q = request.GET["q"]
+      +    return JsonResponse(list(User.objects.raw("SELECT * FROM auth_user WHERE username = '%s'" % q)))
+
+  - name: django-mass-assignment
+    category: mass-assignment
+    knowledge:
+      vulnerabilities: [mass-assignment]
+      guides: [frameworks/python/django]
+    tags: [logic, python, django]
+    diff: |
+      diff --git a/forms.py b/forms.py
+      --- a/forms.py
+      +++ b/forms.py
+      @@ -4,3 +4,4 @@ class ProfileForm(forms.ModelForm):
+       class Meta:
+           model = User
+      -        fields = ["display_name", "bio"]
+      +        fields = "__all__"
+
+  - name: django-missing-auth
+    category: missing-authorization
+    knowledge:
+      vulnerabilities: [missing-authorization]
+      guides: [frameworks/python/django]
+    tags: [authz, python, django]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -11,2 +11,4 @@ def delete_account(request, user_id):
+      -    pass
+      +    User.objects.get(pk=user_id).delete()
+      +    return redirect("/")
+
+  - name: django-idor
+    category: insecure-direct-object-reference
+    knowledge:
+      vulnerabilities: [insecure-direct-object-reference]
+      guides: [frameworks/python/django]
+    tags: [authz, python, django]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -14,2 +14,3 @@ @login_required
+       def invoice(request, invoice_id):
+      -    return HttpResponse()
+      +    obj = get_object_or_404(Invoice, pk=invoice_id)
+      +    return JsonResponse(obj.as_dict())
+
+  - name: django-xss-mark-safe
+    category: cross-site-scripting
+    knowledge:
+      vulnerabilities: [cross-site-scripting]
+      guides: [frameworks/python/django]
+    tags: [web, python, django]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -8,2 +8,3 @@ def greet(request):
+      -    return HttpResponse("")
+      +    name = request.GET.get("name", "")
+      +    return HttpResponse(mark_safe("<h1>Hi " + name + "</h1>"))
+
+  - name: django-open-redirect
+    category: open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [frameworks/python/django]
+    tags: [web, python, django]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -10,2 +10,3 @@ def post_login(request):
+      -    return redirect("/")
+      +    nxt = request.GET.get("next", "/")
+      +    return redirect(nxt)
+
+  - name: safe-django-sqli-raw
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/python/django]
+    tags: [injection, python, django, safe]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -9,2 +9,3 @@ def search(request):
+      -    return JsonResponse({})
+      +    q = request.GET["q"]
+      +    return JsonResponse(list(User.objects.raw("SELECT * FROM auth_user WHERE username = %s", [q])))
+
+  - name: safe-django-mass-assignment
+    knowledge:
+      vulnerabilities: [mass-assignment]
+      guides: [frameworks/python/django]
+    tags: [logic, python, django, safe]
+    diff: |
+      diff --git a/forms.py b/forms.py
+      --- a/forms.py
+      +++ b/forms.py
+      @@ -4,3 +4,4 @@ class ProfileForm(forms.ModelForm):
+       class Meta:
+           model = User
+      -        fields = "__all__"
+      +        fields = ["display_name", "bio"]
+
+  - name: safe-django-missing-auth
+    knowledge:
+      vulnerabilities: [missing-authorization]
+      guides: [frameworks/python/django]
+    tags: [authz, python, django, safe]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -10,3 +10,5 @@ @login_required
+      +@permission_required("accounts.delete_user", raise_exception=True)
+       def delete_account(request, user_id):
+      -    pass
+      +    User.objects.get(pk=user_id).delete()
+      +    return redirect("/")
+
+  - name: safe-django-idor
+    knowledge:
+      vulnerabilities: [insecure-direct-object-reference]
+      guides: [frameworks/python/django]
+    tags: [authz, python, django, safe]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -14,2 +14,3 @@ @login_required
+       def invoice(request, invoice_id):
+      -    return HttpResponse()
+      +    obj = get_object_or_404(Invoice, pk=invoice_id, owner=request.user)
+      +    return JsonResponse(obj.as_dict())
+
+  - name: safe-django-xss
+    knowledge:
+      vulnerabilities: [cross-site-scripting]
+      guides: [frameworks/python/django]
+    tags: [web, python, django, safe]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -8,2 +8,3 @@ def greet(request):
+      -    return HttpResponse("")
+      +    name = request.GET.get("name", "")
+      +    return render(request, "greet.html", {"name": name})
+
+  - name: safe-django-open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [frameworks/python/django]
+    tags: [web, python, django, safe]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -10,2 +10,5 @@ def post_login(request):
+      -    return redirect("/")
+      +    nxt = request.GET.get("next", "/")
+      +    if not url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+      +        nxt = "/"
+      +    return redirect(nxt)
+
+  # Flask framework cases, frameworks/python/flask
+  - name: flask-sqli
+    category: sql-injection
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/python/flask]
+    tags: [injection, python, flask]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -8,2 +8,3 @@ @app.route("/user")
+      -def user():
+      -    return ""
+      +def user():
+      +    return jsonify(db.execute("SELECT * FROM users WHERE name = '%s'" % request.args["name"]).fetchall())
+
+  - name: flask-open-redirect
+    category: open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [frameworks/python/flask]
+    tags: [web, python, flask]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -9,2 +9,3 @@ @app.route("/go")
+      -def go():
+      -    return ""
+      +def go():
+      +    return redirect(request.args.get("next", "/"))
+
+  - name: flask-path-traversal
+    category: path-traversal
+    knowledge:
+      vulnerabilities: [path-traversal]
+      guides: [frameworks/python/flask]
+    tags: [injection, python, flask]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -10,2 +10,3 @@ @app.route("/download")
+      -def download():
+      -    return ""
+      +def download():
+      +    return send_file(request.args["path"])
+
+  - name: flask-missing-auth
+    category: missing-authorization
+    knowledge:
+      vulnerabilities: [missing-authorization]
+      guides: [frameworks/python/flask]
+    tags: [authz, python, flask]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -12,2 +12,4 @@ @app.route("/admin/delete/<int:uid>", methods=["POST"])
+      -def delete_user(uid):
+      -    return ""
+      +def delete_user(uid):
+      +    User.query.get(uid).delete()
+      +    return "", 204
+
+  - name: flask-xss
+    category: cross-site-scripting
+    knowledge:
+      vulnerabilities: [cross-site-scripting]
+      guides: [frameworks/python/flask]
+    tags: [web, python, flask]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -7,2 +7,3 @@ @app.route("/hello")
+      -def hello():
+      -    return ""
+      +def hello():
+      +    return "<h1>Hello " + request.args.get("name", "") + "</h1>"
+
+  - name: flask-ssrf
+    category: server-side-request-forgery
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+      guides: [frameworks/python/flask]
+    tags: [web, python, flask]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -9,2 +9,3 @@ @app.route("/fetch")
+      -def fetch():
+      -    return ""
+      +def fetch():
+      +    return requests.get(request.args["url"]).text
+
+  - name: safe-flask-sqli
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/python/flask]
+    tags: [injection, python, flask, safe]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -8,2 +8,3 @@ @app.route("/user")
+      -def user():
+      -    return ""
+      +def user():
+      +    return jsonify(db.execute("SELECT * FROM users WHERE name = ?", (request.args["name"],)).fetchall())
+
+  - name: safe-flask-open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [frameworks/python/flask]
+    tags: [web, python, flask, safe]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -9,2 +9,4 @@ @app.route("/go")
+      -def go():
+      -    return ""
+      +def go():
+      +    nxt = request.args.get("next", "/")
+      +    return redirect(nxt if urlparse(nxt).netloc == "" else "/")
+
+  - name: safe-flask-path-traversal
+    knowledge:
+      vulnerabilities: [path-traversal]
+      guides: [frameworks/python/flask]
+    tags: [injection, python, flask, safe]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -10,2 +10,3 @@ @app.route("/download")
+      -def download():
+      -    return ""
+      +def download():
+      +    return send_from_directory("/srv/public", request.args["path"])
+
+  - name: safe-flask-missing-auth
+    knowledge:
+      vulnerabilities: [missing-authorization]
+      guides: [frameworks/python/flask]
+    tags: [authz, python, flask, safe]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -12,2 +12,5 @@ @app.route("/admin/delete/<int:uid>", methods=["POST"])
+       @login_required
+      +@admin_required
+       def delete_user(uid):
+      -    return ""
+      +    User.query.get(uid).delete()
+      +    return "", 204
+
+  - name: safe-flask-xss
+    knowledge:
+      vulnerabilities: [cross-site-scripting]
+      guides: [frameworks/python/flask]
+    tags: [web, python, flask, safe]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -7,2 +7,3 @@ @app.route("/hello")
+      -def hello():
+      -    return ""
+      +def hello():
+      +    return render_template("hello.html", name=request.args.get("name", ""))
+
+  - name: safe-flask-ssrf
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+      guides: [frameworks/python/flask]
+    tags: [web, python, flask, safe]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -9,2 +9,5 @@ @app.route("/fetch")
+      -def fetch():
+      -    return ""
+      +def fetch():
+      +    if urlparse(request.args["url"]).hostname not in {"images.example.com"}:
+      +        abort(400)
+      +    return requests.get(request.args["url"]).text
+
+  # Celery framework cases, frameworks/python/celery
+  - name: celery-pickle-serializer
+    category: insecure-deserialization
+    knowledge:
+      vulnerabilities: [insecure-deserialization]
+      guides: [frameworks/python/celery]
+    tags: [deserialization, python, celery]
+    diff: |
+      diff --git a/celeryconfig.py b/celeryconfig.py
+      --- a/celeryconfig.py
+      +++ b/celeryconfig.py
+      @@ -2,2 +2,3 @@ app = Celery("tasks")
+      -app.conf.accept_content = ["json"]
+      +app.conf.accept_content = ["pickle", "json"]
+      +app.conf.task_serializer = "pickle"
+
+  - name: celery-command-injection
+    category: command-injection
+    knowledge:
+      vulnerabilities: [command-injection]
+      guides: [frameworks/python/celery]
+    tags: [injection, python, celery]
+    diff: |
+      diff --git a/tasks.py b/tasks.py
+      --- a/tasks.py
+      +++ b/tasks.py
+      @@ -5,2 +5,4 @@ @app.task
+      -def convert(path):
+      -    pass
+      +def convert(path):
+      +    import os
+      +    os.system("convert " + path + " /out/thumb.png")
+
+  - name: celery-code-injection
+    category: code-injection
+    knowledge:
+      vulnerabilities: [code-injection]
+      guides: [frameworks/python/celery]
+    tags: [injection, python, celery]
+    diff: |
+      diff --git a/tasks.py b/tasks.py
+      --- a/tasks.py
+      +++ b/tasks.py
+      @@ -8,2 +8,3 @@ @app.task
+      -def run_rule(expr):
+      -    return None
+      +def run_rule(expr):
+      +    return eval(expr)
+
+  - name: celery-ssrf
+    category: server-side-request-forgery
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+      guides: [frameworks/python/celery]
+    tags: [web, python, celery]
+    diff: |
+      diff --git a/tasks.py b/tasks.py
+      --- a/tasks.py
+      +++ b/tasks.py
+      @@ -6,2 +6,4 @@ @app.task
+      -def fetch_webhook(url):
+      -    pass
+      +def fetch_webhook(url):
+      +    import requests
+      +    return requests.get(url).text
+
+  - name: safe-celery-json-serializer
+    knowledge:
+      vulnerabilities: [insecure-deserialization]
+      guides: [frameworks/python/celery]
+    tags: [deserialization, python, celery, safe]
+    diff: |
+      diff --git a/celeryconfig.py b/celeryconfig.py
+      --- a/celeryconfig.py
+      +++ b/celeryconfig.py
+      @@ -2,2 +2,3 @@ app = Celery("tasks")
+      -app.conf.accept_content = ["pickle", "json"]
+      +app.conf.accept_content = ["json"]
+      +app.conf.task_serializer = "json"
+
+  - name: safe-celery-command
+    knowledge:
+      vulnerabilities: [command-injection]
+      guides: [frameworks/python/celery]
+    tags: [injection, python, celery, safe]
+    diff: |
+      diff --git a/tasks.py b/tasks.py
+      --- a/tasks.py
+      +++ b/tasks.py
+      @@ -5,2 +5,4 @@ @app.task
+      -def convert(path):
+      -    pass
+      +def convert(path):
+      +    import subprocess
+      +    subprocess.run(["convert", path, "/out/thumb.png"], shell=False, check=True)
+
+  - name: safe-celery-code
+    knowledge:
+      vulnerabilities: [code-injection]
+      guides: [frameworks/python/celery]
+    tags: [injection, python, celery, safe]
+    diff: |
+      diff --git a/tasks.py b/tasks.py
+      --- a/tasks.py
+      +++ b/tasks.py
+      @@ -8,2 +8,3 @@ @app.task
+      -def run_rule(expr):
+      -    return None
+      +def run_rule(expr):
+      +    import ast
+      +    return ast.literal_eval(expr)
+
+  - name: safe-celery-ssrf
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+      guides: [frameworks/python/celery]
+    tags: [web, python, celery, safe]
+    diff: |
+      diff --git a/tasks.py b/tasks.py
+      --- a/tasks.py
+      +++ b/tasks.py
+      @@ -6,2 +6,5 @@ @app.task
+      -def fetch_webhook(url):
+      -    pass
+      +def fetch_webhook(url):
+      +    import requests
+      +    if urlparse(url).hostname not in {"hooks.example.com"}:
+      +        return None
+      +    return requests.get(url).text
