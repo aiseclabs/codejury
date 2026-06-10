@@ -1,0 +1,38 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores
+# only the pointer plus the stack and knowledge this benchmark exercises. INSATutorat is a
+# real open-source Gin web API for a student tutoring program, this is its real code at a
+# real vulnerable commit, not authored here. The affected version carries no release tag, so
+# the pointer is the exact vulnerable commit, the parent of the fix. Real third-party code is
+# never copied in, this repo ships to GitHub and PyPI.
+id: insatutorat
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/Romitou/INSATutorat
+  # no tag exists at the affected version, so pin the exact vulnerable commit, the parent of
+  # fix 15ae474. Clone, then git checkout this commit.
+  ref: 99e9db7a894792b61c8523ba8cb28e6a47956370
+  # review scope: the whole small service. The access-control flaw spans the route group
+  # wiring in main.go, the admin middleware, and the admin handlers, so a narrow subtree
+  # would hide the correlation a review must make.
+  path: .
+
+stack:
+  languages:
+    - go
+  frameworks:
+    - gin
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - missing-authorization
+  guides:
+    - languages/go
+    - frameworks/go/gin
+
+tags:
+  - public
+  - authz
+  - gin

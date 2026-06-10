@@ -245,10 +245,11 @@ def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypa
     _public_only(tmp_path, monkeypatch)
     from evals.knowledge import coverage_matrix
     cov = coverage_matrix()
-    # the openwebui benchmark plants three IDORs and guards two safe siblings, and every
-    # entry names languages/python, so both the vuln and the guide attribute to it
+    # the openwebui benchmark plants three IDORs and guards two safe siblings, so the vuln
+    # attributes to its repo entries. Assert a lower bound, another target adding a scoped
+    # route as an IDOR safe sibling, such as insatutorat, must not break this
     idor = cov["vuln:insecure-direct-object-reference"]
-    assert idor.repo_planted == 3 and idor.repo_safe == 2
+    assert idor.repo_planted >= 3 and idor.repo_safe >= 2
     assert idor.diff_positive >= 1
     # languages/python is exercised by every Python repo target, so assert a lower bound
     # rather than a fixed count that a newly added target would break
