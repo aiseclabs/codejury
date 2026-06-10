@@ -142,7 +142,7 @@ def _cmd_gate(args) -> int:
 
 
 def _cmd_coverage(args) -> int:
-    from evals.knowledge import coverage_matrix, coverage_problems, format_matrix
+    from evals.coverage import coverage_matrix, coverage_problems, format_matrix
 
     cov = coverage_matrix()
     problems = coverage_problems(cov)

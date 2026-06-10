@@ -243,7 +243,7 @@ def test_default_diff_cases_split_positive_and_safe():
 
 def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
-    from evals.knowledge import coverage_matrix
+    from evals.coverage import coverage_matrix
     cov = coverage_matrix()
     # the openwebui benchmark plants three IDORs and guards two safe siblings, so the vuln
     # attributes to its repo entries. Assert a lower bound, another target adding a scoped
@@ -259,7 +259,7 @@ def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypa
 
 def test_coverage_problems_flag_a_vulnerability_missing_a_safe_case(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
-    from evals.knowledge import Coverage, KnowledgeItem, coverage_problems
+    from evals.coverage import Coverage, KnowledgeItem, coverage_problems
     # a class with a positive but no safe case must surface as missing-safe, not missing-positive
     item = KnowledgeItem(ref="vuln:demo", kind="vulnerability", path=Path("demo.md"))
     cov = {"vuln:demo": Coverage(item=item, diff_positive=1)}
@@ -270,7 +270,7 @@ def test_coverage_problems_flag_a_vulnerability_missing_a_safe_case(tmp_path, mo
 
 def test_shipped_diff_library_covers_every_vulnerability_class(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
-    from evals.knowledge import coverage_problems
+    from evals.coverage import coverage_problems
     # the case library should leave no vulnerability class without a positive and a safe
     # diff case, the goal of the filled library, so the matrix reports no such gap
     gaps = [(p.kind, p.ref) for p in coverage_problems() if p.kind in {"missing-positive", "missing-safe"}]
@@ -341,7 +341,7 @@ def test_coverage_problems_flag_unresolved_reference(tmp_path, monkeypatch):
     cfg = tmp_path / "local.yaml"
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
-    from evals.knowledge import coverage_problems
+    from evals.coverage import coverage_problems
     problems = coverage_problems()
     assert any(p.kind == "unresolved-reference" and p.ref == "vuln:no-such-class" for p in problems)
 
@@ -354,6 +354,6 @@ def test_coverage_problems_flag_entry_without_knowledge(tmp_path, monkeypatch):
     cfg = tmp_path / "local.yaml"
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
-    from evals.knowledge import coverage_problems
+    from evals.coverage import coverage_problems
     problems = coverage_problems()
     assert any(p.kind == "entry-without-knowledge" and p.ref == "b1" for p in problems)

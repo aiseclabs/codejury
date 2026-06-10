@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-_SUITES_DIR = Path(__file__).resolve().parent / "benchmarks" / "suites"
+_SUITES_DIR = Path(__file__).resolve().parent / "suites"
 
 
 @dataclass(frozen=True, kw_only=True)

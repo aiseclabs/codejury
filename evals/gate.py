@@ -39,7 +39,7 @@ def gate(after: dict, baseline: dict | None = None, *, precision_floor: float = 
         # the benchmark data must be sound, an unresolved knowledge reference or an
         # unlocatable key entry is broken data, not a clean review, so the gate blocks it
         try:
-            from evals.knowledge import coverage_problems
+            from evals.coverage import coverage_problems
             for p in coverage_problems():
                 if p.kind == "unresolved-reference":
                     fails.append(f"unresolved knowledge reference: {p.detail}")

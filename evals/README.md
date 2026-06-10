@@ -45,16 +45,16 @@ evals/
     diff.py        run the diff capability probe and score
   diff_cases.py    load the shipped diff cases, engine-free so the matrix can read them
   registry.py      discover benchmarks across public and private sources
-  knowledge.py     scan the knowledge tree, build the coverage matrix
+  coverage.py      scan the knowledge tree, build the coverage matrix
   suites.py        a named tag selection over the cases and benchmarks
   compare.py       diff two results, the per-issue flips, deltas, and by-axis grouping
   gate.py          the regression policy, a yes or no on landing a change
+  suites/<name>.yaml             a tag selection, public-smoke and knowledge-coverage
   benchmarks/
     diff/<language>/cases.yaml   the shipped synthetic diff cases, each with knowledge
     diff/protocols/cases.yaml    protocol cases such as OAuth, independent of language
-    suites/<name>.yaml           a tag selection, public-smoke and knowledge-coverage
     repo/<language>/<framework>/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
-    repo/<language>/<framework>/<name>/answer_key.yaml  planted issues and safe lookalikes
+    repo/<language>/<framework>/<name>/answer-key.yaml  planted issues and safe lookalikes
 ```
 
 Repo targets group under a language and framework path, mirroring the knowledge guides
@@ -67,9 +67,11 @@ stack and the knowledge the target exercises, so the coverage matrix can attribu
 legacy `target.yaml` carrying only the pointer is still read, so a private benchmark need
 not be reshaped.
 
-An answer key has `planted` issues a complete review must surface and `safe` lookalikes a
-report would be a false positive on. Each entry may name the knowledge it exercises. The
-legacy `issues` key is accepted as an alias. The review under test never reads the key.
+An `answer-key.yaml` has `planted` issues a complete review must surface and `safe`
+lookalikes a report would be a false positive on. Each entry may name the knowledge it
+exercises. The legacy `issues` key is accepted as an alias, and the legacy file name
+`answer_key.yaml` is still read, so a private benchmark need not be reshaped. The review
+under test never reads the key.
 
 ## Knowledge Coverage
 
@@ -99,7 +101,7 @@ benchmark_sources:
     ref: main
 ```
 
-A source root may use the per-benchmark `repo/<name>/answer_key.yaml` layout, optionally
+A source root may use the per-benchmark `repo/<name>/answer-key.yaml` layout, optionally
 grouped under a `repo/<language>/<framework>/<name>` path, or the legacy
 `groundtruth/<name>.yaml`, so existing private data scores without being reshaped. Benchmark
 names resolve across the public root and every source.
@@ -150,11 +152,11 @@ fails the gate, the key cannot say whether it is a real bug.
 
 A benchmark grows by adding more planted issues and lookalikes, or a new
 `repo/<language>/<framework>/<name>/` directory with its `benchmark.yaml` and
-`answer_key.yaml`. The diff probe grows by adding a
+`answer-key.yaml`. The diff probe grows by adding a
 row to the `benchmarks/diff/<language>/cases.yaml` for its language, or to
 `diff/protocols/cases.yaml` for a protocol case, a positive with a category or a safe
 lookalike without one, each naming the knowledge it exercises so
 `coverage` attributes it. A suite grows by
-adding `benchmarks/suites/<name>.yaml` naming the tags it selects, no second list of cases
+adding `suites/<name>.yaml` naming the tags it selects, no second list of cases
 to keep in sync. Keep public benchmarks public and non-proprietary, this repo ships to PyPI
 and GitHub.

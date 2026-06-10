@@ -5,7 +5,7 @@ The repo ships only public OSS benchmarks under `evals/benchmarks`. Private benc
 stay wherever they already live: a local config, gitignored, lists their sources as a path
 or a private git repo, and they plug in under the same names. Nothing private moves into
 the repo and nothing private commits. A source root may use the per-benchmark layout,
-`repo/<name>/benchmark.yaml` plus `answer_key.yaml`, optionally grouped under a language and
+`repo/<name>/benchmark.yaml` plus `answer-key.yaml`, optionally grouped under a language and
 framework path such as `repo/python/flask/<name>`, or the legacy `groundtruth/<name>.yaml`,
 so an existing private benchmark scores without being reshaped. A name that appears in two
 roots fails loud, unless the private source sets `override: true` to shadow a public one on
@@ -108,7 +108,7 @@ def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
     """Find every benchmark under one root, the per-benchmark layout and the legacy
     groundtruth layout alike. The per-benchmark layout wins when both name the same id.
 
-    A benchmark is any directory holding an answer_key.yaml, found at any depth under repo,
+    A benchmark is any directory holding an answer-key.yaml, or the legacy answer_key.yaml,
     so a target may sit flat at repo/<name> or grouped at repo/<language>/<framework>/<name>,
     mirroring the knowledge guides taxonomy. The id is the leaf directory name regardless of
     the grouping path, so moving a target between groups does not rename it. Two targets with
@@ -116,8 +116,14 @@ def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
     found: dict[str, Benchmark] = {}
     repo_dir = root / "repo"
     if repo_dir.is_dir():
+        # answer-key.yaml is canonical, answer_key.yaml is the legacy name still read so a
+        # private benchmark need not be reshaped. The hyphen form wins when a dir has both.
+        by_dir: dict[Path, Path] = {}
         for key in sorted(repo_dir.rglob("answer_key.yaml")):
-            d = key.parent
+            by_dir[key.parent] = key
+        for key in sorted(repo_dir.rglob("answer-key.yaml")):
+            by_dir[key.parent] = key
+        for d, key in sorted(by_dir.items()):
             manifest = next((d / m for m in ("benchmark.yaml", "target.yaml") if (d / m).is_file()), None)
             if d.name in found:
                 raise ValueError(
