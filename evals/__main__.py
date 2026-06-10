@@ -7,7 +7,7 @@
 
 The repo path scores the output an agent or a coded run already wrote, it does not run the
 review. Resolve a benchmark by name across the public benchmarks and any private source in
-the local config, see config.py.
+the local config, see registry.py.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ import json
 import sys
 from pathlib import Path
 
-from evals import config
+from evals import registry
 from evals.compare import compare_files, format_compare
 from evals.results import Result
 from evals.runners.repo import reports_from_findings_dir, reports_from_json, score_repo
@@ -48,7 +48,7 @@ def _emit(res: Result, json_out: str | None) -> int:
 
 
 def _cmd_repo(args) -> int:
-    key = load_answer_key(config.find_answer_key(args.name))
+    key = load_answer_key(registry.find_answer_key(args.name))
     if args.findings_json:
         reports = reports_from_json(args.findings_json)
     elif args.findings_dir:

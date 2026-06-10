@@ -46,14 +46,20 @@ evals/
   diff_cases.py    the shipped synthetic diff cases
   config.py        discover public benchmarks plus private sources
   compare.py       diff two results, the per-issue flips and deltas
+  registry.py      discover benchmarks across public and private sources
   benchmarks/
-    repo/<name>/target.yaml      a git pointer, never vendored code
+    repo/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
     repo/<name>/answer_key.yaml  planted issues and safe lookalikes
 ```
 
+A `benchmark.yaml` is the manifest: the clone pointer, never vendored code, plus the
+stack and the knowledge the target exercises, so the coverage matrix can attribute it. The
+legacy `target.yaml` carrying only the pointer is still read, so a private benchmark need
+not be reshaped.
+
 An answer key has `planted` issues a complete review must surface and `safe` lookalikes a
-report would be a false positive on. The legacy `issues` key is accepted as an alias. The
-review under test never reads the key.
+report would be a false positive on. Each entry may name the knowledge it exercises. The
+legacy `issues` key is accepted as an alias. The review under test never reads the key.
 
 ## Private Benchmarks, Not Committed
 
@@ -76,7 +82,7 @@ The repo path does not run the review, the agent or a coded run does that, this 
 output it wrote.
 
 ```bash
-# 1. review a cloned target, see its target.yaml for the pointer
+# 1. review a cloned target, see its benchmark.yaml for the pointer
 git clone --depth 1 --branch v0.3.8 https://github.com/open-webui/open-webui /tmp/owui
 codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
 #    an agent then follows METHODOLOGY.md, then finalize writes findings/
@@ -93,5 +99,5 @@ python -m evals diff --mode standard --model <id>
 ```
 
 A benchmark grows by adding more planted issues and lookalikes, or a new `repo/<name>/`
-directory with its `target.yaml` and `answer_key.yaml`. Keep public benchmarks public and
+directory with its `benchmark.yaml` and `answer_key.yaml`. Keep public benchmarks public and
 non-proprietary, this repo ships to PyPI and GitHub.

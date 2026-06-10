@@ -9,7 +9,7 @@ import pytest
 # evals is a root-level dev tool, not an installed package, so make it importable
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from evals import config
+from evals import registry
 from evals.compare import compare
 from evals.runners.repo import reports_from_findings_dir, score_repo
 from evals.schema import Report, load_answer_key
@@ -92,13 +92,26 @@ def test_parse_finding_md_and_score_repo(tmp_path):
     assert res.found == ["w"]
 
 
-def test_config_finds_public_openwebui_benchmark():
-    key = load_answer_key(config.find_answer_key("openwebui"))
+def _public_only(tmp_path, monkeypatch):
+    # isolate discovery from the operator's real local config, so a private source on this
+    # machine cannot make a public-benchmark test pass or fail
+    cfg = tmp_path / "empty.yaml"
+    cfg.write_text("", encoding="utf-8")
+    monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
+
+
+def test_registry_finds_public_openwebui_benchmark(tmp_path, monkeypatch):
+    _public_only(tmp_path, monkeypatch)
+    bench = registry.find_benchmark("openwebui")
+    assert bench.provenance == "public"
+    assert bench.stack["frameworks"] == ["fastapi"]
+    assert "insecure-direct-object-reference" in bench.knowledge["vulnerabilities"]
+    key = load_answer_key(bench.answer_key)
     assert key.target == "openwebui"
     assert any(p.id == "idor-memory-update" for p in key.planted)
 
 
-def test_config_resolves_a_private_path_source_legacy_layout(tmp_path, monkeypatch):
+def test_registry_resolves_a_private_path_source_legacy_layout(tmp_path, monkeypatch):
     src = tmp_path / "private"
     (src / "groundtruth").mkdir(parents=True)
     (src / "groundtruth" / "secret.yaml").write_text(
@@ -107,14 +120,30 @@ def test_config_resolves_a_private_path_source_legacy_layout(tmp_path, monkeypat
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
 
-    found = config.find_answer_key("secret")
-    assert found == src / "groundtruth" / "secret.yaml"
-    assert load_answer_key(found).planted[0].id == "s1"
+    bench = registry.find_benchmark("secret")
+    assert bench.provenance == "private" and bench.manifest is None
+    assert bench.answer_key == src / "groundtruth" / "secret.yaml"
+    assert load_answer_key(bench.answer_key).planted[0].id == "s1"
 
 
-def test_config_unknown_benchmark_fails_loud():
-    with pytest.raises(ValueError, match="no answer key for 'nope'"):
-        config.find_answer_key("nope")
+def test_registry_unknown_benchmark_fails_loud(tmp_path, monkeypatch):
+    _public_only(tmp_path, monkeypatch)
+    with pytest.raises(ValueError, match="no benchmark 'nope'"):
+        registry.find_benchmark("nope")
+
+
+def test_registry_duplicate_name_across_roots_fails_loud(tmp_path, monkeypatch):
+    # a private source that re-uses a public name must fail loud, not silently shadow it,
+    # unless it opts in with override: true
+    src = tmp_path / "private"
+    (src / "repo" / "openwebui").mkdir(parents=True)
+    (src / "repo" / "openwebui" / "answer_key.yaml").write_text(
+        "target: openwebui\nplanted:\n  - id: x\n    category: idor\n    entry: GET /x/<id>\n", encoding="utf-8")
+    cfg = tmp_path / "local.yaml"
+    cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
+    monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
+    with pytest.raises(ValueError, match="defined in two roots"):
+        registry.find_benchmark("openwebui")
 
 
 def test_compare_reports_flips():
