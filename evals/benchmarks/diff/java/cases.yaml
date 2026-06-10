@@ -1,0 +1,20 @@
+# The shipped Java diff probe cases, synthetic and authored here, not third-party, so
+# they ship publicly. A positive carries a category and should yield a finding, a safe
+# case carries none and must stay clean. Every row names the knowledge it exercises so the
+# coverage matrix attributes it. The loader concatenates every cases.yaml under
+# benchmarks/diff, so a language file joins the library without any wiring.
+cases:
+  # Java core
+  - name: sqli-java
+    category: sql-injection
+    knowledge:
+      vulnerabilities: [sql-injection]
+    tags: [injection, java]
+    diff: |
+      diff --git a/Dao.java b/Dao.java
+      --- a/Dao.java
+      +++ b/Dao.java
+      @@ -12,2 +12,3 @@ public User find(String id) {
+      -    return null;
+      +    String sql = "SELECT * FROM users WHERE id = " + id;
+      +    return jdbc.queryForObject(sql, User.class);

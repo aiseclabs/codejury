@@ -1,9 +1,9 @@
 """The shipped diff probe cases and their loader. Small realistic patches, one or more per
 vulnerability class, plus safe lookalikes that must stay clean. Synthetic and authored
-here, not third-party, so they ship publicly. The cases live as data in
-benchmarks/diff/cases.yaml, each row naming the knowledge it exercises so the coverage
-matrix attributes it. A positive carries a category and should yield a finding, a safe case
-carries none and should stay clean.
+here, not third-party, so they ship publicly. The cases live as data under
+benchmarks/diff, one cases.yaml per language and grouped by framework within, each row
+naming the knowledge it exercises so the coverage matrix attributes it. A positive carries
+a category and should yield a finding, a safe case carries none and should stay clean.
 
 This module is engine-free on purpose, so the coverage matrix can read the cases without
 importing the audit runner.
@@ -18,7 +18,7 @@ import yaml
 
 from evals.schema import knowledge_refs
 
-CASES_FILE = Path(__file__).resolve().parent / "benchmarks" / "diff" / "cases.yaml"
+CASES_DIR = Path(__file__).resolve().parent / "benchmarks" / "diff"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -57,5 +57,21 @@ def load_cases(path: str | Path) -> list[DiffCase]:
 
 
 def default_cases() -> list[DiffCase]:
-    """The shipped probe cases, see benchmarks/diff/cases.yaml."""
-    return load_cases(CASES_FILE)
+    """The shipped probe cases, every cases.yaml under benchmarks/diff concatenated. The
+    per-language layout means a file is found at any depth, so a future framework subtree
+    joins the library without any wiring. A name must be unique across files, since suites
+    and the coverage matrix key on it, so a collision fails loud rather than last wins."""
+    files = sorted(CASES_DIR.rglob("cases.yaml"))
+    if not files:
+        raise ValueError(f"no cases.yaml under {CASES_DIR}")
+    cases: list[DiffCase] = []
+    seen: dict[str, Path] = {}
+    for f in files:
+        for case in load_cases(f):
+            if case.name in seen:
+                raise ValueError(
+                    f"diff case '{case.name}' is defined in two files, {seen[case.name]} "
+                    f"and {f}. A case name must be unique across the library, rename one.")
+            seen[case.name] = f
+            cases.append(case)
+    return cases

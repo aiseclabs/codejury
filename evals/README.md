@@ -50,11 +50,16 @@ evals/
   compare.py       diff two results, the per-issue flips, deltas, and by-axis grouping
   gate.py          the regression policy, a yes or no on landing a change
   benchmarks/
-    diff/cases.yaml              the shipped synthetic diff cases, each with knowledge
+    diff/<language>/cases.yaml   the shipped synthetic diff cases, each with knowledge
     suites/<name>.yaml           a tag selection, public-smoke and knowledge-coverage
-    repo/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
-    repo/<name>/answer_key.yaml  planted issues and safe lookalikes
+    repo/<language>/<framework>/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
+    repo/<language>/<framework>/<name>/answer_key.yaml  planted issues and safe lookalikes
 ```
+
+Repo targets group under a language and framework path, mirroring the knowledge guides
+taxonomy, for example `repo/python/flask/pyload` and `repo/go/gin/insatutorat`. A target may
+also sit flat at `repo/<name>`, the id is the leaf directory name either way, so the grouping
+path never renames a benchmark.
 
 A `benchmark.yaml` is the manifest: the clone pointer, never vendored code, plus the
 stack and the knowledge the target exercises, so the coverage matrix can attribute it. The
@@ -93,7 +98,8 @@ benchmark_sources:
     ref: main
 ```
 
-A source root may use the new `repo/<name>/answer_key.yaml` layout or the legacy
+A source root may use the per-benchmark `repo/<name>/answer_key.yaml` layout, optionally
+grouped under a `repo/<language>/<framework>/<name>` path, or the legacy
 `groundtruth/<name>.yaml`, so existing private data scores without being reshaped. Benchmark
 names resolve across the public root and every source.
 
@@ -141,10 +147,12 @@ lookalike, precision below a floor, and unsound benchmark data such as a knowled
 that resolves to no file or an unlocatable key entry. An extra unkeyed report alone never
 fails the gate, the key cannot say whether it is a real bug.
 
-A benchmark grows by adding more planted issues and lookalikes, or a new `repo/<name>/`
-directory with its `benchmark.yaml` and `answer_key.yaml`. The diff probe grows by adding a
-row to `benchmarks/diff/cases.yaml`, a positive with a category or a safe lookalike without
-one, each naming the knowledge it exercises so `coverage` attributes it. A suite grows by
+A benchmark grows by adding more planted issues and lookalikes, or a new
+`repo/<language>/<framework>/<name>/` directory with its `benchmark.yaml` and
+`answer_key.yaml`. The diff probe grows by adding a
+row to the `benchmarks/diff/<language>/cases.yaml` for its language, a positive with a
+category or a safe lookalike without one, each naming the knowledge it exercises so
+`coverage` attributes it. A suite grows by
 adding `benchmarks/suites/<name>.yaml` naming the tags it selects, no second list of cases
 to keep in sync. Keep public benchmarks public and non-proprietary, this repo ships to PyPI
 and GitHub.

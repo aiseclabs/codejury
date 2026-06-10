@@ -5,7 +5,8 @@ The repo ships only public OSS benchmarks under `evals/benchmarks`. Private benc
 stay wherever they already live: a local config, gitignored, lists their sources as a path
 or a private git repo, and they plug in under the same names. Nothing private moves into
 the repo and nothing private commits. A source root may use the per-benchmark layout,
-`repo/<name>/benchmark.yaml` plus `answer_key.yaml`, or the legacy `groundtruth/<name>.yaml`,
+`repo/<name>/benchmark.yaml` plus `answer_key.yaml`, optionally grouped under a language and
+framework path such as `repo/python/flask/<name>`, or the legacy `groundtruth/<name>.yaml`,
 so an existing private benchmark scores without being reshaped. A name that appears in two
 roots fails loud, unless the private source sets `override: true` to shadow a public one on
 purpose.
@@ -105,15 +106,24 @@ def _benchmark_at(name: str, answer_key: Path, manifest: Path | None, provenance
 
 def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
     """Find every benchmark under one root, the per-benchmark layout and the legacy
-    groundtruth layout alike. The per-benchmark layout wins when both name the same id."""
+    groundtruth layout alike. The per-benchmark layout wins when both name the same id.
+
+    A benchmark is any directory holding an answer_key.yaml, found at any depth under repo,
+    so a target may sit flat at repo/<name> or grouped at repo/<language>/<framework>/<name>,
+    mirroring the knowledge guides taxonomy. The id is the leaf directory name regardless of
+    the grouping path, so moving a target between groups does not rename it. Two targets with
+    the same leaf name fail loud, an id collision is a mistake not a silent last-wins."""
     found: dict[str, Benchmark] = {}
     repo_dir = root / "repo"
     if repo_dir.is_dir():
-        for d in sorted(p for p in repo_dir.iterdir() if p.is_dir()):
-            key = d / "answer_key.yaml"
-            if not key.is_file():
-                continue
+        for key in sorted(repo_dir.rglob("answer_key.yaml")):
+            d = key.parent
             manifest = next((d / m for m in ("benchmark.yaml", "target.yaml") if (d / m).is_file()), None)
+            if d.name in found:
+                raise ValueError(
+                    f"two repo benchmarks share the leaf name '{d.name}' under {repo_dir}, "
+                    f"at {found[d.name].answer_key} and {key}. The id is the leaf directory "
+                    f"name, so rename one of the two target directories.")
             found[d.name] = _benchmark_at(d.name, key, manifest, provenance)
     gt_dir = root / "groundtruth"
     if gt_dir.is_dir():

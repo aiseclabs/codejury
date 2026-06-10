@@ -1,0 +1,220 @@
+# The shipped JavaScript diff probe cases, synthetic and authored here, not third-party, so
+# they ship publicly. A positive carries a category and should yield a finding, a safe
+# case carries none and must stay clean. Every row names the knowledge it exercises so the
+# coverage matrix attributes it. The loader concatenates every cases.yaml under
+# benchmarks/diff, so a language file joins the library without any wiring.
+cases:
+  # JavaScript core
+  - name: cmdi-js
+    category: command-injection
+    knowledge:
+      vulnerabilities: [command-injection]
+    tags: [injection, javascript]
+    diff: |
+      diff --git a/run.js b/run.js
+      --- a/run.js
+      +++ b/run.js
+      @@ -4,2 +4,3 @@ function ping(req) {
+      -  return
+      +  const { exec } = require('child_process')
+      +  exec('ping -c 1 ' + req.query.host, cb)
+
+  # Express framework cases, frameworks/javascript/express
+  - name: sqli-js
+    category: sql-injection
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/javascript/express]
+    tags: [injection, javascript]
+    diff: |
+      diff --git a/routes.js b/routes.js
+      --- a/routes.js
+      +++ b/routes.js
+      @@ -8,2 +8,3 @@ app.get('/u', (req, res) => {
+      -  res.end()
+      +  const q = "SELECT * FROM users WHERE id = " + req.query.id
+      +  db.query(q, (e, r) => res.json(r))
+
+  - name: express-path-traversal
+    category: path-traversal
+    knowledge:
+      vulnerabilities: [path-traversal]
+      guides: [frameworks/javascript/express]
+    tags: [injection, javascript, express]
+    diff: |
+      diff --git a/routes/files.js b/routes/files.js
+      --- a/routes/files.js
+      +++ b/routes/files.js
+      @@ -6,2 +6,3 @@ app.get('/files', (req, res) => {
+      -  res.end()
+      +  const p = path.join('/srv/data', req.query.name)
+      +  fs.readFile(p, (e, d) => res.send(d))
+
+  - name: express-open-redirect
+    category: open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [frameworks/javascript/express]
+    tags: [web, javascript, express]
+    diff: |
+      diff --git a/routes/auth.js b/routes/auth.js
+      --- a/routes/auth.js
+      +++ b/routes/auth.js
+      @@ -11,2 +11,3 @@ app.get('/login/callback', (req, res) => {
+      -  res.end()
+      +  res.redirect(req.query.next || '/')
+
+  - name: express-missing-auth
+    category: missing-authorization
+    knowledge:
+      vulnerabilities: [missing-authorization]
+      guides: [frameworks/javascript/express]
+    tags: [authz, javascript, express]
+    diff: |
+      diff --git a/routes/admin.js b/routes/admin.js
+      --- a/routes/admin.js
+      +++ b/routes/admin.js
+      @@ -14,2 +14,4 @@ const router = require('express').Router()
+      -router.get('/users/:id', requireAuth, getUser)
+      +router.post('/admin/users/:id/delete', (req, res) => {
+      +  User.destroy({ where: { id: req.params.id } }).then(() => res.sendStatus(204))
+      +})
+
+  - name: express-idor
+    category: insecure-direct-object-reference
+    knowledge:
+      vulnerabilities: [insecure-direct-object-reference]
+      guides: [frameworks/javascript/express]
+    tags: [authz, javascript, express]
+    diff: |
+      diff --git a/routes/orders.js b/routes/orders.js
+      --- a/routes/orders.js
+      +++ b/routes/orders.js
+      @@ -9,2 +9,3 @@ app.get('/orders/:id', requireAuth, (req, res) => {
+      -  res.end()
+      +  Order.findByPk(req.params.id).then(o => res.json(o))
+
+  - name: express-ssrf
+    category: server-side-request-forgery
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+      guides: [frameworks/javascript/express]
+    tags: [web, javascript, express]
+    diff: |
+      diff --git a/routes/proxy.js b/routes/proxy.js
+      --- a/routes/proxy.js
+      +++ b/routes/proxy.js
+      @@ -7,2 +7,3 @@ app.get('/preview', (req, res) => {
+      -  res.end()
+      +  axios.get(req.query.url).then(r => res.send(r.data))
+
+  - name: express-mass-assignment
+    category: mass-assignment
+    knowledge:
+      vulnerabilities: [mass-assignment]
+      guides: [frameworks/javascript/express]
+    tags: [logic, javascript, express]
+    diff: |
+      diff --git a/routes/users.js b/routes/users.js
+      --- a/routes/users.js
+      +++ b/routes/users.js
+      @@ -12,2 +12,3 @@ app.post('/users', requireAuth, (req, res) => {
+      -  res.end()
+      +  User.create(req.body).then(u => res.json(u))
+
+  - name: safe-express-path-traversal
+    knowledge:
+      vulnerabilities: [path-traversal]
+      guides: [frameworks/javascript/express]
+    tags: [injection, javascript, express, safe]
+    diff: |
+      diff --git a/routes/files.js b/routes/files.js
+      --- a/routes/files.js
+      +++ b/routes/files.js
+      @@ -6,2 +6,3 @@ app.get('/files', (req, res) => {
+      -  res.end()
+      +  res.sendFile(req.query.name, { root: '/srv/data', dotfiles: 'deny' })
+
+  - name: safe-express-open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [frameworks/javascript/express]
+    tags: [web, javascript, express, safe]
+    diff: |
+      diff --git a/routes/auth.js b/routes/auth.js
+      --- a/routes/auth.js
+      +++ b/routes/auth.js
+      @@ -11,2 +11,4 @@ app.get('/login/callback', (req, res) => {
+      -  res.end()
+      +  const next = req.query.next || '/'
+      +  res.redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/')
+
+  - name: safe-express-missing-auth
+    knowledge:
+      vulnerabilities: [missing-authorization]
+      guides: [frameworks/javascript/express]
+    tags: [authz, javascript, express, safe]
+    diff: |
+      diff --git a/routes/admin.js b/routes/admin.js
+      --- a/routes/admin.js
+      +++ b/routes/admin.js
+      @@ -14,2 +14,4 @@ const router = require('express').Router()
+      -router.get('/users/:id', requireAuth, getUser)
+      +router.post('/admin/users/:id/delete', requireAuth, requireAdmin, (req, res) => {
+      +  User.destroy({ where: { id: req.params.id } }).then(() => res.sendStatus(204))
+      +})
+
+  - name: safe-express-idor
+    knowledge:
+      vulnerabilities: [insecure-direct-object-reference]
+      guides: [frameworks/javascript/express]
+    tags: [authz, javascript, express, safe]
+    diff: |
+      diff --git a/routes/orders.js b/routes/orders.js
+      --- a/routes/orders.js
+      +++ b/routes/orders.js
+      @@ -9,2 +9,3 @@ app.get('/orders/:id', requireAuth, (req, res) => {
+      -  res.end()
+      +  Order.findOne({ where: { id: req.params.id, userId: req.user.id } }).then(o => res.json(o))
+
+  - name: safe-express-ssrf
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+      guides: [frameworks/javascript/express]
+    tags: [web, javascript, express, safe]
+    diff: |
+      diff --git a/routes/proxy.js b/routes/proxy.js
+      --- a/routes/proxy.js
+      +++ b/routes/proxy.js
+      @@ -7,2 +7,5 @@ app.get('/preview', (req, res) => {
+      -  res.end()
+      +  const u = new URL(req.query.url)
+      +  if (u.hostname !== 'images.example.com') return res.sendStatus(400)
+      +  axios.get(u.href).then(r => res.send(r.data))
+
+  - name: safe-express-mass-assignment
+    knowledge:
+      vulnerabilities: [mass-assignment]
+      guides: [frameworks/javascript/express]
+    tags: [logic, javascript, express, safe]
+    diff: |
+      diff --git a/routes/users.js b/routes/users.js
+      --- a/routes/users.js
+      +++ b/routes/users.js
+      @@ -12,2 +12,3 @@ app.post('/users', requireAuth, (req, res) => {
+      -  res.end()
+      +  const { name, email } = req.body
+      +  User.create({ name, email }).then(u => res.json(u))
+
+  - name: safe-param-sql-js
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/javascript/express]
+    tags: [injection, javascript, safe]
+    diff: |
+      diff --git a/routes.js b/routes.js
+      --- a/routes.js
+      +++ b/routes.js
+      @@ -8,2 +8,3 @@ app.get('/u', (req, res) => {
+      -  res.end()
+      +  db.query("SELECT * FROM users WHERE id = ?", [req.query.id], (e, r) => res.json(r))
