@@ -3,50 +3,18 @@
 A capability probe, not a golden set in the product sense: it runs a set of realistic
 small diffs through audit_diff against a real provider and tallies which vulnerability
 classes the current model, prompt, and rules catch, and which safe lookalikes they wrongly
-flag. The cases ship as data, so adding one is a data change. A positive case carries a
-category and should yield a finding, a safe case carries none and should yield nothing.
+flag. The cases ship as data in benchmarks/diff/cases.yaml, see diff_cases.py for the
+loader, so adding one is a data change. A positive case carries a category and should yield
+a finding, a safe case carries none and should yield nothing.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-
-import yaml
-
 from codejury.review.diff.runner import audit_diff
+from evals.diff_cases import DiffCase, default_cases, load_cases
 from evals.results import Result
 
-
-@dataclass(frozen=True, kw_only=True)
-class DiffCase:
-    name: str
-    category: str    # empty marks a safe case that should stay clean
-    diff: str
-
-    @property
-    def is_positive(self) -> bool:
-        return bool(self.category)
-
-
-def default_cases() -> list[DiffCase]:
-    """The shipped probe cases, see diff_cases.py."""
-    from evals.diff_cases import CASES
-    return [DiffCase(name=n, category=c or "", diff=d) for n, c, d in CASES]
-
-
-def load_cases(path: str | Path) -> list[DiffCase]:
-    """Load user-supplied cases from a yaml list of {name, category, diff}."""
-    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    rows = data.get("cases") if isinstance(data, dict) else data
-    if not rows:
-        raise ValueError(f"no cases in {path}")
-    cases: list[DiffCase] = []
-    for i, r in enumerate(rows):
-        if "diff" not in r:
-            raise ValueError(f"cases[{i}] ({r.get('name', '?')}) has no diff")
-        cases.append(DiffCase(name=str(r["name"]), category=str(r.get("category") or ""), diff=str(r["diff"])))
-    return cases
+__all__ = ["DiffCase", "default_cases", "load_cases", "run_diff_cases"]
 
 
 def run_diff_cases(cases: list[DiffCase], *, provider, model: str, mode: str = "standard") -> Result:

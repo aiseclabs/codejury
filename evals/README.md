@@ -43,11 +43,12 @@ evals/
   runners/
     repo.py        score a whole-repo review's findings output
     diff.py        run the diff capability probe and score
-  diff_cases.py    the shipped synthetic diff cases
+  diff_cases.py    load the shipped diff cases, engine-free so the matrix can read them
   registry.py      discover benchmarks across public and private sources
   knowledge.py     scan the knowledge tree, build the coverage matrix
   compare.py       diff two results, the per-issue flips and deltas
   benchmarks/
+    diff/cases.yaml              the shipped synthetic diff cases, each with knowledge
     repo/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
     repo/<name>/answer_key.yaml  planted issues and safe lookalikes
 ```
@@ -116,5 +117,7 @@ python -m evals diff --mode standard --model <id>
 ```
 
 A benchmark grows by adding more planted issues and lookalikes, or a new `repo/<name>/`
-directory with its `benchmark.yaml` and `answer_key.yaml`. Keep public benchmarks public and
-non-proprietary, this repo ships to PyPI and GitHub.
+directory with its `benchmark.yaml` and `answer_key.yaml`. The diff probe grows by adding a
+row to `benchmarks/diff/cases.yaml`, a positive with a category or a safe lookalike without
+one, each naming the knowledge it exercises so `coverage` attributes it. Keep public
+benchmarks public and non-proprietary, this repo ships to PyPI and GitHub.

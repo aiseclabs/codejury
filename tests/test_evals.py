@@ -176,13 +176,24 @@ def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypa
     assert py.repo_planted == 3 and py.public >= 1
 
 
-def test_coverage_problems_flag_missing_safe_diff_case(tmp_path, monkeypatch):
+def test_coverage_problems_flag_a_vulnerability_missing_a_safe_case(tmp_path, monkeypatch):
+    _public_only(tmp_path, monkeypatch)
+    from evals.knowledge import Coverage, KnowledgeItem, coverage_problems
+    # a class with a positive but no safe case must surface as missing-safe, not missing-positive
+    item = KnowledgeItem(ref="vuln:demo", kind="vulnerability", path=Path("demo.md"))
+    cov = {"vuln:demo": Coverage(item=item, diff_positive=1)}
+    kinds = {(p.kind, p.ref) for p in coverage_problems(cov)}
+    assert ("missing-safe", "vuln:demo") in kinds
+    assert ("missing-positive", "vuln:demo") not in kinds
+
+
+def test_shipped_diff_library_covers_every_vulnerability_class(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
     from evals.knowledge import coverage_problems
-    problems = coverage_problems()
-    # sql-injection has positive diff cases but no safe sibling yet, the gap the case
-    # library fills, so it surfaces as a missing-safe problem
-    assert any(p.kind == "missing-safe" and p.ref == "vuln:sql-injection" for p in problems)
+    # the case library should leave no vulnerability class without a positive and a safe
+    # diff case, the goal of the filled library, so the matrix reports no such gap
+    gaps = [(p.kind, p.ref) for p in coverage_problems() if p.kind in {"missing-positive", "missing-safe"}]
+    assert gaps == [], f"uncovered vulnerability classes: {gaps}"
 
 
 def test_coverage_problems_flag_unresolved_reference(tmp_path, monkeypatch):

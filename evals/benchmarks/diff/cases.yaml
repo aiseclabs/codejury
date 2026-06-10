@@ -1,0 +1,827 @@
+# The shipped diff probe cases. Each is a small realistic patch, synthetic and authored
+# here, not third-party, so it ships publicly. A positive carries a category and should
+# yield a finding, a safe case carries none and must stay clean. Every row names the
+# knowledge it exercises so the coverage matrix attributes it, a safe lookalike included,
+# it guards the class it is named under. The aim is at least one positive and one safe case
+# per vulnerability class, so the probe measures both recall and the false positive guard.
+#
+# Knowledge is the vulnerability class always, plus a framework guide only where the patch
+# uses a framework-specific api. A bare language guide is left to the repo benchmarks, a
+# three-line snippet does not meaningfully exercise a language review guide.
+
+cases:
+  # injection, positives
+  - name: sqli
+    category: sql-injection
+    knowledge:
+      vulnerabilities: [sql-injection]
+    tags: [injection, python]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -10,3 +10,4 @@ def get_user(name):
+      -    return None
+      +    q = "SELECT * FROM users WHERE name = '" + name + "'"
+      +    return db.execute(q).fetchone()
+
+  - name: cmdi
+    category: command-injection
+    knowledge:
+      vulnerabilities: [command-injection]
+    tags: [injection, python]
+    diff: |
+      diff --git a/ops.py b/ops.py
+      --- a/ops.py
+      +++ b/ops.py
+      @@ -4,2 +4,3 @@ def ping(host):
+      -    pass
+      +    import os
+      +    os.system("ping -c 1 " + host)
+
+  - name: code-injection
+    category: code-injection
+    knowledge:
+      vulnerabilities: [code-injection]
+    tags: [injection, python]
+    diff: |
+      diff --git a/calc.py b/calc.py
+      --- a/calc.py
+      +++ b/calc.py
+      @@ -3,2 +3,3 @@ def evaluate(req):
+      -    return 0
+      +    expr = req.args.get("expr")
+      +    return eval(expr)
+
+  - name: path-traversal
+    category: path-traversal
+    knowledge:
+      vulnerabilities: [path-traversal]
+    tags: [injection, python]
+    diff: |
+      diff --git a/files.py b/files.py
+      --- a/files.py
+      +++ b/files.py
+      @@ -7,2 +7,3 @@ def download(req):
+      -    return ""
+      +    path = req.args.get("file")
+      +    return open(path).read()
+
+  - name: xxe
+    category: xml-external-entity
+    knowledge:
+      vulnerabilities: [xml-external-entity]
+    tags: [injection, python]
+    diff: |
+      diff --git a/parse.py b/parse.py
+      --- a/parse.py
+      +++ b/parse.py
+      @@ -5,2 +5,4 @@ def import_doc(req):
+      -    return None
+      +    from lxml import etree
+      +    parser = etree.XMLParser(resolve_entities=True, no_network=False)
+      +    return etree.fromstring(req.get_data(), parser)
+
+  - name: ssti
+    category: server-side-template-injection
+    knowledge:
+      vulnerabilities: [server-side-template-injection]
+      guides: [frameworks/python/flask]
+    tags: [injection, python]
+    diff: |
+      diff --git a/render.py b/render.py
+      --- a/render.py
+      +++ b/render.py
+      @@ -7,2 +7,3 @@ def page(req):
+      -    return ""
+      +    from flask import render_template_string
+      +    return render_template_string("Hello " + req.args.get("name"))
+
+  - name: deserialize
+    category: insecure-deserialization
+    knowledge:
+      vulnerabilities: [insecure-deserialization]
+    tags: [deserialization, python]
+    diff: |
+      diff --git a/cache.py b/cache.py
+      --- a/cache.py
+      +++ b/cache.py
+      @@ -3,2 +3,3 @@ def load(req):
+      -    return {}
+      +    import pickle
+      +    return pickle.loads(req.get_data())
+
+  - name: sqli-js
+    category: sql-injection
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/javascript/express]
+    tags: [injection, javascript]
+    diff: |
+      diff --git a/routes.js b/routes.js
+      --- a/routes.js
+      +++ b/routes.js
+      @@ -8,2 +8,3 @@ app.get('/u', (req, res) => {
+      -  res.end()
+      +  const q = "SELECT * FROM users WHERE id = " + req.query.id
+      +  db.query(q, (e, r) => res.json(r))
+
+  - name: cmdi-js
+    category: command-injection
+    knowledge:
+      vulnerabilities: [command-injection]
+    tags: [injection, javascript]
+    diff: |
+      diff --git a/run.js b/run.js
+      --- a/run.js
+      +++ b/run.js
+      @@ -4,2 +4,3 @@ function ping(req) {
+      -  return
+      +  const { exec } = require('child_process')
+      +  exec('ping -c 1 ' + req.query.host, cb)
+
+  - name: path-traversal-go
+    category: path-traversal
+    knowledge:
+      vulnerabilities: [path-traversal]
+    tags: [injection, go]
+    diff: |
+      diff --git a/handler.go b/handler.go
+      --- a/handler.go
+      +++ b/handler.go
+      @@ -10,2 +10,3 @@ func download(w http.ResponseWriter, r *http.Request) {
+      -    return
+      +    f, _ := os.Open(r.URL.Query().Get("file"))
+      +    io.Copy(w, f)
+
+  - name: sqli-java
+    category: sql-injection
+    knowledge:
+      vulnerabilities: [sql-injection]
+    tags: [injection, java]
+    diff: |
+      diff --git a/Dao.java b/Dao.java
+      --- a/Dao.java
+      +++ b/Dao.java
+      @@ -12,2 +12,3 @@ public User find(String id) {
+      -    return null;
+      +    String sql = "SELECT * FROM users WHERE id = " + id;
+      +    return jdbc.queryForObject(sql, User.class);
+
+  # web, positives
+  - name: xss
+    category: cross-site-scripting
+    knowledge:
+      vulnerabilities: [cross-site-scripting]
+    tags: [web, python]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -6,2 +6,3 @@ def hello(req):
+      -    return ""
+      +    name = req.args.get("name")
+      +    return make_response("<h1>Hi " + name + "</h1>")
+
+  - name: open-redirect
+    category: open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+    tags: [web, python]
+    diff: |
+      diff --git a/web.py b/web.py
+      --- a/web.py
+      +++ b/web.py
+      @@ -5,2 +5,3 @@ def login_done(req):
+      -    return ""
+      +    nxt = req.args.get("next")
+      +    return redirect(nxt)
+
+  - name: ssrf
+    category: server-side-request-forgery
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+    tags: [web, python]
+    diff: |
+      diff --git a/fetch.py b/fetch.py
+      --- a/fetch.py
+      +++ b/fetch.py
+      @@ -5,2 +5,3 @@ def preview(req):
+      -    return ""
+      +    import requests
+      +    return requests.get(req.args.get("url")).text
+
+  - name: http-response-splitting
+    category: http-response-splitting
+    knowledge:
+      vulnerabilities: [http-response-splitting]
+    tags: [web, python]
+    diff: |
+      diff --git a/lang.py b/lang.py
+      --- a/lang.py
+      +++ b/lang.py
+      @@ -8,2 +8,3 @@ def set_lang(req, resp):
+      -    return resp
+      +    resp.headers["Set-Cookie"] = "lang=" + req.args.get("lang")
+      +    return resp
+
+  - name: csrf
+    category: cross-site-request-forgery
+    knowledge:
+      vulnerabilities: [cross-site-request-forgery]
+      guides: [frameworks/python/django]
+    tags: [web, python]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -3,3 +3,4 @@ from django.views.decorators.csrf import csrf_exempt
+      -def transfer(request):
+      +@csrf_exempt
+      +def transfer(request):
+           move_funds(request.user, request.POST["to"], request.POST["amount"])
+
+  # auth and logic, positives
+  - name: idor
+    category: insecure-direct-object-reference
+    knowledge:
+      vulnerabilities: [insecure-direct-object-reference]
+    tags: [authz, python]
+    diff: |
+      diff --git a/orders.py b/orders.py
+      --- a/orders.py
+      +++ b/orders.py
+      @@ -12,3 +12,4 @@ def get_order(req):
+      -    return None
+      +    oid = req.args.get("id")
+      +    order = Order.objects.get(id=oid)
+      +    return jsonify(order.to_dict())
+
+  - name: missing-authorization
+    category: missing-authorization
+    knowledge:
+      vulnerabilities: [missing-authorization]
+    tags: [authz, python]
+    diff: |
+      diff --git a/admin.py b/admin.py
+      --- a/admin.py
+      +++ b/admin.py
+      @@ -9,2 +9,4 @@ def promote(req):
+      -    pass
+      +    user = User.objects.get(id=req.args.get("id"))
+      +    user.is_admin = True
+      +    user.save()
+
+  - name: improper-authentication
+    category: improper-authentication
+    knowledge:
+      vulnerabilities: [improper-authentication]
+    tags: [auth, python]
+    diff: |
+      diff --git a/login.py b/login.py
+      --- a/login.py
+      +++ b/login.py
+      @@ -6,2 +6,4 @@ def login(req):
+      -    return 401
+      +    user = User.objects.filter(username=req.form["username"]).first()
+      +    if user:
+      +        return issue_token(user)
+
+  - name: jwt
+    category: jwt-validation
+    knowledge:
+      vulnerabilities: [jwt-validation]
+    tags: [auth, python]
+    diff: |
+      diff --git a/auth.py b/auth.py
+      --- a/auth.py
+      +++ b/auth.py
+      @@ -8,2 +8,3 @@ def verify(token):
+      -    raise NotImplementedError
+      +    import jwt
+      +    return jwt.decode(token, options={"verify_signature": False})
+
+  - name: replay-attack
+    category: replay-attack
+    knowledge:
+      vulnerabilities: [replay-attack]
+    tags: [auth, python]
+    diff: |
+      diff --git a/webhook.py b/webhook.py
+      --- a/webhook.py
+      +++ b/webhook.py
+      @@ -7,2 +7,4 @@ def handle(req):
+      -    return 400
+      +    if verify_signature(req.body, req.headers["X-Sig"]):
+      +        return process(req.body)
+      +    return 401
+
+  - name: insecure-session-management
+    category: insecure-session-management
+    knowledge:
+      vulnerabilities: [insecure-session-management]
+    tags: [auth, python]
+    diff: |
+      diff --git a/session.py b/session.py
+      --- a/session.py
+      +++ b/session.py
+      @@ -5,2 +5,3 @@ def start_session(user, resp):
+      -    return resp
+      +    resp.set_cookie("sid", make_token(user))
+      +    return resp
+
+  - name: mass-assignment
+    category: mass-assignment
+    knowledge:
+      vulnerabilities: [mass-assignment]
+    tags: [logic, python]
+    diff: |
+      diff --git a/users.py b/users.py
+      --- a/users.py
+      +++ b/users.py
+      @@ -9,2 +9,3 @@ def update_profile(req):
+      -    pass
+      +    user = User(**req.get_json())
+      +    user.save()
+
+  - name: business-logic
+    category: business-logic
+    knowledge:
+      vulnerabilities: [business-logic]
+    tags: [logic, python]
+    diff: |
+      diff --git a/refund.py b/refund.py
+      --- a/refund.py
+      +++ b/refund.py
+      @@ -6,2 +6,4 @@ def refund(req):
+      -    return 400
+      +    amount = float(req.get_json()["amount"])
+      +    account.balance += amount
+      +    return 200
+
+  - name: race-condition
+    category: race-condition
+    knowledge:
+      vulnerabilities: [race-condition]
+    tags: [logic, python]
+    diff: |
+      diff --git a/wallet.py b/wallet.py
+      --- a/wallet.py
+      +++ b/wallet.py
+      @@ -8,2 +8,5 @@ def withdraw(account, amount):
+      -    return False
+      +    if account.balance >= amount:
+      +        account.balance -= amount
+      +        account.save()
+      +        return True
+
+  # exposure, crypto, transport, secrets, positives
+  - name: information-exposure
+    category: information-exposure
+    knowledge:
+      vulnerabilities: [information-exposure]
+    tags: [exposure, python]
+    diff: |
+      diff --git a/api.py b/api.py
+      --- a/api.py
+      +++ b/api.py
+      @@ -4,3 +4,4 @@ def whoami(req):
+      -    return jsonify({"id": req.user.id})
+      +    import traceback
+      +    try:
+      +        return jsonify(req.user.__dict__)
+      +    except Exception as e:
+      +        return jsonify({"trace": traceback.format_exc()}), 500
+
+  - name: weak-crypto
+    category: insecure-cryptography
+    knowledge:
+      vulnerabilities: [insecure-cryptography]
+    tags: [crypto, python]
+    diff: |
+      diff --git a/pw.py b/pw.py
+      --- a/pw.py
+      +++ b/pw.py
+      @@ -3,2 +3,3 @@ def store(password):
+      -    pass
+      +    import hashlib
+      +    db.save(hashlib.md5(password.encode()).hexdigest())
+
+  - name: insecure-transport
+    category: insecure-transport
+    knowledge:
+      vulnerabilities: [insecure-transport]
+    tags: [transport, python]
+    diff: |
+      diff --git a/pay.py b/pay.py
+      --- a/pay.py
+      +++ b/pay.py
+      @@ -4,2 +4,3 @@ def charge(card, amount):
+      -    return None
+      +    import requests
+      +    return requests.post("http://payments.example.com/charge", json={"card": card, "amount": amount})
+
+  - name: hardcoded-secret
+    category: hardcoded-secrets
+    knowledge:
+      vulnerabilities: [hardcoded-secrets]
+    tags: [secrets, python]
+    diff: |
+      diff --git a/client.py b/client.py
+      --- a/client.py
+      +++ b/client.py
+      @@ -1,2 +1,3 @@
+       import stripe
+      +stripe.api_key = "sk_live_EXAMPLE_do_not_use_fake_placeholder_key"
+
+  # safe lookalikes, must stay clean, one per class
+  - name: safe-param-sql
+    knowledge:
+      vulnerabilities: [sql-injection]
+    tags: [injection, python, safe]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -10,3 +10,4 @@ def get_user(name):
+      -    return None
+      +    return db.execute("SELECT * FROM users WHERE name = ?", (name,)).fetchone()
+
+  - name: safe-param-sql-js
+    knowledge:
+      vulnerabilities: [sql-injection]
+      guides: [frameworks/javascript/express]
+    tags: [injection, javascript, safe]
+    diff: |
+      diff --git a/routes.js b/routes.js
+      --- a/routes.js
+      +++ b/routes.js
+      @@ -8,2 +8,3 @@ app.get('/u', (req, res) => {
+      -  res.end()
+      +  db.query("SELECT * FROM users WHERE id = ?", [req.query.id], (e, r) => res.json(r))
+
+  - name: safe-orm
+    knowledge:
+      vulnerabilities: [sql-injection]
+    tags: [injection, python, safe]
+    diff: |
+      diff --git a/repo.py b/repo.py
+      --- a/repo.py
+      +++ b/repo.py
+      @@ -6,2 +6,3 @@ def find(name):
+      -    return None
+      +    return User.objects.filter(name=name).first()
+
+  - name: safe-subprocess
+    knowledge:
+      vulnerabilities: [command-injection]
+    tags: [injection, python, safe]
+    diff: |
+      diff --git a/ops.py b/ops.py
+      --- a/ops.py
+      +++ b/ops.py
+      @@ -4,2 +4,3 @@ def ping(host):
+      -    pass
+      +    import subprocess
+      +    subprocess.run(["ping", "-c", "1", host], shell=False, check=True)
+
+  - name: safe-constant-cmd
+    knowledge:
+      vulnerabilities: [command-injection]
+    tags: [injection, python, safe]
+    diff: |
+      diff --git a/health.py b/health.py
+      --- a/health.py
+      +++ b/health.py
+      @@ -3,2 +3,3 @@ def disk():
+      -    pass
+      +    import subprocess
+      +    return subprocess.run(["df", "-h"], capture_output=True, text=True).stdout
+
+  - name: safe-literal-eval
+    knowledge:
+      vulnerabilities: [code-injection]
+    tags: [injection, python, safe]
+    diff: |
+      diff --git a/calc.py b/calc.py
+      --- a/calc.py
+      +++ b/calc.py
+      @@ -3,2 +3,3 @@ def evaluate(req):
+      -    return 0
+      +    import ast
+      +    return ast.literal_eval(req.args.get("expr", "0"))
+
+  - name: safe-basename
+    knowledge:
+      vulnerabilities: [path-traversal]
+    tags: [injection, python, safe]
+    diff: |
+      diff --git a/files.py b/files.py
+      --- a/files.py
+      +++ b/files.py
+      @@ -7,3 +7,4 @@ def download(req):
+      -    return ""
+      +    import os
+      +    name = os.path.basename(req.args.get("file", ""))
+      +    return open(os.path.join("/srv/public", name)).read()
+
+  - name: safe-xxe-no-entities
+    knowledge:
+      vulnerabilities: [xml-external-entity]
+    tags: [injection, python, safe]
+    diff: |
+      diff --git a/parse.py b/parse.py
+      --- a/parse.py
+      +++ b/parse.py
+      @@ -5,2 +5,4 @@ def import_doc(req):
+      -    return None
+      +    from lxml import etree
+      +    parser = etree.XMLParser(resolve_entities=False, no_network=True)
+      +    return etree.fromstring(req.get_data(), parser)
+
+  - name: safe-ssti-static-template
+    knowledge:
+      vulnerabilities: [server-side-template-injection]
+      guides: [frameworks/python/flask]
+    tags: [injection, python, safe]
+    diff: |
+      diff --git a/render.py b/render.py
+      --- a/render.py
+      +++ b/render.py
+      @@ -7,2 +7,3 @@ def page(req):
+      -    return ""
+      +    from flask import render_template
+      +    return render_template("hello.html", name=req.args.get("name"))
+
+  - name: safe-json-load
+    knowledge:
+      vulnerabilities: [insecure-deserialization]
+    tags: [deserialization, python, safe]
+    diff: |
+      diff --git a/cache.py b/cache.py
+      --- a/cache.py
+      +++ b/cache.py
+      @@ -3,2 +3,3 @@ def load(req):
+      -    return {}
+      +    import json
+      +    return json.loads(req.get_data())
+
+  - name: safe-xss-escaped
+    knowledge:
+      vulnerabilities: [cross-site-scripting]
+    tags: [web, python, safe]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -6,2 +6,3 @@ def hello(req):
+      -    return ""
+      +    from markupsafe import escape
+      +    return make_response("<h1>Hi " + str(escape(req.args.get("name", ""))) + "</h1>")
+
+  - name: safe-redirect-allowlist
+    knowledge:
+      vulnerabilities: [open-redirect]
+    tags: [web, python, safe]
+    diff: |
+      diff --git a/web.py b/web.py
+      --- a/web.py
+      +++ b/web.py
+      @@ -5,3 +5,5 @@ def go(req):
+      -    return ""
+      +    target = req.args.get("next", "/")
+      +    if target not in {"/", "/home", "/account"}:
+      +        target = "/"
+      +    return redirect(target)
+
+  - name: safe-ssrf-allowlist
+    knowledge:
+      vulnerabilities: [server-side-request-forgery]
+    tags: [web, python, safe]
+    diff: |
+      diff --git a/fetch.py b/fetch.py
+      --- a/fetch.py
+      +++ b/fetch.py
+      @@ -5,2 +5,5 @@ def preview(req):
+      -    return ""
+      +    import requests
+      +    from urllib.parse import urlparse
+      +    if urlparse(req.args.get("url", "")).hostname not in {"images.example.com"}:
+      +        abort(400)
+      +    return requests.get(req.args["url"]).text
+
+  - name: safe-cookie-no-crlf
+    knowledge:
+      vulnerabilities: [http-response-splitting]
+    tags: [web, python, safe]
+    diff: |
+      diff --git a/lang.py b/lang.py
+      --- a/lang.py
+      +++ b/lang.py
+      @@ -8,2 +8,4 @@ def set_lang(req, resp):
+      -    return resp
+      +    lang = req.args.get("lang", "en")
+      +    if lang in {"en", "de", "fr"}:
+      +        resp.set_cookie("lang", lang)
+      +    return resp
+
+  - name: safe-csrf-protected
+    knowledge:
+      vulnerabilities: [cross-site-request-forgery]
+      guides: [frameworks/python/django]
+    tags: [web, python, safe]
+    diff: |
+      diff --git a/views.py b/views.py
+      --- a/views.py
+      +++ b/views.py
+      @@ -3,2 +3,3 @@ def transfer(request):
+      -    pass
+      +    move_funds(request.user, request.POST["to"], request.POST["amount"])
+      +    return redirect("/account")
+
+  - name: safe-ownership-idor
+    knowledge:
+      vulnerabilities: [insecure-direct-object-reference]
+    tags: [authz, python, safe]
+    diff: |
+      diff --git a/orders.py b/orders.py
+      --- a/orders.py
+      +++ b/orders.py
+      @@ -12,3 +12,6 @@ def get_order(req):
+      -    return None
+      +    order = Order.objects.get(id=req.args.get("id"))
+      +    if order.user_id != req.user.id:
+      +        abort(403)
+      +    return jsonify(order.to_dict())
+
+  - name: safe-admin-gated
+    knowledge:
+      vulnerabilities: [missing-authorization]
+    tags: [authz, python, safe]
+    diff: |
+      diff --git a/admin.py b/admin.py
+      --- a/admin.py
+      +++ b/admin.py
+      @@ -9,2 +9,5 @@ def promote(req):
+      -    pass
+      +    if not req.user.is_admin:
+      +        abort(403)
+      +    user = User.objects.get(id=req.args.get("id"))
+      +    user.is_admin = True
+      +    user.save()
+
+  - name: safe-password-verified
+    knowledge:
+      vulnerabilities: [improper-authentication]
+    tags: [auth, python, safe]
+    diff: |
+      diff --git a/login.py b/login.py
+      --- a/login.py
+      +++ b/login.py
+      @@ -6,2 +6,5 @@ def login(req):
+      -    return 401
+      +    user = User.objects.filter(username=req.form["username"]).first()
+      +    if user and verify_password(req.form["password"], user.pw_hash):
+      +        return issue_token(user)
+      +    return 401
+
+  - name: safe-jwt-verified
+    knowledge:
+      vulnerabilities: [jwt-validation]
+    tags: [auth, python, safe]
+    diff: |
+      diff --git a/auth.py b/auth.py
+      --- a/auth.py
+      +++ b/auth.py
+      @@ -8,2 +8,3 @@ def verify(token):
+      -    raise NotImplementedError
+      +    import jwt
+      +    return jwt.decode(token, PUBLIC_KEY, algorithms=["RS256"])
+
+  - name: safe-replay-nonce
+    knowledge:
+      vulnerabilities: [replay-attack]
+    tags: [auth, python, safe]
+    diff: |
+      diff --git a/webhook.py b/webhook.py
+      --- a/webhook.py
+      +++ b/webhook.py
+      @@ -7,2 +7,6 @@ def handle(req):
+      -    return 400
+      +    if not verify_signature(req.body, req.headers["X-Sig"]):
+      +        return 401
+      +    if seen_nonce(req.headers["X-Nonce"]) or stale(req.headers["X-Timestamp"]):
+      +        return 409
+      +    return process(req.body)
+
+  - name: safe-session-flags
+    knowledge:
+      vulnerabilities: [insecure-session-management]
+    tags: [auth, python, safe]
+    diff: |
+      diff --git a/session.py b/session.py
+      --- a/session.py
+      +++ b/session.py
+      @@ -5,2 +5,3 @@ def start_session(user, resp):
+      -    return resp
+      +    resp.set_cookie("sid", make_token(user), httponly=True, secure=True, samesite="Lax")
+      +    return resp
+
+  - name: safe-mass-assignment-allowlist
+    knowledge:
+      vulnerabilities: [mass-assignment]
+    tags: [logic, python, safe]
+    diff: |
+      diff --git a/users.py b/users.py
+      --- a/users.py
+      +++ b/users.py
+      @@ -9,2 +9,4 @@ def update_profile(req):
+      -    pass
+      +    data = req.get_json()
+      +    user.display_name = data.get("display_name", user.display_name)
+      +    user.save()
+
+  - name: safe-server-side-amount
+    knowledge:
+      vulnerabilities: [business-logic]
+    tags: [logic, python, safe]
+    diff: |
+      diff --git a/refund.py b/refund.py
+      --- a/refund.py
+      +++ b/refund.py
+      @@ -6,2 +6,5 @@ def refund(req):
+      -    return 400
+      +    order = Order.objects.get(id=req.get_json()["order_id"], user_id=req.user.id)
+      +    if order.refunded:
+      +        return 409
+      +    account.balance += order.amount
+      +    return 200
+
+  - name: safe-atomic-withdraw
+    knowledge:
+      vulnerabilities: [race-condition]
+    tags: [logic, python, safe]
+    diff: |
+      diff --git a/wallet.py b/wallet.py
+      --- a/wallet.py
+      +++ b/wallet.py
+      @@ -8,2 +8,5 @@ def withdraw(account_id, amount):
+      -    return False
+      +    with transaction.atomic():
+      +        acct = Account.objects.select_for_update().get(id=account_id)
+      +        if acct.balance < amount:
+      +            return False
+      +        acct.balance = F("balance") - amount
+
+  - name: safe-generic-error
+    knowledge:
+      vulnerabilities: [information-exposure]
+    tags: [exposure, python, safe]
+    diff: |
+      diff --git a/api.py b/api.py
+      --- a/api.py
+      +++ b/api.py
+      @@ -4,3 +4,5 @@ def whoami(req):
+      -    return jsonify({"id": req.user.id})
+      +    try:
+      +        return jsonify({"id": req.user.id, "name": req.user.display_name})
+      +    except Exception:
+      +        return jsonify({"error": "internal error"}), 500
+
+  - name: safe-md5-etag
+    knowledge:
+      vulnerabilities: [insecure-cryptography]
+    tags: [crypto, python, safe]
+    diff: |
+      diff --git a/cache.py b/cache.py
+      --- a/cache.py
+      +++ b/cache.py
+      @@ -4,2 +4,3 @@ def etag(content_bytes):
+      -    return ""
+      +    import hashlib
+      +    return hashlib.md5(content_bytes).hexdigest()  # cache key, not security
+
+  - name: safe-https-verified
+    knowledge:
+      vulnerabilities: [insecure-transport]
+    tags: [transport, python, safe]
+    diff: |
+      diff --git a/pay.py b/pay.py
+      --- a/pay.py
+      +++ b/pay.py
+      @@ -4,2 +4,3 @@ def charge(card, amount):
+      -    return None
+      +    import requests
+      +    return requests.post("https://payments.example.com/charge", json={"card": card, "amount": amount})
+
+  - name: safe-secret-from-env
+    knowledge:
+      vulnerabilities: [hardcoded-secrets]
+    tags: [secrets, python, safe]
+    diff: |
+      diff --git a/client.py b/client.py
+      --- a/client.py
+      +++ b/client.py
+      @@ -1,2 +1,3 @@
+       import os, stripe
+      +stripe.api_key = os.environ["STRIPE_API_KEY"]

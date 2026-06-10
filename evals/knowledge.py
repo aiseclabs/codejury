@@ -72,18 +72,16 @@ def scan_knowledge() -> dict[str, KnowledgeItem]:
 
 
 def _diff_case_refs() -> list[tuple[str, bool, tuple[str, ...], str]]:
-    """Each shipped diff case as name, is_positive, knowledge refs, provenance. A positive
-    case attributes to its category as a vulnerability ref. A safe case carries no category,
-    so it attributes to nothing until the case library names its knowledge, the gap the
-    coverage matrix surfaces. The shipped cases are public, they live in this repo."""
-    from evals.diff_cases import CASES
+    """Each shipped diff case as name, is_positive, knowledge refs, provenance. A case names
+    the knowledge it exercises, a safe lookalike included, so it attributes to the class it
+    guards. A positive with no explicit knowledge falls back to its category. The shipped
+    cases are public, they live in this repo."""
+    from evals.diff_cases import default_cases
 
     rows: list[tuple[str, bool, tuple[str, ...], str]] = []
-    for name, category, _ in CASES:
-        if category:
-            rows.append((name, True, (f"vuln:{category_of(category)}",), "public"))
-        else:
-            rows.append((name, False, (), "public"))
+    for c in default_cases():
+        refs = c.knowledge or ((f"vuln:{category_of(c.category)}",) if c.category else ())
+        rows.append((c.name, c.is_positive, refs, "public"))
     return rows
 
 
