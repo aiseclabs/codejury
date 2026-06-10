@@ -205,6 +205,34 @@ def test_suite_result_to_markdown_shows_runs_and_flaky():
     assert "runs: 2" in md and "flaky: b 1/2" in md
 
 
+def test_run_diff_cases_handles_the_audit_three_tuple_and_degraded(monkeypatch):
+    # audit_diff returns (kept, dropped, degraded), guard the unpacking and that a degraded
+    # audit counts as a failed step, not a clean zero, invariant 3
+    from evals.diff_cases import DiffCase
+    from evals.runners import diff as diffmod
+
+    def fake_audit(d, *, provider, model, mode="standard", max_rounds=1):
+        if "POSITIVE" in d:
+            return (["a-finding"], [], False)
+        if "DEGRADED" in d:
+            return ([], [], True)
+        return ([], [], False)
+
+    monkeypatch.setattr(diffmod, "audit_diff", fake_audit)
+    cases = [
+        DiffCase(name="p-hit", category="sql-injection", diff="diff --git POSITIVE"),
+        DiffCase(name="p-miss", category="sql-injection", diff="diff --git CLEAN"),
+        DiffCase(name="s-fp", category="", diff="diff --git POSITIVE"),
+        DiffCase(name="s-ok", category="", diff="diff --git CLEAN"),
+        DiffCase(name="p-degraded", category="sql-injection", diff="diff --git DEGRADED"),
+    ]
+    res = diffmod.run_diff_cases(cases, provider=None, model="m")
+    assert res.found == ["p-hit"]
+    assert res.missed == ["p-miss"]
+    assert res.false_positives == ["s-fp"]
+    assert res.errors == 1
+
+
 def test_default_diff_cases_split_positive_and_safe():
     from evals.runners.diff import default_cases
     cases = default_cases()

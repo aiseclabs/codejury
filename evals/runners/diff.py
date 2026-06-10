@@ -24,10 +24,15 @@ def run_diff_cases(cases: list[DiffCase], *, provider, model: str, mode: str = "
     res = Result(target="diff", n_planted=sum(1 for c in cases if c.is_positive))
     for c in cases:
         try:
-            kept, _ = audit_diff(c.diff, provider=provider, model=model, mode=mode, max_rounds=1)
+            kept, _dropped, degraded = audit_diff(c.diff, provider=provider, model=model, mode=mode, max_rounds=1)
         except Exception:
             # a failed or unparsable model call is a failed case, counted not hidden,
             # so a provider outage cannot read as a clean probe, invariant 3
+            res.errors += 1
+            continue
+        if degraded:
+            # a degraded audit, such as adversarial mode falling back on an unusable judge,
+            # is a failed step too, not a clean zero-finding result, invariant 3
             res.errors += 1
             continue
         res.n_reports += len(kept)
