@@ -222,8 +222,10 @@ def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypa
     idor = cov["vuln:insecure-direct-object-reference"]
     assert idor.repo_planted == 3 and idor.repo_safe == 2
     assert idor.diff_positive >= 1
+    # languages/python is exercised by every Python repo target, so assert a lower bound
+    # rather than a fixed count that a newly added target would break
     py = cov["guide:languages/python"]
-    assert py.repo_planted == 3 and py.public >= 1
+    assert py.repo_planted >= 3 and py.public >= 1
 
 
 def test_coverage_problems_flag_a_vulnerability_missing_a_safe_case(tmp_path, monkeypatch):
