@@ -9,7 +9,6 @@
 
 [![PyPI](https://img.shields.io/pypi/v/codejury)](https://pypi.org/project/codejury/)
 [![Python](https://img.shields.io/pypi/pyversions/codejury)](https://pypi.org/project/codejury/)
-[![Tests](https://github.com/aiseclabs/codejury/actions/workflows/test.yml/badge.svg)](https://github.com/aiseclabs/codejury/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/pypi/l/codejury)](https://github.com/aiseclabs/codejury/blob/master/LICENSE)
 
 AI-assisted security review for code diffs and whole repositories.
