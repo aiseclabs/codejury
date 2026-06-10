@@ -107,9 +107,13 @@ def _write_pocs_report(ws: Path, findings: list[Candidate]) -> None:
     """Reconcile pocs/ against the confirmed findings, recorded not enforced: a finding
     may need a PoC only an operator can run, invariant 4, and a PoC may outlive a
     candidate the verifier later refuted. Surface both so neither is silently lost."""
-    names = {_finding_name(c) for c in findings}
     pocs = ws / "pocs"
     poc_files = sorted(p for p in pocs.iterdir() if p.is_file()) if pocs.is_dir() else []
+    if not poc_files and not any(c.evidence.endswith(".md") for c in findings):
+        # the coded run produces findings with no agent candidates or pocs, so there is
+        # nothing to reconcile, skip rather than list every finding as missing a poc
+        return
+    names = {_finding_name(c) for c in findings}
     poc_names = {p.stem for p in poc_files}
     missing = [c for c in findings if _finding_name(c) not in poc_names]
     orphan = [p for p in poc_files if p.stem not in names]

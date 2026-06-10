@@ -50,6 +50,9 @@ def test_run_converges_writes_findings_and_marks_units(custody_repo, tmp_path):
     assert units and all("Status: reviewed" in u.read_text() for u in units)
     assert not any("Status: open" in u.read_text() for u in units)
 
+    # the coded run has no agent candidates or pocs, so there is nothing to reconcile
+    assert not (ws / "_pocs.md").exists()
+
 
 class _CountingReviewer(UnitReviewer):
     def __init__(self):
