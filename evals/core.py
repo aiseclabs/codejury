@@ -52,18 +52,24 @@ def _split_endpoint(text: str) -> tuple[str, list[str]]:
 
 
 def endpoint_match(report_ep: str, key_entry: str) -> bool:
-    """Match by method and path, where either path may carry a mount prefix the other
-    omits, so a real repo's /api/v1/memories/*/update matches a key entry of
-    /memories/*/update. Methods must agree when both are present, and one path's segments
-    must be a suffix of the other's, with a path param matching any concrete segment."""
+    """Match by method and path, where either path may carry a leading mount prefix the
+    other omits, so a real repo's /api/v1/memories/*/update matches a key entry of
+    /memories/*/update. Methods must agree when both are present. The shorter path aligns
+    as a suffix of the longer, and the overlap is anchored by its first segment matching as
+    a literal or both wildcards, so a deeper item path like /wallets/<id> is not conflated
+    with the collection /wallets, the looseness that credited an IDOR report to a safe list
+    endpoint. Inside the anchored overlap a path param matches any concrete segment."""
     rm, rseg = _split_endpoint(report_ep)
     km, kseg = _split_endpoint(key_entry)
     if rm and km and rm != km:
         return False
-    n = min(len(rseg), len(kseg))
-    if n == 0:
+    if not rseg or not kseg:
         return False
-    return all(a == b or a == "*" or b == "*" for a, b in zip(rseg[-n:], kseg[-n:]))
+    short, long_ = (rseg, kseg) if len(rseg) <= len(kseg) else (kseg, rseg)
+    tail = long_[-len(short):]
+    if not (short[0] == tail[0] or (short[0] == "*" and tail[0] == "*")):
+        return False
+    return all(a == b or a == "*" or b == "*" for a, b in zip(short, tail))
 
 
 def category_of(text: str) -> str:

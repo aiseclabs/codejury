@@ -21,6 +21,14 @@ def test_endpoint_match_tolerates_mount_prefix_and_params():
     assert endpoint_match("GET /files/abc/content", "GET /files/<id>/content") is True
 
 
+def test_endpoint_match_does_not_conflate_item_with_collection():
+    # a report on the item path must not be credited to the collection key, the looseness
+    # that turned a real IDOR finding into a false positive on the safe list endpoint
+    assert endpoint_match("GET /wallets/<id>", "GET /wallets") is False
+    assert endpoint_match("GET /wallets/123", "GET /wallets") is False
+    assert endpoint_match("GET /wallets", "GET /wallets") is True
+
+
 def _key(tmp_path, body: str) -> Path:
     p = tmp_path / "k.yaml"
     p.write_text(body, encoding="utf-8")

@@ -75,9 +75,9 @@ git clone --depth 1 --branch v0.3.8 https://github.com/open-webui/open-webui /tm
 codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
 #    an agent then follows METHODOLOGY.md, then finalize writes findings/
 
-# 2. score it. The workspace project dir is named from the reviewed directory, here webui,
-#    so point at that findings/ directory
-python -m evals repo openwebui --findings-dir /tmp/cj-owui/webui/findings --json after.json
+# 2. score it. Prefer --findings-json, findings/ collapses findings on one endpoint of
+#    different classes into a single file, so --findings-dir can undercount the reports
+python -m evals repo openwebui --findings-json /tmp/cj-owui/webui/findings.json --json after.json
 
 # 3. compare two versions
 python -m evals compare before.json after.json
