@@ -1,0 +1,8 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores
+# only the pointer. Real third-party code is never copied in, this repo ships to GitHub
+# and PyPI.
+kind: repo
+repo: https://github.com/open-webui/open-webui
+ref: v0.3.8
+# review scope: the access-control surface, 11 routers
+subdir: backend/apps/webui
