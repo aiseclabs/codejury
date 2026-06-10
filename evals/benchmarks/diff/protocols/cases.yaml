@@ -1,0 +1,153 @@
+# The shipped protocol diff probe cases, synthetic and authored here, not third-party,
+# so they ship publicly. A protocol is independent of language, the concrete idiom is a
+# framework's, so each case names the protocol guide plus the framework guide it is
+# written in. A positive carries a category and should yield a finding, a safe case
+# carries none and must stay clean. The loader concatenates every cases.yaml under
+# benchmarks/diff, so this file joins the library without any wiring.
+cases:
+  # OAuth protocol cases, protocols/oauth, Flask
+  - name: oauth-missing-state
+    category: cross-site-request-forgery
+    knowledge:
+      vulnerabilities: [cross-site-request-forgery]
+      guides: [protocols/oauth, frameworks/python/flask]
+    tags: [oauth, python, flask]
+    diff: |
+      diff --git a/auth.py b/auth.py
+      --- a/auth.py
+      +++ b/auth.py
+      @@ -12,2 +12,4 @@ @app.route("/oauth/callback")
+      -def callback():
+      -    return ""
+      +def callback():
+      +    token = exchange_code(request.args["code"])
+      +    login(token)
+      +    return redirect("/")
+
+  - name: oauth-redirect-uri
+    category: open-redirect
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [protocols/oauth, frameworks/python/flask]
+    tags: [oauth, python, flask]
+    diff: |
+      diff --git a/authorize.py b/authorize.py
+      --- a/authorize.py
+      +++ b/authorize.py
+      @@ -9,2 +9,4 @@ @app.route("/oauth/authorize")
+      -def authorize():
+      -    return ""
+      +def authorize():
+      +    code = issue_code(request.args["client_id"])
+      +    return redirect(request.args["redirect_uri"] + "?code=" + code)
+
+  - name: oauth-code-replay
+    category: replay-attack
+    knowledge:
+      vulnerabilities: [replay-attack]
+      guides: [protocols/oauth, frameworks/python/flask]
+    tags: [oauth, python, flask]
+    diff: |
+      diff --git a/token.py b/token.py
+      --- a/token.py
+      +++ b/token.py
+      @@ -10,2 +10,5 @@ @app.route("/oauth/token", methods=["POST"])
+      -def token():
+      -    return ""
+      +def token():
+      +    code = AuthCode.query.get(request.form["code"])
+      +    if not code:
+      +        abort(400)
+      +    return jsonify(access_token=issue_token(code.user_id))
+
+  - name: oauth-jwt-no-verify
+    category: jwt-validation
+    knowledge:
+      vulnerabilities: [jwt-validation]
+      guides: [protocols/oauth, frameworks/python/flask]
+    tags: [oauth, python, flask]
+    diff: |
+      diff --git a/userinfo.py b/userinfo.py
+      --- a/userinfo.py
+      +++ b/userinfo.py
+      @@ -7,2 +7,4 @@ @app.route("/userinfo")
+      -def userinfo():
+      -    return ""
+      +def userinfo():
+      +    tok = request.headers["Authorization"].split()[1]
+      +    claims = jwt.decode(tok, options={"verify_signature": False})
+      +    return jsonify(user=claims["sub"])
+
+  - name: safe-oauth-missing-state
+    knowledge:
+      vulnerabilities: [cross-site-request-forgery]
+      guides: [protocols/oauth, frameworks/python/flask]
+    tags: [oauth, python, flask, safe]
+    diff: |
+      diff --git a/auth.py b/auth.py
+      --- a/auth.py
+      +++ b/auth.py
+      @@ -12,2 +12,6 @@ @app.route("/oauth/callback")
+      -def callback():
+      -    return ""
+      +def callback():
+      +    if request.args.get("state") != session.pop("oauth_state", None):
+      +        abort(403)
+      +    token = exchange_code(request.args["code"])
+      +    login(token)
+      +    return redirect("/")
+
+  - name: safe-oauth-redirect-uri
+    knowledge:
+      vulnerabilities: [open-redirect]
+      guides: [protocols/oauth, frameworks/python/flask]
+    tags: [oauth, python, flask, safe]
+    diff: |
+      diff --git a/authorize.py b/authorize.py
+      --- a/authorize.py
+      +++ b/authorize.py
+      @@ -9,2 +9,6 @@ @app.route("/oauth/authorize")
+      -def authorize():
+      -    return ""
+      +def authorize():
+      +    uri = request.args["redirect_uri"]
+      +    if uri not in registered_redirect_uris(request.args["client_id"]):
+      +        abort(400)
+      +    return redirect(uri + "?code=" + issue_code(request.args["client_id"]))
+
+  - name: safe-oauth-code-replay
+    knowledge:
+      vulnerabilities: [replay-attack]
+      guides: [protocols/oauth, frameworks/python/flask]
+    tags: [oauth, python, flask, safe]
+    diff: |
+      diff --git a/token.py b/token.py
+      --- a/token.py
+      +++ b/token.py
+      @@ -10,2 +10,7 @@ @app.route("/oauth/token", methods=["POST"])
+      -def token():
+      -    return ""
+      +def token():
+      +    code = AuthCode.query.filter_by(code=request.form["code"], used=False).with_for_update().first()
+      +    if not code:
+      +        abort(400)
+      +    code.used = True
+      +    db.session.commit()
+      +    return jsonify(access_token=issue_token(code.user_id))
+
+  - name: safe-oauth-jwt-no-verify
+    knowledge:
+      vulnerabilities: [jwt-validation]
+      guides: [protocols/oauth, frameworks/python/flask]
+    tags: [oauth, python, flask, safe]
+    diff: |
+      diff --git a/userinfo.py b/userinfo.py
+      --- a/userinfo.py
+      +++ b/userinfo.py
+      @@ -7,2 +7,4 @@ @app.route("/userinfo")
+      -def userinfo():
+      -    return ""
+      +def userinfo():
+      +    tok = request.headers["Authorization"].split()[1]
+      +    claims = jwt.decode(tok, PUBLIC_KEY, algorithms=["RS256"], audience="api")
+      +    return jsonify(user=claims["sub"])

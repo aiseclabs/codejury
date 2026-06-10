@@ -51,6 +51,7 @@ evals/
   gate.py          the regression policy, a yes or no on landing a change
   benchmarks/
     diff/<language>/cases.yaml   the shipped synthetic diff cases, each with knowledge
+    diff/protocols/cases.yaml    protocol cases such as OAuth, independent of language
     suites/<name>.yaml           a tag selection, public-smoke and knowledge-coverage
     repo/<language>/<framework>/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
     repo/<language>/<framework>/<name>/answer_key.yaml  planted issues and safe lookalikes
@@ -150,8 +151,9 @@ fails the gate, the key cannot say whether it is a real bug.
 A benchmark grows by adding more planted issues and lookalikes, or a new
 `repo/<language>/<framework>/<name>/` directory with its `benchmark.yaml` and
 `answer_key.yaml`. The diff probe grows by adding a
-row to the `benchmarks/diff/<language>/cases.yaml` for its language, a positive with a
-category or a safe lookalike without one, each naming the knowledge it exercises so
+row to the `benchmarks/diff/<language>/cases.yaml` for its language, or to
+`diff/protocols/cases.yaml` for a protocol case, a positive with a category or a safe
+lookalike without one, each naming the knowledge it exercises so
 `coverage` attributes it. A suite grows by
 adding `benchmarks/suites/<name>.yaml` naming the tags it selects, no second list of cases
 to keep in sync. Keep public benchmarks public and non-proprietary, this repo ships to PyPI

@@ -1,9 +1,10 @@
 """The shipped diff probe cases and their loader. Small realistic patches, one or more per
 vulnerability class, plus safe lookalikes that must stay clean. Synthetic and authored
 here, not third-party, so they ship publicly. The cases live as data under
-benchmarks/diff, one cases.yaml per language and grouped by framework within, each row
-naming the knowledge it exercises so the coverage matrix attributes it. A positive carries
-a category and should yield a finding, a safe case carries none and should stay clean.
+benchmarks/diff, one cases.yaml per language and grouped by framework within, plus a
+protocols cases.yaml for language-independent protocol cases, each row naming the knowledge
+it exercises so the coverage matrix attributes it. A positive carries a category and should
+yield a finding, a safe case carries none and should stay clean.
 
 This module is engine-free on purpose, so the coverage matrix can read the cases without
 importing the audit runner.
