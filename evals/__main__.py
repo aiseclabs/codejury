@@ -19,8 +19,9 @@ from pathlib import Path
 
 from evals import config
 from evals.compare import compare_files, format_compare
-from evals.core import Result, load_answer_key
-from evals.repo import reports_from_findings_dir, reports_from_json, score_repo
+from evals.results import Result
+from evals.runners.repo import reports_from_findings_dir, reports_from_json, score_repo
+from evals.schema import load_answer_key
 
 
 def _format_result(res: Result) -> str:
@@ -59,7 +60,7 @@ def _cmd_repo(args) -> int:
 
 def _cmd_diff(args) -> int:
     from codejury.providers.factory import DEFAULT_API_BASE, DEFAULT_API_KEY, DEFAULT_MODEL, make_provider
-    from evals.diff import default_cases, load_cases, run_diff_cases
+    from evals.runners.diff import default_cases, load_cases, run_diff_cases
 
     cases = load_cases(args.cases) if args.cases else default_cases()
     provider = make_provider("litellm", api_key=DEFAULT_API_KEY, api_base=DEFAULT_API_BASE, retries=2)

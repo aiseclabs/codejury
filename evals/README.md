@@ -34,9 +34,15 @@ Two tiers, kept honest:
 
 ```
 evals/
-  core.py          answer key schema, report matching, recall and precision
-  repo.py          score a whole-repo review's findings output
-  diff.py          run the diff capability probe and score
+  schema.py        answer key, key entry, and the normalized report shape
+  results.py       the score of one review, recall and precision
+  scorers/
+    match.py       endpoint and category matching
+    parse.py       read findings markdown and json into reports
+    score.py       match reports against a key and tally the result
+  runners/
+    repo.py        score a whole-repo review's findings output
+    diff.py        run the diff capability probe and score
   diff_cases.py    the shipped synthetic diff cases
   config.py        discover public benchmarks plus private sources
   compare.py       diff two results, the per-issue flips and deltas

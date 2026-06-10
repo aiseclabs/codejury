@@ -11,8 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from evals import config
 from evals.compare import compare
-from evals.core import Report, endpoint_match, load_answer_key, score
-from evals.repo import parse_finding_md, reports_from_findings_dir, score_repo
+from evals.runners.repo import reports_from_findings_dir, score_repo
+from evals.schema import Report, load_answer_key
+from evals.scorers.match import endpoint_match
+from evals.scorers.parse import parse_finding_md
+from evals.scorers.score import score
 
 
 def test_endpoint_match_tolerates_mount_prefix_and_params():
@@ -124,7 +127,7 @@ def test_compare_reports_flips():
 
 
 def test_default_diff_cases_split_positive_and_safe():
-    from evals.diff import default_cases
+    from evals.runners.diff import default_cases
     cases = default_cases()
     assert any(c.is_positive for c in cases)
     assert any(not c.is_positive for c in cases)

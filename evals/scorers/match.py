@@ -1,0 +1,71 @@
+"""Matching: turn an endpoint or a category string into a normal form and decide whether
+two of them refer to the same thing.
+
+These are pure string functions with no schema dependency, so the schema can build a
+normalized Report on top of them without a cycle. Endpoint matching is the strong signal,
+method and path after normalization, with a mount prefix tolerated and path params
+collapsed to a wildcard. Category matching is the soft fallback for a class an endpoint
+does not anchor.
+"""
+
+from __future__ import annotations
+
+import re
+
+# loose map from a freeform category or type string to a ledger category, a soft signal
+_CATEGORY_HINTS = {
+    "insecure-direct-object-reference": ("idor", "direct object", "insecure-direct"),
+    "missing-authorization": ("missing auth", "authorization", "authz", "access control", "broken access"),
+    "replay-attack": ("replay",),
+    "mass-assignment": ("mass assignment", "mass-assignment"),
+    "auth-bypass": ("auth bypass", "authentication bypass"),
+}
+
+_METHODS = {"get", "post", "put", "patch", "delete", "head", "options"}
+
+
+def normalize_endpoint(text: str) -> str:
+    """Normalize an endpoint so GET /wallets/<wallet_id> and get /wallets/{id} match."""
+    text = text.strip().strip("`").lower()
+    text = re.sub(r"[<{][^>}]*[>}]", "*", text)
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def _split_endpoint(text: str) -> tuple[str, list[str]]:
+    """Split a normalized endpoint into a method and its path segments."""
+    parts = normalize_endpoint(text).split(" ", 1)
+    if len(parts) == 2 and parts[0] in _METHODS:
+        method, path = parts[0], parts[1]
+    else:
+        method, path = "", parts[-1]
+    return method, [s for s in path.strip("/").split("/") if s]
+
+
+def endpoint_match(report_ep: str, key_entry: str) -> bool:
+    """Match by method and path, where either path may carry a leading mount prefix the
+    other omits, so a real repo's /api/v1/memories/*/update matches a key entry of
+    /memories/*/update. Methods must agree when both are present. The shorter path aligns
+    as a suffix of the longer, and the overlap is anchored by its first segment matching as
+    a literal or both wildcards, so a deeper item path like /wallets/<id> is not conflated
+    with the collection /wallets, the looseness that credited an IDOR report to a safe list
+    endpoint. Inside the anchored overlap a path param matches any concrete segment."""
+    rm, rseg = _split_endpoint(report_ep)
+    km, kseg = _split_endpoint(key_entry)
+    if rm and km and rm != km:
+        return False
+    if not rseg or not kseg:
+        return False
+    short, long_ = (rseg, kseg) if len(rseg) <= len(kseg) else (kseg, rseg)
+    tail = long_[-len(short):]
+    if not (short[0] == tail[0] or (short[0] == "*" and tail[0] == "*")):
+        return False
+    return all(a == b or a == "*" or b == "*" for a, b in zip(short, tail))
+
+
+def category_of(text: str) -> str:
+    low = text.lower()
+    for cat, hints in _CATEGORY_HINTS.items():
+        if any(h in low for h in hints):
+            return cat
+    return low.strip()

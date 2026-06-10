@@ -1,9 +1,10 @@
-"""Repo-path eval: score a whole-repo review's output against an answer key.
+"""Parsing: read a review's stored output into normalized reports.
 
-The whole-repo review is agent driven, so this does not run it, it reads the findings the
-review wrote and scores them. Reports come from the confirmed `findings/*.md` a finalize
-produced, or a `findings.json`, or any json list of reports, so one answer key scores a
-coded run and an agent run alike.
+A whole-repo review writes confirmed findings as `findings/*.md` and as a `findings.json`,
+and a diff run yields findings in memory. This module turns the stored markdown and json
+forms into the shared Report, so one scorer reads a coded run and an agent run alike. The
+cited files come from any source path in the body, matched against the data-driven source
+extensions so the scorer names no language, the same boundary the product keeps.
 """
 
 from __future__ import annotations
@@ -14,13 +15,12 @@ from functools import lru_cache
 from pathlib import Path
 
 from codejury.detection import load_detection
-from evals.core import AnswerKey, Report, Result, score
+from evals.schema import Report
 
 
 @lru_cache(maxsize=1)
 def _file_re() -> re.Pattern:
-    # built from the data-driven source extensions so the scorer names no language, the
-    # same boundary the product keeps, longest first so app.tsx matches tsx not its ts tail
+    # longest extension first so app.tsx matches tsx not its ts tail
     exts = sorted((e.lstrip(".") for e in load_detection().source_extensions), key=len, reverse=True)
     alt = "|".join(re.escape(e) for e in exts)
     return re.compile(rf"[\w./-]+\.(?:{alt})")
@@ -55,7 +55,3 @@ def reports_from_json(path: str | Path) -> list[Report]:
         )
         for i, r in enumerate(rows)
     ]
-
-
-def score_repo(key: AnswerKey, reports: list[Report]) -> Result:
-    return score(key, reports)

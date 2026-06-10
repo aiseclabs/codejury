@@ -1,11 +1,10 @@
-"""Diff-path eval: run synthetic diff cases through the audit engine and score.
+"""Diff-path eval runner: run synthetic diff cases through the audit engine and score.
 
 A capability probe, not a golden set in the product sense: it runs a set of realistic
 small diffs through audit_diff against a real provider and tallies which vulnerability
 classes the current model, prompt, and rules catch, and which safe lookalikes they wrongly
-flag. The cases live in benchmarks/diff/cases.yaml, so adding one is a data change. A
-positive case carries a category and should yield a finding, a safe case carries none and
-should yield nothing.
+flag. The cases ship as data, so adding one is a data change. A positive case carries a
+category and should yield a finding, a safe case carries none and should yield nothing.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ from pathlib import Path
 import yaml
 
 from codejury.review.diff.runner import audit_diff
-from evals.core import Result
+from evals.results import Result
 
 
 @dataclass(frozen=True, kw_only=True)
