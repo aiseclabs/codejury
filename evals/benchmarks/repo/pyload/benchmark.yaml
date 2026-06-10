@@ -1,0 +1,36 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores
+# only the pointer plus the stack and knowledge this benchmark exercises. pyLoad is a real
+# open-source download manager with a Flask web UI, this is its real code at a real
+# vulnerable commit, not authored here. The affected version is a pre-release dev build with
+# no git tag, so the pointer is the exact vulnerable commit, the parent of the fix. Real
+# third-party code is never copied in, this repo ships to GitHub and PyPI.
+id: pyload
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/pyload/pyload
+  # no tag exists at the affected dev version, so pin the exact vulnerable commit, the parent
+  # of fix bb22063. Clone, then git checkout this commit.
+  ref: 57d81930edb59177c60830ad8ac36a91d0ec4c4e
+  # review scope: the Flask web UI, its blueprints own the route access control
+  path: src/pyload/webui/app
+
+stack:
+  languages:
+    - python
+  frameworks:
+    - flask
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - missing-authorization
+  guides:
+    - languages/python
+    - frameworks/python/flask
+
+tags:
+  - public
+  - authz
+  - flask

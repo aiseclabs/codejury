@@ -1,0 +1,63 @@
+# Answer key for the pyLoad real-repo target. This is real third-party code at a real
+# vulnerable commit, not authored here, see benchmark.yaml for the clone pointer. The review
+# under test never reads this file.
+#
+# Checked out at commit 57d8193, the parent of the fix, review scope src/pyload/webui/app,
+# the Flask web UI route surface. The planted issue was confirmed by reading the real code
+# at this commit, not from the advisory text alone. It is a public CVE, so this target
+# carries a leakage caveat and measures regression more than true recall, the unseen private
+# targets carry the real signal. This is a single-finding recall probe, can the review pick
+# the one unauthenticated route out of a blueprint where every sibling is authenticated, so
+# the safe siblings are the precision guard. A report that matches neither a planted issue
+# nor a safe sibling is listed as extra, it may be another real bug this one does not cover.
+
+target: pyload
+
+planted:
+  - id: render-unauthenticated
+    category: missing-authorization
+    entry: GET /render/<filename>
+    file: src/pyload/webui/app/blueprints/app_blueprint.py
+    severity: HIGH
+    note: CVE-2024-21644, GHSA-mqpq-2p68-46fv. The render route carries no login_required
+          decorator, unlike every other content route in app_blueprint, so an unauthenticated
+          user renders any internal template. Flask injects the application config into every
+          template context, so rendering info.html outside its authenticated /info view
+          exposes the config including SECRET_KEY, which enables session forgery. Confirmed at
+          commit 57d8193, the route has no auth. The upstream fix renamed the colliding
+          template variable rather than adding auth, but the root access-control weakness is
+          the unauthenticated render route, which a review should flag.
+    knowledge:
+      vulnerabilities:
+        - missing-authorization
+      guides:
+        - languages/python
+        - frameworks/python/flask
+
+safe:
+  - id: safe-settings-authed
+    category: missing-authorization
+    entry: GET /settings
+    file: src/pyload/webui/app/blueprints/app_blueprint.py
+    note: The settings route is gated with login_required("SETTINGS"), the correctly
+          authorized sibling of the render route, reporting it as missing authorization is a
+          false positive.
+    knowledge:
+      vulnerabilities:
+        - missing-authorization
+      guides:
+        - languages/python
+        - frameworks/python/flask
+
+  - id: safe-json-status-authed
+    category: missing-authorization
+    entry: GET /json/status
+    file: src/pyload/webui/app/blueprints/json_blueprint.py
+    note: The json status route is gated with login_required("LIST"), correctly authorized,
+          reporting it as missing authorization is a false positive.
+    knowledge:
+      vulnerabilities:
+        - missing-authorization
+      guides:
+        - languages/python
+        - frameworks/python/flask
