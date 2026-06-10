@@ -1,9 +1,10 @@
 """The shipped diff probe cases and their loader. Small realistic patches, one or more per
 vulnerability class, plus safe lookalikes that must stay clean. Synthetic and authored
-here, not third-party, so they ship publicly. The cases live as data under
-benchmarks/diff, one cases.yaml per language and grouped by framework within, plus a
-protocols cases.yaml for language-independent protocol cases, each row naming the knowledge
-it exercises so the coverage matrix attributes it. A positive carries a category and should
+here, not third-party, so they ship publicly. The cases live as data under benchmarks/diff,
+mirroring the knowledge guides taxonomy, languages/<language>/cases.yaml with frameworks
+grouped within each file, and protocols/<protocol>/cases.yaml for language-independent
+protocol cases, each row naming the knowledge it exercises so the coverage matrix attributes
+it. A positive carries a category and should
 yield a finding, a safe case carries none and should stay clean.
 
 This module is engine-free on purpose, so the coverage matrix can read the cases without
@@ -58,8 +59,8 @@ def load_cases(path: str | Path) -> list[DiffCase]:
 
 
 def default_cases() -> list[DiffCase]:
-    """The shipped probe cases, every cases.yaml under benchmarks/diff concatenated. The
-    per-language layout means a file is found at any depth, so a future framework subtree
+    """The shipped probe cases, every cases.yaml under benchmarks/diff concatenated. A
+    cases.yaml is found at any depth, so a new language, protocol, or framework subtree
     joins the library without any wiring. A name must be unique across files, since suites
     and the coverage matrix key on it, so a collision fails loud rather than last wins."""
     files = sorted(CASES_DIR.rglob("cases.yaml"))

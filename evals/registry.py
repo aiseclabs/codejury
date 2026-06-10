@@ -5,8 +5,8 @@ The repo ships only public OSS benchmarks under `evals/benchmarks`. Private benc
 stay wherever they already live: a local config, gitignored, lists their sources as a path
 or a private git repo, and they plug in under the same names. Nothing private moves into
 the repo and nothing private commits. A source root may use the per-benchmark layout,
-`repo/<name>/benchmark.yaml` plus `answer-key.yaml`, optionally grouped under a language and
-framework path such as `repo/python/flask/<name>`, or the legacy `groundtruth/<name>.yaml`,
+`repo/<name>/benchmark.yaml` plus `answer-key.yaml`, optionally grouped under a frameworks
+path such as `repo/frameworks/python/flask/<name>`, or the legacy `groundtruth/<name>.yaml`,
 so an existing private benchmark scores without being reshaped. A name that appears in two
 roots fails loud, unless the private source sets `override: true` to shadow a public one on
 purpose.
@@ -109,8 +109,8 @@ def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
     groundtruth layout alike. The per-benchmark layout wins when both name the same id.
 
     A benchmark is any directory holding an answer-key.yaml, or the legacy answer_key.yaml,
-    so a target may sit flat at repo/<name> or grouped at repo/<language>/<framework>/<name>,
-    mirroring the knowledge guides taxonomy. The id is the leaf directory name regardless of
+    so a target may sit flat at repo/<name> or grouped at
+    repo/frameworks/<language>/<framework>/<name>, mirroring the knowledge guides taxonomy. The id is the leaf directory name regardless of
     the grouping path, so moving a target between groups does not rename it. Two targets with
     the same leaf name fail loud, an id collision is a mistake not a silent last-wins."""
     found: dict[str, Benchmark] = {}

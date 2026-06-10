@@ -3,8 +3,8 @@
 A capability probe, not a golden set in the product sense: it runs a set of realistic
 small diffs through audit_diff against a real provider and tallies which vulnerability
 classes the current model, prompt, and rules catch, and which safe lookalikes they wrongly
-flag. The cases ship as data under benchmarks/diff, one cases.yaml per language, see
-diff_cases.py for the loader, so adding one is a data change. A positive case carries a
+flag. The cases ship as data under benchmarks/diff, grouped by the knowledge guides
+taxonomy, see diff_cases.py for the loader, so adding one is a data change. A positive case carries a
 category and should yield a finding, a safe case carries none and should yield nothing.
 """
 

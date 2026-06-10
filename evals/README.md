@@ -51,14 +51,16 @@ evals/
   gate.py          the regression policy, a yes or no on landing a change
   suites/<name>.yaml             a tag selection, public-smoke and knowledge-coverage
   benchmarks/
-    diff/<language>/cases.yaml   the shipped synthetic diff cases, each with knowledge
-    diff/protocols/cases.yaml    protocol cases such as OAuth, independent of language
-    repo/<language>/<framework>/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
-    repo/<language>/<framework>/<name>/answer-key.yaml  planted issues and safe lookalikes
+    diff/languages/<language>/cases.yaml   the shipped synthetic diff cases, each with knowledge
+    diff/protocols/<protocol>/cases.yaml   protocol cases such as OAuth, independent of language
+    repo/frameworks/<language>/<framework>/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
+    repo/frameworks/<language>/<framework>/<name>/answer-key.yaml  planted issues and safe lookalikes
 ```
 
-Repo targets group under a language and framework path, mirroring the knowledge guides
-taxonomy, for example `repo/python/flask/pyload` and `repo/go/gin/insatutorat`. A target may
+Benchmarks group under the same three buckets the knowledge guides use, `languages/`,
+`frameworks/`, and `protocols/`, so the eval tree mirrors the knowledge taxonomy. A repo
+target sits at `repo/frameworks/<language>/<framework>/<name>`, for example
+`repo/frameworks/python/flask/pyload` and `repo/frameworks/go/gin/insatutorat`. A target may
 also sit flat at `repo/<name>`, the id is the leaf directory name either way, so the grouping
 path never renames a benchmark.
 
@@ -102,7 +104,7 @@ benchmark_sources:
 ```
 
 A source root may use the per-benchmark `repo/<name>/answer-key.yaml` layout, optionally
-grouped under a `repo/<language>/<framework>/<name>` path, or the legacy
+grouped under a `repo/frameworks/<language>/<framework>/<name>` path, or the legacy
 `groundtruth/<name>.yaml`, so existing private data scores without being reshaped. Benchmark
 names resolve across the public root and every source.
 
@@ -151,10 +153,10 @@ that resolves to no file or an unlocatable key entry. An extra unkeyed report al
 fails the gate, the key cannot say whether it is a real bug.
 
 A benchmark grows by adding more planted issues and lookalikes, or a new
-`repo/<language>/<framework>/<name>/` directory with its `benchmark.yaml` and
+`repo/frameworks/<language>/<framework>/<name>/` directory with its `benchmark.yaml` and
 `answer-key.yaml`. The diff probe grows by adding a
-row to the `benchmarks/diff/<language>/cases.yaml` for its language, or to
-`diff/protocols/cases.yaml` for a protocol case, a positive with a category or a safe
+row to the `benchmarks/diff/languages/<language>/cases.yaml` for its language, or to
+`diff/protocols/<protocol>/cases.yaml` for a protocol case, a positive with a category or a safe
 lookalike without one, each naming the knowledge it exercises so
 `coverage` attributes it. A suite grows by
 adding `suites/<name>.yaml` naming the tags it selects, no second list of cases
