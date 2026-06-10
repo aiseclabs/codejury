@@ -47,7 +47,8 @@ evals/
   registry.py      discover benchmarks across public and private sources
   knowledge.py     scan the knowledge tree, build the coverage matrix
   suites.py        a named tag selection over the cases and benchmarks
-  compare.py       diff two results, the per-issue flips and deltas
+  compare.py       diff two results, the per-issue flips, deltas, and by-axis grouping
+  gate.py          the regression policy, a yes or no on landing a change
   benchmarks/
     diff/cases.yaml              the shipped synthetic diff cases, each with knowledge
     suites/<name>.yaml           a tag selection, public-smoke and knowledge-coverage
@@ -111,8 +112,12 @@ codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
 #    different classes into a single file, so --findings-dir can undercount the reports
 python -m evals repo openwebui --findings-json /tmp/cj-owui/webui/findings.json --json after.json
 
-# 3. compare two versions
+# 3. compare two versions, --by groups the flips by an axis to see where a move landed
 python -m evals compare before.json after.json
+python -m evals compare before.json after.json --by vulnerability
+
+# 4. gate a change in CI, fail loud on a regression against a baseline
+python -m evals gate after.json --baseline before.json --precision-floor 0.8
 
 # diff capability probe, needs provider creds in the environment. --runs N repeats and
 # folds by frequency, so a planted issue counts as caught only by a strict majority of runs
@@ -129,6 +134,12 @@ Repeated runs are how a change is judged honestly, the review is not determinist
 run is one `Result`, `--runs N` folds N runs into a frequency verdict, found by strict
 majority, so one lucky or unlucky run does not move the score and the spread is visible. The
 repo path stays score-only, aggregate N agent runs by scoring each and reading the flips.
+
+The `gate` is the policy that blocks a regression in CI. It fails loud on a failed review
+step, a planted issue caught at baseline now missing, a new false positive on a safe
+lookalike, precision below a floor, and unsound benchmark data such as a knowledge reference
+that resolves to no file or an unlocatable key entry. An extra unkeyed report alone never
+fails the gate, the key cannot say whether it is a real bug.
 
 A benchmark grows by adding more planted issues and lookalikes, or a new `repo/<name>/`
 directory with its `benchmark.yaml` and `answer_key.yaml`. The diff probe grows by adding a

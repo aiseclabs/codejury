@@ -5,7 +5,8 @@
   python -m evals repo openwebui --findings-json findings.json --json before.json
   python -m evals diff --mode standard --model <id> --runs 3
   python -m evals run public-smoke --model <id> --runs 3
-  python -m evals compare before.json after.json
+  python -m evals compare before.json after.json --by vulnerability
+  python -m evals gate after.json --baseline before.json --precision-floor 0.8
   python -m evals coverage
 
 The repo path scores the output an agent or a coded run already wrote, it does not run the
@@ -21,7 +22,7 @@ import sys
 from pathlib import Path
 
 from evals import registry
-from evals.compare import compare_files, format_compare
+from evals.compare import compare_files, format_compare, format_compare_by
 from evals.results import Result, SuiteResult
 from evals.runners.repo import reports_from_findings_dir, reports_from_json, score_repo
 from evals.schema import load_answer_key
@@ -125,8 +126,19 @@ def _cmd_list(args) -> int:
 
 
 def _cmd_compare(args) -> int:
-    print(format_compare(compare_files(args.before, args.after)))
+    d = compare_files(args.before, args.after, axis=args.by)
+    print(format_compare_by(d) if args.by else format_compare(d))
     return 0
+
+
+def _cmd_gate(args) -> int:
+    from evals.gate import format_gate, gate
+
+    after = json.loads(Path(args.after).read_text(encoding="utf-8"))
+    baseline = json.loads(Path(args.baseline).read_text(encoding="utf-8")) if args.baseline else None
+    fails = gate(after, baseline, precision_floor=args.precision_floor, structural=not args.no_structural)
+    print(format_gate(fails, after.get("target", "?")))
+    return 1 if fails else 0
 
 
 def _cmd_coverage(args) -> int:
@@ -174,7 +186,17 @@ def main(argv=None) -> int:
     c = sub.add_parser("compare", help="compare two result json files")
     c.add_argument("before")
     c.add_argument("after")
+    c.add_argument("--by", default=None,
+                   choices=["vulnerability", "language", "framework", "protocol", "tag"],
+                   help="group the flips by an axis")
     c.set_defaults(func=_cmd_compare)
+
+    g = sub.add_parser("gate", help="fail loud on a regression against a baseline")
+    g.add_argument("after", help="the result json to gate")
+    g.add_argument("--baseline", default=None, help="a baseline result json to judge the move against")
+    g.add_argument("--precision-floor", type=float, default=0.0, help="fail when precision is below this")
+    g.add_argument("--no-structural", action="store_true", help="skip the benchmark-data soundness checks")
+    g.set_defaults(func=_cmd_gate)
 
     cov = sub.add_parser("coverage", help="knowledge coverage matrix, which files lack eval coverage")
     cov.set_defaults(func=_cmd_coverage)

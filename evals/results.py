@@ -41,6 +41,18 @@ class Result:
         d["precision_known"] = round(self.precision_known, 4)
         return d
 
+    def to_markdown(self) -> str:
+        rows = [f"### {self.target}",
+                f"- recall: {len(self.found)}/{self.n_planted} = {self.recall:.0%}",
+                f"- precision: {self.precision_known:.0%}"]
+        if self.missed:
+            rows.append(f"- missed: {', '.join(self.missed)}")
+        if self.false_positives:
+            rows.append(f"- false positive on safe: {', '.join(self.false_positives)}")
+        if self.errors:
+            rows.append(f"- errors: {self.errors}, a failed step is not a clean pass")
+        return "\n".join(rows)
+
 
 @dataclass(kw_only=True)
 class SuiteResult:
@@ -133,3 +145,19 @@ class SuiteResult:
             "recall": round(self.recall, 4),
             "precision_known": round(self.precision_known, 4),
         }
+
+    def to_markdown(self) -> str:
+        rows = [f"### {self.target}",
+                f"- runs: {self.runs}, found by strict majority",
+                f"- recall: {len(self.found)}/{self.n_planted} = {self.recall:.0%}",
+                f"- precision: {self.precision_known:.0%}"]
+        flaky = {i: c for i, c in self.found_freq.items() if 0 < c < self.runs}
+        if flaky:
+            rows.append("- flaky: " + ", ".join(f"{i} {c}/{self.runs}" for i, c in sorted(flaky.items())))
+        if self.missed:
+            rows.append(f"- missed: {', '.join(self.missed)}")
+        if self.false_positives:
+            rows.append(f"- false positive on safe: {', '.join(self.false_positives)}")
+        if self.errors:
+            rows.append(f"- errors: {self.errors}, a failed step is not a clean pass")
+        return "\n".join(rows)

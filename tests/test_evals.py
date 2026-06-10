@@ -10,7 +10,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from evals import registry
-from evals.compare import compare
+from evals.compare import compare, compare_by
+from evals.results import SuiteResult
 from evals.runners.repo import reports_from_findings_dir, score_repo
 from evals.schema import Report, load_answer_key
 from evals.scorers.match import endpoint_match
@@ -153,6 +154,55 @@ def test_compare_reports_flips():
     assert d["newly_found"] == ["b"]
     assert d["newly_missed"] == []
     assert d["newly_false_positive"] == ["fp"]
+
+
+def test_compare_reports_subthreshold_catch_rate_move():
+    # a planted issue that did not flip the majority verdict but grew flakier should still
+    # surface, the value repeated runs add over a single score
+    before = {"target": "diff", "runs": 3, "found": ["a"], "found_freq": {"a": 3}}
+    after = {"target": "diff", "runs": 3, "found": ["a"], "found_freq": {"a": 2}}
+    d = compare(before, after)
+    assert d["newly_missed"] == []
+    assert d["catch_rate_changed"] == [{"id": "a", "before": 1.0, "after": round(2 / 3, 3)}]
+
+
+def test_compare_by_axis_groups_flips_by_vulnerability():
+    # the diff case sqli carries vuln:sql-injection, so a newly found sqli groups under it
+    before = {"target": "diff", "found": [], "false_positives": []}
+    after = {"target": "diff", "found": ["sqli"], "false_positives": []}
+    d = compare_by(before, after, "vulnerability")
+    assert d["newly_found"]["sql-injection"] == ["sqli"]
+
+
+def test_gate_passes_clean_and_fails_on_regression():
+    from evals.gate import gate
+    base = {"target": "t", "found": ["a", "b"], "false_positives": [], "precision_known": 1.0, "errors": 0}
+    good = {"target": "t", "found": ["a", "b"], "false_positives": [], "precision_known": 1.0, "errors": 0}
+    assert gate(good, base, structural=False) == []
+    # a planted issue caught at baseline now missing, and a new safe false positive, both block
+    bad = {"target": "t", "found": ["a"], "false_positives": ["safe-x"], "precision_known": 0.5, "errors": 0}
+    fails = gate(bad, base, precision_floor=0.8, structural=False)
+    assert any("newly missed" in f for f in fails)
+    assert any("false positive" in f for f in fails)
+    assert any("precision" in f for f in fails)
+
+
+def test_gate_fails_on_errors_but_not_on_extra_alone():
+    from evals.gate import gate
+    # a failed review step is not a clean pass, invariant 3
+    assert gate({"target": "t", "errors": 2}, structural=False)
+    # an extra unkeyed report alone is not a failure, the key cannot grade it
+    assert gate({"target": "t", "found": ["a"], "false_positives": [], "errors": 0, "extra": ["x", "y"]},
+                structural=False) == []
+
+
+def test_suite_result_to_markdown_shows_runs_and_flaky():
+    sr = SuiteResult.from_runs("diff", [
+        _run("diff", ["a"], ["b"], [], 2),
+        _run("diff", ["a", "b"], [], [], 2),
+    ])
+    md = sr.to_markdown()
+    assert "runs: 2" in md and "flaky: b 1/2" in md
 
 
 def test_default_diff_cases_split_positive_and_safe():
