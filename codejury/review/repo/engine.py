@@ -7,7 +7,7 @@ workspace and marks every unit reviewed. The orchestration is fully coded, so a 
 covers every unit every pass and stops on convergence, not on the agent's whim.
 
 Recall is the union across diverse passes. Precision is tightened by a later
-verification stage. Findings are written both as `issues/*.md` and a
+verification stage. Findings are written both as `findings/*.md` and a
 machine-readable `findings.json`, so a run can be scored against an answer key.
 """
 
@@ -32,8 +32,6 @@ from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier,
 
 _MAX_RELATED = 20
 
-_GENERATED_MARKER = "<!-- codejury:generated, do not edit by hand -->"
-
 
 def _finding_slug(text: str) -> str:
     return ("".join(c if c.isalnum() else "-" for c in text).strip("-").lower() or "finding")[:80]
@@ -52,39 +50,77 @@ def build_units(root: str | Path, candidate_files, trace_targets) -> list[Unit]:
     return units
 
 
-def _issue_md(c: Candidate) -> str:
+def _finding_md(c: Candidate) -> str:
     src = c.endpoint or c.file or "(no location)"
     return (f"# {c.title}\n\n"
             f"- Risk: {c.severity}\n"
             f"- Type: {c.category or 'other'}\n"
             f"- Source: `{src}`\n"
             f"- Status: {c.status}\n\n"
-            f"## Analysis\n{c.evidence or '(see code)'}\n\n"
-            f"{_GENERATED_MARKER}\n")
+            f"## Analysis\n{c.evidence or '(see code)'}\n")
 
 
-def _clear_generated_issues(ws: Path) -> None:
-    """Remove the issue files a prior write produced, so a shrunk or refuted finding
-    set never leaves a stale confirmed-looking file behind. Only files carrying the
-    generation marker are removed, so an agent's hand-written issue file is never
-    touched."""
-    for p in (ws / "issues").glob("*.md"):
-        try:
-            if _GENERATED_MARKER in p.read_text(encoding="utf-8"):
-                p.unlink()
-        except OSError:
-            continue
+def _finding_name(c: Candidate) -> str:
+    """The shared name tying a finding to its source candidate and its poc. In the agent
+    flow the candidate file basename is that name, carried on the candidate in evidence.
+    The coded run has no candidate file, so fall back to the finding slug."""
+    if c.evidence.endswith(".md"):
+        return Path(c.evidence).stem
+    return _finding_slug(c.endpoint or c.title)
+
+
+def _poc_for(ws: Path, name: str) -> str:
+    """The poc whose basename matches a finding's name, the link the methodology asks
+    the agent to keep by naming candidates/<name>.md and pocs/<name>.<ext> alike."""
+    pocs = ws / "pocs"
+    if not pocs.is_dir():
+        return ""
+    for p in sorted(pocs.iterdir()):
+        if p.is_file() and p.stem == name:
+            return f"pocs/{p.name}"
+    return ""
+
+
+def _finding_entry(ws: Path, c: Candidate) -> dict:
+    candidate = f"candidates/{c.evidence}" if c.evidence.endswith(".md") else ""
+    return {"title": c.title, "category": c.category, "entry": c.endpoint,
+            "file": c.file, "line": c.line, "severity": c.severity, "status": c.status,
+            "candidate": candidate, "poc": _poc_for(ws, _finding_name(c))}
 
 
 def _write_findings(ws: Path, findings: list[Candidate]) -> None:
-    issues = ws / "issues"
-    _clear_generated_issues(ws)
+    """Write the confirmed findings, the code-owned output. findings/ is cleared and
+    rewritten in full, so a shrunk or refuted set leaves no stale file behind, and the
+    agent's candidates/ and pocs/ are never touched."""
+    findings_dir = ws / "findings"
+    findings_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    for p in findings_dir.glob("*.md"):
+        p.unlink()
     for c in findings:
-        (issues / f"{_finding_slug(c.endpoint or c.title)}.md").write_text(_issue_md(c), encoding="utf-8")
+        (findings_dir / f"{_finding_name(c)}.md").write_text(_finding_md(c), encoding="utf-8")
     (ws / "findings.json").write_text(json.dumps(
-        {"findings": [{"title": c.title, "category": c.category, "entry": c.endpoint,
-                       "file": c.file, "line": c.line, "severity": c.severity, "status": c.status}
-                      for c in findings]}, indent=2, ensure_ascii=False), encoding="utf-8")
+        {"findings": [_finding_entry(ws, c) for c in findings]}, indent=2, ensure_ascii=False),
+        encoding="utf-8")
+
+
+def _write_pocs_report(ws: Path, findings: list[Candidate]) -> None:
+    """Reconcile pocs/ against the confirmed findings, recorded not enforced: a finding
+    may need a PoC only an operator can run, invariant 4, and a PoC may outlive a
+    candidate the verifier later refuted. Surface both so neither is silently lost."""
+    names = {_finding_name(c) for c in findings}
+    pocs = ws / "pocs"
+    poc_files = sorted(p for p in pocs.iterdir() if p.is_file()) if pocs.is_dir() else []
+    poc_names = {p.stem for p in poc_files}
+    missing = [c for c in findings if _finding_name(c) not in poc_names]
+    orphan = [p for p in poc_files if p.stem not in names]
+    lines = ["# PoC Reconciliation", "",
+             "Confirmed findings matched to PoCs by name. Recorded, not gated: a finding "
+             "may need a PoC only an operator can run, and a PoC may outlive a refuted candidate.",
+             "", "## Confirmed findings with no PoC", ""]
+    lines += [f"- **{c.title}** `{c.endpoint or c.file}`" for c in missing] or ["None, every confirmed finding has a PoC."]
+    lines += ["", "## PoC files with no confirmed finding", ""]
+    lines += [f"- `pocs/{p.name}`" for p in orphan] or ["None, every PoC maps to a confirmed finding."]
+    (ws / "_pocs.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _write_surface(ws: Path, units: list[Unit], failed: set) -> None:
@@ -243,8 +279,8 @@ def _location_re() -> re.Pattern:
     return re.compile(rf"([\w./-]+\.(?:{alt}))(?::(\d+))?")
 
 
-def _parse_issue(path: Path) -> Candidate | None:
-    """Parse an agent-written issues/<name>.md into a Candidate for coded dedup and
+def _parse_candidate(path: Path) -> Candidate | None:
+    """Parse an agent-written candidates/<name>.md into a Candidate for coded dedup and
     verification, so those steps do not depend on the agent's prose."""
     try:
         text = path.read_text(encoding="utf-8")
@@ -291,16 +327,16 @@ def finalize_repo_review(
     votes: int = 1,
     concurrency: int = 6,
 ) -> FinalizeResult:
-    """The coded post-fan-out pipeline: dedup, verify, report over the agent's issues.
+    """The coded post-fan-out pipeline: dedup, verify, report over the agent's candidates.
 
     These steps are mechanical, so they are code, not agent prose: it reads
-    `issues/*.md`, dedups by location and class, adversarially verifies each survivor,
+    `candidates/*.md`, dedups by location and class, adversarially verifies each survivor,
     resumable and skipping any already in `_verified.json`, drops the refuted into
-    `_refuted.md`, and writes the ranked `findings.json`."""
+    `_refuted.md`, and writes the confirmed `findings/*.md` and the ranked `findings.json`."""
     ws = Path(workspace) / Path(target).resolve().name
     root = str(Path(target).resolve())
 
-    cands = [c for c in (_parse_issue(p) for p in sorted((ws / "issues").glob("*.md"))) if c]
+    cands = [c for c in (_parse_candidate(p) for p in sorted((ws / "candidates").glob("*.md"))) if c]
     sev_votes: dict = {}
     for c in cands:
         sev_votes.setdefault(c.key(), []).append(c.severity)
@@ -319,6 +355,7 @@ def finalize_repo_review(
         )
 
     _write_findings(ws, deduped)
+    _write_pocs_report(ws, deduped)
     return FinalizeResult(workspace=ws, parsed=len(cands), deduped=len(deduped), verify=vr)
 
 
@@ -390,4 +427,5 @@ def run_repo_review(
 
     _write_surface(ws, units, acc.failed_units)
     _write_findings(ws, findings)
+    _write_pocs_report(ws, findings)
     return RunResult(scaffold=res, accumulator=acc, units=len(units), verify=vr)

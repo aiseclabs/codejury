@@ -9,7 +9,7 @@ import pytest
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.gate import check_gate
 from codejury.review.repo.reviewer import UnitReviewer
-from codejury.review.repo.engine import _parse_issue, build_units, finalize_repo_review, run_repo_review
+from codejury.review.repo.engine import _parse_candidate, build_units, finalize_repo_review, run_repo_review
 from codejury.review.repo.scaffold import unit_slug
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import Verdict, Verifier
@@ -43,8 +43,8 @@ def test_run_converges_writes_findings_and_marks_units(custody_repo, tmp_path):
 
     data = json.loads((ws / "findings.json").read_text())
     assert any(f["entry"] == "GET /wallets/<wallet_id>" for f in data["findings"])
-    issues = list((ws / "issues").glob("*.md"))
-    assert issues and "Risk: HIGH" in issues[0].read_text()
+    findings = list((ws / "findings").glob("*.md"))
+    assert findings and "Risk: HIGH" in findings[0].read_text()
 
     units = list((ws / "units").glob("*.md"))
     assert units and all("Status: reviewed" in u.read_text() for u in units)
@@ -89,37 +89,37 @@ def test_resume_skips_reviewed_units_and_verified_findings(custody_repo, tmp_pat
     assert {f["entry"] for f in findings_after_2} == {f["entry"] for f in findings_after_1}
 
 
-def test_parse_issue_captures_file_and_line_from_a_range(tmp_path):
+def test_parse_candidate_captures_file_and_line_from_a_range(tmp_path):
     p = tmp_path / "i.md"
     p.write_text("# freshness gap\n- Risk: HIGH\n- Type: replay\n- Source: `POST /v1/check`\n"
                  "## Analysis\n`authorizer/controllers/registrar.py:58-75` no nonce.\n")
-    c = _parse_issue(p)
+    c = _parse_candidate(p)
     assert c.file == "authorizer/controllers/registrar.py"
     assert c.line == 58
     assert c.severity == "HIGH"
 
 
-def test_parse_issue_drops_an_out_of_root_cited_path(tmp_path):
+def test_parse_candidate_drops_an_out_of_root_cited_path(tmp_path):
     traversing = tmp_path / "t.md"
     traversing.write_text("# leak\n- Risk: HIGH\n- Type: idor\n"
                           "## Analysis\nsee `../../etc/secret.py:1` for the key.\n")
-    assert _parse_issue(traversing) is None
+    assert _parse_candidate(traversing) is None
     absolute = tmp_path / "a.md"
     absolute.write_text("# leak\n- Risk: HIGH\n- Type: idor\n"
                         "## Analysis\nsee `/home/user/secret.py:1` for the key.\n")
-    assert _parse_issue(absolute) is None
+    assert _parse_candidate(absolute) is None
 
 
 def test_finalize_dedups_verifies_and_reports(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()
     ws = tmp_path / "work"
-    issues = ws / "proj" / "issues"
-    issues.mkdir(parents=True)
-    (issues / "a.md").write_text("# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
-    (issues / "a2.md").write_text("# idor again\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/{id}`\n## Analysis\napp/v.py:10\n")
-    (issues / "b.md").write_text("# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n")
-    (issues / "fp.md").write_text("# race fp\n- Risk: HIGH\n- Type: race\n- Source: `POST /r`\n## Analysis\napp/d.py:3\n")
+    candidates = ws / "proj" / "candidates"
+    candidates.mkdir(parents=True)
+    (candidates / "a.md").write_text("# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
+    (candidates / "a2.md").write_text("# idor again\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/{id}`\n## Analysis\napp/v.py:10\n")
+    (candidates / "b.md").write_text("# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n")
+    (candidates / "fp.md").write_text("# race fp\n- Risk: HIGH\n- Type: race\n- Source: `POST /r`\n## Analysis\napp/d.py:3\n")
 
     class _V(Verifier):
         def verify(self, c, root):
@@ -203,9 +203,9 @@ def test_corrupt_verified_on_finalize_raises_loud(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()
     ws = tmp_path / "work"
-    issues = ws / "proj" / "issues"
-    issues.mkdir(parents=True)
-    (issues / "a.md").write_text("# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
+    candidates = ws / "proj" / "candidates"
+    candidates.mkdir(parents=True)
+    (candidates / "a.md").write_text("# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
     (ws / "proj" / "_verified.json").write_text("{corrupt", encoding="utf-8")
 
     class _V(Verifier):
@@ -222,9 +222,9 @@ def test_finalize_drops_issue_with_no_file_location(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()
     ws = tmp_path / "work"
-    issues = ws / "proj" / "issues"
-    issues.mkdir(parents=True)
-    (issues / "noloc.md").write_text(
+    candidates = ws / "proj" / "candidates"
+    candidates.mkdir(parents=True)
+    (candidates / "noloc.md").write_text(
         "# missing location\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n"
         "## Analysis\nno concrete location was cited.\n")
     fr = finalize_repo_review(target, ws, verify=False)
@@ -237,9 +237,9 @@ def test_finalize_preserves_blocked_status(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()
     ws = tmp_path / "work"
-    issues = ws / "proj" / "issues"
-    issues.mkdir(parents=True)
-    (issues / "blocked.md").write_text(
+    candidates = ws / "proj" / "candidates"
+    candidates.mkdir(parents=True)
+    (candidates / "blocked.md").write_text(
         "# needs poc\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n- Status: blocked\n"
         "## Analysis\napp/s.py:5 no nonce, a PoC needs credentials.\n")
     fr = finalize_repo_review(target, ws, verify=False)
@@ -248,17 +248,17 @@ def test_finalize_preserves_blocked_status(tmp_path):
     assert data["findings"][0]["status"] == "blocked"
 
 
-def test_parse_issue_accepts_data_driven_extensions(tmp_path):
+def test_parse_candidate_accepts_data_driven_extensions(tmp_path):
     rs = tmp_path / "rust.md"
     rs.write_text("# rust handler idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x`\n"
                   "- Status: confirmed\n## Analysis\nsrc/handler.rs:42 no owner check\n")
-    c = _parse_issue(rs)
+    c = _parse_candidate(rs)
     assert c is not None and c.file == "src/handler.rs" and c.line == 42
 
     tsx = tmp_path / "tsx.md"
     tsx.write_text("# react xss\n- Risk: MEDIUM\n- Type: xss\n- Source: `x`\n"
                    "- Status: confirmed\n## Analysis\nweb/App.tsx:10 dangerouslySetInnerHTML\n")
-    c2 = _parse_issue(tsx)
+    c2 = _parse_candidate(tsx)
     assert c2 is not None and c2.file == "web/App.tsx" and c2.line == 10
 
 
@@ -272,22 +272,49 @@ def test_run_fails_loud_on_zero_units(tmp_path):
         run_repo_review(repo, tmp_path / "ws")
 
 
-def test_write_findings_clears_stale_generated_keeps_agent_files(tmp_path):
+def test_write_findings_owns_findings_dir_and_never_touches_candidates(tmp_path):
+    # findings/ is code-owned and rewritten in full, candidates/ is the agent's and is
+    # never touched, so the split needs no per-file marker to tell them apart
     from codejury.review.repo.engine import _write_findings
 
     ws = tmp_path / "ws"
-    (ws / "issues").mkdir(parents=True)
-    agent = ws / "issues" / "agent-note.md"
+    (ws / "candidates").mkdir(parents=True)
+    agent = ws / "candidates" / "agent-note.md"
     agent.write_text("# hand written\n- Risk: HIGH\n## Analysis\napp/x.py:1\n")
 
     two = [Candidate(title="A", endpoint="GET /a", file="a.py", line=1, severity="HIGH"),
            Candidate(title="B", endpoint="GET /b", file="b.py", line=2, severity="HIGH")]
     _write_findings(ws, two)
-    generated = {p.name for p in (ws / "issues").glob("*.md")} - {"agent-note.md"}
-    assert len(generated) == 2
+    assert len(list((ws / "findings").glob("*.md"))) == 2
 
     _write_findings(ws, two[:1])
-    names = {p.name for p in (ws / "issues").glob("*.md")}
-    assert "agent-note.md" in names
-    assert len([n for n in names if n != "agent-note.md"]) == 1
+    assert len(list((ws / "findings").glob("*.md"))) == 1
+    assert agent.read_text().startswith("# hand written")
     assert len(json.loads((ws / "findings.json").read_text())["findings"]) == 1
+
+
+def test_finalize_links_pocs_and_reconciles(tmp_path):
+    target = tmp_path / "proj"
+    target.mkdir()
+    ws = tmp_path / "work"
+    proj = ws / "proj"
+    (proj / "candidates").mkdir(parents=True)
+    (proj / "pocs").mkdir(parents=True)
+    (proj / "candidates" / "x.md").write_text(
+        "# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
+    (proj / "candidates" / "y.md").write_text(
+        "# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n")
+    (proj / "pocs" / "x.sh").write_text("#!/bin/sh\necho x\n")
+    (proj / "pocs" / "z.sh").write_text("#!/bin/sh\necho orphan\n")
+
+    finalize_repo_review(target, ws, verify=False)
+    data = json.loads((proj / "findings.json").read_text())
+    by = {f["entry"]: f for f in data["findings"]}
+    assert by["GET /x/<id>"]["poc"] == "pocs/x.sh"
+    assert by["GET /x/<id>"]["candidate"] == "candidates/x.md"
+    assert by["POST /t"]["poc"] == ""
+
+    report = (proj / "_pocs.md").read_text()
+    assert "POST /t" in report
+    assert "pocs/z.sh" in report
+    assert "GET /x" not in report

@@ -68,8 +68,8 @@ non-finding with a plausible word: "it is idempotent", "it yields the same token
 "it only returns status" lower the severity per the rubric, they do not make the
 finding disappear.
 
-Write each confirmed or blocked finding to `issues/<name>.md`: Risk, Type, Source as
+Write each confirmed or blocked finding to `candidates/<name>.md`: Risk, Type, Source as
 `METHOD /path`, Status, Analysis citing `file:line`, Attack Path, and Fix. Save a
-runnable PoC to `pocs/<name>.<ext>`. Record any cleared control with the controlling
-fact that cleared it, so a wrong clear is visible. Then set this unit's Status to
-`reviewed`.
+runnable PoC to `pocs/<name>.<ext>` under the same `<name>`, so finalize can match it.
+Record any cleared control with the controlling fact that cleared it, so a wrong clear
+is visible. Then set this unit's Status to `reviewed`.

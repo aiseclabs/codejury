@@ -119,10 +119,12 @@ codejury review repo /path/to/repo
 The workspace contains:
 
 ```text
-inventory/      attack surface, authorization model, candidates, severity rubric
+inventory/      attack surface, authorization model, seeded entrypoints, severity rubric
 units/          one review unit per candidate entrypoint
-issues/         issue write-ups
+candidates/     agent proposals, one write-up per candidate finding
+findings/       confirmed findings, written by finalize
 pocs/           runnable PoCs, when available
+findings.json   ranked machine-readable findings
 METHODOLOGY.md  full review process
 _stack.md       detected stack notes
 ```
@@ -144,9 +146,10 @@ codejury review repo /path/to/repo --finalize
 codejury review repo /path/to/repo --gate
 ```
 
-`--finalize` deduplicates issue files, verifies survivors, records refuted candidates in
-`_refuted.md`, and writes ranked `findings.json`. `--gate` fails until the workspace has
-an enumerated surface, reviewed units, and calibrated findings.
+`--finalize` deduplicates candidate files, verifies survivors, writes the confirmed
+`findings/`, records refuted candidates in `_refuted.md` and PoC reconciliation in
+`_pocs.md`, and writes ranked `findings.json`. `--gate` fails until the workspace has an
+enumerated surface, reviewed units, and calibrated candidates.
 
 For a headless run, use:
 

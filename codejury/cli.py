@@ -121,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
                       help="run the coded multi-pass engine over the repo, not just scaffold, "
                            "covers every unit each pass, cycles lenses, unions until convergence")
     repo.add_argument("--finalize", action="store_true",
-                      help="post-process an existing workspace's issues in code: dedup, "
+                      help="post-process an existing workspace's candidates in code: dedup, "
                            "adversarially verify, and write the ranked report, resumable")
     repo.add_argument("--dry-run", action="store_true",
                       help="run only: drive the engine with a mock provider and no key, to smoke-test the pipeline")
@@ -220,9 +220,10 @@ def _dispatch(args, parser) -> int:
         )
         kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
         refuted = len(fr.verify.refuted) if fr.verify else 0
-        print(f"Finalize done: parsed {fr.parsed} issues -> {fr.deduped} after dedup -> "
+        print(f"Finalize done: parsed {fr.parsed} candidates -> {fr.deduped} after dedup -> "
               f"{kept} confirmed, {refuted} refuted, see {fr.workspace}/_refuted.md.")
-        print(f"Ranked report in {fr.workspace}/findings.json")
+        print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json, "
+              f"PoC reconciliation in {fr.workspace}/_pocs.md")
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
             return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 3
@@ -268,7 +269,7 @@ def _dispatch(args, parser) -> int:
             print(f"WARNING: {failures} model calls failed, e.g. provider errors or rate limits. "
                   "Results may be understated. Lower --concurrency or raise --retries and re-run.",
                   file=sys.stderr)
-        print(f"Findings written to {res.scaffold.workspace}/issues/ and {res.scaffold.workspace}/findings.json")
+        print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
         return 1 if failures else 0   # fail loud: a partial run must not exit clean, invariant 3
 
     if args.command == "review" and scope == "repo":
@@ -284,13 +285,13 @@ def _dispatch(args, parser) -> int:
             print(f"Detected stack: {', '.join(res.guides)}, notes in {res.workspace}/_stack.md", file=sys.stderr)
         print(f"Seeded {len(res.candidate_files)} candidate entrypoint files and "
               f"{len(res.trace_targets)} logic-layer trace targets into "
-              f"{res.workspace}/inventory/_candidates.md", file=sys.stderr)
+              f"{res.workspace}/inventory/_entrypoints.md", file=sys.stderr)
         print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
         print(
-            "This command sets up the review, it does not find the issues itself. Next, have an "
+            "This command sets up the review, it does not find anything itself. Next, have an "
             f"interactive agent follow {res.workspace}/METHODOLOGY.md to run the review, or use the "
-            "/codejury-review-repo command in Claude Code or Codex. Findings are written to "
-            f"{res.workspace}/issues/."
+            "/codejury-review-repo command in Claude Code or Codex. The agent proposes findings in "
+            f"{res.workspace}/candidates/, finalize confirms them into {res.workspace}/findings/."
         )
         return 0
 

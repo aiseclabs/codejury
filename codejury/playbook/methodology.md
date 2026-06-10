@@ -31,7 +31,8 @@ The one irreducible human dependency, the credentials and go-ahead to run a PoC
 safely, is deferred to a separate phase and never asked for mid-run.
 
 Workspace: `<workspace>/<project>/`, created for you, holding `inventory/`,
-`units/`, `issues/`, and `pocs/`.
+`units/`, `candidates/`, `pocs/`, and `findings/`. You write proposals into
+`candidates/` and PoCs into `pocs/`. Finalize confirms them into `findings/`.
 
 ---
 
@@ -169,8 +170,9 @@ cleared it, so a wrong clear is visible.
   on a privileged path that looks bounded lands at MEDIUM or higher and is reported,
   not refuted. When unsure between two levels, report at the higher and say why.
 
-Write each confirmed finding to `issues/<name>.md` with a runnable PoC at
-`pocs/<name>.<ext>`:
+Write each candidate finding to `candidates/<name>.md` with a runnable PoC at
+`pocs/<name>.<ext>` under the same `<name>`, so finalize can match the PoC to the
+confirmed finding it writes into `findings/`:
 
 ```markdown
 # <title>
@@ -216,6 +218,6 @@ evidence.
 
 The persistent workspace carries the settled work across runs, so a re-run extends
 coverage instead of restarting. A unit already marked `- Status: reviewed` is not
-re-reviewed, the findings in `issues/` are not re-derived, and a finding already
+re-reviewed, the proposals in `candidates/` are not re-derived, and a finding already
 verified is not re-litigated. A re-run, including after a usage limit, picks up the
 units still open and stops when the gate passes.

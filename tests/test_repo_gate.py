@@ -19,7 +19,8 @@ def _complete_ws(root):
     ws = root / "proj"
     (ws / "inventory").mkdir(parents=True)
     (ws / "units").mkdir()
-    (ws / "issues").mkdir()
+    (ws / "candidates").mkdir()
+    (ws / "findings").mkdir()
     (ws / "pocs").mkdir()
     (ws / "inventory" / "_surface.md").write_text(_SURFACE)
     (ws / "units" / "u1.md").write_text(
@@ -77,22 +78,22 @@ def test_unit_without_status_counts_as_open(tmp_path):
 
 def test_medium_issue_passes(tmp_path):
     ws = _complete_ws(tmp_path)
-    (ws / "issues" / "bounded-finding.md").write_text(
+    (ws / "candidates" / "bounded-finding.md").write_text(
         "# Some finding\n\n- Risk: MEDIUM\n- Type: info disclosure\n- Status: confirmed\n")
     assert check_gate(ws).passed
 
 
 def test_high_issue_passes(tmp_path):
     ws = _complete_ws(tmp_path)
-    (ws / "issues" / "real-finding.md").write_text(
+    (ws / "candidates" / "real-finding.md").write_text(
         "# Some finding\n\n- Risk: HIGH\n- Type: idor\n- Status: confirmed\n")
     assert check_gate(ws).passed
 
 
 def test_ungraded_or_invalid_severity_fails(tmp_path):
     ws = _complete_ws(tmp_path)
-    (ws / "issues" / "no-risk.md").write_text("# Some finding\n\nNo risk stated.\n")
-    (ws / "issues" / "bogus.md").write_text("# Some finding\n\n- Risk: spicy\n- Type: idor\n")
+    (ws / "candidates" / "no-risk.md").write_text("# Some finding\n\nNo risk stated.\n")
+    (ws / "candidates" / "bogus.md").write_text("# Some finding\n\n- Risk: spicy\n- Type: idor\n")
     result = check_gate(ws)
     assert not result.passed
     assert sum("calibrated Risk" in f for f in result.failures) == 2

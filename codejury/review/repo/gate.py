@@ -82,15 +82,15 @@ def check_gate(project_dir: Path) -> GateResult:
             shown = ", ".join(open_units[:5]) + (" ..." if len(open_units) > 5 else "")
             failures.append(f"{len(open_units)} unit(s) in units/ are not Status: reviewed, run their sub-review: {shown}")
 
-    checked.append("findings graded by the rubric")
+    checked.append("candidates graded by the rubric")
     _LEVELS = tuple(s.lower() for s in SEVERITIES)
-    issues_dir = project_dir / "issues"
-    if issues_dir.is_dir():
-        for f in sorted(issues_dir.glob("*.md")):
+    candidates_dir = project_dir / "candidates"
+    if candidates_dir.is_dir():
+        for f in sorted(candidates_dir.glob("*.md")):
             risk = _line_value(f.read_text(encoding="utf-8"), "(?:risk|severity)")
             if risk is None or not any(lvl in risk for lvl in _LEVELS):
                 failures.append(
-                    f"issues/{f.name} has no calibrated Risk line, grade it CRITICAL, HIGH, "
+                    f"candidates/{f.name} has no calibrated Risk line, grade it CRITICAL, HIGH, "
                     "MEDIUM, or LOW per inventory/_severity.md")
 
     return GateResult(not failures, failures, checked)

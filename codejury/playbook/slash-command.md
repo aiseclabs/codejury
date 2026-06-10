@@ -59,12 +59,13 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    libraries they call, hunts the high-impact classes, verifies each control on the
    code it actually reads, refutes its own candidates, grades every real finding by
    the rubric, CRITICAL through LOW, never refuted for low impact, writes each to
-   `issues/<name>.md`, and flips its unit to `- Status: reviewed`.
+   `candidates/<name>.md` with its PoC at `pocs/<name>.<ext>` under the same `<name>`,
+   and flips its unit to `- Status: reviewed`.
 
    Do not review units in this main context, only orchestrate. After the first pass,
    run more passes giving the units a different lead lens each time, authorization,
    then replay, then concurrency, then data exposure, then business logic, adding only
-   findings not already in `issues/`. The union grows along a different axis each pass.
+   findings not already in `candidates/`. The union grows along a different axis each pass.
    Stop when two consecutive passes add no new issue.
 
 4. FINALIZE. In code, do not dedup or verify in prose. Once the fan-out has covered the
@@ -104,5 +105,6 @@ follow-up run I start later, do not pause to ask me mid-run.
 End with one report and then stop: confirmed findings as a table of title, class,
 `file:line`, severity, and status, the blocked findings each with its `Needs:`, the
 consolidated verification-needs list, and the coverage, units reviewed over units in
-the inventory. The issue files live in the workspace `issues/`. Do not ask me to
-continue, just finish and report.
+the inventory. The proposals live in the workspace `candidates/`, the confirmed
+findings finalize writes in `findings/`. Do not ask me to continue, just finish and
+report.

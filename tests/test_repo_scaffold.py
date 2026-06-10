@@ -1,6 +1,6 @@
-"""The repo-review scaffold sets up the fan-out workspace (inventory/units/issues/
-pocs + seeded candidates) and returns the methodology. It does not run an
-LLM pipeline."""
+"""The repo-review scaffold sets up the fan-out workspace, inventory, units, candidates,
+findings, and pocs directories plus seeded entrypoints, and returns the methodology. It
+does not run an LLM pipeline."""
 
 import stat
 
@@ -33,7 +33,7 @@ def test_scaffold_creates_workspace(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert res.project == "myservice"
     assert res.workspace == tmp_path / "work" / "myservice"
-    for sub in ("inventory", "units", "issues", "pocs"):
+    for sub in ("inventory", "units", "candidates", "findings", "pocs"):
         assert (res.workspace / sub).is_dir()
 
 
@@ -59,7 +59,7 @@ def test_scaffold_flags_candidate_entrypoint_files(tmp_path):
     (d / "requirements.txt").write_text("Django==4.2\n")
     res = scaffold(d, tmp_path / "work")
     assert "app/urls.py" in res.candidate_files
-    seeded = (res.workspace / "inventory" / "_candidates.md").read_text()
+    seeded = (res.workspace / "inventory" / "_entrypoints.md").read_text()
     assert "app/urls.py" in seeded
 
 
@@ -76,7 +76,7 @@ def test_scaffold_surfaces_downstream_logic_layers(tmp_path):
     assert "app/managers/auth_manager.py" in res.trace_targets
     assert "app/managers/auth_manager.py" not in res.candidate_files
     assert not any("test" in t for t in res.trace_targets)
-    assert "app/managers/auth_manager.py" in (res.workspace / "inventory" / "_candidates.md").read_text()
+    assert "app/managers/auth_manager.py" in (res.workspace / "inventory" / "_entrypoints.md").read_text()
 
 
 def test_scaffold_seeds_a_unit_per_candidate(tmp_path):
@@ -110,7 +110,7 @@ def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):
     (d / "app.rb").write_text("puts 'hello'\n")
     res = scaffold(d, tmp_path / "work")
     assert res.candidate_files == ()
-    assert "none flagged" in (res.workspace / "inventory" / "_candidates.md").read_text()
+    assert "none flagged" in (res.workspace / "inventory" / "_entrypoints.md").read_text()
 
 
 def test_scaffold_seeds_stack_guides(tmp_path):
@@ -134,21 +134,21 @@ def test_scaffold_flags_a_prior_run(tmp_path):
     ws_root = tmp_path / "work"
     first = scaffold(_target(tmp_path), ws_root)
     assert first.had_prior_run is False
-    (first.workspace / "issues" / "found.md").write_text("# a finding\n")
+    (first.workspace / "candidates" / "found.md").write_text("# a finding\n")
     second = scaffold(_target(tmp_path), ws_root)
     assert second.had_prior_run is True
     assert second.cleared == []
-    assert (second.workspace / "issues" / "found.md").is_file()
+    assert (second.workspace / "candidates" / "found.md").is_file()
 
 
 def test_scaffold_fresh_clears_prior_output(tmp_path):
     ws_root = tmp_path / "work"
     first = scaffold(_target(tmp_path), ws_root)
-    (first.workspace / "issues" / "found.md").write_text("# a finding\n")
+    (first.workspace / "candidates" / "found.md").write_text("# a finding\n")
     (first.workspace / "units" / "u1.md").write_text("# unit\n- Status: reviewed\n")
     fresh = scaffold(_target(tmp_path), ws_root, fresh=True)
     assert fresh.had_prior_run is True and fresh.cleared
-    assert not (fresh.workspace / "issues" / "found.md").exists()
+    assert not (fresh.workspace / "candidates" / "found.md").exists()
     assert not (fresh.workspace / "units" / "u1.md").exists()
     assert (fresh.workspace / "inventory" / "_surface.md").is_file()
 
@@ -168,6 +168,15 @@ def test_fresh_refuses_to_clear_an_unmarked_directory(tmp_path):
     with pytest.raises(ValueError, match="codejury workspace"):
         scaffold(_target(tmp_path), ws_root, fresh=True)
     assert (project_ws / "important.txt").exists()
+
+
+def test_scaffold_refuses_a_legacy_issues_layout(tmp_path):
+    ws_root = tmp_path / "work"
+    project_ws = ws_root / "myservice"
+    (project_ws / "issues").mkdir(parents=True)
+    (project_ws / "issues" / "found.md").write_text("# a finding\n")
+    with pytest.raises(ValueError, match="old issues/ layout"):
+        scaffold(_target(tmp_path), ws_root)
 
 
 def test_plain_repo_still_scaffolds(tmp_path):

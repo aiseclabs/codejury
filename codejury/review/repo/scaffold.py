@@ -4,8 +4,8 @@ The `review repo` path. Whole-repo review is too large for a single LLM call and
 single pass over a large repo dilutes, so it ships as a methodology an interactive
 agent runs by fanning out: it enumerates the attack surface, splits it into units,
 and runs a focused sub-review on each. This module scaffolds the workspace for that
-methodology: it creates the inventory/units/issues/pocs directories, seeds the
-detected stack guides and the candidate entrypoint files, and returns the
+methodology: it creates the inventory/units/candidates/findings/pocs directories,
+seeds the detected stack guides and the candidate entrypoint files, and returns the
 methodology text to print. It does not find issues itself.
 """
 
@@ -36,7 +36,7 @@ from codejury.resources import (
 _DETECT_PER_FILE = 16_000
 _DETECT_TOTAL = 8_000_000
 
-_DIRS = ("inventory", "units", "issues", "pocs")
+_DIRS = ("inventory", "units", "candidates", "findings", "pocs")
 
 # marks a directory as a codejury workspace, so a destructive --fresh clear never wipes an arbitrary directory
 _MARKER = ".codejury-workspace"
@@ -112,8 +112,8 @@ _SURFACE_TEMPLATE = """\
 
 Enumerate EVERY attacker-influenced entrypoint, one row each, grouped by module.
 This is the coverage denominator: a unit you never list is a unit you never review.
-See "Phase 1: Map the Attack Surface" in METHODOLOGY.md. The seeded candidates in
-`_candidates.md` are a starting subset, not the whole surface, add non-HTTP sources
+See "Phase 1: Map the Attack Surface" in METHODOLOGY.md. The seeded entrypoints in
+`_entrypoints.md` are a starting subset, not the whole surface, add non-HTTP sources
 such as deserializers, queue consumers, and file parsers.
 
 Status legend: `open` not assigned to a unit yet, `assigned` assigned to a unit in `units/`.
@@ -142,8 +142,8 @@ data-exposure class has no attacker entrypoint and an entrypoint read misses it.
 """
 
 
-def _candidates_md(candidates: list[str], layers: list[str]) -> str:
-    lines = ["# Seeded Candidates, a Starting Subset",
+def _entrypoints_md(candidates: list[str], layers: list[str]) -> str:
+    lines = ["# Seeded Entrypoints, a Starting Subset",
              "",
              "Files the detected stack flags as likely to define entrypoints, and the",
              "downstream logic-layer files to trace into. A starting point for the",
@@ -172,7 +172,7 @@ def _unit_md(owned: str, mandate: str) -> str:
             f"- Status: open\n"
             f"- Owns: `{owned}`\n"
             f"- Trace into: the managers, controllers, dao, and libraries this file "
-            f"calls, see `inventory/_candidates.md`\n\n---\n\n{mandate}")
+            f"calls, see `inventory/_entrypoints.md`\n\n---\n\n{mandate}")
 
 
 def _has_prior_run(ws: Path) -> bool:
@@ -181,7 +181,7 @@ def _has_prior_run(ws: Path) -> bool:
     seeds them. A reviewed unit, a finding, a PoC, or an edited surface does."""
     if not ws.exists():
         return False
-    for sub in ("issues", "pocs"):
+    for sub in ("candidates", "findings", "pocs"):
         d = ws / sub
         if d.is_dir() and any(d.iterdir()):
             return True
@@ -212,6 +212,21 @@ def _clear_prior_run(ws: Path) -> list[str]:
     return removed
 
 
+def _refuse_legacy_layout(ws: Path) -> None:
+    """A pre-split workspace kept proposals in issues/. Reading that as the new
+    candidates/ would surface nothing, so refuse loud rather than report an empty
+    review on stale state. Invariant 3."""
+    issues = ws / "issues"
+    candidates = ws / "candidates"
+    legacy = issues.is_dir() and any(issues.iterdir())
+    migrated = candidates.is_dir() and any(candidates.iterdir())
+    if legacy and not migrated:
+        raise ValueError(
+            f"{ws} uses the old issues/ layout. Rename issues to candidates, or re-run "
+            "with --fresh to discard prior state and start over."
+        )
+
+
 def _vulnerabilities_md() -> str:
     """Concatenate the shipped vulnerability class definitions into one seeded file, so the
     workspace carries the knowledge the methodology has each unit apply, rather than the
@@ -228,6 +243,8 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
     target = Path(target).resolve()
     project = target.name
     ws = Path(workspace) / project
+    if not fresh:
+        _refuse_legacy_layout(ws)
     had_prior_run = _has_prior_run(ws)
     cleared = _clear_prior_run(ws) if (fresh and ws.exists()) else []
 
@@ -258,7 +275,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
         globs=entrypoint_globs(guides), markers=entrypoint_markers(guides),
     )
     layers = logic_layer_files(model.files, globs=logic_layer_globs(guides))
-    (ws / "inventory" / "_candidates.md").write_text(_candidates_md(candidates, layers), encoding="utf-8")
+    (ws / "inventory" / "_entrypoints.md").write_text(_entrypoints_md(candidates, layers), encoding="utf-8")
 
     # generate the deterministic unit worklist: one unit per candidate entrypoint,
     # each carrying the same fixed deep-review mandate. Code owns the worklist and
