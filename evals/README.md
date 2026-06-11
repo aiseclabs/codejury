@@ -64,7 +64,7 @@ target sits at `repo/frameworks/<language>/<framework>/<name>`, for example
 also sit flat at `repo/<name>`, the id is the leaf directory name either way, so the grouping
 path never renames a benchmark.
 
-A `benchmark.yaml` is the manifest: the clone pointer, never vendored code, plus the
+A `benchmark.yaml` is the manifest, the clone pointer, never vendored code, plus the
 stack and the knowledge the target exercises, so the coverage matrix can attribute it. The
 legacy `target.yaml` carrying only the pointer is still read, so a private benchmark need
 not be reshaped.

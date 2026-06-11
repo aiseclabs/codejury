@@ -131,6 +131,8 @@ pocs/           runnable PoCs, when available
 findings.json   ranked machine-readable findings
 METHODOLOGY.md  full review process
 _stack.md       detected stack notes
+_refuted.md     refuted candidates and why
+_pocs.md        PoC reconciliation, planned versus delivered
 ```
 
 Then run the interactive slash command in Claude Code or Codex:
