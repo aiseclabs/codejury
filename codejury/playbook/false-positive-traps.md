@@ -36,14 +36,14 @@ recurring misjudgement, add it here.
 
 - "The caller is authenticated", "the scheme fails closed", or "the token is
   single-use" do not by themselves make a request non-replayable. Conversely, if a
-  nonce IS consumed and a freshness window IS enforced, the replay concern is moot.
+  nonce is consumed and a freshness window is enforced, the replay concern is moot.
   Controlling fact: is the exact signed request accepted twice, or is a nonce
   consumed and a timestamp window checked?
 
 ## Trust Boundaries
 
 - A cross-service or cross-tenant read is only a finding if the two sides are
-  actually distinct trust domains. Decide ONCE whether a given principal, an internal
+  actually distinct trust domains. Decide once whether a given principal, an internal
   service role, a sibling tenant, a worker, is inside or outside the boundary, then
   apply that one answer to every finding touching it. Do not confirm one finding by
   treating the principal as hostile and refute another by treating the same principal

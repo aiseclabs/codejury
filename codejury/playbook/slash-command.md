@@ -25,7 +25,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    it, and if I say yes, re-run with `--fresh`.
 
    RESUMING. If a previous run was interrupted, for example by a usage limit, just run
-   this command again WITHOUT clearing the workspace, answer no when it asks to clear. It
+   this command again without clearing the workspace, answer no when it asks to clear. It
    resumes and does not redo finished work: a unit already marked `- Status: reviewed`
    is skipped in the fan-out, and `--finalize` does not re-verify a finding it already
    settled. So an interruption loses no completed work, keep resuming in new sessions

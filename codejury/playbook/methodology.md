@@ -133,7 +133,7 @@ mandate below:
      owner vs tenant vs service, or only prove the caller is some valid user?
      Compare the unit's siblings and versions for a dropped or weakened check.
    - **Replay**: does a signed or authenticated privileged request both consume a
-     one-time nonce AND enforce a freshness window? A signature alone is not enough.
+     one-time nonce and enforce a freshness window? A signature alone is not enough.
    - **Concurrency**: is a check-then-act serialized by a lock held across the act?
      Read the real mechanism. A `select_for_update` whose result is discarded still
      holds the row lock on a production RDBMS inside a transaction, so judge against
