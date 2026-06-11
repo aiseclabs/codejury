@@ -1,4 +1,4 @@
-# Evals: The Detection-Quality Ruler
+# The Detection-Quality Ruler
 
 The gate only checks structural completeness, surface enumerated, units reviewed, findings
 graded. Green does not mean the review found real bugs. This is the ruler that does: a
@@ -32,7 +32,7 @@ Two tiers, kept honest:
 
 ## Layout
 
-```
+```text
 evals/
   schema.py        answer key, key entry, and the normalized report shape
   results.py       the score of one review, and N runs folded by frequency
