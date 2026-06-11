@@ -3,7 +3,7 @@ id: oauth
 title: OAuth and OIDC
 kind: protocol
 detect:
-  content: ["grant_type", "authorization_code", "redirect_uri", "code_challenge", "response_type", "client_secret", "openid-configuration"]
+  content: ["grant_type", "authorization_code", "redirect_uri", "code_challenge", "response_type", "client_secret", "openid-configuration", "oauth", "exchange_code"]
 ---
 # OAuth and OIDC Review Notes
 

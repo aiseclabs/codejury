@@ -22,8 +22,8 @@ if urlparse(url).hostname not in ALLOWED_HOSTS:
 return requests.get(url).text
 ```
 
-A hostname allowlist alone is often not enough. Enforce `https`, reject credentials in the URL, resolve the host and block private, loopback, and link-local ranges, and re-check after each redirect. Prefer an exact destination allowlist.
+Stronger hardening adds defense in depth: enforce `https`, reject credentials in the URL, resolve the host and block private, loopback, and link-local ranges, and re-check after each redirect. Prefer an exact destination allowlist.
 
 ### Not a Finding
 
-A URL fetched only after an exact allowlist plus internal-IP blocking, with redirects controlled, is not SSRF. A constant or trusted-config URL is not SSRF.
+A URL fetched only after the parsed hostname is checked against a fixed allowlist by exact equality or membership before the fetch is the expected control and is not reportable without a concrete bypass. Report it only when the check is bypassable, such as a substring, suffix, or `startswith` match, an attacker-controlled allowlist, or a redirect followed with no re-check. Missing internal-IP blocking or redirect re-checks on top of an exact allowlist is hardening advice, not by itself an exploitable finding. A constant or trusted-config URL is not SSRF.
