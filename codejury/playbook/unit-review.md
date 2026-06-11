@@ -32,6 +32,10 @@ presence of a named control:
   endpoints and endpoint versions, but repeated branches in one handler, a query run
   once per object type in a fan out, or one method in a set of similar methods. Where
   most scope to the owner and one does not, that one is the likely IDOR.
+- **Disclosure on a list endpoint**: a list or ReadAll that returns a secret field, a
+  hash, token, password, or key, hands it to every caller allowed to list, including one
+  meant to see only a less privileged subset. Returning the hash of a write or admin
+  share to a viewer with read access is an escalation, not a clean list.
 - **Replay**: does a signed or authenticated privileged request both consume a
   one-time nonce and enforce a freshness window? A signature alone is not enough.
 - **Concurrency**: is a check-then-act serialized by a lock held across the act? A
