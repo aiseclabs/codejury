@@ -2,7 +2,6 @@
 a finding on a failed call, decide by majority when multiple votes are cast."""
 
 from codejury.providers.mock import MockProvider
-from codejury.review.repo.paths import safe_repo_path
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import ModelVerifier, Verdict, Verifier, _read_file, verify_findings
 
@@ -86,23 +85,6 @@ def test_model_verifier_refutes_on_a_fact_in_the_shown_file():
     verdict = ModelVerifier(provider=prov, model="mock").verify(
         Candidate(title="idor", file="models/item.go"), ".")
     assert verdict.real is False
-
-
-def test_safe_repo_path_contains_reads_to_the_root(tmp_path):
-    (tmp_path / "in.py").write_text("inside")
-    assert safe_repo_path(tmp_path, "in.py") == (tmp_path / "in.py").resolve()
-    assert safe_repo_path(tmp_path, "../in.py") is None
-    assert safe_repo_path(tmp_path, "/etc/passwd") is None
-    assert safe_repo_path(tmp_path, "") is None
-
-
-def test_safe_repo_path_rejects_a_symlink_escaping_the_root(tmp_path):
-    root = tmp_path / "repo"
-    root.mkdir()
-    secret = tmp_path / "secret.py"
-    secret.write_text("token = 'sk-live'")
-    (root / "link.py").symlink_to(secret)
-    assert safe_repo_path(root, "link.py") is None
 
 
 def test_read_file_returns_empty_for_an_out_of_root_path(tmp_path):

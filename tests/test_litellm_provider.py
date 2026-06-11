@@ -1,4 +1,7 @@
+import sys
 from types import SimpleNamespace
+
+import pytest
 
 from codejury.providers.base import Message
 from codejury.providers.litellm import LiteLLMProvider
@@ -67,3 +70,31 @@ def test_extracts_text_from_content_block_list():
         system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
     )
     assert result.text == "ab"
+
+
+def test_sdk_exception_propagates():
+    def completion(**kwargs):
+        raise RuntimeError("upstream timeout")
+
+    with pytest.raises(RuntimeError, match="upstream timeout"):
+        LiteLLMProvider(completion=completion).complete(
+            system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
+        )
+
+
+def test_empty_content_yields_empty_text():
+    def completion(**kwargs):
+        return SimpleNamespace(choices=[])
+
+    result = LiteLLMProvider(completion=completion).complete(
+        system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
+    )
+    assert result.text == ""
+
+
+def test_missing_sdk_raises_a_clear_error(monkeypatch):
+    monkeypatch.setitem(sys.modules, "litellm", None)
+    with pytest.raises(RuntimeError, match="pip install"):
+        LiteLLMProvider().complete(
+            system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
+        )

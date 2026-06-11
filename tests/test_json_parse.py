@@ -1,6 +1,10 @@
 import pytest
 
-from codejury.json_parse import extract_json_object
+from codejury.json_parse import extract_json_object, optional_json_object, require_json_object
+
+
+class _Boom(RuntimeError):
+    pass
 
 
 def test_direct_object():
@@ -39,3 +43,37 @@ def test_trailing_comma_is_repaired():
 def test_truncated_object_is_repaired():
     out = extract_json_object('{"findings": [{"file": "a.py", "description": "unterminated')
     assert isinstance(out, dict) and "findings" in out
+
+
+def test_require_json_object_returns_the_object_when_the_key_is_present():
+    assert require_json_object('{"findings": []}', required_key="findings", error=_Boom, message="x") == {"findings": []}
+
+
+def test_require_json_object_raises_when_no_object_is_found():
+    with pytest.raises(_Boom, match="bad reply"):
+        require_json_object("a refusal, no json", required_key="findings", error=_Boom, message="bad reply")
+
+
+def test_require_json_object_raises_when_the_key_is_missing():
+    with pytest.raises(_Boom):
+        require_json_object('{"other": 1}', required_key="findings", error=_Boom, message="missing key")
+
+
+def test_optional_json_object_reports_usable_when_the_key_is_present():
+    obj, ok = optional_json_object('{"real": true}', required_key="real")
+    assert obj == {"real": True} and ok is True
+
+
+def test_optional_json_object_reports_unusable_for_no_object():
+    obj, ok = optional_json_object("not json at all", required_key="real")
+    assert obj == {} and ok is False
+
+
+def test_optional_json_object_returns_the_object_but_not_usable_when_the_key_is_missing():
+    obj, ok = optional_json_object('{"other": 1}', required_key="real")
+    assert obj == {"other": 1} and ok is False
+
+
+def test_optional_json_object_without_a_required_key_is_usable_for_any_object():
+    assert optional_json_object('{"x": 1}') == ({"x": 1}, True)
+    assert optional_json_object("garbage") == ({}, False)

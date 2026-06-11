@@ -4,6 +4,9 @@ a MockProvider whose responses are consumed in role order per round."""
 import json
 
 from codejury.review.diff.adversarial import (
+    CHALLENGER_SYSTEM,
+    FINDER_SYSTEM,
+    JUDGE_SYSTEM,
     AdversarialAuditRunner,
     challenger_prompt,
     finder_prompt,
@@ -44,7 +47,7 @@ def _run(responses, **kw):
 def test_three_roles_run_in_order_one_round():
     provider, out = _run([_finder([_VULN]), _challenger(), _judge([_VULN])], max_rounds=1)
     assert len(provider.calls) == 3
-    assert [c["system"][:10] for c in provider.calls]
+    assert [c["system"] for c in provider.calls] == [FINDER_SYSTEM, CHALLENGER_SYSTEM, JUDGE_SYSTEM]
     assert len(out.findings) == 1 and out.findings[0].category == "sql_injection"
     assert out.rounds == 1
 

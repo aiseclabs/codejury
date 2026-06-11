@@ -1,4 +1,7 @@
+import sys
 from types import SimpleNamespace
+
+import pytest
 
 from codejury.providers.base import Message
 from codejury.providers.openai import OpenAIProvider
@@ -41,3 +44,39 @@ def test_omits_system_message_when_empty():
         system="", messages=[Message(role="user", content="x")], model="m", max_tokens=8
     )
     assert client.create_kwargs["messages"] == [{"role": "user", "content": "x"}]
+
+
+def test_sdk_exception_propagates():
+    class _Boom:
+        def __init__(self):
+            self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+        def _create(self, **kwargs):
+            raise RuntimeError("rate limited")
+
+    with pytest.raises(RuntimeError, match="rate limited"):
+        OpenAIProvider(client=_Boom()).complete(
+            system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
+        )
+
+
+def test_empty_content_yields_empty_text():
+    class _Blank:
+        def __init__(self):
+            self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
+
+        def _create(self, **kwargs):
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=None))])
+
+    result = OpenAIProvider(client=_Blank()).complete(
+        system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
+    )
+    assert result.text == ""
+
+
+def test_missing_sdk_raises_a_clear_error(monkeypatch):
+    monkeypatch.setitem(sys.modules, "openai", None)
+    with pytest.raises(RuntimeError, match="pip install"):
+        OpenAIProvider().complete(
+            system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
+        )
