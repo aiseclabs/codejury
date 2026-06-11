@@ -56,6 +56,15 @@ def test_load_answer_key_rejects_unlocatable_entry(tmp_path):
         load_answer_key(_key(tmp_path, "target: t\nplanted:\n  - id: a\n    category: idor\n"))
 
 
+def test_category_match_credits_a_broader_label_but_not_a_sibling():
+    from evals.scorers.match import category_match
+    assert category_match("code-injection", "code-injection")
+    assert category_match("injection", "code-injection")        # the generic credits the specific
+    assert category_match("code-injection", "injection")
+    assert not category_match("sql-injection", "code-injection")  # siblings stay distinct
+    assert not category_match("", "code-injection")
+
+
 def test_score_counts_found_missed_fp_and_extra(tmp_path):
     key = load_answer_key(_key(tmp_path,
         "target: t\n"

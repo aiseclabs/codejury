@@ -69,3 +69,17 @@ def category_of(text: str) -> str:
         if any(h in low for h in hints):
             return cat
     return low.strip()
+
+
+def category_match(report_cat: str, key_cat: str) -> bool:
+    """Whether a report's category names the same class as a key entry's. Exact after
+    normalization, or one a broader form of the other, so a report tagged the generic
+    `injection` still credits a `code-injection` key. The hyphen parts of one are a subset
+    of the other's, so `code-injection` and `injection` match, while `code-injection` and
+    `sql-injection` do not."""
+    if not report_cat or not key_cat:
+        return False
+    if report_cat == key_cat:
+        return True
+    a, b = set(report_cat.split("-")), set(key_cat.split("-"))
+    return a <= b or b <= a

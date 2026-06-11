@@ -11,7 +11,7 @@ from pathlib import Path
 
 from evals.results import Result
 from evals.schema import AnswerKey, KeyEntry, Report
-from evals.scorers.match import endpoint_match
+from evals.scorers.match import category_match, endpoint_match
 
 
 def _matches(report: Report, entry: KeyEntry) -> bool:
@@ -24,7 +24,7 @@ def _matches(report: Report, entry: KeyEntry) -> bool:
     # class such as code injection an endpoint does not anchor
     report_names = {Path(f).name for f in report.files}
     file_hit = any(Path(kf).name in report_names for kf in entry.files)
-    return file_hit and bool(entry.category) and report.category == entry.category
+    return file_hit and category_match(report.category, entry.category)
 
 
 def score(key: AnswerKey, reports: list[Report]) -> Result:
