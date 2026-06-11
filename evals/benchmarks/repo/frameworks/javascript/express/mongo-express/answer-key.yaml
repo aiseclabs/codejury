@@ -17,7 +17,12 @@ target: mongo-express
 planted:
   - id: bson-eval-rce
     category: code-injection
-    file: lib/bson.js
+    # the eval sink, or a route that feeds user input straight into it, a report at any one
+    # has found this RCE, so all three are accepted anchors
+    files:
+      - lib/bson.js
+      - lib/routes/document.js
+      - lib/routes/collection.js
     severity: CRITICAL
     note: CVE-2019-10758, GHSA-4cf9-8h2g-rpwc. bson.toBSON builds a string from request input
           and runs it with vm.runInNewContext("doc = eval((" + string + "));", sandbox), so a

@@ -43,12 +43,14 @@ def knowledge_refs(block) -> tuple[str, ...]:
 
 @dataclass(frozen=True, kw_only=True)
 class KeyEntry:
-    """A planted issue or a safe lookalike from the answer key. `knowledge` names the
-    vulnerability classes and guides the entry exercises, so the coverage matrix can
-    attribute it, empty for a legacy key authored before the rename."""
+    """A planted issue or a safe lookalike from the answer key. `files` are the acceptable
+    file anchors, since a vuln may be correctly reported at its sink or at a call site that
+    feeds it, so a report matching any one counts. `knowledge` names the vulnerability
+    classes and guides the entry exercises, so the coverage matrix can attribute it, empty
+    for a legacy key authored before the rename."""
     id: str
     entry: str = ""
-    file: str = ""
+    files: tuple[str, ...] = ()
     category: str = ""
     severity: str = ""
     note: str = ""
@@ -62,12 +64,24 @@ class AnswerKey:
     safe: tuple[KeyEntry, ...]
 
 
+def _entry_files(row: dict) -> tuple[str, ...]:
+    """The file anchors a key entry accepts. `files` lists several when a vuln may be
+    reported at its sink or at a call site, the singular `file` is the one-anchor form a
+    legacy key uses, so both load alike."""
+    raw = row.get("files")
+    if raw is None:
+        single = row.get("file")
+        raw = [single] if single else []
+    return tuple(str(f) for f in raw)
+
+
 def _key_entries(rows, *, require_category: bool, where: str) -> tuple[KeyEntry, ...]:
     out: list[KeyEntry] = []
     for i, r in enumerate(rows or []):
         if not isinstance(r, dict):
             raise ValueError(f"{where}[{i}] is not a mapping")
-        if "entry" not in r and "file" not in r:
+        files = _entry_files(r)
+        if "entry" not in r and not files:
             # invariant: no location means a report can never be matched to it, so a key
             # entry with neither an endpoint nor a file is unscoreable and is rejected loud
             raise ValueError(f"{where}[{i}] has neither entry nor file, it cannot be matched")
@@ -76,7 +90,7 @@ def _key_entries(rows, *, require_category: bool, where: str) -> tuple[KeyEntry,
         out.append(KeyEntry(
             id=str(r.get("id") or f"{where}-{i}"),
             entry=str(r.get("entry", "")),
-            file=str(r.get("file", "")),
+            files=files,
             category=category_of(str(r.get("category", ""))),
             severity=str(r.get("severity", "")),
             note=str(r.get("note", "")),

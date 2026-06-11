@@ -19,9 +19,11 @@ def _matches(report: Report, entry: KeyEntry) -> bool:
     # it exactly, no loose file fallback that would credit a report on a sibling endpoint
     if entry.entry:
         return bool(report.endpoint) and endpoint_match(report.endpoint, entry.entry)
-    # no endpoint on the key entry, fall back to the same file and a matching category,
-    # for a class such as data exposure that an endpoint does not anchor
-    file_hit = any(Path(f).name == Path(entry.file).name for f in report.files)
+    # no endpoint on the key entry, fall back to a matching category at any accepted file
+    # anchor, so a report at the sink or at a call site that feeds it both count, for a
+    # class such as code injection an endpoint does not anchor
+    report_names = {Path(f).name for f in report.files}
+    file_hit = any(Path(kf).name in report_names for kf in entry.files)
     return file_hit and bool(entry.category) and report.category == entry.category
 
 

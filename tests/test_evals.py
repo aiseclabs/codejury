@@ -77,6 +77,30 @@ def test_score_counts_found_missed_fp_and_extra(tmp_path):
     assert res.to_dict()["precision_known"] == 0.5
 
 
+def test_file_keyed_planted_credits_a_report_at_any_accepted_anchor(tmp_path):
+    # a code-injection sink with no endpoint, reported at a call site that feeds it, the
+    # location D failure where a real detection was scored as a miss
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: rce\n    category: code-injection\n    files:\n      - lib/sink.js\n      - lib/routes/doc.js\n"))
+    at_sink = score(key, [Report.make("r", "", "code-injection", ["lib/sink.js"])])
+    at_call = score(key, [Report.make("r", "", "code-injection", ["lib/routes/doc.js"])])
+    elsewhere = score(key, [Report.make("r", "", "code-injection", ["lib/routes/other.js"])])
+    assert at_sink.found == ["rce"]
+    assert at_call.found == ["rce"]
+    assert elsewhere.missed == ["rce"]
+
+
+def test_endpoint_keyed_planted_ignores_file_so_a_sibling_is_not_credited(tmp_path):
+    # an endpoint-keyed entry stays endpoint-only, a same-file same-class report on another
+    # route must not be credited, the looseness the strict matcher guards against
+    key = load_answer_key(_key(tmp_path,
+        "target: t\nplanted:\n  - id: idor\n    category: idor\n    entry: GET /tasks/<t>/items/<i>\n    file: models/item.go\n"))
+    sibling = score(key, [Report.make("r", "GET /labels/<id>", "idor", ["models/item.go"])])
+    assert sibling.missed == ["idor"]
+
+
 def test_parse_finding_md_and_score_repo(tmp_path):
     findings = tmp_path / "findings"
     findings.mkdir()
