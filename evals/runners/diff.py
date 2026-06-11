@@ -10,7 +10,7 @@ category and should yield a finding, a safe case carries none and should yield n
 
 from __future__ import annotations
 
-from codejury.review.diff.runner import audit_diff
+from codejury.review.diff.engine import audit_diff
 from evals.diff_cases import DiffCase, default_cases, load_cases
 from evals.results import Result
 

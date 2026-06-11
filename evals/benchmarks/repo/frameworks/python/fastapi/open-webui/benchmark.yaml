@@ -2,7 +2,7 @@
 # only the pointer plus the stack and knowledge this benchmark exercises, the coverage
 # matrix reads them. Real third-party code is never copied in, this repo ships to GitHub
 # and PyPI.
-id: openwebui
+id: open-webui
 kind: repo
 
 target:

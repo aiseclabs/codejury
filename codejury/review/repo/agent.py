@@ -26,13 +26,12 @@ from typing import Callable
 from codejury.json_parse import optional_json_object, require_json_object
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE, SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.reviewer import (
-    _JSON_SHAPE,
     RepoReviewError,
     Unit,
     UnitReviewer,
-    _lens_line,
     candidates_from_obj,
 )
+from codejury.review.repo.shapes import JSON_SHAPE, lens_line
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import Verdict, Verifier
 
@@ -152,11 +151,11 @@ class AgentReviewer(_ClaudeBackend, UnitReviewer):
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
         files = "\n".join(f"- {f}" for f in unit.files)
         prompt = (
-            f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n{_lens_line(lens)}"
+            f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n{lens_line(lens)}"
             + (f"Stack and authorization model:\n{shared_context}\n\n" if shared_context else "")
             + f"Review unit `{unit.name}`. Read these files yourself and trace into the "
             f"managers, dao, controllers, and libraries they call:\n{files}\n\n"
-            f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
+            f"Respond with a single JSON object exactly like:\n{JSON_SHAPE}"
         )
         obj = require_json_object(
             _result_text(self._ask(prompt, unit.root)), required_key="findings", error=RepoReviewError,

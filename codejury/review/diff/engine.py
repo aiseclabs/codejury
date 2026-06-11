@@ -1,63 +1,93 @@
-"""Standard diff-audit engine: one model call over a diff, parsed into Findings.
+"""Diff-audit orchestration: run a diff through the engine and clean the result.
 
-The cheap, balanced default. The adversarial Finder/Challenger/Judge engine
-builds on the same Finding domain for the cases that need higher
-coverage and lower false positives.
+The library entry point behind `review diff`. Picks the standard or adversarial
+engine, audits a large diff one file at a time so a big PR does not overflow the
+model context, normalizes finding categories onto the rule-id set, and applies
+the false-positive filter. Kept out of the CLI so it can be called as a library.
 """
 
 from __future__ import annotations
 
-import re
+import dataclasses
 
-from codejury.finding import Finding, findings_from_list
-from codejury.review.diff.prompts import SYSTEM, standard_audit_prompt
-from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
-from codejury.guides import select_guides
-from codejury.json_parse import require_json_object
-from codejury.providers.base import Message, Provider
+from codejury.review.diff.adversarial import AdversarialAuditRunner
+from codejury.review.diff.audit import AuditRunner
+from codejury.review.diff.filter import FindingsFilter
+from codejury.review.diff.vulnerabilities import allowed_categories, normalize_category
+from codejury.finding import Finding
 
-_DIFF_PATH = re.compile(r"^(?:\+\+\+ b/|diff --git a/\S+ b/)(\S+)", re.MULTILINE)
-
-
-def guides_for_diff(diff: str) -> str:
-    """Concatenated bodies of the language/framework guides relevant to a diff,
-    selected by its changed paths and its content. Empty when nothing matches.
-    Lives here, not in the shared guides module, because parsing a diff is a
-    diff-path concern."""
-    paths = _DIFF_PATH.findall(diff)
-    return "\n\n---\n\n".join(g.body for g in select_guides(paths, source_text=diff))
+# audit a diff over this size file-by-file, so a big PR does not overflow context and silently truncate the reply
+_MAX_DIFF_CHARS = 60_000
 
 
-class AuditError(RuntimeError):
-    """The model reply could not be parsed into an audit result.
+def split_diff_by_file(diff: str) -> list[str]:
+    """Split a unified diff into one diff per file at `diff --git` boundaries."""
+    chunks: list[str] = []
+    cur: list[str] = []
+    for line in diff.splitlines(keepends=True):
+        if line.startswith("diff --git ") and cur:
+            chunks.append("".join(cur))
+            cur = []
+        cur.append(line)
+    if cur:
+        chunks.append("".join(cur))
+    return chunks or ([diff] if diff.strip() else [])
 
-    Raised instead of returning an empty findings list, so a failed or blank
-    call is never reported as a clean audit. The prompt requires a JSON object
-    carrying a ``findings`` key, an empty ``{"findings": []}`` when there is
-    nothing to report, so a reply that yields no object, or an object without
-    that key, is a failure, not a pass."""
+
+def dedup_findings(findings: list[Finding]) -> list[Finding]:
+    seen: set = set()
+    out: list[Finding] = []
+    for f in findings:
+        k = (f.file, f.line, f.category, f.description)
+        if k not in seen:
+            seen.add(k)
+            out.append(f)
+    return out
 
 
-class AuditRunner:
-    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096) -> None:
-        self._provider = provider
-        self._model = model
-        self._max_tokens = max_tokens
+def audit_diff(
+    diff: str,
+    *,
+    provider,
+    model: str,
+    mode: str = "standard",
+    max_rounds: int = 3,
+    filter_findings: bool = True,
+    finder_model: str | None = None,
+    challenger_model: str | None = None,
+    judge_model: str | None = None,
+    exclude_paths: tuple[str, ...] = (),
+) -> tuple[list[Finding], list[tuple[Finding, str]], bool]:
+    """Audit a diff and return the kept findings, the dropped finding-reason pairs, and
+    a degraded flag.
 
-    def run(self, diff: str, *, vulnerabilities: str = "", context: str = "") -> list[Finding]:
-        if not vulnerabilities:
-            vulnerabilities = vulnerabilities_for_diff(diff)
-        stack = guides_for_diff(diff)
-        result = self._provider.complete(
-            system=SYSTEM,
-            messages=[Message(role="user", content=standard_audit_prompt(diff, vulnerabilities=vulnerabilities, context=context, stack=stack))],
-            model=self._model,
-            max_tokens=self._max_tokens,
-        )
-        obj = require_json_object(
-            result.text, required_key="findings", error=AuditError,
-            message="the model reply was not a valid audit result. it had no JSON object, "
-                    "or a JSON object without a findings key, so it is a failed audit "
-                    "rather than a clean pass",
-        )
-        return findings_from_list(obj.get("findings"))
+    A diff over the size budget is audited one file at a time so it does not
+    overflow the context. Finding categories are normalized to the rule-id set.
+    ``exclude_paths`` are operator-supplied path substrings to drop. ``degraded`` is
+    True when adversarial mode fell back on an unusable judge, so the caller can
+    surface a degraded audit as a failure rather than a clean pass, invariant 3."""
+    degraded = False
+
+    def _run_one(d: str) -> list[Finding]:
+        nonlocal degraded
+        if mode == "adversarial":
+            result = AdversarialAuditRunner(
+                provider=provider, model=model,
+                finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
+            ).run(d, max_rounds=max_rounds)
+            degraded = degraded or result.degraded
+            return result.findings
+        return AuditRunner(provider=provider, model=model).run(d)
+
+    if len(diff) > _MAX_DIFF_CHARS:
+        chunks = split_diff_by_file(diff)
+        findings = dedup_findings([f for c in chunks for f in _run_one(c)])
+    else:
+        findings = _run_one(diff)
+
+    allowed = set(allowed_categories())
+    findings = [dataclasses.replace(f, category=normalize_category(f.category, allowed)) for f in findings]
+    if filter_findings:
+        kept, dropped = FindingsFilter(exclude_paths=exclude_paths).filter(findings)
+        return kept, dropped, degraded
+    return findings, [], degraded

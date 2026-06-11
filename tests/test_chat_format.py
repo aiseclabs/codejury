@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from codejury.providers.openai_format import choice_text
+from codejury.providers.chat_format import choice_text
 
 
 def test_extracts_plain_string_content():

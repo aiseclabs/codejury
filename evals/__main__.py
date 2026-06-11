@@ -1,8 +1,8 @@
 """Eval CLI: score a review, run the diff probe, or compare two results.
 
   python -m evals list
-  python -m evals repo openwebui --findings-dir /tmp/cj-owui/webui/findings
-  python -m evals repo openwebui --findings-json findings.json --json before.json
+  python -m evals repo open-webui --findings-dir /tmp/cj-owui/webui/findings
+  python -m evals repo open-webui --findings-json findings.json --json before.json
   python -m evals diff --mode standard --model <id> --runs 3
   python -m evals run public-smoke --model <id> --runs 3
   python -m evals compare before.json after.json --by vulnerability
@@ -158,7 +158,7 @@ def main(argv=None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     r = sub.add_parser("repo", help="score a whole-repo review against an answer key")
-    r.add_argument("name", help="benchmark name, e.g. openwebui")
+    r.add_argument("name", help="benchmark name, e.g. open-webui")
     r.add_argument("--workspace", default=None, help="review workspace root, reads <workspace>/<name>/findings")
     r.add_argument("--findings-dir", default=None, help="a findings/ directory directly")
     r.add_argument("--findings-json", default=None, help="a findings.json or a json list of reports")

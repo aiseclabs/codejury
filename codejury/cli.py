@@ -9,7 +9,7 @@ Two paths matched to their nature:
   which a single call cannot do for a whole codebase.
 
 ``review diff --dry-run`` exercises the engine with a mock provider and no key.
-The audit orchestration itself lives in ``codejury.review.diff.runner``.
+The audit orchestration itself lives in ``codejury.review.diff.engine``.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from pathlib import Path
 
 from codejury import __version__
 from codejury.report import gate, render
-from codejury.review.diff.runner import audit_diff
+from codejury.review.diff.engine import audit_diff
 from codejury.providers.factory import (
     DEFAULT_API_BASE,
     DEFAULT_API_KEY,

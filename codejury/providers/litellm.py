@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from codejury.providers.base import CompletionResult, Message, Provider
-from codejury.providers.openai_format import choice_text
+from codejury.providers.chat_format import choice_text
 
 
 class LiteLLMProvider(Provider):

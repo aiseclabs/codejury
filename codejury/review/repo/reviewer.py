@@ -22,6 +22,7 @@ from codejury.json_parse import require_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
+from codejury.review.repo.shapes import JSON_SHAPE, lens_line
 from codejury.review.repo.union import Candidate
 
 
@@ -34,13 +35,6 @@ class RepoReviewError(RuntimeError):
 
 _GATHER_PER_FILE = 24_000
 _GATHER_TOTAL = 120_000
-
-_JSON_SHAPE = (
-    '{"findings": [{"title": "...", "category": "<class id>", '
-    '"endpoint": "METHOD /path or empty", "file": "path", "line": 0, '
-    '"severity": "CRITICAL|HIGH|MEDIUM|LOW", "evidence": "controlling fact at file:line", '
-    '"status": "confirmed|blocked"}]}'
-)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -118,13 +112,6 @@ def _gather(unit: Unit) -> str:
     return "\n\n".join(parts)
 
 
-def _lens_line(lens: str) -> str:
-    if not lens:
-        return "Review for every high-impact class.\n\n"
-    return (f"This pass LEADS WITH THE {lens.upper()} LENS: prioritize finding {lens} "
-            f"issues across this unit, while still reporting any other class you see.\n\n")
-
-
 _SYSTEM = (
     "You are a senior application security engineer reviewing one slice of a codebase. "
     "Report only real, evidenced findings, each graded by the rubric and located at a "
@@ -145,10 +132,10 @@ class ModelReviewer(UnitReviewer):
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
         prompt = (
             f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
-            f"{_lens_line(lens)}"
+            f"{lens_line(lens)}"
             + (f"Stack and authorization model:\n{shared_context}\n\n" if shared_context else "")
             + f"Unit `{unit.name}`, the code to review:\n```\n{_gather(unit)}\n```\n\n"
-            f"Respond with a single JSON object exactly like:\n{_JSON_SHAPE}"
+            f"Respond with a single JSON object exactly like:\n{JSON_SHAPE}"
         )
         result = self._provider.complete(
             system=_SYSTEM,

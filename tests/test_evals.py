@@ -136,12 +136,12 @@ def _public_only(tmp_path, monkeypatch):
 
 def test_registry_finds_public_openwebui_benchmark(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
-    bench = registry.find_benchmark("openwebui")
+    bench = registry.find_benchmark("open-webui")
     assert bench.provenance == "public"
     assert bench.stack["frameworks"] == ["fastapi"]
     assert "insecure-direct-object-reference" in bench.knowledge["vulnerabilities"]
     key = load_answer_key(bench.answer_key)
-    assert key.target == "openwebui"
+    assert key.target == "open-webui"
     assert any(p.id == "idor-memory-update" for p in key.planted)
 
 
@@ -170,14 +170,14 @@ def test_registry_duplicate_name_across_roots_fails_loud(tmp_path, monkeypatch):
     # a private source that re-uses a public name must fail loud, not silently shadow it,
     # unless it opts in with override: true
     src = tmp_path / "private"
-    (src / "repo" / "openwebui").mkdir(parents=True)
-    (src / "repo" / "openwebui" / "answer_key.yaml").write_text(
-        "target: openwebui\nplanted:\n  - id: x\n    category: idor\n    entry: GET /x/<id>\n", encoding="utf-8")
+    (src / "repo" / "open-webui").mkdir(parents=True)
+    (src / "repo" / "open-webui" / "answer_key.yaml").write_text(
+        "target: open-webui\nplanted:\n  - id: x\n    category: idor\n    entry: GET /x/<id>\n", encoding="utf-8")
     cfg = tmp_path / "local.yaml"
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
     with pytest.raises(ValueError, match="defined in two roots"):
-        registry.find_benchmark("openwebui")
+        registry.find_benchmark("open-webui")
 
 
 def test_compare_reports_flips():
@@ -278,7 +278,7 @@ def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypa
     _public_only(tmp_path, monkeypatch)
     from evals.coverage import coverage_matrix
     cov = coverage_matrix()
-    # the openwebui benchmark plants three IDORs and guards two safe siblings, so the vuln
+    # the open-webui benchmark plants three IDORs and guards two safe siblings, so the vuln
     # attributes to its repo entries. Assert a lower bound, another target adding an IDOR,
     # such as vikunja's task attachment IDOR, must not break this
     idor = cov["vuln:insecure-direct-object-reference"]

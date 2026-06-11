@@ -3,7 +3,7 @@ false-positive filter. Deterministic with a MockProvider, no key."""
 
 import json
 
-from codejury.review.diff.engine import AuditRunner
+from codejury.review.diff.audit import AuditRunner
 from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.prompts import standard_audit_prompt
 from codejury.finding import Finding, finding_from_dict, findings_from_list
@@ -61,7 +61,7 @@ def test_engine_raises_on_unparseable_reply():
     # reported as a clean audit, it is a failure
     import pytest
 
-    from codejury.review.diff.engine import AuditError
+    from codejury.review.diff.audit import AuditError
 
     with pytest.raises(AuditError):
         AuditRunner(provider=MockProvider(default="not json"), model="m").run(_DIFF)
@@ -72,7 +72,7 @@ def test_engine_raises_on_unparseable_reply():
 def test_engine_raises_on_wrong_shape_json():
     import pytest
 
-    from codejury.review.diff.engine import AuditError
+    from codejury.review.diff.audit import AuditError
 
     for bad in ("{}", '{"result": "ok"}'):
         with pytest.raises(AuditError):
@@ -80,7 +80,7 @@ def test_engine_raises_on_wrong_shape_json():
 
 
 def test_guides_for_diff_selects_by_path_and_content():
-    from codejury.review.diff.engine import guides_for_diff
+    from codejury.review.diff.audit import guides_for_diff
     diff = ("diff --git a/app/urls.py b/app/urls.py\n"
             "+from django.urls import path\n+urlpatterns = []\n")
     notes = guides_for_diff(diff)

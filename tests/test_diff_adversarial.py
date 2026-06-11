@@ -9,7 +9,7 @@ from codejury.review.diff.adversarial import (
     finder_prompt,
     judge_prompt,
 )
-from codejury.review.diff.runner import audit_diff
+from codejury.review.diff.engine import audit_diff
 from codejury.providers.mock import MockProvider
 
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"

@@ -121,7 +121,7 @@ codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
 
 # 2. score it. Prefer --findings-json, findings/ collapses findings on one endpoint of
 #    different classes into a single file, so --findings-dir can undercount the reports
-python -m evals repo openwebui --findings-json /tmp/cj-owui/webui/findings.json --json after.json
+python -m evals repo open-webui --findings-json /tmp/cj-owui/webui/findings.json --json after.json
 
 # 3. compare two versions, --by groups the flips by an axis to see where a move landed
 python -m evals compare before.json after.json
