@@ -15,6 +15,8 @@ JSON_SHAPE = (
 
 
 def lens_line(lens: str) -> str:
+    """An empty lens reviews every class, a named lens leads with that class but still
+    reports the others, so a focused pass never narrows recall."""
     if not lens:
         return "Review for every high-impact class.\n\n"
     return (f"This pass LEADS WITH THE {lens.upper()} LENS: prioritize finding {lens} "

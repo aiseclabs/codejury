@@ -46,6 +46,7 @@ def median(severities: list[str]) -> str:
 
 
 def floor_for(category: str, title: str = "") -> str | None:
+    """The firm severity floor a class earns from the rubric, or None when no rule fires."""
     text = f"{category} {title}".lower()
     if re.search(r"credential|secret|private[ _-]?key|signing[ _-]?key|bearer token|"
                  r"api[ _-]?key|token.{0,20}(leak|logged|exposed|disclos)", text):

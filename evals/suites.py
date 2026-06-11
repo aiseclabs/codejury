@@ -18,7 +18,7 @@ _SUITES_DIR = Path(__file__).resolve().parent / "suites"
 class Suite:
     name: str
     description: str = ""
-    tags: tuple[str, ...] = ()      # a member joins when it carries any of these
+    tags: tuple[str, ...] = ()
     kinds: tuple[str, ...] = ()     # optional filter, diff or repo, empty selects both
 
 

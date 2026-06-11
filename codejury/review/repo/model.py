@@ -45,7 +45,6 @@ def _read_files(root: Path) -> tuple[str, ...]:
 
 
 def build_repo_model_from_dir(root: str | Path) -> RepoModel:
-    """Build a RepoModel by listing the files under a directory."""
     return RepoModel(root=str(root), files=_read_files(Path(root)))
 
 

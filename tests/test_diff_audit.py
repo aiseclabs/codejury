@@ -57,8 +57,8 @@ def test_engine_empty_on_no_findings():
 
 
 def test_engine_raises_on_unparseable_reply():
-    # an unusable reply (provider error page, blank body, prose) must not be
-    # reported as a clean audit, it is a failure
+    # an unusable reply, such as a provider error page, a blank body, or prose, must not
+    # be reported as a clean audit, it is a failure
     import pytest
 
     from codejury.review.diff.audit import AuditError

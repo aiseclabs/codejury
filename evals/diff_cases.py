@@ -27,7 +27,7 @@ CASES_DIR = Path(__file__).resolve().parent / "benchmarks" / "diff"
 class DiffCase:
     name: str
     diff: str
-    category: str = ""    # empty marks a safe case that should stay clean
+    category: str = ""
     knowledge: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
 

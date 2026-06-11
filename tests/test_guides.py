@@ -1,5 +1,5 @@
 """Language/framework review guides load and are selected by detection signals
-(file globs + dependency-manifest substrings), so adding one is a drop-in file."""
+such as file globs and dependency-manifest substrings, so adding one is a drop-in file."""
 
 from codejury.guides import Guide, load_guides, select_guides
 

@@ -98,7 +98,7 @@ Create a local `evals/local.yaml`, gitignored, or point `CODEJURY_EVAL_CONFIG` a
 
 ```yaml
 benchmark_sources:
-  - path: /abs/path/to/your/private/benchmarks   # used where it already lives
+  - path: /abs/path/to/your/private/benchmarks   # read in place, nothing is copied or committed
   - repo: git@github.com:you/private-benchmarks.git
     ref: main
 ```

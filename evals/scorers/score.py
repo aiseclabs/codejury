@@ -28,10 +28,6 @@ def _matches(report: Report, entry: KeyEntry) -> bool:
 
 
 def score(key: AnswerKey, reports: list[Report]) -> Result:
-    """Score reports against an answer key. A planted issue is found when some report
-    matches it. A report that matches a safe lookalike is a false positive. A report that
-    matches neither is extra, recorded for a human since it may be a real bug the key
-    misses rather than noise."""
     res = Result(target=key.target, n_planted=len(key.planted), n_reports=len(reports))
     matched_reports: set[str] = set()
     for p in key.planted:

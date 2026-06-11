@@ -14,7 +14,6 @@ from dataclasses import asdict, dataclass, field
 
 @dataclass(kw_only=True)
 class Result:
-    """The score of one review against one answer key, JSON-serializable for compare."""
     target: str
     found: list[str] = field(default_factory=list)
     missed: list[str] = field(default_factory=list)

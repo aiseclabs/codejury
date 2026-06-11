@@ -44,7 +44,6 @@ Runner = Callable[..., str]
 
 
 def _drop_flag(args: tuple[str, ...], flag: str) -> tuple[str, ...]:
-    """Drop `flag` and the value token following it from an arg tuple."""
     out: list[str] = []
     it = iter(args)
     for a in it:

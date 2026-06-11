@@ -26,7 +26,7 @@ _GUIDES_DIR = LANGUAGES_DIR.parent
 class KnowledgeItem:
     """One knowledge file the matrix tracks, addressed by its namespaced ref."""
     ref: str        # vuln:<id> or guide:<path>, the form a benchmark references
-    kind: str       # vulnerability or guide
+    kind: str
     path: Path
 
 

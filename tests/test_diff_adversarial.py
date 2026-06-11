@@ -120,8 +120,8 @@ def test_garbage_replies_yield_no_findings_not_an_error():
 
 
 def test_unusable_judge_falls_back_to_finder_findings_not_empty():
-    # finder finds a real issue, but the judge reply is unparseable (provider error,
-    # blocked request): the finding must survive as a degraded result, not vanish.
+    # finder finds a real issue, but the judge reply is unparseable, such as a provider
+    # error or a blocked request, so the finding must survive as a degraded result, not vanish.
     _, out = _run([_finder([_VULN]), _challenger(), "<html>blocked by WAF</html>"], max_rounds=1)
     assert [f.category for f in out.findings] == ["sql_injection"]
     assert out.degraded is True
@@ -150,8 +150,8 @@ def test_audit_diff_standard_mode_is_never_degraded():
 
 
 def test_provider_exception_degrades_rather_than_crashes():
-    # a raising provider (exhausted retries, transport error) on the judge call
-    # must degrade to the unjudged finder set, not propagate and abort the run.
+    # a raising provider, such as exhausted retries or a transport error, on the judge
+    # call must degrade to the unjudged finder set, not propagate and abort the run.
     from codejury.providers.base import CompletionResult, Provider
 
     class _RaiseOnJudge(Provider):
