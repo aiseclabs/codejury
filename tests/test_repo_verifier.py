@@ -69,6 +69,25 @@ def test_model_verifier_keeps_on_unparseable_reply():
     assert verdict.real is True
 
 
+def test_model_verifier_keeps_a_refutation_that_rests_on_an_unshown_file():
+    # the cross-file authorization gap the skeptic used to drop by trusting an upstream
+    # check it never read, so a refutation citing another file keeps the finding
+    prov = MockProvider(default='{"real": false, "reason": "the service checks the owner", '
+                        '"control_file": "internal/service/answer_service.go"}')
+    verdict = ModelVerifier(provider=prov, model="mock").verify(
+        Candidate(title="accept", file="internal/repo/activity/answer_repo.go"), ".")
+    assert verdict.real is True
+    assert "answer_service.go" in verdict.reason
+
+
+def test_model_verifier_refutes_on_a_fact_in_the_shown_file():
+    prov = MockProvider(default='{"real": false, "reason": "owner filter present", '
+                        '"control_file": "models/item.go"}')
+    verdict = ModelVerifier(provider=prov, model="mock").verify(
+        Candidate(title="idor", file="models/item.go"), ".")
+    assert verdict.real is False
+
+
 def test_safe_repo_path_contains_reads_to_the_root(tmp_path):
     (tmp_path / "in.py").write_text("inside")
     assert safe_repo_path(tmp_path, "in.py") == (tmp_path / "in.py").resolve()

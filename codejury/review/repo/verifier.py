@@ -10,6 +10,11 @@ a base class still fires on the subclass. A value an attacker cannot reach is no
 sink. A candidate that survives is confirmed. One refuted with a named controlling
 fact is dropped and recorded, so the drop is auditable.
 
+The skeptic sees only the finding's own file, so a refutation that rests on a control
+in another file it was not shown is an assumption, not a refutation, the failure that
+dropped a real cross-file authorization gap by trusting an upstream check that did not
+exist. Such a finding is kept for cross-file confirmation, not dropped.
+
 Injectable like the reviewer, so the skeptic can be a single grounded model call
 today or a tool-using agent later. Errors never silently refute a finding: a failed
 verification keeps the candidate and is counted, because dropping a real finding on a
@@ -53,11 +58,25 @@ class VerifyResult:
 _SYSTEM = (
     "You are a skeptical security reviewer. Your job is to REFUTE a proposed finding "
     "by reading the code: find the controlling fact that makes it safe, judging against "
-    "production semantics, not a shallow read. Only if you genuinely cannot refute it is "
-    "it real. Respond with a single JSON object and nothing else."
+    "production semantics, not a shallow read. You are shown only the code at the finding's "
+    "own file, so you may refute only on a fact visible in that code or a genuine framework "
+    "guarantee. When the finding would be safe only because of a control in another file you "
+    "were not shown, an upstream service or controller you assume enforces it for example, you "
+    "have not refuted it: report it real and name that other file in control_file. Only if you "
+    "genuinely cannot refute it is it real. Respond with a single JSON object and nothing else."
 )
 
-_JSON_SHAPE = '{"real": true, "reason": "the controlling fact at file:line, refuting or confirming"}'
+_JSON_SHAPE = (
+    '{"real": true, "reason": "the controlling fact at file:line", '
+    '"control_file": "the file holding that fact, empty if none"}'
+)
+
+
+def _control_basename(ref: str) -> str:
+    """The file name a controlling fact cites, without its directory or a trailing line,
+    empty when the skeptic named none."""
+    ref = ref.strip().strip("`").split(":", 1)[0].strip()
+    return ref.rsplit("/", 1)[-1] if ref else ""
 
 
 def _read_file(root: str, rel: str) -> str:
@@ -103,7 +122,14 @@ class ModelVerifier(Verifier):
         obj, ok = optional_json_object(result.text, required_key="real")
         if not ok:
             return Verdict(real=True, reason="unparseable verification, kept")
-        return Verdict(real=bool(obj.get("real")), reason=str(obj.get("reason", "")))
+        if obj.get("real"):
+            return Verdict(real=True, reason=str(obj.get("reason", "")))
+        control = _control_basename(str(obj.get("control_file", "")))
+        if control and control != _control_basename(candidate.file):
+            # the refutation rests on a file the skeptic was not shown, so it is an
+            # assumption, not a refutation: keep the finding for cross-file confirmation
+            return Verdict(real=True, reason=f"refuted on unshown {control}, kept for cross-file check")
+        return Verdict(real=False, reason=str(obj.get("reason", "")))
 
 
 def verify_findings(
