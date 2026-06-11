@@ -18,6 +18,6 @@ dist/
 .coverage
 htmlcov/
 
-# Eval: the harness and public benchmarks ship, private config and benchmarks do not
+# Harness and public benchmarks ship, private config and benchmarks do not
 evals/local.yaml
 evals/benchmarks/local/
