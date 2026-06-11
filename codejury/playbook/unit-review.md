@@ -27,8 +27,11 @@ For every control on the path, decide on the code you actually read, never on th
 presence of a named control:
 
 - **Authorization granularity**: does the check scope to the right principal, owner
-  vs tenant vs service, or only prove the caller is some valid user? Compare sibling
-  endpoints and endpoint versions for a check present on one and dropped on another.
+  vs tenant vs service, or only prove the caller is some valid user? Compare siblings
+  for a control present on most and dropped on one. Siblings are not only sibling
+  endpoints and endpoint versions, but repeated branches in one handler, a query run
+  once per object type in a fan out, or one method in a set of similar methods. Where
+  most scope to the owner and one does not, that one is the likely IDOR.
 - **Replay**: does a signed or authenticated privileged request both consume a
   one-time nonce and enforce a freshness window? A signature alone is not enough.
 - **Concurrency**: is a check-then-act serialized by a lock held across the act? A
