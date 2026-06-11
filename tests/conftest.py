@@ -1,9 +1,8 @@
 """Shared fixtures for the repo-review engine tests.
 
-The engine tests need a small target repo to scaffold and fan out over. They used
-to point at `validation/repo/targets/custody`, but `validation/` is a local-only
-probe and is gitignored, so it is absent in CI and the tests failed there. This
-builds an equivalent minimal target in tmp instead, so the tests are self-contained.
+The engine tests need a small target repo to scaffold and fan out over. This builds a
+minimal target in tmp rather than depending on any local data, so the tests are
+self-contained and pass in CI.
 """
 
 import pytest

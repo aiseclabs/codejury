@@ -18,9 +18,6 @@ dist/
 .coverage
 htmlcov/
 
-# Local detection-quality probe (not a committed golden set)
-validation/
-
 # Eval: the harness and public benchmarks ship, private config and benchmarks do not
 evals/local.yaml
-evals/benchmarks/private/
+evals/benchmarks/local/
