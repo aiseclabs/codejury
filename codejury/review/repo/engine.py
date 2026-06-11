@@ -22,7 +22,7 @@ from pathlib import Path
 from codejury.detection import load_detection
 from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
-from codejury.review.repo.paths import is_unsafe_rel
+from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
@@ -31,22 +31,84 @@ from codejury.review.repo.union import Accumulator, Candidate, collapse_colocate
 from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier, verify_findings
 
 _MAX_RELATED = 20
+# a file longer than this many chars is reviewed in overlapping windows, not truncated
+_CHUNK_CHARS = 24_000
+_CHUNK_OVERLAP = 2_000
 
 
 def _finding_slug(text: str) -> str:
     return ("".join(c if c.isalnum() else "-" for c in text).strip("-").lower() or "finding")[:80]
 
 
+def _file_text(root: str, rel: str) -> str:
+    path = safe_repo_path(root, rel)
+    if path is None:
+        return ""
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def _construct_boundaries(text: str) -> list[int]:
+    """Char indices where a line begins with a non-space character, the start of a
+    top-level construct in an indented language such as Python, Go, or JavaScript. Window
+    edges snap to these so a class or function is reviewed whole, not split across units."""
+    starts: list[int] = []
+    at_line_start = True
+    for i, ch in enumerate(text):
+        if at_line_start and not ch.isspace():
+            starts.append(i)
+        at_line_start = ch == "\n"
+    return starts
+
+
+def _spans(text: str) -> list[tuple[int, int] | None]:
+    """The char windows that cover `text`. Text that fits one call is reviewed whole, span
+    None. Larger text is split at top-level construct boundaries so each class or function
+    lands whole in one window. A single construct longer than a window is hard split with
+    an overlap, so even then no boundary silently drops a construct's tail."""
+    size = len(text)
+    if size <= _CHUNK_CHARS:
+        return [None]
+    boundaries = _construct_boundaries(text)
+    spans: list[tuple[int, int] | None] = []
+    start = 0
+    while True:
+        target = start + _CHUNK_CHARS
+        if target >= size:
+            spans.append((start, size))
+            return spans
+        within = [b for b in boundaries if start < b <= target]
+        if within:
+            # end at the furthest construct boundary in the window, so it splits cleanly
+            end = within[-1]
+            next_start = end
+        else:
+            # one construct is longer than a window, hard split it with an overlap
+            end = target
+            next_start = end - _CHUNK_OVERLAP
+        spans.append((start, end))
+        start = next_start
+
+
 def build_units(root: str | Path, candidate_files, trace_targets) -> list[Unit]:
-    """One unit per candidate entrypoint, packed with the trace-target files that
-    share its top-level package, so a single review call can trace across them."""
+    """One unit per candidate entrypoint, packed with the trace-target files that share its
+    top-level package, so a single review call can trace across them. A candidate too large
+    for one call is split into several units over overlapping char windows, so the whole
+    file is covered rather than truncated to its head."""
     root = str(root)
     targets = list(trace_targets)
     units: list[Unit] = []
     for cand in candidate_files:
         pkg = Path(cand).parts[0] if Path(cand).parts else ""
         related = tuple(t for t in targets if Path(t).parts and Path(t).parts[0] == pkg)[:_MAX_RELATED]
-        units.append(Unit(name=cand, root=root, files=(cand, *related)))
+        spans = _spans(_file_text(root, cand))
+        if len(spans) == 1:
+            units.append(Unit(name=cand, root=root, files=(cand, *related)))
+            continue
+        for i, span in enumerate(spans):
+            units.append(Unit(name=f"{cand}#{i + 1}", root=root, files=(cand, *related), span=span))
     return units
 
 

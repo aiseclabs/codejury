@@ -8,8 +8,8 @@ import pytest
 
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.gate import check_gate
-from codejury.review.repo.reviewer import UnitReviewer
-from codejury.review.repo.engine import _parse_candidate, build_units, finalize_repo_review, run_repo_review
+from codejury.review.repo.reviewer import Unit, UnitReviewer, _gather
+from codejury.review.repo.engine import _parse_candidate, _spans, build_units, finalize_repo_review, run_repo_review
 from codejury.review.repo.scaffold import unit_slug
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import Verdict, Verifier
@@ -30,6 +30,36 @@ def test_build_units_groups_trace_targets_by_package():
     by = {u.name: u for u in units}
     assert "accounts/managers/m.py" in by["accounts/views/api.py"].files
     assert "authorization/dao/d.py" not in by["accounts/views/api.py"].files
+
+
+def test_build_units_splits_a_large_file_into_overlapping_windows(tmp_path):
+    (tmp_path / "views.py").write_text("x" * 60_000)
+    units = build_units(str(tmp_path), ["views.py"], [])
+    assert [u.name for u in units] == ["views.py#1", "views.py#2", "views.py#3"]
+    assert units[0].span[0] == 0
+    assert units[1].span[0] < units[0].span[1]   # windows overlap
+    assert units[-1].span[1] == 60_000            # together they cover the whole file
+
+
+def test_spans_snaps_a_window_to_a_top_level_construct_boundary():
+    a = "def f():\n" + "    x = 1\n" * 2000            # one construct under a window
+    text = a + "def g():\n" + "    y = 2\n" * 2000     # a second, so the file needs splitting
+    spans = _spans(text)
+    assert spans[0][0] == 0
+    assert text[spans[0][1]:].startswith("def g")     # window ends at the next def, not mid-body
+
+
+def test_build_units_keeps_a_small_file_whole(tmp_path):
+    (tmp_path / "v.py").write_text("x" * 1_000)
+    units = build_units(str(tmp_path), ["v.py"], [])
+    assert [u.name for u in units] == ["v.py"]
+    assert units[0].span is None
+
+
+def test_gather_reads_only_the_span_window_of_a_chunked_unit(tmp_path):
+    (tmp_path / "big.py").write_text("AAAA" + "B" * 30_000 + "ZZZZ")
+    tail = _gather(Unit(name="big.py#2", root=str(tmp_path), files=("big.py",), span=(30_000, 30_008)))
+    assert "ZZZZ" in tail and "AAAA" not in tail
 
 
 def test_run_converges_writes_findings_and_marks_units(custody_repo, tmp_path):

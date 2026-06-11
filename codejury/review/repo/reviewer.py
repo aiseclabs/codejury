@@ -45,10 +45,13 @@ _JSON_SHAPE = (
 
 @dataclass(frozen=True, kw_only=True)
 class Unit:
-    """One unit of the worklist: the files it owns plus the files it traces into."""
+    """One unit of the worklist: the files it owns plus the files it traces into. `span`,
+    when set, is the char window of the first owned file this unit reviews, so a file too
+    large for one call is split across sibling units instead of being silently truncated."""
     name: str
     root: str
     files: tuple[str, ...]
+    span: tuple[int, int] | None = None
 
 
 def candidates_from_obj(obj: object) -> list[Candidate]:
@@ -90,15 +93,24 @@ def _gather(unit: Unit) -> str:
     across them without live file access. Unreadable or oversized files are skipped."""
     parts: list[str] = []
     total = 0
-    for rel in unit.files:
+    for i, rel in enumerate(unit.files):
         path = safe_repo_path(unit.root, rel)
         if path is None:
             continue
         try:
-            text = path.read_text(encoding="utf-8")[:_GATHER_PER_FILE]
+            text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        block = f"# file: {rel}\n{text}"
+        if i == 0 and unit.span is not None:
+            # this unit owns one char window of a file too large for a single call, so it
+            # reviews just that slice and sibling units cover the rest, no silent truncation
+            start, end = unit.span
+            header = f"# file: {rel} chars {start}-{end}"
+            text = text[start:end]
+        else:
+            header = f"# file: {rel}"
+            text = text[:_GATHER_PER_FILE]
+        block = f"{header}\n{text}"
         parts.append(block)
         total += len(block)
         if total >= _GATHER_TOTAL:
