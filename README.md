@@ -89,19 +89,19 @@ Diff Review is the fast coded path. It audits a unified diff with either a stand
 single model call or an adversarial Finder, Challenger, and Judge pass.
 
 ```bash
-# Review a diff file
+# review a diff file
 codejury review diff --file changes.diff
 
-# Review a git range
+# review a git range
 codejury review diff --repo /path/to/app --git-range origin/main...HEAD
 
-# Review stdin
+# review stdin
 git diff HEAD~1 | codejury review diff
 
-# Use adversarial mode for extra recall on subtle cross-file logic
+# use adversarial mode for extra recall on subtle cross-file logic
 codejury review diff --file changes.diff --mode adversarial
 
-# Emit SARIF and fail on HIGH or CRITICAL findings
+# emit SARIF and fail on HIGH or CRITICAL findings
 codejury review diff --file changes.diff --format sarif --fail-on high
 ```
 
