@@ -66,7 +66,7 @@ class AnswerKey:
 
 def _entry_files(row: dict) -> tuple[str, ...]:
     """The file anchors a key entry accepts. `files` lists several when a vuln may be
-    reported at its sink or at a call site, the singular `file` is the one-anchor form a
+    reported at its sink or at a call site, the singular `file` is the single anchor form a
     legacy key uses, so both load alike."""
     raw = row.get("files")
     if raw is None:
