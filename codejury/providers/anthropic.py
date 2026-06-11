@@ -18,11 +18,18 @@ from codejury.providers.base import CompletionResult, Message, Provider
 
 class AnthropicProvider(Provider):
     def __init__(
-        self, *, api_key: str | None = None, base_url: str | None = None, client: Any | None = None
+        self,
+        *,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        client: Any | None = None,
+        temperature: float | None = 0.0,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url
         self._client = client
+        # determinism: temperature 0 so the same input yields the same verdicts, invariant 2
+        self._temperature = temperature
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -53,15 +60,38 @@ class AnthropicProvider(Provider):
         if cache and system:
             system_param = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
 
-        response = self._get_client().messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            temperature=0,  # determinism: same input gives the same verdicts, invariant 2
-            timeout=600,
-            system=system_param,
-            messages=[{"role": m.role, "content": m.content} for m in messages],
-        )
+        request: dict[str, Any] = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "timeout": 600,
+            "system": system_param,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+        }
+        response = self._create(request)
         return CompletionResult(text=_extract_text(response))
+
+    def _create(self, request: dict[str, Any]) -> Any:
+        client = self._get_client()
+        if self._temperature is None:
+            return client.messages.create(**request)
+        try:
+            return client.messages.create(temperature=self._temperature, **request)
+        except Exception as exc:
+            if not _is_temperature_rejected(exc):
+                raise
+            # drop it for this provider so later calls skip the rejected param, no wasted retry
+            self._temperature = None
+            return client.messages.create(**request)
+
+
+def _is_temperature_rejected(exc: Exception) -> bool:
+    """True when the API refused the call only because this model does not accept the
+    temperature param, the one error recovered from by dropping it. Matched on the message,
+    not a model name list, so a new reasoning model needs no code change."""
+    status = getattr(exc, "status_code", None)
+    if status != 400 and "BadRequest" not in type(exc).__name__:
+        return False
+    return "temperature" in str(exc).lower()
 
 
 def _extract_text(response: Any) -> str:

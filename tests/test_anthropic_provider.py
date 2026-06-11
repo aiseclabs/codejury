@@ -52,3 +52,57 @@ def test_cache_marks_system_with_ephemeral_cache_control():
     assert client.create_kwargs["system"] == [
         {"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}
     ]
+
+
+class _BadRequest(Exception):
+    status_code = 400
+
+
+class _RecordingClient:
+    """Records every messages.create call. Raises a temperature error on the calls that
+    send temperature when ``reject_temperature`` is set, to model a reasoning backend."""
+
+    def __init__(self, reject_temperature: bool):
+        self.reject_temperature = reject_temperature
+        self.calls: list[dict] = []
+        self.messages = SimpleNamespace(create=self._create)
+
+    def _create(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.reject_temperature and "temperature" in kwargs:
+            raise _BadRequest("Error code: 400 - 'temperature' is deprecated for this model.")
+        return SimpleNamespace(content=[SimpleNamespace(text="ok")], model="m")
+
+
+def _run(provider):
+    return provider.complete(
+        system="s", messages=[Message(role="user", content="x")], model="opus", max_tokens=8
+    )
+
+
+def test_drops_temperature_when_model_rejects_it_then_skips_it():
+    client = _RecordingClient(reject_temperature=True)
+    provider = AnthropicProvider(client=client)
+    assert _run(provider).text == "ok"
+    assert "temperature" in client.calls[0]
+    assert "temperature" not in client.calls[1]
+    _run(provider)
+    assert len(client.calls) == 3
+    assert "temperature" not in client.calls[2]
+
+
+def test_non_temperature_bad_request_still_fails_loud():
+    class _OtherBadRequest(_RecordingClient):
+        def _create(self, **kwargs):
+            self.calls.append(kwargs)
+            raise _BadRequest("Error code: 400 - max_tokens exceeds the model limit.")
+
+    client = _OtherBadRequest(reject_temperature=False)
+    provider = AnthropicProvider(client=client)
+    try:
+        _run(provider)
+        raised = False
+    except _BadRequest:
+        raised = True
+    assert raised
+    assert len(client.calls) == 1
