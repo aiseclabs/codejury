@@ -61,9 +61,17 @@ def content_paths(content_root: str | Path) -> ContentPaths:
 
 @dataclass(frozen=True, kw_only=True)
 class Domain:
-    """A named review domain bound to a content root. `paths` resolves its content."""
+    """A named review domain: where its content lives plus the review strategy that is
+    data, not engine logic. `lenses` rotate the repo-review passes, `severity_floors` is
+    the firm-rule floor table as regex and level pairs, and the diff focus and do-not-report
+    blocks lead the diff prompt. The engine reads these from the selected domain rather
+    than naming any of them itself, so a new domain is the data here plus a content root."""
     name: str
     content_root: Path
+    lenses: tuple[str, ...]
+    severity_floors: tuple[tuple[str, str], ...]
+    diff_focus: str
+    diff_do_not_report: str
 
     @property
     def paths(self) -> ContentPaths:

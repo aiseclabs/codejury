@@ -1,9 +1,11 @@
-"""Standard diff-audit prompt: the security knowledge lives here, in a rich
-prompt, not in a rendered schema. The prompt names the high-value classes to
-hunt, an explicit do-not-report list to keep noise down, and asks for findings
-as a single JSON object."""
+"""Standard diff-audit prompt: the security knowledge lives in data, in a rich
+prompt, not in a rendered schema. The focus and do-not-report blocks are the
+selected domain's, the web domain's by default, naming the high-value classes to
+hunt and the noise to skip, and the prompt asks for findings as a single JSON object."""
 
 from __future__ import annotations
+
+from codejury.domains.web import WEB_DIFF_DO_NOT_REPORT, WEB_DIFF_FOCUS
 
 SYSTEM = (
     "You are a senior application security engineer reviewing a code change. You "
@@ -12,30 +14,9 @@ SYSTEM = (
     "style notes or speculation. Respond with a single JSON object and nothing else."
 )
 
-FOCUS = """\
-Hunt especially for high-impact, exploitable problems:
-- Business logic flaws: approval/state-machine bypass, skipped steps, replay of a
-  privileged action with no nonce or time window.
-- Authorization: missing or bypassable checks, IDOR (cross-user, cross-tenant, or
-  cross-service access to a resource by a user-supplied id).
-- Authentication and signatures: auth bypass, JWT verification flaws, trusting a
-  caller-supplied key as the trust anchor, unvalidated callback URLs.
-- Injection: SQL, command, code/eval, template, deserialization of untrusted data.
-- Mass assignment: a user-controlled body bound wholesale into a model.
-- Secrets and crypto: hardcoded credentials, weak or misused crypto.
-"""
-
-DO_NOT_REPORT = """\
-Do NOT report, regardless of severity:
-- Dependency or component CVEs.
-- Style, naming, or general best-practice suggestions.
-- Speculative issues you cannot tie to a concrete exploit in the code shown.
-- Risks that only matter if a production config is leaked (do not assume the code
-  shown reflects production configuration).
-For input-driven issues, flag only when untrusted input can plausibly reach the
-sink. A constant, a stored field, trusted config, or an operator-supplied CLI
-argument is not attacker-controlled.
-"""
+# the web domain's blocks, the defaults a caller overrides with the selected domain's
+FOCUS = WEB_DIFF_FOCUS
+DO_NOT_REPORT = WEB_DIFF_DO_NOT_REPORT
 
 _JSON_SHAPE = (
     '{"findings": [{"file": "path", "line": 0, "severity": "CRITICAL|HIGH|MEDIUM|LOW", '
@@ -59,7 +40,7 @@ def category_block(vulnerabilities_dir=None) -> str:
 
 
 def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", stack: str = "",
-                          vulnerabilities_dir=None) -> str:
+                          vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT) -> str:
     stack_block = f"Conventions of the target's language/framework:\n{stack}\n\n" if stack else ""
     vulnerabilities_block = f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
     context_block = (
@@ -70,7 +51,7 @@ def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str 
     )
     return (
         "Review the following code change for security vulnerabilities.\n\n"
-        f"{FOCUS}\n{DO_NOT_REPORT}\n"
+        f"{focus}\n{do_not_report}\n"
         f"{category_block(vulnerabilities_dir)}"
         f"{stack_block}"
         f"{vulnerabilities_block}"

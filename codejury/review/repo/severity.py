@@ -22,7 +22,10 @@ from __future__ import annotations
 
 import re
 
+from codejury.domains.web import WEB_SEVERITY_FLOORS
 from codejury.severity import SEVERITIES, normalize
+
+Floors = tuple[tuple[str, str], ...]
 
 LEVELS = tuple(reversed(SEVERITIES))
 _RANK = {s: i for i, s in enumerate(LEVELS)}
@@ -45,25 +48,21 @@ def median(severities: list[str]) -> str:
     return LEVELS[ordered[len(ordered) // 2]]
 
 
-def floor_for(category: str, title: str = "") -> str | None:
-    """The firm severity floor a class earns from the rubric, or None when no rule fires."""
+def floor_for(category: str, title: str = "", floors: Floors | None = None) -> str | None:
+    """The firm severity floor a class earns from the rubric, or None when no rule fires.
+    The floor table is domain data, regex and level pairs matched against the lowercased
+    category and title, first match wins. Defaults to the web domain's table."""
+    if floors is None:
+        floors = WEB_SEVERITY_FLOORS
     text = f"{category} {title}".lower()
-    if re.search(r"credential|secret|private[ _-]?key|signing[ _-]?key|bearer token|"
-                 r"api[ _-]?key|token.{0,20}(leak|logged|exposed|disclos)", text):
-        return "HIGH"
-    if re.search(r"\breplay\b|missing freshness|no (consumed )?nonce|no freshness", text):
-        return "HIGH"
-    if re.search(r"auth(entication)?[ _-]?bypass|signature forg|forge.{0,15}(signature|token|jwt)|"
-                 r"jwt forg|self.?cert", text):
-        return "HIGH"
-    if re.search(r"\bidor\b|insecure direct object|missing author|broken access|"
-                 r"cross.?(user|tenant|service).{0,20}(read|idor|access|disclos)", text):
-        return "MEDIUM"
+    for pattern, level in floors:
+        if re.search(pattern, text):
+            return level
     return None
 
 
-def calibrated(severity: str, category: str, title: str = "") -> str:
+def calibrated(severity: str, category: str, title: str = "", floors: Floors | None = None) -> str:
     """The model's severity raised to the firm-rule floor for its class, if any."""
-    floor = floor_for(category, title)
+    floor = floor_for(category, title, floors)
     base = normalize(severity)
     return higher(base, floor) if floor else base

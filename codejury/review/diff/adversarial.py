@@ -54,7 +54,7 @@ def _diff_block(diff: str, vulnerabilities: str, context: str) -> str:
 
 
 def finder_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", prior: list | None = None,
-                  vulnerabilities_dir=None) -> str:
+                  vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT) -> str:
     prior_block = ""
     if prior:
         prior_block = (
@@ -64,14 +64,14 @@ def finder_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", pr
         )
     return (
         "Find every exploitable vulnerability in this code change.\n\n"
-        f"{FOCUS}\n{DO_NOT_REPORT}\n{category_block(vulnerabilities_dir)}"
+        f"{focus}\n{do_not_report}\n{category_block(vulnerabilities_dir)}"
         f"{_diff_block(diff, vulnerabilities, context)}{prior_block}"
         'Respond with a single JSON object exactly like: {"findings": [' + _FINDING_FIELDS + "]}"
     )
 
 
 def challenger_prompt(diff: str, finder_findings: list, *, vulnerabilities: str = "", context: str = "",
-                      vulnerabilities_dir=None) -> str:
+                      vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT) -> str:
     return (
         "Two tasks on the code change below.\n"
         "1. Rebut a finding when the diff SHOWS the value is handled safely: a parameterized "
@@ -82,7 +82,7 @@ def challenger_prompt(diff: str, finder_findings: list, *, vulnerabilities: str 
         "its caller, so do not dismiss it merely because its origin is not shown. Decide on the "
         "safety the diff shows, not on guessing the input is internal.\n"
         "2. Independently scan the diff yourself and report any real issue the finder missed.\n\n"
-        f"{FOCUS}\n{DO_NOT_REPORT}\n{category_block(vulnerabilities_dir)}"
+        f"{focus}\n{do_not_report}\n{category_block(vulnerabilities_dir)}"
         f"{_diff_block(diff, vulnerabilities, context)}"
         f"Reported findings:\n{json.dumps(finder_findings, ensure_ascii=False)}\n\n"
         'Respond with a single JSON object exactly like: '
@@ -181,6 +181,8 @@ class AdversarialAuditRunner:
         challenger_model: str | None = None,
         judge_model: str | None = None,
         content: ContentPaths | None = None,
+        focus: str = FOCUS,
+        do_not_report: str = DO_NOT_REPORT,
     ) -> None:
         self._provider = provider
         self._max_tokens = max_tokens
@@ -188,6 +190,8 @@ class AdversarialAuditRunner:
         self._challenger_model = challenger_model or model
         self._judge_model = judge_model or model
         self._content = content
+        self._focus = focus
+        self._do_not_report = do_not_report
 
     def _ask(self, system: str, prompt: str, model: str) -> tuple[dict, bool]:
         """Return the parsed object and an ok flag. ok is False when the response
@@ -223,14 +227,16 @@ class AdversarialAuditRunner:
         for rounds in range(1, max_rounds + 1):
             finder, _ = self._ask(
                 FINDER_SYSTEM,
-                finder_prompt(diff, vulnerabilities=vulnerabilities, context=context, prior=prior, vulnerabilities_dir=vuln_dir),
+                finder_prompt(diff, vulnerabilities=vulnerabilities, context=context, prior=prior,
+                              vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report),
                 self._finder_model,
             )
             finder_findings = _dicts(finder.get("findings"))
 
             challenger, _ = self._ask(
                 CHALLENGER_SYSTEM,
-                challenger_prompt(diff, finder_findings, vulnerabilities=vulnerabilities, context=context, vulnerabilities_dir=vuln_dir),
+                challenger_prompt(diff, finder_findings, vulnerabilities=vulnerabilities, context=context,
+                                  vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report),
                 self._challenger_model,
             )
             rebuttals = _dicts(challenger.get("rebuttals"))

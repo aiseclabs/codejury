@@ -97,6 +97,7 @@ class Accumulator:
     errors: int = 0   # unit reviews that raised, counted not dropped, invariant 3
     failed_units: set[str] = field(default_factory=set)   # never reviewed cleanly, left open so the gate catches them
     sev_votes: dict[tuple, list[str]] = field(default_factory=dict)
+    severity_floors: tuple[tuple[str, str], ...] | None = None   # the domain's floor table, web default when None
 
     def add_pass(self, candidates: list[Candidate]) -> int:
         for c in candidates:
@@ -119,6 +120,6 @@ class Accumulator:
         was given across passes, raised to the firm-rule floor for its class."""
         out: list[Candidate] = []
         for k, c in self.pool.items():
-            sev = calibrated(median(self.sev_votes.get(k, [c.severity])), c.category, c.title)
+            sev = calibrated(median(self.sev_votes.get(k, [c.severity])), c.category, c.title, self.severity_floors)
             out.append(replace(c, severity=sev) if sev != c.severity else c)
         return out

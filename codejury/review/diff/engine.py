@@ -70,7 +70,9 @@ def audit_diff(
     True when adversarial mode fell back on an unusable judge, so the caller can
     surface a degraded audit as a failure rather than a clean pass, invariant 3."""
     degraded = False
-    content = (domain or default_domain()).paths
+    domain = domain or default_domain()
+    content = domain.paths
+    focus, do_not_report = domain.diff_focus, domain.diff_do_not_report
 
     def _run_one(d: str) -> list[Finding]:
         nonlocal degraded
@@ -78,11 +80,12 @@ def audit_diff(
             result = AdversarialAuditRunner(
                 provider=provider, model=model,
                 finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
-                content=content,
+                content=content, focus=focus, do_not_report=do_not_report,
             ).run(d, max_rounds=max_rounds)
             degraded = degraded or result.degraded
             return result.findings
-        return AuditRunner(provider=provider, model=model, content=content).run(d)
+        return AuditRunner(provider=provider, model=model, content=content,
+                           focus=focus, do_not_report=do_not_report).run(d)
 
     if len(diff) > _MAX_DIFF_CHARS:
         chunks = split_diff_by_file(diff)

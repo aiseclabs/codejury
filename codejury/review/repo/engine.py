@@ -407,7 +407,8 @@ def finalize_repo_review(
     `candidates/*.md`, dedups by location and class, adversarially verifies each survivor,
     resumable and skipping any already in `_verified.json`, drops the refuted into
     `_refuted.md`, and writes the confirmed `findings/*.md` and the ranked `findings.json`."""
-    paths = (domain or default_domain()).paths
+    domain = domain or default_domain()
+    paths = domain.paths
     source_extensions = load_detection(paths.detection_file).source_extensions
     ws = Path(workspace) / Path(target).resolve().name
     root = str(Path(target).resolve())
@@ -419,7 +420,8 @@ def finalize_repo_review(
     pool: dict = {}
     merge(pool, cands)
     deduped = [
-        replace(c, severity=calibrated(median(sev_votes.get(c.key(), [c.severity])), c.category, c.title))
+        replace(c, severity=calibrated(median(sev_votes.get(c.key(), [c.severity])), c.category, c.title,
+                                       domain.severity_floors))
         for c in collapse_colocated(list(pool.values()))
     ]
 
@@ -478,7 +480,8 @@ def run_repo_review(
 
     reviewed = set() if fresh else _reviewed_slugs(ws)
     open_units = [u for u in units if unit_slug(u.name) not in reviewed]
-    acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws)))
+    acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws)),
+                      severity_floors=domain.severity_floors)
 
     shared = (ws / "_stack.md").read_text(encoding="utf-8")
     if reviewer is None:
@@ -487,7 +490,7 @@ def run_repo_review(
         reviewer = ModelReviewer(provider=provider, model=model, content=paths)
 
     run_passes(
-        open_units, reviewer,
+        open_units, reviewer, lenses=domain.lenses,
         converge_after=converge_after, max_passes=max_passes,
         shared_context=shared, concurrency=concurrency, on_pass=on_pass,
         persist=lambda f: _save_union(ws, f), accumulator=acc,

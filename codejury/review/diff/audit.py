@@ -12,7 +12,7 @@ import re
 
 from codejury.domains.base import ContentPaths
 from codejury.finding import Finding, findings_from_list
-from codejury.review.diff.prompts import SYSTEM, standard_audit_prompt
+from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, SYSTEM, standard_audit_prompt
 from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.guides import load_guides, select_guides
 from codejury.json_parse import require_json_object
@@ -46,11 +46,13 @@ class AuditError(RuntimeError):
 
 class AuditRunner:
     def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096,
-                 content: ContentPaths | None = None) -> None:
+                 content: ContentPaths | None = None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
         self._content = content
+        self._focus = focus
+        self._do_not_report = do_not_report
 
     def run(self, diff: str, *, vulnerabilities: str = "", context: str = "") -> list[Finding]:
         vuln_dir = self._content.vulnerabilities_dir if self._content else None
@@ -63,7 +65,8 @@ class AuditRunner:
         result = self._provider.complete(
             system=SYSTEM,
             messages=[Message(role="user", content=standard_audit_prompt(
-                diff, vulnerabilities=vulnerabilities, context=context, stack=stack, vulnerabilities_dir=vuln_dir))],
+                diff, vulnerabilities=vulnerabilities, context=context, stack=stack, vulnerabilities_dir=vuln_dir,
+                focus=self._focus, do_not_report=self._do_not_report))],
             model=self._model,
             max_tokens=self._max_tokens,
         )
