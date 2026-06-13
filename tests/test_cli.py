@@ -124,8 +124,8 @@ def test_default_workspace_is_user_private(monkeypatch, tmp_path):
 
 
 def test_slash_command_does_not_pin_a_shared_workspace():
-    root = Path(__file__).resolve().parents[1]
-    assert "/var/tmp" not in (root / "codejury" / "playbook" / "slash-command.md").read_text()
+    from codejury.resources import SLASH_COMMAND_FILE
+    assert "/var/tmp" not in SLASH_COMMAND_FILE.read_text()
 
 
 def _flask_repo(root):

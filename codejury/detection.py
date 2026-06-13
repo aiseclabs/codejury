@@ -12,6 +12,7 @@ from __future__ import annotations
 import fnmatch
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
 
 import yaml
 
@@ -43,9 +44,11 @@ class Detection:
         return any(fnmatch.fnmatch(name, pat) for pat in self.test_name_patterns)
 
 
-@lru_cache(maxsize=1)
-def load_detection() -> Detection:
-    data = yaml.safe_load(DETECTION_FILE.read_text(encoding="utf-8")) or {}
+@lru_cache(maxsize=None)
+def load_detection(detection_file: Path = DETECTION_FILE) -> Detection:
+    """Load the file classification config, cached per file so each domain's
+    `detection.yaml` is read and cached independently. Defaults to the web domain."""
+    data = yaml.safe_load(Path(detection_file).read_text(encoding="utf-8")) or {}
     return Detection(
         skip_dirs=frozenset(data.get("skip_dirs", [])),
         source_extensions=frozenset(data.get("source_extensions", [])),

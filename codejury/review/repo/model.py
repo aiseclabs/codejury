@@ -14,7 +14,7 @@ import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
 
-from codejury.detection import load_detection
+from codejury.detection import Detection, load_detection
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -23,10 +23,10 @@ class RepoModel:
     files: tuple[str, ...]
 
 
-def _read_files(root: Path) -> tuple[str, ...]:
+def _read_files(root: Path, detection: Detection | None = None) -> tuple[str, ...]:
     """Relative paths of the files under root, skipping noise dirs and symlinks
     that escape the tree."""
-    skip_dirs = load_detection().skip_dirs
+    skip_dirs = (detection or load_detection()).skip_dirs
     root = root.resolve()
     out: list[str] = []
     for path in root.rglob("*"):
@@ -44,8 +44,8 @@ def _read_files(root: Path) -> tuple[str, ...]:
     return tuple(sorted(out))
 
 
-def build_repo_model_from_dir(root: str | Path) -> RepoModel:
-    return RepoModel(root=str(root), files=_read_files(Path(root)))
+def build_repo_model_from_dir(root: str | Path, detection: Detection | None = None) -> RepoModel:
+    return RepoModel(root=str(root), files=_read_files(Path(root), detection))
 
 
 def build_repo_model(root: str | Path, files) -> RepoModel:
@@ -66,14 +66,14 @@ def _read_text(path: Path) -> str:
         return ""
 
 
-def candidate_entrypoint_files(files, *, root=None, globs=(), markers=()) -> list[str]:
+def candidate_entrypoint_files(files, *, root=None, globs=(), markers=(), detection: Detection | None = None) -> list[str]:
     """Files likely to define entrypoints. A file is a candidate when its path
     matches one of `globs`, or when `root` is given and its content contains one
     of `markers` the guide declares, such as a handler class or a route
     registration. The marker scan is what recovers framework entrypoints that no
     filename glob would catch, and it stays data-driven because the markers come
     from the guide. Returns a sorted list with no duplicates."""
-    det = load_detection()
+    det = detection or load_detection()
     globs = tuple(globs)
     markers = tuple(markers)
     base = Path(root) if root is not None else None
@@ -91,12 +91,12 @@ def candidate_entrypoint_files(files, *, root=None, globs=(), markers=()) -> lis
     return sorted(dict.fromkeys(out))
 
 
-def logic_layer_files(files, *, globs=()) -> list[str]:
+def logic_layer_files(files, *, globs=(), detection: Detection | None = None) -> list[str]:
     """Non-test files whose path matches one of the downstream logic-layer globs,
     for example managers, controllers, dao, or services. These are not entrypoints
     but the call targets to trace into from an entrypoint, so a review does not
     stop at the view. Returns a sorted list with no duplicates."""
-    det = load_detection()
+    det = detection or load_detection()
     globs = tuple(globs)
     out = {f for f in files if not det.is_test_path(f) and any(fnmatch.fnmatch(f, g) for g in globs)}
     return sorted(out)

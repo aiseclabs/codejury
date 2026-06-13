@@ -15,23 +15,19 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from codejury.detection import load_detection
+from codejury.detection import Detection, load_detection
+from codejury.domains.base import Domain
+from codejury.domains.registry import default_domain
 from codejury.guides import (
     Guide,
     entrypoint_globs,
     entrypoint_markers,
+    load_guides,
     logic_layer_globs,
     select_guides,
 )
 from codejury.markdown_docs import iter_md_docs
 from codejury.review.repo.model import build_repo_model_from_dir, candidate_entrypoint_files, logic_layer_files
-from codejury.resources import (
-    FALSE_POSITIVE_TRAPS_FILE,
-    METHODOLOGY_FILE,
-    SEVERITY_RUBRIC_FILE,
-    UNIT_REVIEW_FILE,
-    VULNERABILITIES_DIR,
-)
 
 _DETECT_PER_FILE = 16_000
 _DETECT_TOTAL = 8_000_000
@@ -55,9 +51,9 @@ class ScaffoldResult:
     cleared: list[str] = field(default_factory=list)
 
 
-def _read_manifests(target: Path) -> str:
+def _read_manifests(target: Path, detection: Detection) -> str:
     parts: list[str] = []
-    for name in load_detection().manifests:
+    for name in detection.manifests:
         p = target / name
         try:
             if p.is_file():
@@ -67,12 +63,12 @@ def _read_manifests(target: Path) -> str:
     return "\n".join(parts)
 
 
-def _source_sample(target: Path, files: list[str]) -> str:
+def _source_sample(target: Path, files: list[str], detection: Detection) -> str:
     """A bounded sample of source and config content, so detection can fire on
     import markers and language-neutral content tokens such as a protocol's wire
     fields. Kept separate from the manifests so a dependency name does not
     false-match a word in source."""
-    detection_extensions = load_detection().detection_extensions
+    detection_extensions = detection.detection_extensions
     parts: list[str] = []
     total = 0
     for f in files:
@@ -227,19 +223,22 @@ def _refuse_legacy_layout(ws: Path) -> None:
         )
 
 
-def _vulnerabilities_md() -> str:
+def _vulnerabilities_md(vulnerabilities_dir: Path) -> str:
     """Concatenate the shipped vulnerability class definitions into one seeded file, so the
     workspace carries the knowledge the methodology has each unit apply, rather than the
     agent working from memory. Same shape as the seeded stack notes."""
     parts = ["# Vulnerability Classes", "",
              "The shipped class definitions, each with vulnerable and secure examples. A unit "
              "applies the relevant ones to the code it reads, not from memory.", ""]
-    for _path, _meta, body in iter_md_docs(VULNERABILITIES_DIR):
+    for _path, _meta, body in iter_md_docs(vulnerabilities_dir):
         parts += ["---", "", body, ""]
     return "\n".join(parts) + "\n"
 
 
-def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) -> ScaffoldResult:
+def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
+             domain: Domain | None = None) -> ScaffoldResult:
+    paths = (domain or default_domain()).paths
+    detection = load_detection(paths.detection_file)
     target = Path(target).resolve()
     project = target.name
     ws = Path(workspace) / project
@@ -262,19 +261,20 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
             d.mkdir(parents=True, exist_ok=True, mode=0o700)
             created.append(str(d))
 
-    model = build_repo_model_from_dir(target)
+    model = build_repo_model_from_dir(target, detection)
     guides = select_guides(
         model.files,
-        manifest_text=_read_manifests(target),
-        source_text=_source_sample(target, model.files),
+        manifest_text=_read_manifests(target, detection),
+        source_text=_source_sample(target, model.files, detection),
+        guides=load_guides(paths.languages_dir, paths.frameworks_dir, paths.protocols_dir),
     )
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
 
     candidates = candidate_entrypoint_files(
         model.files, root=target,
-        globs=entrypoint_globs(guides), markers=entrypoint_markers(guides),
+        globs=entrypoint_globs(guides), markers=entrypoint_markers(guides), detection=detection,
     )
-    layers = logic_layer_files(model.files, globs=logic_layer_globs(guides))
+    layers = logic_layer_files(model.files, globs=logic_layer_globs(guides), detection=detection)
     (ws / "inventory" / "_entrypoints.md").write_text(_entrypoints_md(candidates, layers), encoding="utf-8")
 
     # generate the deterministic unit worklist: one unit per candidate entrypoint,
@@ -282,7 +282,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
     # the depth mandate. The agent fans out one sub-review per unit, it does not
     # decide the units, whether to fan out, or how deep to go. Never clobber a unit
     # an earlier run already wrote.
-    mandate = UNIT_REVIEW_FILE.read_text(encoding="utf-8")
+    mandate = paths.unit_review_file.read_text(encoding="utf-8")
     for cand in candidates:
         up = ws / "units" / f"{unit_slug(cand)}.md"
         if not up.exists():
@@ -299,18 +299,18 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False) 
 
     sev = ws / "inventory" / "_severity.md"
     if not sev.exists():
-        sev.write_text(SEVERITY_RUBRIC_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+        sev.write_text(paths.severity_rubric_file.read_text(encoding="utf-8"), encoding="utf-8")
         created.append(str(sev))
 
     (ws / "_false_positive_traps.md").write_text(
-        FALSE_POSITIVE_TRAPS_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+        paths.false_positive_traps_file.read_text(encoding="utf-8"), encoding="utf-8")
 
-    (ws / "_vulnerabilities.md").write_text(_vulnerabilities_md(), encoding="utf-8")
+    (ws / "_vulnerabilities.md").write_text(_vulnerabilities_md(paths.vulnerabilities_dir), encoding="utf-8")
 
     return ScaffoldResult(
         project=project,
         workspace=ws,
-        methodology=METHODOLOGY_FILE.read_text(encoding="utf-8"),
+        methodology=paths.methodology_file.read_text(encoding="utf-8"),
         candidate_files=tuple(candidates),
         trace_targets=tuple(layers),
         guides=tuple(g.id for g in guides),

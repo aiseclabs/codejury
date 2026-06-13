@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import dataclasses
 
+from codejury.domains.base import Domain
+from codejury.domains.registry import default_domain
 from codejury.review.diff.adversarial import AdversarialAuditRunner
 from codejury.review.diff.audit import AuditRunner
 from codejury.review.diff.filter import FindingsFilter
@@ -57,6 +59,7 @@ def audit_diff(
     challenger_model: str | None = None,
     judge_model: str | None = None,
     exclude_paths: tuple[str, ...] = (),
+    domain: Domain | None = None,
 ) -> tuple[list[Finding], list[tuple[Finding, str]], bool]:
     """Audit a diff and return the kept findings, the dropped finding-reason pairs, and
     a degraded flag.
@@ -67,6 +70,7 @@ def audit_diff(
     True when adversarial mode fell back on an unusable judge, so the caller can
     surface a degraded audit as a failure rather than a clean pass, invariant 3."""
     degraded = False
+    content = (domain or default_domain()).paths
 
     def _run_one(d: str) -> list[Finding]:
         nonlocal degraded
@@ -74,10 +78,11 @@ def audit_diff(
             result = AdversarialAuditRunner(
                 provider=provider, model=model,
                 finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
+                content=content,
             ).run(d, max_rounds=max_rounds)
             degraded = degraded or result.degraded
             return result.findings
-        return AuditRunner(provider=provider, model=model).run(d)
+        return AuditRunner(provider=provider, model=model, content=content).run(d)
 
     if len(diff) > _MAX_DIFF_CHARS:
         chunks = split_diff_by_file(diff)
@@ -85,7 +90,7 @@ def audit_diff(
     else:
         findings = _run_one(diff)
 
-    allowed = set(allowed_categories())
+    allowed = set(allowed_categories(content.vulnerabilities_dir))
     findings = [dataclasses.replace(f, category=normalize_category(f.category, allowed)) for f in findings]
     if filter_findings:
         kept, dropped = FindingsFilter(exclude_paths=exclude_paths).filter(findings)

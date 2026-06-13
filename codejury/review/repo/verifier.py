@@ -27,6 +27,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
+from codejury.domains.base import ContentPaths
 from codejury.json_parse import optional_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE
@@ -92,11 +93,13 @@ def _read_file(root: str, rel: str) -> str:
 class ModelVerifier(Verifier):
     """Default skeptic: one grounded model call that tries to refute the candidate."""
 
-    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 2048) -> None:
+    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 2048,
+                 content: ContentPaths | None = None) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
-        self._traps = FALSE_POSITIVE_TRAPS_FILE.read_text(encoding="utf-8")
+        traps_file = content.false_positive_traps_file if content else FALSE_POSITIVE_TRAPS_FILE
+        self._traps = traps_file.read_text(encoding="utf-8")
 
     def verify(self, candidate: Candidate, root: str) -> Verdict:
         code = _read_file(root, candidate.file)

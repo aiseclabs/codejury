@@ -44,11 +44,12 @@ _JSON_SHAPE = (
 )
 
 
-def category_block() -> str:
-    """The closed category set the model must choose from, the vulnerability ids."""
+def category_block(vulnerabilities_dir=None) -> str:
+    """The closed category set the model must choose from, the vulnerability ids.
+    Reads the domain's vulnerability classes, defaulting to the web domain."""
     from codejury.review.diff.vulnerabilities import allowed_categories
 
-    cats = allowed_categories()
+    cats = allowed_categories() if vulnerabilities_dir is None else allowed_categories(vulnerabilities_dir)
     return (
         "Each finding's `category` must be exactly one of these ids "
         "(use `other` only if none fit):\n" + ", ".join(cats) + "\n\n"
@@ -57,7 +58,8 @@ def category_block() -> str:
     )
 
 
-def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", stack: str = "") -> str:
+def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", stack: str = "",
+                          vulnerabilities_dir=None) -> str:
     stack_block = f"Conventions of the target's language/framework:\n{stack}\n\n" if stack else ""
     vulnerabilities_block = f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
     context_block = (
@@ -69,7 +71,7 @@ def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str 
     return (
         "Review the following code change for security vulnerabilities.\n\n"
         f"{FOCUS}\n{DO_NOT_REPORT}\n"
-        f"{category_block()}"
+        f"{category_block(vulnerabilities_dir)}"
         f"{stack_block}"
         f"{vulnerabilities_block}"
         f"Code change (unified diff):\n```diff\n{diff}\n```\n\n"

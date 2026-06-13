@@ -23,6 +23,7 @@ import subprocess
 import time
 from typing import Callable
 
+from codejury.domains.base import ContentPaths
 from codejury.json_parse import optional_json_object, require_json_object
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE, SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.reviewer import (
@@ -142,10 +143,12 @@ class _ClaudeBackend:
 class AgentReviewer(_ClaudeBackend, UnitReviewer):
     """Per-unit review as a headless Claude Code agent that reads the files itself."""
 
-    def __init__(self, **kw) -> None:
+    def __init__(self, *, content: ContentPaths | None = None, **kw) -> None:
         super().__init__(**kw)
-        self._mandate = UNIT_REVIEW_FILE.read_text(encoding="utf-8")
-        self._rubric = SEVERITY_RUBRIC_FILE.read_text(encoding="utf-8")
+        mandate_file = content.unit_review_file if content else UNIT_REVIEW_FILE
+        rubric_file = content.severity_rubric_file if content else SEVERITY_RUBRIC_FILE
+        self._mandate = mandate_file.read_text(encoding="utf-8")
+        self._rubric = rubric_file.read_text(encoding="utf-8")
 
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
         files = "\n".join(f"- {f}" for f in unit.files)
@@ -170,9 +173,10 @@ _VERIFY_SHAPE = '{"real": true, "reason": "the controlling fact at file:line"}'
 class AgentVerifier(_ClaudeBackend, Verifier):
     """Per-candidate refutation as a headless Claude Code agent that reads the code."""
 
-    def __init__(self, **kw) -> None:
+    def __init__(self, *, content: ContentPaths | None = None, **kw) -> None:
         super().__init__(**kw)
-        self._traps = FALSE_POSITIVE_TRAPS_FILE.read_text(encoding="utf-8")
+        traps_file = content.false_positive_traps_file if content else FALSE_POSITIVE_TRAPS_FILE
+        self._traps = traps_file.read_text(encoding="utf-8")
 
     def verify(self, candidate: Candidate, root: str) -> Verdict:
         prompt = (

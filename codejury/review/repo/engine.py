@@ -20,6 +20,8 @@ from functools import lru_cache
 from pathlib import Path
 
 from codejury.detection import load_detection
+from codejury.domains.base import ContentPaths, Domain
+from codejury.domains.registry import default_domain
 from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
@@ -304,6 +306,7 @@ def apply_verification(
     votes: int,
     concurrency: int,
     fresh: bool,
+    content: ContentPaths | None = None,
 ) -> tuple[list[Candidate], VerifyResult]:
     """Adversarially verify a finding list, resumable via `_verified.json`, and record
     the refuted. The single home for the verify step the coded run and the finalize pass
@@ -314,7 +317,7 @@ def apply_verification(
     if verifier is None:
         if provider is None:
             raise ValueError("verification needs a provider, or an injected verifier")
-        verifier = ModelVerifier(provider=provider, model=model)
+        verifier = ModelVerifier(provider=provider, model=model, content=content)
     verified = {} if fresh else _load_verified(ws)
     to_verify = [c for c in findings if _keystr(c) not in verified]
     new_vr = verify_findings(to_verify, verifier, root, votes=votes, concurrency=concurrency)
@@ -335,19 +338,23 @@ def _md_field(text: str, key: str) -> str:
     return v.strip("`").strip() if v is not None else ""
 
 
-@lru_cache(maxsize=1)
-def _location_re() -> re.Pattern:
+@lru_cache(maxsize=None)
+def _location_re(source_extensions: frozenset[str]) -> re.Pattern:
     """The location matcher, built from the data-driven source extensions so no
     language is named in code. Extensions are sorted longest first so a path like
-    `app.tsx` matches the `tsx` alternative, not the `ts` prefix of it."""
-    exts = sorted((e.lstrip(".") for e in load_detection().source_extensions), key=len, reverse=True)
+    `app.tsx` matches the `tsx` alternative, not the `ts` prefix of it. Cached per
+    extension set so each domain's matcher is built once."""
+    exts = sorted((e.lstrip(".") for e in source_extensions), key=len, reverse=True)
     alt = "|".join(re.escape(e) for e in exts)
     return re.compile(rf"([\w./-]+\.(?:{alt}))(?::(\d+))?")
 
 
-def _parse_candidate(path: Path) -> Candidate | None:
+def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None) -> Candidate | None:
     """Parse an agent-written candidates/<name>.md into a Candidate for coded dedup and
-    verification, so those steps do not depend on the agent's prose."""
+    verification, so those steps do not depend on the agent's prose. The source
+    extensions decide what counts as a file location, defaulting to the web domain."""
+    if source_extensions is None:
+        source_extensions = load_detection().source_extensions
     try:
         text = path.read_text(encoding="utf-8")
     except OSError:
@@ -355,7 +362,7 @@ def _parse_candidate(path: Path) -> Candidate | None:
     title = next((ln[2:].strip() for ln in text.splitlines() if ln.startswith("# ")), path.stem)
     sev_raw = _md_field(text, "(?:risk|severity)").upper()
     severity = next((s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if s in sev_raw), "MEDIUM")
-    fm = _location_re().search(text)
+    fm = _location_re(source_extensions).search(text)
     if fm is None or is_unsafe_rel(fm.group(1)):
         # invariant 2: with no file location the issue is not reportable. An absolute or
         # parent-traversing path is not a location inside the repo, a tampered or
@@ -392,6 +399,7 @@ def finalize_repo_review(
     verify: bool = True,
     votes: int = 1,
     concurrency: int = 6,
+    domain: Domain | None = None,
 ) -> FinalizeResult:
     """The coded post-fan-out pipeline: dedup, verify, report over the agent's candidates.
 
@@ -399,10 +407,12 @@ def finalize_repo_review(
     `candidates/*.md`, dedups by location and class, adversarially verifies each survivor,
     resumable and skipping any already in `_verified.json`, drops the refuted into
     `_refuted.md`, and writes the confirmed `findings/*.md` and the ranked `findings.json`."""
+    paths = (domain or default_domain()).paths
+    source_extensions = load_detection(paths.detection_file).source_extensions
     ws = Path(workspace) / Path(target).resolve().name
     root = str(Path(target).resolve())
 
-    cands = [c for c in (_parse_candidate(p) for p in sorted((ws / "candidates").glob("*.md"))) if c]
+    cands = [c for c in (_parse_candidate(p, source_extensions) for p in sorted((ws / "candidates").glob("*.md"))) if c]
     sev_votes: dict = {}
     for c in cands:
         sev_votes.setdefault(c.key(), []).append(c.severity)
@@ -417,7 +427,7 @@ def finalize_repo_review(
     if verify and deduped:
         deduped, vr = apply_verification(
             ws, deduped, root=root, verifier=verifier, provider=provider, model=model,
-            votes=votes, concurrency=concurrency, fresh=False,
+            votes=votes, concurrency=concurrency, fresh=False, content=paths,
         )
 
     _write_findings(ws, deduped)
@@ -448,9 +458,12 @@ def run_repo_review(
     concurrency: int = 6,
     fresh: bool = False,
     on_pass=None,
+    domain: Domain | None = None,
 ) -> RunResult:
+    domain = domain or default_domain()
+    paths = domain.paths
     root = str(Path(target).resolve())
-    res = scaffold(target, workspace, fresh=fresh)
+    res = scaffold(target, workspace, fresh=fresh, domain=domain)
     ws = res.workspace
     units = build_units(root, res.candidate_files, res.trace_targets)
     if not units:
@@ -471,7 +484,7 @@ def run_repo_review(
     if reviewer is None:
         if provider is None:
             raise ValueError("run_repo_review needs a provider, or an injected reviewer")
-        reviewer = ModelReviewer(provider=provider, model=model)
+        reviewer = ModelReviewer(provider=provider, model=model, content=paths)
 
     run_passes(
         open_units, reviewer,
@@ -488,7 +501,7 @@ def run_repo_review(
     if verify:
         findings, vr = apply_verification(
             ws, findings, root=root, verifier=verifier, provider=provider, model=model,
-            votes=votes, concurrency=concurrency, fresh=fresh,
+            votes=votes, concurrency=concurrency, fresh=fresh, content=paths,
         )
 
     _write_surface(ws, units, acc.failed_units)

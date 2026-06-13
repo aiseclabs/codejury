@@ -18,6 +18,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from codejury.domains.base import ContentPaths
 from codejury.json_parse import require_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
@@ -122,12 +123,15 @@ _SYSTEM = (
 class ModelReviewer(UnitReviewer):
     """Default reviewer: one grounded model call per unit per pass."""
 
-    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096) -> None:
+    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096,
+                 content: ContentPaths | None = None) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
-        self._mandate = UNIT_REVIEW_FILE.read_text(encoding="utf-8")
-        self._rubric = SEVERITY_RUBRIC_FILE.read_text(encoding="utf-8")
+        mandate_file = content.unit_review_file if content else UNIT_REVIEW_FILE
+        rubric_file = content.severity_rubric_file if content else SEVERITY_RUBRIC_FILE
+        self._mandate = mandate_file.read_text(encoding="utf-8")
+        self._rubric = rubric_file.read_text(encoding="utf-8")
 
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
         prompt = (

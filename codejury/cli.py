@@ -20,7 +20,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import re
+
 from codejury import __version__
+from codejury.domains.registry import available_domains, get_domain, resolve_domain
 from codejury.report import gate, render
 from codejury.review.diff.engine import audit_diff
 from codejury.providers.factory import (
@@ -38,6 +41,32 @@ from codejury.review.repo.scaffold import scaffold
 
 _FORMATS = ("text", "markdown", "json", "sarif")
 _FAIL_ON = ("critical", "high", "medium", "low")
+
+_DOMAIN_HELP = (
+    "review domain to use: 'auto' detects from the target's files, or name one of: "
+    + ", ".join(available_domains())
+)
+_DOMAIN_PRUNE = {".git", ".venv", "venv", "node_modules", "__pycache__", "build", "dist", "target", "out"}
+
+
+def _add_domain_arg(p) -> None:
+    p.add_argument("--domain", default="auto", metavar="DOMAIN", help=_DOMAIN_HELP)
+
+
+def _repo_file_names(directory: str) -> list[str]:
+    """File names under the target, for domain detection only. Names carry the
+    extensions the heuristic counts, so the walk reads no file content and prunes the
+    usual heavy directories to stay fast on a large repo."""
+    names: list[str] = []
+    for _root, dirs, files in os.walk(directory):
+        dirs[:] = [d for d in dirs if d not in _DOMAIN_PRUNE]
+        names.extend(files)
+    return names
+
+
+def _diff_paths(diff: str) -> list[str]:
+    """The changed file paths named in a unified diff, for domain detection."""
+    return re.findall(r"(?:\+\+\+ b/|diff --git a/\S+ b/)(\S+)", diff)
 
 
 def _default_workspace() -> str:
@@ -97,6 +126,7 @@ def _add_audit_args(p) -> None:
     p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     p.add_argument("--no-filter", action="store_true", help="skip the false-positive filter")
     p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on")
+    _add_domain_arg(p)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -145,6 +175,7 @@ def main(argv: list[str] | None = None) -> int:
                       help="run only: 'model' calls the provider once per unit, 'claude-cli' runs "
                            "each unit and verification as a headless `claude -p` agent that reads "
                            "files itself, using your Claude Code access, no provider key")
+    _add_domain_arg(repo)
 
     inst = sub.add_parser("install-slash-command",
                           help="install the /codejury-review-repo slash command for an agent")
@@ -153,6 +184,8 @@ def main(argv: list[str] | None = None) -> int:
     inst.add_argument("--dir", default=None, help="explicit target directory, overrides --agent")
     inst.add_argument("--force", action="store_true",
                       help="overwrite an existing codejury-review-repo.md at the destination")
+    inst.add_argument("--domain", default="web", metavar="DOMAIN",
+                      help="which domain's slash command to install, one of: " + ", ".join(available_domains()))
 
     args = parser.parse_args(argv)
     try:
@@ -174,11 +207,12 @@ def _dispatch(args, parser) -> int:
             provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
             model = args.model
             diff = _read_diff(args)
+        domain = resolve_domain(args.domain, _diff_paths(diff))
         kept, _, degraded = audit_diff(
             diff, provider=provider, model=model,
             mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
             finder_model=args.finder_model, challenger_model=args.challenger_model, judge_model=args.judge_model,
-            exclude_paths=tuple(args.exclude or ()),
+            exclude_paths=tuple(args.exclude or ()), domain=domain,
         )
         print(render(args.fmt, kept))
         if degraded:
@@ -204,9 +238,10 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo" and args.finalize:
         from codejury.review.repo.engine import finalize_repo_review
+        domain = resolve_domain(args.domain, _repo_file_names(args.directory))
         if args.reviewer == "claude-cli":
             from codejury.review.repo.agent import AgentVerifier
-            verifier_obj, provider = AgentVerifier(), None
+            verifier_obj, provider = AgentVerifier(content=domain.paths), None
         elif args.dry_run:
             verifier_obj, provider = None, MockProvider(default='{"real": true, "reason": "[mock]"}')
             args.model = "mock"
@@ -217,6 +252,7 @@ def _dispatch(args, parser) -> int:
         fr = finalize_repo_review(
             args.directory, args.workspace, verifier=verifier_obj, provider=provider,
             model=args.model, verify=args.verify, votes=args.votes, concurrency=args.concurrency,
+            domain=domain,
         )
         kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
         refuted = len(fr.verify.refuted) if fr.verify else 0
@@ -231,10 +267,12 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo" and args.run:
         from codejury.review.repo.engine import run_repo_review
+        domain = resolve_domain(args.domain, _repo_file_names(args.directory))
         reviewer_obj = verifier_obj = None
         if args.reviewer == "claude-cli":
             from codejury.review.repo.agent import AgentReviewer, AgentVerifier
-            reviewer_obj, verifier_obj = AgentReviewer(), AgentVerifier()
+            reviewer_obj = AgentReviewer(content=domain.paths)
+            verifier_obj = AgentVerifier(content=domain.paths)
             provider = None
         elif args.dry_run:
             provider = MockProvider(default=_REPO_MOCK_REPLY)
@@ -252,6 +290,7 @@ def _dispatch(args, parser) -> int:
             verify=args.verify, votes=args.votes,
             max_passes=args.max_passes, converge_after=args.converge_after,
             concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
+            domain=domain,
         )
         acc = res.accumulator
         reported = res.verify.confirmed if res.verify else acc.findings
@@ -273,7 +312,8 @@ def _dispatch(args, parser) -> int:
         return 1 if failures else 0   # fail loud: a partial run must not exit clean, invariant 3
 
     if args.command == "review" and scope == "repo":
-        res = scaffold(args.directory, args.workspace, fresh=args.fresh)
+        domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+        res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain)
         (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
         if res.cleared:
             print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}", file=sys.stderr)
@@ -296,7 +336,7 @@ def _dispatch(args, parser) -> int:
         return 0
 
     if args.command == "install-slash-command":
-        from codejury.resources import SLASH_COMMAND_FILE
+        slash_command_file = get_domain(args.domain).paths.slash_command_file
         agent_dirs = {
             "claude": Path.home() / ".claude" / "commands",
             "codex": Path.home() / ".codex" / "prompts",
@@ -307,7 +347,7 @@ def _dispatch(args, parser) -> int:
             print(f"{dst} already exists. Re-run with --force to overwrite it.", file=sys.stderr)
             return 1
         target_dir.mkdir(parents=True, exist_ok=True)
-        dst.write_text(SLASH_COMMAND_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+        dst.write_text(slash_command_file.read_text(encoding="utf-8"), encoding="utf-8")
         print(f"Installed slash command to {dst}")
         print("Run it in the agent with: /codejury-review-repo <repository>")
         return 0
