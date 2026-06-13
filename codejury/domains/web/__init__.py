@@ -23,8 +23,7 @@ WEB_LENSES = (
     "",
 )
 
-# the firm severity floor table as regex and level pairs, matched against the lowercased
-# category and title, first match wins. The floor only ever raises a model-graded severity.
+# the firm-rule severity floor table, regex and level pairs, floor_for matches it
 WEB_SEVERITY_FLOORS = (
     (r"credential|secret|private[ _-]?key|signing[ _-]?key|bearer token|"
      r"api[ _-]?key|token.{0,20}(leak|logged|exposed|disclos)", "HIGH"),

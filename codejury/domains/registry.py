@@ -12,9 +12,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from codejury.domains.base import Domain
+from codejury.domains.evm import EVM
 from codejury.domains.web import WEB
 
-_DOMAINS: dict[str, Domain] = {WEB.name: WEB}
+_DOMAINS: dict[str, Domain] = {WEB.name: WEB, EVM.name: EVM}
 
 # the single source of the default domain, so the engine and loaders resolve a missing
 # domain here instead of each naming one in its own defaults.

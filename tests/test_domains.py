@@ -4,6 +4,7 @@ an unavailable domain fails loud rather than silently falling back."""
 import pytest
 
 from codejury.domains.base import Domain, content_paths
+from codejury.domains.evm import EVM
 from codejury.domains.registry import detect_domain, get_domain, resolve_domain
 from codejury.domains.web import WEB
 
@@ -25,10 +26,9 @@ def test_content_paths_layout_follows_the_root():
     assert str(paths.unit_review_file) == "/srv/x/playbook/unit-review.md"
 
 
-def test_get_domain_returns_web_and_fails_loud_on_unknown():
+def test_get_domain_returns_registered_and_fails_loud_on_unknown():
     assert get_domain("web") is WEB
-    with pytest.raises(ValueError):
-        get_domain("evm")
+    assert get_domain("evm") is EVM
     with pytest.raises(ValueError):
         get_domain("nonsense")
 
@@ -43,6 +43,17 @@ def test_detect_domain_names_evm_for_solidity_web_otherwise():
 def test_resolve_domain_auto_detects_then_looks_up():
     assert resolve_domain("auto", ["a.py"]) is WEB
     assert resolve_domain("web", []) is WEB
-    # auto can name a domain whose knowledge set does not ship yet, then the lookup fails loud
-    with pytest.raises(ValueError):
-        resolve_domain("auto", ["Vault.sol", "Token.sol"])
+    assert resolve_domain("auto", ["Vault.sol", "Token.sol"]) is EVM
+    assert resolve_domain("evm", []) is EVM
+
+
+def test_evm_domain_resolves_shipped_content_and_strategy():
+    paths = EVM.paths
+    assert (paths.languages_dir / "solidity.md").is_file()
+    assert (paths.vulnerabilities_dir / "reentrancy.md").is_file()
+    assert paths.detection_file.is_file()
+    assert paths.methodology_file.is_file()
+    # the evm review strategy is data on the domain, distinct from web
+    assert "reentrancy" in EVM.lenses
+    assert EVM.severity_floors and EVM.lenses != WEB.lenses
+    assert "reentrancy" in EVM.diff_focus.lower()
