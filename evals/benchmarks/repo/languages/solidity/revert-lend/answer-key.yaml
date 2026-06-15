@@ -1,0 +1,89 @@
+target: revert-lend
+
+# Ground truth from the Code4rena report at https://code4rena.com/reports/2024-03-revert-lend
+# cross checked against the audited source at commit 435b054f. The oracle class has four
+# reported issues in V3Oracle.sol, H-05 plus M-07, M-19, M-27, which collapse to one planted
+# entry, since the repo scorer matches an EVM finding by class and file. H-01 signature replay
+# in V3Vault.sol is real but not planted here, the EURF target already covers that class.
+
+planted:
+  - id: vault-onerc721-reentrancy
+    category: reentrancy
+    file: src/V3Vault.sol
+    severity: HIGH
+    note: >-
+      C4 H-02. _cleanupLoan runs the position NFT safeTransferFrom before
+      _updateAndCheckCollateral, so the receiver re-enters through onERC721Received mid update
+      and corrupts collateral share accounting.
+    knowledge:
+      vulnerabilities:
+        - reentrancy
+      guides:
+        - languages/solidity
+
+  - id: oracle-reference-price-wrong
+    category: oracle-price-manipulation
+    file: src/V3Oracle.sol
+    severity: HIGH
+    note: >-
+      C4 H-05 plus M-07, M-19, M-27. _getReferencePoolPriceX96 does not round the TWAP tick
+      delta toward negative infinity, so a negative delta yields a wrong reference price, and
+      the oracle path also lacks decimals overflow guards, manipulation resistance, and an L2
+      sequencer uptime check.
+    knowledge:
+      vulnerabilities:
+        - oracle-price-manipulation
+      guides:
+        - languages/solidity
+
+  - id: v3utils-missing-caller-check
+    category: access-control
+    file: src/transformers/V3Utils.sol
+    severity: HIGH
+    note: >-
+      C4 H-04. V3Utils.execute does not validate the caller, so anyone can operate on a
+      position the contract is approved for and drain it.
+    knowledge:
+      vulnerabilities:
+        - access-control
+      guides:
+        - languages/solidity
+
+  - id: liquidation-blocked-via-callback
+    category: denial-of-service
+    file: src/V3Vault.sol
+    severity: HIGH
+    note: >-
+      C4 H-06. The position owner reverts inside onERC721Received during _cleanupLoan, so the
+      transfer fails and liquidation can be blocked indefinitely. Distinct from the reentrancy
+      issue in the same file, the scorer tells them apart by class.
+    knowledge:
+      vulnerabilities:
+        - denial-of-service
+      guides:
+        - languages/solidity
+
+safe:
+  - id: swapper-external-swap-call
+    category: unchecked-low-level-call
+    file: src/utils/Swapper.sol
+    note: >-
+      Swapper makes raw external swap calls that resemble an unchecked low level call, but the
+      report lists no unchecked call finding here. A report of one is a false positive.
+    knowledge:
+      vulnerabilities:
+        - unchecked-low-level-call
+      guides:
+        - languages/solidity
+
+  - id: interest-rate-math
+    category: accounting-precision
+    file: src/InterestRateModel.sol
+    note: >-
+      InterestRateModel does precision sensitive rate math that resembles an accounting bug,
+      but the report lists no accounting finding here. A report of one is a false positive.
+    knowledge:
+      vulnerabilities:
+        - accounting-precision
+      guides:
+        - languages/solidity
