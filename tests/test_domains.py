@@ -59,20 +59,20 @@ def test_evm_domain_resolves_shipped_content_and_strategy():
     assert "reentrancy" in EVM.diff_focus.lower()
 
 
-def test_evm_facts_backend_fails_loud_without_slither():
+def test_evm_facts_backend_fails_loud_without_slither(monkeypatch):
     from codejury.domains.base import BackendUnavailable, FactsBackend
     from codejury.domains.evm.facts.slither import SlitherFacts
 
     backend = SlitherFacts()
     assert isinstance(backend, FactsBackend)
-    if backend.available():
-        pytest.skip("slither is installed, the missing-tool path does not apply")
-    # a missing toolchain is a loud failure, never empty facts that read as a clean review
+    # force the missing-tool path so it runs whether or not slither is installed: a missing
+    # toolchain is a loud failure, never empty facts that read as a clean review
+    monkeypatch.setattr(backend, "available", lambda: False)
     with pytest.raises(BackendUnavailable):
         backend.extract(".")
 
 
-def test_evm_poc_verifier_fails_loud_without_forge():
+def test_evm_poc_verifier_fails_loud_without_forge(monkeypatch):
     from codejury.domains.base import BackendUnavailable
     from codejury.domains.evm.poc import ForgePoC
     from codejury.review.repo.union import Candidate
@@ -80,10 +80,50 @@ def test_evm_poc_verifier_fails_loud_without_forge():
 
     poc = ForgePoC()
     assert isinstance(poc, Verifier)
-    if poc.available():
-        pytest.skip("forge is installed, the missing-tool path does not apply")
+    monkeypatch.setattr(poc, "available", lambda: False)
     with pytest.raises(BackendUnavailable):
         poc.verify(Candidate(title="x"), ".")
+
+
+_REENTRANT_VAULT = """\
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+contract Vault {
+    mapping(address => uint256) public balances;
+    function deposit() external payable { balances[msg.sender] += msg.value; }
+    function _check(uint256 a) internal view returns (bool) { return balances[msg.sender] >= a; }
+    function withdraw(uint256 amount) external {
+        require(_check(amount), "insufficient");
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "transfer failed");
+        balances[msg.sender] -= amount;
+    }
+}
+"""
+
+
+def test_slither_facts_extract_grounds_a_real_contract(tmp_path):
+    from shutil import which
+
+    from codejury.domains.evm.facts.slither import SlitherFacts
+
+    backend = SlitherFacts()
+    if not backend.available() or which("solc") is None:
+        pytest.skip("slither or solc not installed, the extraction path needs both")
+    sol = tmp_path / "Vault.sol"
+    sol.write_text(_REENTRANT_VAULT, encoding="utf-8")
+
+    facts = backend.extract(sol)
+    assert not facts.empty
+    vault = facts.data["contracts"]["Vault"]
+    assert "balances" in {v["name"] for v in vault["state"]}
+    withdraw = vault["functions"]["withdraw(uint256)"]
+    assert withdraw["visibility"] == "external"
+    assert "balances" in withdraw["writes"]
+    # the external call and the internal callee are the facts that ground a reentrancy read
+    assert withdraw["external_call"] and withdraw["sends_eth"]
+    assert "_check(uint256)" in withdraw["calls"]
+    assert "ext-call" in facts.summary
 
 
 def test_importing_the_evm_domain_does_not_pull_the_tool_backends():
