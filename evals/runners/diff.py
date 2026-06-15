@@ -9,6 +9,7 @@ taxonomy, see diff_cases.py for the loader, so adding one is a data change.
 
 from __future__ import annotations
 
+from codejury.domains.registry import get_domain
 from codejury.review.diff.engine import audit_diff
 from evals.diff_cases import DiffCase, default_cases, load_cases
 from evals.results import Result
@@ -18,12 +19,17 @@ __all__ = ["DiffCase", "default_cases", "load_cases", "run_diff_cases"]
 
 def run_diff_cases(cases: list[DiffCase], *, provider, model: str, mode: str = "standard") -> Result:
     """Run every case through audit_diff and fold into a Result. A positive is found when
-    the audit returns any finding, a safe case is a false positive when it does. An
-    unusable model reply is counted as an error, not silently a clean pass, invariant 3."""
+    the audit returns any finding, a safe case is a false positive when it does. Each case
+    runs under its own domain, so a Solidity case scores against the evm knowledge and
+    prompt rather than the web default. An unusable model reply is counted as an error, not
+    silently a clean pass, invariant 3."""
     res = Result(target="diff", n_planted=sum(1 for c in cases if c.is_positive))
     for c in cases:
         try:
-            kept, _dropped, degraded = audit_diff(c.diff, provider=provider, model=model, mode=mode, max_rounds=1)
+            kept, _dropped, degraded = audit_diff(
+                c.diff, provider=provider, model=model, mode=mode, max_rounds=1,
+                domain=get_domain(c.domain),
+            )
         except Exception:
             # a failed or unparsable model call is a failed case, counted not hidden,
             # so a provider outage cannot read as a clean probe, invariant 3

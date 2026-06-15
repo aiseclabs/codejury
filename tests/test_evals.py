@@ -244,7 +244,7 @@ def test_run_diff_cases_handles_the_audit_three_tuple_and_degraded(monkeypatch):
     from evals.diff_cases import DiffCase
     from evals.runners import diff as diffmod
 
-    def fake_audit(d, *, provider, model, mode="standard", max_rounds=1):
+    def fake_audit(d, *, provider, model, mode="standard", max_rounds=1, domain=None):
         if "POSITIVE" in d:
             return (["a-finding"], [], False)
         if "DEGRADED" in d:
@@ -377,6 +377,56 @@ def test_coverage_problems_flag_unresolved_reference(tmp_path, monkeypatch):
     from evals.coverage import coverage_problems
     problems = coverage_problems()
     assert any(p.kind == "unresolved-reference" and p.ref == "vuln:no-such-class" for p in problems)
+
+
+def test_shipped_solidity_cases_run_under_the_evm_domain():
+    from evals.runners.diff import default_cases
+    sol = [c for c in default_cases() if "solidity" in c.tags]
+    assert sol, "no solidity diff cases shipped"
+    assert all(c.domain == "evm" for c in sol)
+    # the pairs guard each class against a miss and a false positive
+    assert any(c.is_positive for c in sol) and any(not c.is_positive for c in sol)
+
+
+def test_scan_knowledge_spans_domains(tmp_path, monkeypatch):
+    _public_only(tmp_path, monkeypatch)
+    from evals.coverage import scan_knowledge
+    items = scan_knowledge()
+    # web and evm knowledge resolve under the same flat ref space, the form a case references
+    assert items["vuln:sql-injection"].kind == "vulnerability"
+    assert items["vuln:reentrancy"].kind == "vulnerability"
+    assert "guide:languages/solidity" in items
+
+
+def test_solidity_cases_resolve_to_evm_knowledge_no_unresolved(tmp_path, monkeypatch):
+    _public_only(tmp_path, monkeypatch)
+    from evals.coverage import coverage_matrix, coverage_problems
+    cov = coverage_matrix()
+    # the shipped solidity pairs attribute to the evm classes, a positive and a safe each
+    assert cov["vuln:reentrancy"].diff_positive >= 1 and cov["vuln:reentrancy"].diff_safe >= 1
+    # an evm class case must not read as a broken reference, the gate-fatal problem kind
+    unresolved = {p.ref for p in coverage_problems(cov) if p.kind == "unresolved-reference"}
+    assert "vuln:reentrancy" not in unresolved
+    assert "guide:languages/solidity" not in unresolved
+
+
+def test_run_diff_cases_routes_each_case_to_its_domain(monkeypatch):
+    from evals.diff_cases import DiffCase
+    from evals.runners import diff as diffmod
+
+    seen: dict[str, str] = {}
+
+    def fake_audit(d, *, provider, model, mode="standard", max_rounds=1, domain=None):
+        seen[d] = domain.name
+        return ([], [], False)
+
+    monkeypatch.setattr(diffmod, "audit_diff", fake_audit)
+    cases = [
+        DiffCase(name="w", category="", diff="web-diff"),
+        DiffCase(name="s", category="", diff="sol-diff", domain="evm"),
+    ]
+    diffmod.run_diff_cases(cases, provider=None, model="m")
+    assert seen == {"web-diff": "web", "sol-diff": "evm"}
 
 
 def test_coverage_problems_flag_entry_without_knowledge(tmp_path, monkeypatch):

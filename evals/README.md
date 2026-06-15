@@ -131,7 +131,9 @@ python -m evals compare before.json after.json --by vulnerability
 python -m evals gate after.json --baseline before.json --precision-floor 0.8
 
 # diff capability probe, needs provider creds in the environment. --runs N repeats and
-# folds by frequency, so a planted issue counts as caught only by a strict majority of runs
+# folds by frequency, so a planted issue counts as caught only by a strict majority of runs.
+# The probe spans every domain, a Solidity row carrying domain: evm scores against the EVM
+# knowledge and prompt, a row with no domain runs under the web default
 python -m evals diff --mode standard --model <id> --runs 3
 
 # a suite is a tag selection over the library, public-smoke is a fast subset
@@ -158,7 +160,8 @@ A benchmark grows by adding more planted issues and lookalikes, or a new
 row to the `benchmarks/diff/languages/<language>/cases.yaml` for its language, or to
 `diff/protocols/<protocol>/cases.yaml` for a protocol case, a positive with a category or a safe
 lookalike without one, each naming the knowledge it exercises so
-`coverage` attributes it. A suite grows by
+`coverage` attributes it. A row outside the web default carries a `domain`, for example a
+Solidity case sets `domain: evm` so it scores against the EVM knowledge and prompt. A suite grows by
 adding `suites/<name>.yaml` naming the tags it selects, no second list of cases
 to keep in sync. Keep public benchmarks public and non-proprietary, this repo ships to PyPI
 and GitHub.

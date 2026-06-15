@@ -59,9 +59,16 @@ Do NOT report, regardless of severity:
 - Speculative issues you cannot tie to a concrete exploit in the code shown.
 - Overflow or underflow under Solidity 0.8 checked arithmetic, unless the code is in an
   unchecked block or uses a pre-0.8 pragma.
+- A missing nonReentrant guard when the shown code already updates state before the
+  external call. Correct checks-effects-interactions ordering is itself the defense.
+Report only what the shown code proves. Do not infer a flaw from a function, modifier,
+caller, or guard that is not in the diff, and do not assume a check is absent merely
+because the diff does not show it.
 For input-driven issues, flag only when an external caller can actually reach the sink
 with attacker-chosen values. A constant, an immutable set at construction, or an
-owner-only path is not attacker-controlled.
+owner-only path is not attacker-controlled. An owner-only, admin-only, or admin-signed
+path is trusted: do not assume the owner or admin is compromised or careless to
+manufacture an exploit, flag it only when the shown code itself exposes the flaw.
 """
 
 EVM = Domain(

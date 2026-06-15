@@ -14,12 +14,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from codejury.resources import LANGUAGES_DIR, VULNERABILITIES_DIR
+from codejury.domains.registry import available_domains, get_domain
 from evals import registry
 from evals.schema import knowledge_refs, load_answer_key
 from evals.scorers.match import category_of
-
-_GUIDES_DIR = LANGUAGES_DIR.parent
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -57,17 +55,31 @@ class CoverageProblem:
 
 
 def scan_knowledge() -> dict[str, KnowledgeItem]:
-    """Every vulnerability class and guide in the package, keyed by namespaced ref. The
-    guide ref mirrors its path under guides/, languages/python and frameworks/python/fastapi,
-    the exact form a benchmark or an answer key references."""
+    """Every vulnerability class and guide across all registered domains, keyed by namespaced
+    ref. The guide ref mirrors its path under guides/, languages/python and
+    frameworks/python/fastapi, the exact form a benchmark or an answer key references. Refs
+    are flat across domains, so a stem two domains share fails loud rather than letting one
+    silently shadow the other."""
     items: dict[str, KnowledgeItem] = {}
-    for f in sorted(VULNERABILITIES_DIR.glob("*.md")):
-        ref = f"vuln:{f.stem}"
-        items[ref] = KnowledgeItem(ref=ref, kind="vulnerability", path=f)
-    for f in sorted(_GUIDES_DIR.rglob("*.md")):
-        rel = f.relative_to(_GUIDES_DIR).with_suffix("").as_posix()
-        ref = f"guide:{rel}"
-        items[ref] = KnowledgeItem(ref=ref, kind="guide", path=f)
+
+    def add(ref: str, kind: str, path: Path) -> None:
+        prior = items.get(ref)
+        if prior is not None and prior.path != path:
+            raise ValueError(
+                f"knowledge ref {ref} is defined in two domains, {prior.path} and {path}. "
+                f"Refs are flat across domains, rename one or namespace the ref.")
+        items[ref] = KnowledgeItem(ref=ref, kind=kind, path=path)
+
+    for name in available_domains():
+        paths = get_domain(name).paths
+        for f in sorted(paths.vulnerabilities_dir.glob("*.md")):
+            add(f"vuln:{f.stem}", "vulnerability", f)
+        guides_dir = paths.languages_dir.parent
+        if not guides_dir.is_dir():
+            continue
+        for f in sorted(guides_dir.rglob("*.md")):
+            rel = f.relative_to(guides_dir).with_suffix("").as_posix()
+            add(f"guide:{rel}", "guide", f)
     return items
 
 

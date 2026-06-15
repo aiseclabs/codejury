@@ -30,6 +30,9 @@ class DiffCase:
     category: str = ""
     knowledge: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
+    # the review domain whose knowledge and prompt the probe runs the case under, so a
+    # Solidity case scores against the evm domain, not the web default
+    domain: str = "web"
 
     @property
     def is_positive(self) -> bool:
@@ -45,6 +48,7 @@ def _case(row, i: int) -> DiffCase:
         category=str(row.get("category") or ""),
         knowledge=knowledge_refs(row.get("knowledge")),
         tags=tuple(row.get("tags") or ()),
+        domain=str(row.get("domain") or "web"),
     )
 
 

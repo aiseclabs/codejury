@@ -1,0 +1,316 @@
+# The shipped Solidity diff probe cases, synthetic and authored here, not third-party, so
+# they ship publicly. Each case runs under the evm domain, so it scores against the EVM
+# knowledge and prompt, not the web default. A positive carries a category and should yield
+# a finding, a safe sibling carries none and must stay clean, the pair guards a class
+# against both a miss and a false positive. The loader concatenates every cases.yaml under
+# benchmarks/diff, so this file joins the library without any wiring.
+cases:
+  - name: evm-reentrancy
+    domain: evm
+    category: reentrancy
+    knowledge:
+      vulnerabilities: [reentrancy]
+      guides: [languages/solidity]
+    tags: [evm, solidity, reentrancy]
+    diff: |
+      diff --git a/Vault.sol b/Vault.sol
+      --- a/Vault.sol
+      +++ b/Vault.sol
+      @@ -20,3 +20,7 @@ contract Vault {
+      -    function withdraw(uint256 amount) external {
+      -        require(balances[msg.sender] >= amount);
+      -    }
+      +    function withdraw(uint256 amount) external {
+      +        require(balances[msg.sender] >= amount, "insufficient");
+      +        (bool ok, ) = msg.sender.call{value: amount}("");
+      +        require(ok, "transfer failed");
+      +        balances[msg.sender] -= amount;
+      +    }
+
+  - name: evm-access-control
+    domain: evm
+    category: access-control
+    knowledge:
+      vulnerabilities: [access-control]
+      guides: [languages/solidity]
+    tags: [evm, solidity, access-control]
+    diff: |
+      diff --git a/Token.sol b/Token.sol
+      --- a/Token.sol
+      +++ b/Token.sol
+      @@ -31,2 +31,4 @@ contract Token {
+      -    function setOwner(address newOwner) external {
+      -    }
+      +    function setOwner(address newOwner) external {
+      +        owner = newOwner;
+      +    }
+
+  - name: evm-oracle-price-manipulation
+    domain: evm
+    category: oracle-price-manipulation
+    knowledge:
+      vulnerabilities: [oracle-price-manipulation]
+      guides: [languages/solidity]
+    tags: [evm, solidity, oracle]
+    diff: |
+      diff --git a/Lending.sol b/Lending.sol
+      --- a/Lending.sol
+      +++ b/Lending.sol
+      @@ -44,2 +44,6 @@ contract Lending {
+      -    function collateralValue(uint256 lpAmount) public view returns (uint256) {
+      -    }
+      +    function collateralValue(uint256 lpAmount) public view returns (uint256) {
+      +        (uint112 r0, uint112 r1, ) = pair.getReserves();
+      +        uint256 price = uint256(r1) * 1e18 / uint256(r0);
+      +        return lpAmount * price / 1e18;
+      +    }
+
+  - name: evm-signature-replay
+    domain: evm
+    category: signature-replay
+    knowledge:
+      vulnerabilities: [signature-replay]
+      guides: [languages/solidity]
+    tags: [evm, solidity, signature]
+    diff: |
+      diff --git a/Airdrop.sol b/Airdrop.sol
+      --- a/Airdrop.sol
+      +++ b/Airdrop.sol
+      @@ -18,2 +18,6 @@ contract Airdrop {
+      -    function claim(uint256 amount, bytes calldata sig) external {
+      -    }
+      +    function claim(uint256 amount, bytes calldata sig) external {
+      +        bytes32 h = keccak256(abi.encodePacked(msg.sender, amount));
+      +        require(ECDSA.recover(h, sig) == admin, "bad sig");
+      +        token.transfer(msg.sender, amount);
+      +    }
+
+  - name: safe-evm-reentrancy
+    domain: evm
+    knowledge:
+      vulnerabilities: [reentrancy]
+      guides: [languages/solidity]
+    tags: [evm, solidity, reentrancy, safe]
+    diff: |
+      diff --git a/Vault.sol b/Vault.sol
+      --- a/Vault.sol
+      +++ b/Vault.sol
+      @@ -20,3 +20,7 @@ contract Vault {
+      -    function withdraw(uint256 amount) external {
+      -        require(balances[msg.sender] >= amount);
+      -    }
+      +    function withdraw(uint256 amount) external {
+      +        require(balances[msg.sender] >= amount, "insufficient");
+      +        balances[msg.sender] -= amount;
+      +        (bool ok, ) = msg.sender.call{value: amount}("");
+      +        require(ok, "transfer failed");
+      +    }
+
+  - name: safe-evm-access-control
+    domain: evm
+    knowledge:
+      vulnerabilities: [access-control]
+      guides: [languages/solidity]
+    tags: [evm, solidity, access-control, safe]
+    diff: |
+      diff --git a/Token.sol b/Token.sol
+      --- a/Token.sol
+      +++ b/Token.sol
+      @@ -31,2 +31,4 @@ contract Token {
+      -    function setOwner(address newOwner) external {
+      -    }
+      +    function setOwner(address newOwner) external onlyOwner {
+      +        owner = newOwner;
+      +    }
+
+  - name: safe-evm-oracle-price-manipulation
+    domain: evm
+    knowledge:
+      vulnerabilities: [oracle-price-manipulation]
+      guides: [languages/solidity]
+    tags: [evm, solidity, oracle, safe]
+    diff: |
+      diff --git a/Lending.sol b/Lending.sol
+      --- a/Lending.sol
+      +++ b/Lending.sol
+      @@ -44,2 +44,7 @@ contract Lending {
+      -    function collateralValue(uint256 amount) public view returns (uint256) {
+      -    }
+      +    function collateralValue(uint256 amount) public view returns (uint256) {
+      +        (, int256 price, , uint256 updatedAt, ) = feed.latestRoundData();
+      +        require(price > 0, "bad price");
+      +        require(block.timestamp - updatedAt < 1 hours, "stale price");
+      +        return amount * uint256(price) / 1e8;
+      +    }
+
+  - name: evm-accounting-precision
+    domain: evm
+    category: accounting-precision
+    knowledge:
+      vulnerabilities: [accounting-precision]
+      guides: [languages/solidity]
+    tags: [evm, solidity, accounting]
+    diff: |
+      diff --git a/Pool.sol b/Pool.sol
+      --- a/Pool.sol
+      +++ b/Pool.sol
+      @@ -27,2 +27,4 @@ contract Pool {
+      -    function sharesFor(uint256 assets) public view returns (uint256) {
+      -    }
+      +    function sharesFor(uint256 assets) public view returns (uint256) {
+      +        return assets / totalAssets * totalShares;
+      +    }
+
+  - name: evm-denial-of-service
+    domain: evm
+    category: denial-of-service
+    knowledge:
+      vulnerabilities: [denial-of-service]
+      guides: [languages/solidity]
+    tags: [evm, solidity, dos]
+    diff: |
+      diff --git a/Auction.sol b/Auction.sol
+      --- a/Auction.sol
+      +++ b/Auction.sol
+      @@ -22,2 +22,6 @@ contract Auction {
+      -    function bid() external payable {
+      -    }
+      +    function bid() external payable {
+      +        require(msg.value > highestBid, "low");
+      +        payable(highestBidder).transfer(highestBid);
+      +        highestBidder = msg.sender;
+      +        highestBid = msg.value;
+      +    }
+
+  - name: evm-proxy-delegatecall
+    domain: evm
+    category: proxy-delegatecall
+    knowledge:
+      vulnerabilities: [proxy-delegatecall]
+      guides: [languages/solidity]
+    tags: [evm, solidity, delegatecall]
+    diff: |
+      diff --git a/Proxy.sol b/Proxy.sol
+      --- a/Proxy.sol
+      +++ b/Proxy.sol
+      @@ -14,2 +14,4 @@ contract Proxy {
+      -    function execute(address target, bytes calldata data) external {
+      -    }
+      +    function execute(address target, bytes calldata data) external {
+      +        (bool ok, ) = target.delegatecall(data);
+      +        require(ok, "call failed");
+      +    }
+
+  - name: evm-unchecked-low-level-call
+    domain: evm
+    category: unchecked-low-level-call
+    knowledge:
+      vulnerabilities: [unchecked-low-level-call]
+      guides: [languages/solidity]
+    tags: [evm, solidity, low-level-call]
+    diff: |
+      diff --git a/Disburser.sol b/Disburser.sol
+      --- a/Disburser.sol
+      +++ b/Disburser.sol
+      @@ -19,2 +19,4 @@ contract Disburser {
+      -    function payout(address to, uint256 amount) external onlyOwner {
+      -    }
+      +    function payout(address to, uint256 amount) external onlyOwner {
+      +        to.call{value: amount}("");
+      +        paid[to] += amount;
+      +    }
+
+  - name: safe-evm-signature-replay
+    domain: evm
+    knowledge:
+      vulnerabilities: [signature-replay]
+      guides: [languages/solidity]
+    tags: [evm, solidity, signature, safe]
+    diff: |
+      diff --git a/Airdrop.sol b/Airdrop.sol
+      --- a/Airdrop.sol
+      +++ b/Airdrop.sol
+      @@ -18,2 +18,8 @@ contract Airdrop {
+      -    function claim(uint256 amount, bytes calldata sig) external {
+      -    }
+      +    function claim(uint256 amount, uint256 nonce, bytes calldata sig) external {
+      +        require(!usedNonce[nonce], "used");
+      +        bytes32 h = keccak256(abi.encodePacked(msg.sender, amount, nonce, block.chainid, address(this)));
+      +        require(ECDSA.recover(h, sig) == admin, "bad sig");
+      +        usedNonce[nonce] = true;
+      +        require(token.transfer(msg.sender, amount), "transfer failed");
+      +    }
+
+  - name: safe-evm-accounting-precision
+    domain: evm
+    knowledge:
+      vulnerabilities: [accounting-precision]
+      guides: [languages/solidity]
+    tags: [evm, solidity, accounting, safe]
+    diff: |
+      diff --git a/Pool.sol b/Pool.sol
+      --- a/Pool.sol
+      +++ b/Pool.sol
+      @@ -27,2 +27,4 @@ contract Pool {
+      -    function feeOn(uint256 amount) public view returns (uint256) {
+      -    }
+      +    function feeOn(uint256 amount) public view returns (uint256) {
+      +        return amount * feeBps / 10000;
+      +    }
+
+  - name: safe-evm-denial-of-service
+    domain: evm
+    knowledge:
+      vulnerabilities: [denial-of-service]
+      guides: [languages/solidity]
+    tags: [evm, solidity, dos, safe]
+    diff: |
+      diff --git a/Auction.sol b/Auction.sol
+      --- a/Auction.sol
+      +++ b/Auction.sol
+      @@ -22,2 +22,6 @@ contract Auction {
+      -    function bid() external payable {
+      -    }
+      +    function bid() external payable {
+      +        require(msg.value > highestBid, "low");
+      +        pendingReturns[highestBidder] += highestBid;
+      +        highestBidder = msg.sender;
+      +        highestBid = msg.value;
+      +    }
+
+  - name: safe-evm-proxy-delegatecall
+    domain: evm
+    knowledge:
+      vulnerabilities: [proxy-delegatecall]
+      guides: [languages/solidity]
+    tags: [evm, solidity, delegatecall, safe]
+    diff: |
+      diff --git a/Proxy.sol b/Proxy.sol
+      --- a/Proxy.sol
+      +++ b/Proxy.sol
+      @@ -14,2 +14,4 @@ contract Proxy {
+      -    function execute(bytes calldata data) external onlyOwner {
+      -    }
+      +    function execute(bytes calldata data) external onlyOwner {
+      +        (bool ok, ) = implementation.delegatecall(data);
+      +        require(ok, "call failed");
+      +    }
+
+  - name: safe-evm-unchecked-low-level-call
+    domain: evm
+    knowledge:
+      vulnerabilities: [unchecked-low-level-call]
+      guides: [languages/solidity]
+    tags: [evm, solidity, low-level-call, safe]
+    diff: |
+      diff --git a/Disburser.sol b/Disburser.sol
+      --- a/Disburser.sol
+      +++ b/Disburser.sol
+      @@ -19,2 +19,5 @@ contract Disburser {
+      -    function payout(address to, uint256 amount) external onlyOwner {
+      -    }
+      +    function payout(address to, uint256 amount) external onlyOwner {
+      +        paid[to] += amount;
+      +        (bool ok, ) = to.call{value: amount}("");
+      +        require(ok, "transfer failed");
+      +    }
