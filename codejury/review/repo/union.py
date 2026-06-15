@@ -35,6 +35,7 @@ class Candidate:
     severity: str = "HIGH"
     evidence: str = ""
     status: str = "confirmed"
+    source: str = ""   # agent candidate file basename, links a finding to its candidate and poc, empty in the coded run
 
     def key(self) -> tuple:
         """The dedup identity, location plus class. Endpoint is the precise location

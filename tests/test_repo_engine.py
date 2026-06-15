@@ -366,3 +366,27 @@ def test_finalize_links_pocs_and_reconciles(tmp_path):
     assert "POST /t" in report
     assert "pocs/z.sh" in report
     assert "GET /x" not in report
+
+
+def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
+    # regression: the finding md must reproduce the agent's analysis prose, not a bare
+    # pointer back to candidates/<name>.md, while findings.json still links to that file
+    target = tmp_path / "proj"
+    target.mkdir()
+    ws = tmp_path / "work"
+    proj = ws / "proj"
+    (proj / "candidates").mkdir(parents=True)
+    (proj / "candidates" / "key-leak.md").write_text(
+        "# Hardcoded key gates the webhook lane\n"
+        "- Risk: HIGH\n- Type: hardcoded-secrets\n- Source: `@auth0()`\n- Status: confirmed\n\n"
+        "## Analysis\n`settings/08.py:11` ships a literal AUTH0_AUTH_KEY, no prod override.\n\n"
+        "## Attack Path\nRead the repo, replay the Basic header.\n\n"
+        "## Fix\nLoad the key from the environment.\n")
+
+    finalize_repo_review(target, ws, verify=False)
+    finding = (proj / "findings" / "key-leak.md").read_text()
+    assert "ships a literal AUTH0_AUTH_KEY" in finding
+    assert "## Attack Path" in finding and "## Fix" in finding
+    assert "key-leak.md" not in finding   # the basename never leaks into the analysis body
+    data = json.loads((proj / "findings.json").read_text())
+    assert data["findings"][0]["candidate"] == "candidates/key-leak.md"

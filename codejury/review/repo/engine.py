@@ -116,20 +116,25 @@ def build_units(root: str | Path, candidate_files, trace_targets) -> list[Unit]:
 
 def _finding_md(c: Candidate) -> str:
     src = c.endpoint or c.file or "(no location)"
-    return (f"# {c.title}\n\n"
+    head = (f"# {c.title}\n\n"
             f"- Risk: {c.severity}\n"
             f"- Type: {c.category or 'other'}\n"
             f"- Source: `{src}`\n"
-            f"- Status: {c.status}\n\n"
-            f"## Analysis\n{c.evidence or '(see code)'}\n")
+            f"- Status: {c.status}\n\n")
+    body = c.evidence.strip()
+    # the agent body already carries its own ## Analysis and later sections, so emit it
+    # whole, the coded run carries only a short fact, so wrap it under Analysis
+    if body.startswith("#"):
+        return head + body + "\n"
+    return head + f"## Analysis\n{body or '(see code)'}\n"
 
 
 def _finding_name(c: Candidate) -> str:
     """The shared name tying a finding to its source candidate and its poc. In the agent
-    flow the candidate file basename is that name, carried on the candidate in evidence.
-    The coded run has no candidate file, so fall back to the finding slug."""
-    if c.evidence.endswith(".md"):
-        return Path(c.evidence).stem
+    flow that name is the candidate file basename, carried on `source`. The coded run has
+    no candidate file, so fall back to the finding slug."""
+    if c.source.endswith(".md"):
+        return Path(c.source).stem
     return _finding_slug(c.endpoint or c.title)
 
 
@@ -146,7 +151,7 @@ def _poc_for(ws: Path, name: str) -> str:
 
 
 def _finding_entry(ws: Path, c: Candidate) -> dict:
-    candidate = f"candidates/{c.evidence}" if c.evidence.endswith(".md") else ""
+    candidate = f"candidates/{c.source}" if c.source.endswith(".md") else ""
     return {"title": c.title, "category": c.category, "entry": c.endpoint,
             "file": c.file, "line": c.line, "severity": c.severity, "status": c.status,
             "candidate": candidate, "poc": _poc_for(ws, _finding_name(c))}
@@ -173,7 +178,7 @@ def _write_pocs_report(ws: Path, findings: list[Candidate]) -> None:
     candidate the verifier later refuted. Surface both so neither is silently lost."""
     pocs = ws / "pocs"
     poc_files = sorted(p for p in pocs.iterdir() if p.is_file()) if pocs.is_dir() else []
-    if not poc_files and not any(c.evidence.endswith(".md") for c in findings):
+    if not poc_files and not any(c.source.endswith(".md") for c in findings):
         # the coded run produces findings with no agent candidates or pocs, so there is
         # nothing to reconcile, skip rather than list every finding as missing a poc
         return
@@ -231,14 +236,15 @@ def _mark_units_reviewed(ws: Path, reviewed_slugs: set) -> None:
 
 def _cand_to_dict(c: Candidate) -> dict:
     return {"title": c.title, "category": c.category, "endpoint": c.endpoint, "file": c.file,
-            "line": c.line, "severity": c.severity, "evidence": c.evidence, "status": c.status}
+            "line": c.line, "severity": c.severity, "evidence": c.evidence, "status": c.status,
+            "source": c.source}
 
 
 def _cand_from_dict(d: dict) -> Candidate:
     return Candidate(title=d.get("title", ""), category=d.get("category", ""),
                      endpoint=d.get("endpoint", ""), file=d.get("file", ""), line=d.get("line"),
                      severity=d.get("severity", "MEDIUM"), evidence=d.get("evidence", ""),
-                     status=d.get("status", "confirmed"))
+                     status=d.get("status", "confirmed"), source=d.get("source", ""))
 
 
 def _keystr(c: Candidate) -> str:
@@ -349,6 +355,13 @@ def _location_re(source_extensions: frozenset[str]) -> re.Pattern:
     return re.compile(rf"([\w./-]+\.(?:{alt}))(?::(\d+))?")
 
 
+def _candidate_body(text: str) -> str:
+    """The prose body of an agent candidate, from its first section heading to the end, so
+    a finding carries the agent's analysis rather than a bare pointer back to the file."""
+    m = re.search(r"(?m)^##\s", text)
+    return text[m.start():].strip() if m else ""
+
+
 def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None) -> Candidate | None:
     """Parse an agent-written candidates/<name>.md into a Candidate for coded dedup and
     verification, so those steps do not depend on the agent's prose. The source
@@ -376,8 +389,9 @@ def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None
         file=fm.group(1),
         line=int(fm.group(2)) if fm.group(2) else None,
         severity=severity,
-        evidence=path.name,
+        evidence=_candidate_body(text),
         status="blocked" if status_raw == "blocked" else "confirmed",
+        source=path.name,
     )
 
 
