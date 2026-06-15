@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field, replace
 
-from codejury.review.repo.severity import calibrated, median
+from codejury.review.repo.severity import median
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -102,7 +102,6 @@ class Accumulator:
     errors: int = 0   # unit reviews that raised, counted not dropped, invariant 3
     failed_units: set[str] = field(default_factory=set)   # never reviewed cleanly, left open so the gate catches them
     sev_votes: dict[tuple, list[str]] = field(default_factory=dict)
-    severity_floors: tuple[tuple[str, str], ...] | None = None   # the domain's floor table, web default when None
     dedup_by_file: bool = False   # the domain's dedup granularity, endpoint-aware when False
 
     def add_pass(self, candidates: list[Candidate]) -> int:
@@ -122,10 +121,10 @@ class Accumulator:
 
     @property
     def findings(self) -> list[Candidate]:
-        """The union, each finding's severity calibrated: the median of the grades it
-        was given across passes, raised to the firm-rule floor for its class."""
+        """The union, each finding's severity the median of the grades it was given across
+        passes, so a jittering grade converges instead of taking whichever was seen first."""
         out: list[Candidate] = []
         for k, c in self.pool.items():
-            sev = calibrated(median(self.sev_votes.get(k, [c.severity])), c.category, c.title, self.severity_floors)
+            sev = median(self.sev_votes.get(k, [c.severity]))
             out.append(replace(c, severity=sev) if sev != c.severity else c)
         return out

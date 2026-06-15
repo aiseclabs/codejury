@@ -124,7 +124,7 @@ def test_a_late_new_finding_resets_convergence():
     assert not acc.converged
 
 
-def test_findings_calibrate_severity_by_median_across_passes():
+def test_findings_take_the_median_severity_across_passes():
     acc = Accumulator(converge_after=1)
     for sev in ("LOW", "HIGH", "MEDIUM"):
         acc.add_pass([_c("idor", category="idor", endpoint="GET /x/<id>", severity=sev)])
@@ -132,9 +132,10 @@ def test_findings_calibrate_severity_by_median_across_passes():
     assert f.severity == "MEDIUM"
 
 
-def test_findings_apply_firm_rule_floor():
+def test_findings_keep_the_model_grade_with_no_keyword_override():
+    # severity is the model's, a title naming a secret no longer forces the grade up
     acc = Accumulator(converge_after=1)
-    acc.add_pass([_c("token in log", category="Credential / Secret Exposure",
+    acc.add_pass([_c("signing key committed", category="Credential / Secret Exposure",
                      file="a.py", severity="LOW")])
     (f,) = acc.findings
-    assert f.severity == "HIGH"
+    assert f.severity == "LOW"

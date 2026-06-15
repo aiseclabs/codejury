@@ -28,7 +28,7 @@ from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
-from codejury.review.repo.severity import calibrated, median
+from codejury.review.repo.severity import median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
 from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier, verify_findings
 
@@ -373,6 +373,8 @@ def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None
     except OSError:
         return None
     title = next((ln[2:].strip() for ln in text.splitlines() if ln.startswith("# ")), path.stem)
+    # agents write the H1 freely, some prefix "Finding:", so strip it for a uniform title
+    title = re.sub(r"(?i)^finding\s*[:：]\s*", "", title).strip() or path.stem
     sev_raw = _md_field(text, "(?:risk|severity)").upper()
     severity = next((s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if s in sev_raw), "MEDIUM")
     fm = _location_re(source_extensions).search(text)
@@ -435,8 +437,7 @@ def finalize_repo_review(
     pool: dict = {}
     merge(pool, cands, by_file)
     deduped = [
-        replace(c, severity=calibrated(median(sev_votes.get(c.key(by_file), [c.severity])), c.category, c.title,
-                                       domain.severity_floors))
+        replace(c, severity=median(sev_votes.get(c.key(by_file), [c.severity])))
         for c in collapse_colocated(list(pool.values()))
     ]
 
@@ -515,7 +516,7 @@ def run_repo_review(
     reviewed = set() if fresh else _reviewed_slugs(ws)
     open_units = [u for u in units if unit_slug(u.name) not in reviewed]
     acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws)),
-                      severity_floors=domain.severity_floors, dedup_by_file=domain.dedup_by_file)
+                      dedup_by_file=domain.dedup_by_file)
 
     shared = (ws / "_stack.md").read_text(encoding="utf-8")
     shared = _with_facts(shared, ws)

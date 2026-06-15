@@ -2,8 +2,8 @@
 
 Its content root is this package directory, holding the Solidity `knowledge/`, the
 repo-review `playbook/`, and `detection.yaml`. The review strategy is data here too:
-the pass lenses, a fund-loss-anchored severity floor table, and the diff prompt's focus
-and do-not-report blocks. This package imports only `codejury.domains.base` and its own
+the pass lenses and the diff prompt's focus and do-not-report blocks. This package
+imports only `codejury.domains.base` and its own
 light facts backend module, both free of the optional EVM dependency, so loading the
 domain never needs slither or foundry.
 """
@@ -23,16 +23,6 @@ EVM_LENSES = (
     "signature-replay",
     "denial-of-service",
     "",
-)
-
-# the firm-rule severity floor table, regex and level pairs, anchored on fund loss
-EVM_SEVERITY_FLOORS = (
-    (r"reentran|drain|steal.{0,15}fund|unprotected.{0,20}(withdraw|transfer)", "HIGH"),
-    (r"access control|missing.{0,15}(modifier|onlyowner|auth)|unprotected.{0,15}initial|"
-     r"tx\.origin|public.{0,12}(mint|burn|withdraw|upgrade)", "HIGH"),
-    (r"oracle|price manipulation|spot.?price|flash.?loan", "HIGH"),
-    (r"\breplay\b|missing nonce|signature.{0,15}(replay|malleab)|missing.{0,12}(chainid|domain)", "HIGH"),
-    (r"delegatecall|storage collision|uninitialized.{0,12}proxy|self.?destruct", "HIGH"),
 )
 
 EVM_DIFF_FOCUS = """\
@@ -77,7 +67,6 @@ EVM = Domain(
     name="evm",
     content_root=Path(__file__).resolve().parent,
     lenses=EVM_LENSES,
-    severity_floors=EVM_SEVERITY_FLOORS,
     diff_focus=EVM_DIFF_FOCUS,
     diff_do_not_report=EVM_DIFF_DO_NOT_REPORT,
     facts_backend=SlitherFacts(),

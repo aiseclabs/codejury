@@ -147,6 +147,14 @@ def test_parse_candidate_captures_file_and_line_from_a_range(tmp_path):
     assert c.severity == "HIGH"
 
 
+def test_parse_candidate_strips_a_finding_title_prefix(tmp_path):
+    p = tmp_path / "i.md"
+    p.write_text("# Finding: Signing Key Committed to Source\n- Risk: LOW\n- Type: secret\n"
+                 "- Source: `GET /v1/key`\n## Analysis\n`app/keys.py:3` hardcoded.\n")
+    c = _parse_candidate(p)
+    assert c.title == "Signing Key Committed to Source"
+
+
 def test_parse_candidate_drops_an_out_of_root_cited_path(tmp_path):
     traversing = tmp_path / "t.md"
     traversing.write_text("# leak\n- Risk: HIGH\n- Type: idor\n"

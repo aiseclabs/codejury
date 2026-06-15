@@ -2,8 +2,8 @@
 
 Its content root is this package directory, holding the `knowledge/`, `playbook/`, and
 `detection.yaml` that codejury has always shipped. The review strategy that used to sit
-in the engine lives here too as data: the pass lenses, the severity floor table, and the
-diff prompt's focus and do-not-report blocks. The engine modules import these as their
+in the engine lives here too as data: the pass lenses and the diff prompt's focus and
+do-not-report blocks. The engine modules import these as their
 defaults. This package imports only `codejury.domains.base`, so it stays a leaf the
 engine can depend on without a cycle.
 """
@@ -21,17 +21,6 @@ WEB_LENSES = (
     "injection",
     "business-logic",
     "",
-)
-
-# the firm-rule severity floor table, regex and level pairs, floor_for matches it
-WEB_SEVERITY_FLOORS = (
-    (r"credential|secret|private[ _-]?key|signing[ _-]?key|bearer token|"
-     r"api[ _-]?key|token.{0,20}(leak|logged|exposed|disclos)", "HIGH"),
-    (r"\breplay\b|missing freshness|no (consumed )?nonce|no freshness", "HIGH"),
-    (r"auth(entication)?[ _-]?bypass|signature forg|forge.{0,15}(signature|token|jwt)|"
-     r"jwt forg|self.?cert", "HIGH"),
-    (r"\bidor\b|insecure direct object|missing author|broken access|"
-     r"cross.?(user|tenant|service).{0,20}(read|idor|access|disclos)", "MEDIUM"),
 )
 
 WEB_DIFF_FOCUS = """\
@@ -63,7 +52,6 @@ WEB = Domain(
     name="web",
     content_root=Path(__file__).resolve().parent,
     lenses=WEB_LENSES,
-    severity_floors=WEB_SEVERITY_FLOORS,
     diff_focus=WEB_DIFF_FOCUS,
     diff_do_not_report=WEB_DIFF_DO_NOT_REPORT,
 )

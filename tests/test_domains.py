@@ -55,7 +55,7 @@ def test_evm_domain_resolves_shipped_content_and_strategy():
     assert paths.methodology_file.is_file()
     # the evm review strategy is data on the domain, distinct from web
     assert "reentrancy" in EVM.lenses
-    assert EVM.severity_floors and EVM.lenses != WEB.lenses
+    assert EVM.lenses != WEB.lenses
     assert "reentrancy" in EVM.diff_focus.lower()
     # the evm endpoint is a function sharing helpers, so it dedups by file, web by endpoint
     assert EVM.dedup_by_file is True
