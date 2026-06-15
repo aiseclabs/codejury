@@ -508,11 +508,12 @@ def run_repo_review(
     fresh: bool = False,
     on_pass=None,
     domain: Domain | None = None,
+    facts: bool = False,
 ) -> RunResult:
     domain = domain or default_domain()
     paths = domain.paths
     root = str(Path(target).resolve())
-    res = scaffold(target, workspace, fresh=fresh, domain=domain)
+    res = scaffold(target, workspace, fresh=fresh, domain=domain, facts=facts)
     ws = res.workspace
     units = build_units(root, res.candidate_files, res.trace_targets)
     if not units:

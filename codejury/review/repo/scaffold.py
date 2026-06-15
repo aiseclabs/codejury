@@ -11,6 +11,7 @@ methodology text to print. It does not find issues itself.
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -103,19 +104,54 @@ def _stack_md(guides: list[Guide]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _write_facts(ws: Path, target: Path, domain: Domain) -> None:
+# a schema tag in the cache key, so a change to the rendered facts shape invalidates every
+# cached entry rather than serving a stale layout
+_FACTS_SCHEMA = "1"
+
+
+def _facts_cache_key(target: Path, files: tuple[str, ...], domain: Domain) -> str:
+    """A content hash over the source in scope, so a re-run reuses the extracted facts
+    instead of paying the slither pass again, while a source edit invalidates the entry."""
+    h = hashlib.sha256()
+    h.update(f"{_FACTS_SCHEMA}\x00{domain.name}".encode())
+    for rel in sorted(files):
+        try:
+            data = (target / rel).read_bytes()
+        except OSError:
+            continue
+        h.update(rel.encode("utf-8"))
+        h.update(b"\x00")
+        h.update(hashlib.sha256(data).digest())
+    return h.hexdigest()
+
+
+def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...], *,
+                 enabled: bool, cache_root: Path) -> None:
     """Extract deterministic facts and persist them to `_facts.md`, the way `_stack.md`
     persists the stack, so the run, resume, and finalize steps read the same grounding
-    from the workspace. Facts are an optional aid, a domain may bind no backend or the
-    toolchain may be absent, in which case the run falls back to its own heuristics. A
-    backend error is recorded to `_facts_error.txt` and the run continues without facts,
-    never silently and never fatal to an otherwise reviewable repo."""
+    from the workspace. Facts are opt-in since extraction is heavy, the caller passes
+    `enabled`. A domain may bind no backend or the toolchain may be absent, in which case
+    the run falls back to its own heuristics. The extraction is cached by source content
+    hash under `cache_root`, so a fresh scaffold or a second target on the same source
+    reuses it rather than re-running the slither pass. A backend error is recorded to
+    `_facts_error.txt` and the run continues without facts, never silently and never fatal
+    to an otherwise reviewable repo."""
+    if not enabled:
+        return
     backend = domain.facts_backend
     if backend is None or not backend.available():
+        return
+    dest = ws / "_facts.md"
+    if dest.is_file():
+        # a prior scaffold already grounded this workspace, reuse it over re-extracting
         return
     error = ws / "_facts_error.txt"
     if error.exists():
         error.unlink()
+    cached = cache_root / f"{_facts_cache_key(target, files, domain)}.md"
+    if cached.is_file():
+        dest.write_text(cached.read_text(encoding="utf-8"), encoding="utf-8")
+        return
     try:
         facts = backend.extract(target)
     except Exception as exc:
@@ -123,7 +159,9 @@ def _write_facts(ws: Path, target: Path, domain: Domain) -> None:
                          encoding="utf-8")
         return
     if not facts.empty:
-        (ws / "_facts.md").write_text(facts.summary, encoding="utf-8")
+        dest.write_text(facts.summary, encoding="utf-8")
+        cache_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        cached.write_text(facts.summary, encoding="utf-8")
 
 
 _SURFACE_TEMPLATE = """\
@@ -259,7 +297,7 @@ def _vulnerabilities_md(vulnerabilities_dir: Path) -> str:
 
 
 def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
-             domain: Domain | None = None) -> ScaffoldResult:
+             domain: Domain | None = None, facts: bool = False) -> ScaffoldResult:
     dom = domain or default_domain()
     paths = dom.paths
     detection = load_detection(paths.detection_file)
@@ -293,7 +331,8 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         guides=load_guides(paths.languages_dir, paths.frameworks_dir, paths.protocols_dir),
     )
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
-    _write_facts(ws, target, dom)
+    _write_facts(ws, target, dom, model.files, enabled=facts,
+                 cache_root=Path(workspace) / ".facts-cache")
 
     candidates = candidate_entrypoint_files(
         model.files, root=target,

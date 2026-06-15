@@ -89,6 +89,18 @@ def test_review_repo_writes_methodology_to_workspace(tmp_path):
     assert (ws / "svc" / "METHODOLOGY.md").is_file()
 
 
+def test_review_repo_facts_flag_is_a_noop_without_a_backend(tmp_path):
+    # --facts threads through, the web domain binds no backend so it is a harmless no-op,
+    # never an error and never a stray _facts.md
+    repo = tmp_path / "svc"
+    repo.mkdir()
+    (repo / "app.py").write_text("x = 1\n")
+    ws = tmp_path / "ws"
+    rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--facts"])
+    assert rc == 0
+    assert not (ws / "svc" / "_facts.md").exists()
+
+
 def test_python_dash_m_codejury_runs():
     import subprocess, sys
     r = subprocess.run([sys.executable, "-m", "codejury", "--version"], capture_output=True, text=True)

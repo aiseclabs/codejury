@@ -3,9 +3,12 @@ findings, and pocs directories plus seeded entrypoints, and returns the methodol
 does not run an LLM pipeline."""
 
 import stat
+from dataclasses import replace
 
 import pytest
 
+from codejury.domains.base import Facts, FactsBackend
+from codejury.domains.web import WEB
 from codejury.review.repo.scaffold import scaffold
 
 APP = '''
@@ -132,6 +135,65 @@ def test_scaffold_writes_no_facts_for_the_web_domain(tmp_path):
     assert not (res.workspace / "_facts.md").exists()
 
 
+class _CountingBackend(FactsBackend):
+    """A stand-in facts backend that counts extractions, so a test can assert the cache
+    spared the heavy slither pass without needing the real toolchain."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def available(self) -> bool:
+        return True
+
+    def extract(self, root):
+        self.calls += 1
+        return Facts(summary="contract Fake\n  external f()  ext-call", data={"contracts": {}})
+
+
+def _facts_domain(backend: FactsBackend) -> object:
+    return replace(WEB, facts_backend=backend)
+
+
+def test_scaffold_skips_facts_by_default_even_with_a_backend(tmp_path):
+    # facts are opt-in, extraction is heavy, so a plain scaffold never runs the backend
+    backend = _CountingBackend()
+    res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend))
+    assert not (res.workspace / "_facts.md").exists()
+    assert backend.calls == 0
+
+
+def test_scaffold_writes_facts_when_opted_in(tmp_path):
+    backend = _CountingBackend()
+    res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend), facts=True)
+    assert (res.workspace / "_facts.md").read_text().startswith("contract Fake")
+    assert backend.calls == 1
+
+
+def test_scaffold_reuses_cached_facts_across_a_fresh_run(tmp_path):
+    # a fresh scaffold clears the workspace, but the content hash cache survives, so the
+    # slither pass runs once for a source tree, not on every re-run
+    backend = _CountingBackend()
+    dom = _facts_domain(backend)
+    work = tmp_path / "work"
+    scaffold(_target(tmp_path), work, domain=dom, facts=True)
+    assert backend.calls == 1
+    res = scaffold(_target(tmp_path), work, domain=dom, facts=True, fresh=True)
+    assert (res.workspace / "_facts.md").read_text().startswith("contract Fake")
+    assert backend.calls == 1  # served from cache, not re-extracted
+
+
+def test_scaffold_reextracts_when_source_changes(tmp_path):
+    # editing the source changes the content hash, so a stale cache entry is not served
+    backend = _CountingBackend()
+    dom = _facts_domain(backend)
+    work = tmp_path / "work"
+    target = _target(tmp_path)
+    scaffold(target, work, domain=dom, facts=True)
+    (target / "app.py").write_text(APP + "\n# edit\n")
+    scaffold(target, work, domain=dom, facts=True, fresh=True)
+    assert backend.calls == 2
+
+
 def test_scaffold_persists_facts_for_the_evm_domain(tmp_path):
     from shutil import which
 
@@ -140,7 +202,7 @@ def test_scaffold_persists_facts_for_the_evm_domain(tmp_path):
     backend = EVM.facts_backend
     if backend is None or not backend.available() or which("forge") is None:
         pytest.skip("slither or foundry not installed, the facts path needs both")
-    res = scaffold(_foundry_project(tmp_path), tmp_path / "work", domain=EVM)
+    res = scaffold(_foundry_project(tmp_path), tmp_path / "work", domain=EVM, facts=True)
     facts = res.workspace / "_facts.md"
     assert facts.is_file()
     text = facts.read_text()

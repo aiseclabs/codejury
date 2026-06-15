@@ -171,6 +171,11 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("--votes", type=int, default=1,
                       help="run only: independent skeptic votes per candidate, a candidate is "
                            "refuted only on a majority")
+    repo.add_argument("--facts", action="store_true", default=False,
+                      help="ground review in a tool-extracted call graph, storage layout, and "
+                           "read and write sets when the domain binds a facts backend such as "
+                           "the EVM slither backend. Off by default since extraction is heavy, "
+                           "the result is cached by source content hash so a re-run is free")
     repo.add_argument("--reviewer", choices=("model", "claude-cli"), default="model",
                       help="run only: 'model' calls the provider once per unit, 'claude-cli' runs "
                            "each unit and verification as a headless `claude -p` agent that reads "
@@ -290,7 +295,7 @@ def _dispatch(args, parser) -> int:
             verify=args.verify, votes=args.votes,
             max_passes=args.max_passes, converge_after=args.converge_after,
             concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
-            domain=domain,
+            domain=domain, facts=args.facts,
         )
         acc = res.accumulator
         reported = res.verify.confirmed if res.verify else acc.findings
@@ -313,7 +318,8 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo":
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
-        res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain)
+        res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain,
+                       facts=args.facts)
         (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
         if res.cleared:
             print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}", file=sys.stderr)
