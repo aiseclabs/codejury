@@ -103,6 +103,29 @@ def _stack_md(guides: list[Guide]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _write_facts(ws: Path, target: Path, domain: Domain) -> None:
+    """Extract deterministic facts and persist them to `_facts.md`, the way `_stack.md`
+    persists the stack, so the run, resume, and finalize steps read the same grounding
+    from the workspace. Facts are an optional aid, a domain may bind no backend or the
+    toolchain may be absent, in which case the run falls back to its own heuristics. A
+    backend error is recorded to `_facts_error.txt` and the run continues without facts,
+    never silently and never fatal to an otherwise reviewable repo."""
+    backend = domain.facts_backend
+    if backend is None or not backend.available():
+        return
+    error = ws / "_facts_error.txt"
+    if error.exists():
+        error.unlink()
+    try:
+        facts = backend.extract(target)
+    except Exception as exc:
+        error.write_text(f"facts extraction failed, the run falls back to heuristics: {exc}\n",
+                         encoding="utf-8")
+        return
+    if not facts.empty:
+        (ws / "_facts.md").write_text(facts.summary, encoding="utf-8")
+
+
 _SURFACE_TEMPLATE = """\
 # Attack Surface Inventory
 
@@ -237,7 +260,8 @@ def _vulnerabilities_md(vulnerabilities_dir: Path) -> str:
 
 def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
              domain: Domain | None = None) -> ScaffoldResult:
-    paths = (domain or default_domain()).paths
+    dom = domain or default_domain()
+    paths = dom.paths
     detection = load_detection(paths.detection_file)
     target = Path(target).resolve()
     project = target.name
@@ -269,6 +293,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         guides=load_guides(paths.languages_dir, paths.frameworks_dir, paths.protocols_dir),
     )
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
+    _write_facts(ws, target, dom)
 
     candidates = candidate_entrypoint_files(
         model.files, root=target,

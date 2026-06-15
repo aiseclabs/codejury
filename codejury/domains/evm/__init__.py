@@ -3,13 +3,15 @@
 Its content root is this package directory, holding the Solidity `knowledge/`, the
 repo-review `playbook/`, and `detection.yaml`. The review strategy is data here too:
 the pass lenses, a fund-loss-anchored severity floor table, and the diff prompt's focus
-and do-not-report blocks. This package imports only `codejury.domains.base`, so it stays
-a leaf, the same shape as the web domain.
+and do-not-report blocks. This package imports only `codejury.domains.base` and its own
+light facts backend module, both free of the optional EVM dependency, so loading the
+domain never needs slither or foundry.
 """
 
 from pathlib import Path
 
 from codejury.domains.base import Domain
+from codejury.domains.evm.facts.slither import SlitherFacts
 
 # the repo-review pass lenses for contracts: each pass leads with one, the empty lens
 # reviews every class
@@ -78,4 +80,5 @@ EVM = Domain(
     severity_floors=EVM_SEVERITY_FLOORS,
     diff_focus=EVM_DIFF_FOCUS,
     diff_do_not_report=EVM_DIFF_DO_NOT_REPORT,
+    facts_backend=SlitherFacts(),
 )

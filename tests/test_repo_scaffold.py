@@ -104,6 +104,49 @@ def test_methodology_accumulates_across_runs(tmp_path):
     assert "Status: reviewed" in res.methodology
 
 
+_VAULT_SOL = """\
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+contract Vault {
+    mapping(address => uint256) public balances;
+    function withdraw(uint256 amount) external {
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "transfer failed");
+        balances[msg.sender] -= amount;
+    }
+}
+"""
+
+
+def _foundry_project(tmp_path):
+    d = tmp_path / "vault"
+    (d / "src").mkdir(parents=True)
+    (d / "foundry.toml").write_text("[profile.default]\nsrc = \"src\"\nout = \"out\"\n")
+    (d / "src" / "Vault.sol").write_text(_VAULT_SOL)
+    return d
+
+
+def test_scaffold_writes_no_facts_for_the_web_domain(tmp_path):
+    # the web domain binds no facts backend, so no _facts.md is produced
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    assert not (res.workspace / "_facts.md").exists()
+
+
+def test_scaffold_persists_facts_for_the_evm_domain(tmp_path):
+    from shutil import which
+
+    from codejury.domains.evm import EVM
+
+    backend = EVM.facts_backend
+    if backend is None or not backend.available() or which("forge") is None:
+        pytest.skip("slither or foundry not installed, the facts path needs both")
+    res = scaffold(_foundry_project(tmp_path), tmp_path / "work", domain=EVM)
+    facts = res.workspace / "_facts.md"
+    assert facts.is_file()
+    text = facts.read_text()
+    assert "contract Vault" in text and "reenter" in text
+
+
 def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):
     d = tmp_path / "rb"
     d.mkdir()

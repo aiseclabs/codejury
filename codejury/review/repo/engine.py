@@ -445,6 +445,25 @@ class RunResult:
     verify: VerifyResult | None = None
 
 
+# a cap on the facts text folded into every unit prompt, so a large repo's facts cannot
+# crowd out the unit under review. Truncation is marked, never silent, invariant 3
+_FACTS_CONTEXT_CAP = 16000
+
+
+def _with_facts(shared: str, ws: Path) -> str:
+    """Fold the persisted contract facts into the shared review context, when scaffold wrote
+    them. Bounded so a large repo's facts stay an aid, not a flood, with the cut marked."""
+    facts_md = ws / "_facts.md"
+    if not facts_md.is_file():
+        return shared
+    facts = facts_md.read_text(encoding="utf-8").strip()
+    if not facts:
+        return shared
+    if len(facts) > _FACTS_CONTEXT_CAP:
+        facts = facts[:_FACTS_CONTEXT_CAP] + "\n... [facts truncated, see _facts.md]"
+    return f"{shared}\n\nContract facts:\n{facts}\n"
+
+
 def run_repo_review(
     target: str | Path,
     workspace: str | Path,
@@ -484,6 +503,7 @@ def run_repo_review(
                       severity_floors=domain.severity_floors)
 
     shared = (ws / "_stack.md").read_text(encoding="utf-8")
+    shared = _with_facts(shared, ws)
     if reviewer is None:
         if provider is None:
             raise ValueError("run_repo_review needs a provider, or an injected reviewer")

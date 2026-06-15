@@ -126,15 +126,24 @@ def test_slither_facts_extract_grounds_a_real_contract(tmp_path):
     assert "ext-call" in facts.summary
 
 
-def test_importing_the_evm_domain_does_not_pull_the_tool_backends():
+def test_importing_the_evm_domain_does_not_pull_the_heavy_tools():
     import subprocess
     import sys
 
-    # the domain package must stay a leaf, the heavy seams load only when explicitly used,
-    # so registering or selecting the domain never needs the optional dependency
+    # loading the domain binds the facts backend, a light module, but must never pull the
+    # optional slither dependency, the forge PoC module, or the repo engine, so registering
+    # or selecting the domain stays free of the optional dependency
     code = (
         "import codejury.domains.evm, sys\n"
+        "assert 'slither' not in sys.modules\n"
         "assert 'codejury.domains.evm.poc' not in sys.modules\n"
-        "assert 'codejury.domains.evm.facts.slither' not in sys.modules\n"
+        "assert 'codejury.review' not in sys.modules\n"
     )
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+def test_evm_domain_binds_a_facts_backend_web_binds_none():
+    from codejury.domains.base import FactsBackend
+
+    assert isinstance(EVM.facts_backend, FactsBackend)
+    assert WEB.facts_backend is None

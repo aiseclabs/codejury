@@ -21,6 +21,21 @@ _REPLY = (
 )
 
 
+def test_with_facts_folds_persisted_facts_and_marks_truncation(tmp_path):
+    from codejury.review.repo.engine import _FACTS_CONTEXT_CAP, _with_facts
+
+    # no facts file, the shared context is unchanged
+    assert _with_facts("STACK", tmp_path) == "STACK"
+
+    (tmp_path / "_facts.md").write_text("contract V\n  external withdraw()  ext-call", encoding="utf-8")
+    folded = _with_facts("STACK", tmp_path)
+    assert "STACK" in folded and "Contract facts:" in folded and "withdraw()" in folded
+
+    # oversize facts are folded but the cut is marked, never silently dropped, invariant 3
+    (tmp_path / "_facts.md").write_text("x" * (_FACTS_CONTEXT_CAP + 500), encoding="utf-8")
+    assert "facts truncated" in _with_facts("STACK", tmp_path)
+
+
 def test_build_units_groups_trace_targets_by_package():
     units = build_units(
         "/root",

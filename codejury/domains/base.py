@@ -80,6 +80,9 @@ class Domain:
     severity_floors: tuple[tuple[str, str], ...]
     diff_focus: str
     diff_do_not_report: str
+    # the optional facts backend that grounds repo review, None when the domain has none,
+    # so the engine falls back to its own heuristics
+    facts_backend: FactsBackend | None = None
 
     @property
     def paths(self) -> ContentPaths:
