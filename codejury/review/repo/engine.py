@@ -132,10 +132,12 @@ def _finding_md(c: Candidate) -> str:
 def _finding_name(c: Candidate) -> str:
     """The shared name tying a finding to its source candidate and its poc. In the agent
     flow that name is the candidate file basename, carried on `source`. The coded run has
-    no candidate file, so fall back to the finding slug."""
+    no candidate file, so fall back to a slug of the dedup identity, location plus class.
+    The class matters: two findings on one endpoint kept distinct by their category, a
+    missing binding and a race, would otherwise slug alike and one would overwrite the other."""
     if c.source.endswith(".md"):
         return Path(c.source).stem
-    return _finding_slug(c.endpoint or c.title)
+    return _finding_slug(f"{c.endpoint or c.file or c.title} {c.category}")
 
 
 def _poc_for(ws: Path, name: str) -> str:
@@ -165,8 +167,18 @@ def _write_findings(ws: Path, findings: list[Candidate]) -> None:
     findings_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     for p in findings_dir.glob("*.md"):
         p.unlink()
+    used: set[str] = set()
     for c in findings:
-        (findings_dir / f"{_finding_name(c)}.md").write_text(_finding_md(c), encoding="utf-8")
+        base = _finding_name(c)
+        name = base
+        # two distinct findings can still slug to one name, never overwrite, invariant 3:
+        # disambiguate so no confirmed finding's detail file is silently lost
+        n = 2
+        while name in used:
+            name = f"{base}-{n}"
+            n += 1
+        used.add(name)
+        (findings_dir / f"{name}.md").write_text(_finding_md(c), encoding="utf-8")
     (ws / "findings.json").write_text(json.dumps(
         {"findings": [_finding_entry(ws, c) for c in findings]}, indent=2, ensure_ascii=False),
         encoding="utf-8")

@@ -349,6 +349,20 @@ def test_write_findings_owns_findings_dir_and_never_touches_candidates(tmp_path)
     assert len(json.loads((ws / "findings.json").read_text())["findings"]) == 1
 
 
+def test_write_findings_keeps_two_findings_that_share_an_endpoint(tmp_path):
+    # coded run, no candidate file, so the name falls back to a slug. Two findings on one
+    # endpoint kept distinct by category must not slug alike and overwrite each other
+    from codejury.review.repo.engine import _write_findings
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    two = [Candidate(title="missing binding", category="idor", endpoint="POST /x", file="x.py", line=1),
+           Candidate(title="token race", category="race-condition", endpoint="POST /x", file="x.py", line=2)]
+    _write_findings(ws, two)
+    assert len(list((ws / "findings").glob("*.md"))) == 2
+    assert len(json.loads((ws / "findings.json").read_text())["findings"]) == 2
+
+
 def test_finalize_links_pocs_and_reconciles(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()
