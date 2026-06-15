@@ -26,6 +26,8 @@ anthropic = ["anthropic>=0.40"]
 openai = ["openai>=1.0"]
 litellm = ["litellm>=1.0"]
 all = ["anthropic>=0.40", "openai>=1.0", "litellm>=1.0"]
+# the evm facts and PoC backends, heavy and lazy-imported, so they stay out of a base install
+evm = ["slither-analyzer>=0.10", "web3>=6.0"]
 dev = ["pytest>=8.0", "jsonschema>=4.0"]
 
 [project.scripts]

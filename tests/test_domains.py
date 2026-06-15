@@ -57,3 +57,44 @@ def test_evm_domain_resolves_shipped_content_and_strategy():
     assert "reentrancy" in EVM.lenses
     assert EVM.severity_floors and EVM.lenses != WEB.lenses
     assert "reentrancy" in EVM.diff_focus.lower()
+
+
+def test_evm_facts_backend_fails_loud_without_slither():
+    from codejury.domains.base import BackendUnavailable, FactsBackend
+    from codejury.domains.evm.facts.slither import SlitherFacts
+
+    backend = SlitherFacts()
+    assert isinstance(backend, FactsBackend)
+    if backend.available():
+        pytest.skip("slither is installed, the missing-tool path does not apply")
+    # a missing toolchain is a loud failure, never empty facts that read as a clean review
+    with pytest.raises(BackendUnavailable):
+        backend.extract(".")
+
+
+def test_evm_poc_verifier_fails_loud_without_forge():
+    from codejury.domains.base import BackendUnavailable
+    from codejury.domains.evm.poc import ForgePoC
+    from codejury.review.repo.union import Candidate
+    from codejury.review.repo.verifier import Verifier
+
+    poc = ForgePoC()
+    assert isinstance(poc, Verifier)
+    if poc.available():
+        pytest.skip("forge is installed, the missing-tool path does not apply")
+    with pytest.raises(BackendUnavailable):
+        poc.verify(Candidate(title="x"), ".")
+
+
+def test_importing_the_evm_domain_does_not_pull_the_tool_backends():
+    import subprocess
+    import sys
+
+    # the domain package must stay a leaf, the heavy seams load only when explicitly used,
+    # so registering or selecting the domain never needs the optional dependency
+    code = (
+        "import codejury.domains.evm, sys\n"
+        "assert 'codejury.domains.evm.poc' not in sys.modules\n"
+        "assert 'codejury.domains.evm.facts.slither' not in sys.modules\n"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)

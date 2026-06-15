@@ -6,13 +6,21 @@ under a content root: `knowledge/`, `playbook/`, and `detection.yaml`. A `Domain
 name to one such content root, and `ContentPaths` resolves the fixed file layout under
 it. Selecting a domain swaps the whole knowledge set without touching the engine.
 
+It also declares the tool-backed seams a domain may bind, `FactsBackend` and
+`SourceLoader`, as abstract interfaces. The interfaces name no tool, so a concrete
+backend such as a Slither facts extractor or a block-explorer loader lives in its own
+domain package behind an optional dependency, and a domain without one falls back to the
+engine's own heuristics.
+
 This module holds no path of its own and imports nothing from `codejury`, so the leaf
-modules that only need resolved paths can depend on `ContentPaths` with no import cycle.
+modules that only need resolved paths or these interfaces can depend on it with no import
+cycle.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -76,3 +84,55 @@ class Domain:
     @property
     def paths(self) -> ContentPaths:
         return content_paths(self.content_root)
+
+
+class BackendUnavailable(RuntimeError):
+    """A tool-backed seam was asked to work but its external tool is not installed. Raised,
+    never swallowed into an empty result, so a missing toolchain is a loud failure and not a
+    silently clean review, invariant 3."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class Facts:
+    """Deterministic, tool-extracted facts about a source tree, used to ground model review.
+    `summary` is prompt-ready text the engine threads into shared context, `data` is the
+    structured payload, such as a call graph a backend uses for unit packing. Empty facts
+    mean no backend ran, the engine falls back to its own heuristics."""
+    summary: str = ""
+    data: dict = field(default_factory=dict)
+
+    @property
+    def empty(self) -> bool:
+        return not self.summary and not self.data
+
+
+class FactsBackend(ABC):
+    """Extracts deterministic facts from a source tree to ground model review. A domain may
+    bind one, the engine falls back to its heuristics when none is available, so facts are a
+    precision and packing aid, not a hard requirement."""
+
+    @abstractmethod
+    def available(self) -> bool:
+        """Whether the backing tool is installed, so a caller can fall back rather than fail
+        when facts are optional."""
+
+    @abstractmethod
+    def extract(self, root: str | Path) -> Facts:
+        """Extract facts from the source tree at root. Raise BackendUnavailable when the
+        tool is absent rather than returning empty facts that would mask a missing
+        toolchain."""
+
+
+class SourceLoader(ABC):
+    """Materializes review source into a local tree. The web domain reviews a checkout in
+    place, another domain may fetch from a host or a block explorer. A domain may bind one,
+    the CLI passes a local path directly when none is set."""
+
+    @abstractmethod
+    def available(self) -> bool:
+        """Whether the backing tool or client is installed."""
+
+    @abstractmethod
+    def fetch(self, ref: str, dest: str | Path) -> Path:
+        """Materialize the source named by ref under dest and return the review root. Raise
+        BackendUnavailable when the backing tool or client is absent."""
