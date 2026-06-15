@@ -427,14 +427,15 @@ def finalize_repo_review(
     ws = Path(workspace) / Path(target).resolve().name
     root = str(Path(target).resolve())
 
+    by_file = domain.dedup_by_file
     cands = [c for c in (_parse_candidate(p, source_extensions) for p in sorted((ws / "candidates").glob("*.md"))) if c]
     sev_votes: dict = {}
     for c in cands:
-        sev_votes.setdefault(c.key(), []).append(c.severity)
+        sev_votes.setdefault(c.key(by_file), []).append(c.severity)
     pool: dict = {}
-    merge(pool, cands)
+    merge(pool, cands, by_file)
     deduped = [
-        replace(c, severity=calibrated(median(sev_votes.get(c.key(), [c.severity])), c.category, c.title,
+        replace(c, severity=calibrated(median(sev_votes.get(c.key(by_file), [c.severity])), c.category, c.title,
                                        domain.severity_floors))
         for c in collapse_colocated(list(pool.values()))
     ]
@@ -514,7 +515,7 @@ def run_repo_review(
     reviewed = set() if fresh else _reviewed_slugs(ws)
     open_units = [u for u in units if unit_slug(u.name) not in reviewed]
     acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws)),
-                      severity_floors=domain.severity_floors)
+                      severity_floors=domain.severity_floors, dedup_by_file=domain.dedup_by_file)
 
     shared = (ws / "_stack.md").read_text(encoding="utf-8")
     shared = _with_facts(shared, ws)

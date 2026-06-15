@@ -56,6 +56,42 @@ def test_dedup_falls_back_to_file_plus_category():
     assert len(pool) == 2
 
 
+def test_by_file_collapses_one_root_cause_across_functions():
+    # the shared-helper case: one defect reported at every caller of a verifier, where the
+    # endpoint is a function. By file and class it is one finding, not one per function.
+    cands = [
+        _c("domain sep at execute", category="signature-replay", endpoint="execute", file="Forwarder.sol"),
+        _c("domain sep at verify", category="signature-replay", endpoint="verify", file="Forwarder.sol"),
+        _c("domain sep raw", category="signature-replay", endpoint="", file="Forwarder.sol"),
+    ]
+    pool: dict = {}
+    assert merge(pool, cands, by_file=True) == 1
+    assert len(pool) == 1
+
+
+def test_by_file_keeps_distinct_classes_in_one_file():
+    a = _c("replay", category="signature-replay", endpoint="execute", file="Forwarder.sol")
+    b = _c("missing check", category="access-control", endpoint="verify", file="Forwarder.sol")
+    pool: dict = {}
+    merge(pool, [a, b], by_file=True)
+    assert len(pool) == 2
+
+
+def test_endpoint_dedup_is_default_when_not_by_file():
+    a = _c("a", category="signature-replay", endpoint="execute", file="Forwarder.sol")
+    b = _c("b", category="signature-replay", endpoint="verify", file="Forwarder.sol")
+    pool: dict = {}
+    merge(pool, [a, b])
+    assert len(pool) == 2
+
+
+def test_accumulator_by_file_unions_one_per_file_class():
+    acc = Accumulator(converge_after=1, dedup_by_file=True)
+    acc.add_pass([_c("at execute", category="signature-replay", endpoint="execute", file="Forwarder.sol")])
+    acc.add_pass([_c("at verify", category="signature-replay", endpoint="verify", file="Forwarder.sol")])
+    assert len(acc.findings) == 1
+
+
 def test_confirmed_upgrades_blocked_at_same_location():
     pool: dict = {}
     merge(pool, [_c("x", endpoint="POST /t", status="blocked")])

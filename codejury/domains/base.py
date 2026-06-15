@@ -83,6 +83,11 @@ class Domain:
     # the optional facts backend that grounds repo review, None when the domain has none,
     # so the engine falls back to its own heuristics
     facts_backend: FactsBackend | None = None
+    # dedup granularity for repo review. The web default keeps the endpoint in the key, so
+    # one class on two HTTP routes is two findings to fix. A domain whose endpoint is a
+    # function sharing a helper sets this True to dedup by file and class, since the same
+    # root cause surfaces at every caller and is one finding, not one per function.
+    dedup_by_file: bool = False
 
     @property
     def paths(self) -> ContentPaths:

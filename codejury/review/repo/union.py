@@ -37,20 +37,24 @@ class Candidate:
     status: str = "confirmed"
     source: str = ""   # agent candidate file basename, links a finding to its candidate and poc, empty in the coded run
 
-    def key(self) -> tuple:
+    def key(self, by_file: bool = False) -> tuple:
         """The dedup identity, location plus class. Endpoint is the precise location
         when a pass records it, path params normalized so /x/<id> and /x/{id}
         collapse. Otherwise fall back to file. The category is always part of the key,
         so two distinct classes on the same endpoint, a missing binding and a race on
-        the same token route, stay separate findings and are not merged away."""
+        the same token route, stay separate findings and are not merged away.
+
+        With `by_file`, the endpoint is dropped from the key and findings collapse by file
+        and class. A domain whose endpoint is a function sets this, since one root cause in
+        a shared helper is reported at every caller and is one finding, not one per function."""
         cat = self.category.strip().lower()
-        if self.endpoint:
+        if self.endpoint and not by_file:
             ep = re.sub(r"\s+", " ", re.sub(r"[<{][^>}]*[>}]", "*", self.endpoint.strip().lower()))
             return ("ep", ep, cat)
         return ("fc", self.file.strip().lower(), cat)
 
 
-def merge(pool: dict[tuple, Candidate], incoming: list[Candidate]) -> int:
+def merge(pool: dict[tuple, Candidate], incoming: list[Candidate], by_file: bool = False) -> int:
     """Fold `incoming` into `pool` keyed by location, return how many were new.
 
     A duplicate does not overwrite, except a confirmed candidate upgrades a blocked
@@ -58,7 +62,7 @@ def merge(pool: dict[tuple, Candidate], incoming: list[Candidate]) -> int:
     could only block is strictly more informative."""
     new = 0
     for cand in incoming:
-        k = cand.key()
+        k = cand.key(by_file)
         existing = pool.get(k)
         if existing is None:
             pool[k] = cand
@@ -99,11 +103,12 @@ class Accumulator:
     failed_units: set[str] = field(default_factory=set)   # never reviewed cleanly, left open so the gate catches them
     sev_votes: dict[tuple, list[str]] = field(default_factory=dict)
     severity_floors: tuple[tuple[str, str], ...] | None = None   # the domain's floor table, web default when None
+    dedup_by_file: bool = False   # the domain's dedup granularity, endpoint-aware when False
 
     def add_pass(self, candidates: list[Candidate]) -> int:
         for c in candidates:
-            self.sev_votes.setdefault(c.key(), []).append(c.severity)
-        n = merge(self.pool, candidates)
+            self.sev_votes.setdefault(c.key(self.dedup_by_file), []).append(c.severity)
+        n = merge(self.pool, candidates, self.dedup_by_file)
         self.new_per_pass.append(n)
         return n
 

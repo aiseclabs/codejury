@@ -57,6 +57,9 @@ def test_evm_domain_resolves_shipped_content_and_strategy():
     assert "reentrancy" in EVM.lenses
     assert EVM.severity_floors and EVM.lenses != WEB.lenses
     assert "reentrancy" in EVM.diff_focus.lower()
+    # the evm endpoint is a function sharing helpers, so it dedups by file, web by endpoint
+    assert EVM.dedup_by_file is True
+    assert WEB.dedup_by_file is False
 
 
 def test_evm_facts_backend_fails_loud_without_slither(monkeypatch):

@@ -81,4 +81,5 @@ EVM = Domain(
     diff_focus=EVM_DIFF_FOCUS,
     diff_do_not_report=EVM_DIFF_DO_NOT_REPORT,
     facts_backend=SlitherFacts(),
+    dedup_by_file=True,
 )
