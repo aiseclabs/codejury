@@ -42,10 +42,24 @@ exact code, including inherited modifiers and the called contract, and settle it
 if the control is absent or bypassable, refuted if it holds, blocked if it turns on a
 deploy-time or runtime fact you cannot read, for example which oracle address is wired in.
 
-Recall comes first: when in doubt, surface it. Never drop a real finding to keep the report
-clean. The only things you do not report are dependency or compiler advisories, gas and
-style notes with no security impact, and a candidate the facts refute. A weaker signal is a
-lower severity, not a dropped finding.
+Recall comes first within the high-impact classes: when you are unsure a fund-moving flaw
+is real, surface it, and never drop a real exploitable finding to keep the report clean. A
+weaker signal on a high-impact class is a lower severity, not a dropped finding.
+
+These are not findings here, do not report them:
+
+- A trusted owner, admin, or role acting through a correctly gated privileged function.
+  Centralization by design, an admin who can pause, seize, mint, or redirect fees on a
+  properly restricted path, is not a finding. Report it only when the gate is missing, the
+  wrong role, or reachable by an arbitrary caller.
+- Upgrade and initializer hygiene with no exploit shown: a missing storage gap, a missing
+  or unused initializer, a loop that "could" run out of gas. Report these only with a
+  concrete reachable path that moves, locks, or corrupts funds.
+- A guess about code outside this unit. When a flaw turns on a function or value you could
+  not read, trace it or mark it `blocked` with the exact `Needs:`, never report it confirmed
+  on a "not visible in this unit" basis.
+- Dependency or compiler advisories, gas and style notes with no security impact, and a
+  candidate the facts refute.
 
 Write a runnable proof when you can, a Foundry test that reproduces the exploit strengthens
 a finding. When you cannot run one, still report it, marking `Status: blocked` with the
@@ -55,8 +69,8 @@ broadcast a transaction, never hold a private key, run a proof only against a lo
 a fresh local deploy.
 
 Grade every real finding by the severity rubric in `inventory/_severity.md` and report all
-of them, CRITICAL through LOW. There is no refuting a finding for low impact. Do not talk a
-real finding down with a plausible word: "the guard is on another function", "the array is
+of them. There is no refuting a real exploitable finding for low impact. Do not talk a real
+finding down with a plausible word: "the guard is on another function", "the array is
 usually small", "the owner would not do that" lower the severity per the rubric, they do
 not make the finding disappear.
 
