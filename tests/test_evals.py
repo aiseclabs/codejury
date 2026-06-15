@@ -101,6 +101,41 @@ def test_file_keyed_planted_credits_a_report_at_any_accepted_anchor(tmp_path):
     assert elsewhere.missed == ["rce"]
 
 
+def test_symbols_credit_the_real_framing_not_a_same_class_sibling(tmp_path):
+    # two findings of one class can live in one file, only the one on the bug's real function
+    # path is the planted bug. symbols pin that path, so a report of the same class on a
+    # sibling function in the same file is no longer credited, the framing level recall the
+    # coarse match by class and file could not measure
+    key = load_answer_key(_key(tmp_path,
+        "target: t\nplanted:\n  - id: reent\n    category: reentrancy\n    file: src/V3Vault.sol\n"
+        "    symbols:\n      - _cleanupLoan\n      - onERC721Received\n"))
+    real = Report.make("r", "", "reentrancy", ["src/V3Vault.sol"],
+                       text="_cleanupLoan runs safeTransferFrom, the receiver re-enters via onERC721Received")
+    sibling = Report.make("r", "", "reentrancy", ["src/V3Vault.sol"],
+                          text="decreaseLiquidityAndCollect lacks a nonReentrant guard")
+    assert score(key, [real]).found == ["reent"]
+    assert score(key, [sibling]).missed == ["reent"]
+
+
+def test_symbols_match_the_source_line_too_when_the_body_is_thin(tmp_path):
+    # the engine sometimes cites the function only on the Source line, which lands in the
+    # report endpoint, so a symbol there counts the same as one in the body
+    key = load_answer_key(_key(tmp_path,
+        "target: t\nplanted:\n  - id: ac\n    category: access-control\n    file: src/V3Utils.sol\n"
+        "    symbols:\n      - execute\n"))
+    on_source = Report.make("r", "V3Utils.execute", "access-control", ["src/V3Utils.sol"])
+    assert score(key, [on_source]).found == ["ac"]
+
+
+def test_no_symbols_keeps_the_coarse_class_and_file_match(tmp_path):
+    # an entry without symbols must score exactly as before, the behavior every web key and
+    # the oracle bundle rely on
+    key = load_answer_key(_key(tmp_path,
+        "target: t\nplanted:\n  - id: rce\n    category: code-injection\n    file: lib/sink.js\n"))
+    bare = Report.make("r", "", "code-injection", ["lib/sink.js"])
+    assert score(key, [bare]).found == ["rce"]
+
+
 def test_endpoint_keyed_planted_ignores_file_so_a_sibling_is_not_credited(tmp_path):
     # an entry with an endpoint matches only by endpoint, so a report on another route is not
     # credited even when it cites the same file, the looseness the strict matcher guards

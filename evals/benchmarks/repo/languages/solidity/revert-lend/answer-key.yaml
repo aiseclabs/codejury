@@ -3,14 +3,20 @@ target: revert-lend
 # Ground truth from the Code4rena report at https://code4rena.com/reports/2024-03-revert-lend
 # cross checked against the audited source at commit 435b054f. The oracle class has four
 # reported issues in V3Oracle.sol, H-05 plus M-07, M-19, M-27, which collapse to one planted
-# entry, since the repo scorer matches an EVM finding by class and file. H-01 signature replay
-# in V3Vault.sol is real but not planted here, the EURF target already covers that class.
+# entry, kept coarse with no symbols since it is a bundle of several oracle defects. The two
+# V3Vault.sol entries share a file and would collide under a match by class and file, so each
+# carries `symbols`, the functions on its true path, so a report of the same class on a
+# sibling function in the file no longer credits it. H-01 signature replay in V3Vault.sol is
+# real but not planted here, the EURF target already covers that class.
 
 planted:
   - id: vault-onerc721-reentrancy
     category: reentrancy
     file: src/V3Vault.sol
     severity: HIGH
+    symbols:
+      - _cleanupLoan
+      - onERC721Received
     note: >-
       C4 H-02. _cleanupLoan runs the position NFT safeTransferFrom before
       _updateAndCheckCollateral, so the receiver re-enters through onERC721Received mid update
@@ -40,6 +46,8 @@ planted:
     category: access-control
     file: src/transformers/V3Utils.sol
     severity: HIGH
+    symbols:
+      - execute
     note: >-
       C4 H-04. V3Utils.execute does not validate the caller, so anyone can operate on a
       position the contract is approved for and drain it.
@@ -53,6 +61,9 @@ planted:
     category: denial-of-service
     file: src/V3Vault.sol
     severity: HIGH
+    symbols:
+      - _cleanupLoan
+      - onERC721Received
     note: >-
       C4 H-06. The position owner reverts inside onERC721Received during _cleanupLoan, so the
       transfer fails and liquidation can be blocked indefinitely. Distinct from the reentrancy

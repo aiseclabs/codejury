@@ -33,7 +33,7 @@ def parse_finding_md(text: str, name: str) -> Report:
         m = re.search(rf"(?im)^\s*-?\s*{key}\s*:\s*(.+?)\s*$", text)
         return m.group(1).strip().strip("`") if m else ""
     files = sorted(set(_file_re().findall(text)))
-    return Report.make(name, field("source"), field("type"), files)
+    return Report.make(name, field("source"), field("type"), files, text=text)
 
 
 def reports_from_findings_dir(d: str | Path) -> list[Report]:
@@ -52,6 +52,7 @@ def reports_from_json(path: str | Path) -> list[Report]:
             str(r.get("entry") or r.get("source") or ""),
             str(r.get("category") or r.get("type") or ""),
             [str(r["file"])] if r.get("file") else [],
+            text=" ".join(str(r.get(k, "")) for k in ("title", "note", "analysis", "attack_path")),
         )
         for i, r in enumerate(rows)
     ]

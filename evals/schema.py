@@ -19,16 +19,18 @@ from evals.scorers.match import category_of, normalize_endpoint
 
 @dataclass(frozen=True, kw_only=True)
 class Report:
-    """One reported issue, however a path produced it. Endpoint is stored normalized."""
+    """One reported issue, however a path produced it. Endpoint is stored normalized, text
+    is the lowercased finding body a symbol-anchored key entry searches for its framing."""
     name: str
     endpoint: str = ""
     category: str = ""
     files: tuple[str, ...] = ()
+    text: str = ""
 
     @classmethod
-    def make(cls, name: str, endpoint: str, category: str, files) -> "Report":
+    def make(cls, name: str, endpoint: str, category: str, files, text: str = "") -> "Report":
         return cls(name=name, endpoint=normalize_endpoint(endpoint),
-                   category=category_of(category), files=tuple(files))
+                   category=category_of(category), files=tuple(files), text=text.lower())
 
 
 def knowledge_refs(block) -> tuple[str, ...]:
@@ -45,9 +47,12 @@ def knowledge_refs(block) -> tuple[str, ...]:
 class KeyEntry:
     """A planted issue or a safe lookalike from the answer key. `files` are the acceptable
     file anchors, since a vuln may be correctly reported at its sink or at a call site that
-    feeds it, so a report matching any one counts. `knowledge` names the vulnerability
-    classes and guides the entry exercises, so the coverage matrix can attribute it, empty
-    for a legacy key authored before the rename."""
+    feeds it, so a report matching any one counts. `symbols` narrows an entry from a
+    whole file to its real framing, the function names on the true bug's path, so a report of
+    the same class on a sibling function in the file no longer credits it. Several are
+    accepted, a report naming any one of the path's functions counts. `knowledge` names the
+    vulnerability classes and guides the entry exercises, so the coverage matrix can
+    attribute it, empty for a legacy key authored before the rename."""
     id: str
     entry: str = ""
     files: tuple[str, ...] = ()
@@ -55,6 +60,7 @@ class KeyEntry:
     severity: str = ""
     note: str = ""
     knowledge: tuple[str, ...] = ()
+    symbols: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -73,6 +79,17 @@ def _entry_files(row: dict) -> tuple[str, ...]:
         single = row.get("file")
         raw = [single] if single else []
     return tuple(str(f) for f in raw)
+
+
+def _entry_symbols(row: dict) -> tuple[str, ...]:
+    """The framing anchors a key entry accepts, lowercased to match a report's lowercased
+    body. `symbols` lists several functions on the bug's path, the singular `symbol` is the
+    single form, so both load alike."""
+    raw = row.get("symbols")
+    if raw is None:
+        single = row.get("symbol")
+        raw = [single] if single else []
+    return tuple(str(s).strip().lower() for s in raw if str(s).strip())
 
 
 def _key_entries(rows, *, require_category: bool, where: str) -> tuple[KeyEntry, ...]:
@@ -95,6 +112,7 @@ def _key_entries(rows, *, require_category: bool, where: str) -> tuple[KeyEntry,
             severity=str(r.get("severity", "")),
             note=str(r.get("note", "")),
             knowledge=knowledge_refs(r.get("knowledge")),
+            symbols=_entry_symbols(r),
         ))
     return tuple(out)
 
