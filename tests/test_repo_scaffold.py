@@ -147,7 +147,11 @@ class _CountingBackend(FactsBackend):
 
     def extract(self, root):
         self.calls += 1
-        return Facts(summary="contract Fake\n  external f()  ext-call", data={"contracts": {}})
+        block = "contract Fake\n  external f()  ext-call"
+        return Facts(summary=block, data={
+            "contracts": {}, "by_file": {"app.py": block},
+            "units": [{"name": "app.py#Fake.f", "files": ["app.py"], "fragments": [["app.py", 0, 12]]}],
+        })
 
 
 def _facts_domain(backend: FactsBackend) -> object:
@@ -167,6 +171,40 @@ def test_scaffold_writes_facts_when_opted_in(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend), facts=True)
     assert (res.workspace / "_facts.md").read_text().startswith("contract Fake")
     assert backend.calls == 1
+
+
+def test_scaffold_persists_the_per_file_facts_map(tmp_path):
+    # the engine grounds each unit per file, so the by_file map is persisted as json beside
+    # the human-readable _facts.md
+    import json
+
+    backend = _CountingBackend()
+    res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend), facts=True)
+    by_file = json.loads((res.workspace / "_facts_by_file.json").read_text())
+    assert by_file["app.py"].startswith("contract Fake")
+
+
+def test_scaffold_persists_the_call_path_units(tmp_path):
+    import json
+
+    backend = _CountingBackend()
+    res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend), facts=True)
+    units = json.loads((res.workspace / "_facts_units.json").read_text())
+    assert units[0]["name"] == "app.py#Fake.f"
+    assert units[0]["fragments"] == [["app.py", 0, 12]]
+
+
+def test_scaffold_reuses_the_cached_per_file_facts_map(tmp_path):
+    import json
+
+    backend = _CountingBackend()
+    dom = _facts_domain(backend)
+    work = tmp_path / "work"
+    scaffold(_target(tmp_path), work, domain=dom, facts=True)
+    res = scaffold(_target(tmp_path), work, domain=dom, facts=True, fresh=True)
+    assert backend.calls == 1  # the map rode the content hash cache, no re-extract
+    assert json.loads((res.workspace / "_facts_by_file.json").read_text())["app.py"]
+    assert json.loads((res.workspace / "_facts_units.json").read_text())[0]["name"] == "app.py#Fake.f"
 
 
 def test_scaffold_reuses_cached_facts_across_a_fresh_run(tmp_path):
@@ -207,6 +245,13 @@ def test_scaffold_persists_facts_for_the_evm_domain(tmp_path):
     assert facts.is_file()
     text = facts.read_text()
     assert "contract Vault" in text and "reenter" in text
+    # the per-file map keys Vault's facts on its source path, so a unit owning that file is
+    # grounded with its call graph no matter which slice it reviews
+    import json
+
+    by_file = json.loads((res.workspace / "_facts_by_file.json").read_text())
+    vault_key = next(k for k in by_file if k.endswith("Vault.sol"))
+    assert "contract Vault" in by_file[vault_key] and "reenter" in by_file[vault_key]
 
 
 def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):

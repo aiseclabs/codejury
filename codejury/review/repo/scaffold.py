@@ -12,6 +12,7 @@ methodology text to print. It does not find issues itself.
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -142,15 +143,24 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
     if backend is None or not backend.available():
         return
     dest = ws / "_facts.md"
+    dest_by_file = ws / "_facts_by_file.json"
+    dest_units = ws / "_facts_units.json"
     if dest.is_file():
         # a prior scaffold already grounded this workspace, reuse it over re-extracting
         return
     error = ws / "_facts_error.txt"
     if error.exists():
         error.unlink()
-    cached = cache_root / f"{_facts_cache_key(target, files, domain)}.md"
+    key = _facts_cache_key(target, files, domain)
+    cached = cache_root / f"{key}.md"
+    cached_by_file = cache_root / f"{key}.json"
+    cached_units = cache_root / f"{key}.units.json"
     if cached.is_file():
         dest.write_text(cached.read_text(encoding="utf-8"), encoding="utf-8")
+        if cached_by_file.is_file():
+            dest_by_file.write_text(cached_by_file.read_text(encoding="utf-8"), encoding="utf-8")
+        if cached_units.is_file():
+            dest_units.write_text(cached_units.read_text(encoding="utf-8"), encoding="utf-8")
         return
     try:
         facts = backend.extract(target)
@@ -162,6 +172,19 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
         dest.write_text(facts.summary, encoding="utf-8")
         cache_root.mkdir(parents=True, exist_ok=True, mode=0o700)
         cached.write_text(facts.summary, encoding="utf-8")
+        # the per-file facts the engine grounds each unit with, so a large file's call graph
+        # rides along whichever slice the unit reviews, see Facts.data["by_file"]
+        by_file = facts.data.get("by_file") if isinstance(facts.data, dict) else None
+        if by_file:
+            payload = json.dumps(by_file)
+            dest_by_file.write_text(payload, encoding="utf-8")
+            cached_by_file.write_text(payload, encoding="utf-8")
+        # the focused call-path units the engine adds to the worklist, see Facts.data["units"]
+        units = facts.data.get("units") if isinstance(facts.data, dict) else None
+        if units:
+            payload = json.dumps(units)
+            dest_units.write_text(payload, encoding="utf-8")
+            cached_units.write_text(payload, encoding="utf-8")
 
 
 _SURFACE_TEMPLATE = """\

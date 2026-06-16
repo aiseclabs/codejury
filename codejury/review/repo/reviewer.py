@@ -37,16 +37,27 @@ class RepoReviewError(RuntimeError):
 _GATHER_PER_FILE = 24_000
 _GATHER_TOTAL = 120_000
 
+# a cap on the per-unit facts block, so a unit owning many files still leads with code, not
+# a flood of facts. Per-unit facts are already scoped to the unit's files, so this is a
+# guard against a unit that owns many files, set above the largest single contract's facts
+# so a unit of one file is never truncated, not the head truncation a global dump needs
+_FACTS_PER_UNIT = 16_000
+
 
 @dataclass(frozen=True, kw_only=True)
 class Unit:
     """One unit of the worklist: the files it owns plus the files it traces into. `span`,
     when set, is the char window of the first owned file this unit reviews, so a file too
-    large for one call is split across sibling units instead of being silently truncated."""
+    large for one call is split across sibling units instead of being silently truncated.
+    `fragments`, when set, are `(file, start, end)` source slices this unit reviews instead
+    of whole files, so a call-path unit co-locates a function and its call-graph neighborhood
+    rather than a char window. `files` still names the source files for facts grounding and
+    coverage bookkeeping."""
     name: str
     root: str
     files: tuple[str, ...]
     span: tuple[int, int] | None = None
+    fragments: tuple[tuple[str, int, int], ...] = ()
 
 
 def candidates_from_obj(obj: object) -> list[Candidate]:
@@ -83,9 +94,34 @@ class UnitReviewer(ABC):
         """Deeply review one unit through one lens, return its candidate findings."""
 
 
+def _gather_fragments(unit: Unit) -> str:
+    """Assemble a call-path unit from its source fragments, the function bodies the packer
+    co-located, so the model sees the path in one focused window. Each fragment is labeled
+    with its file and char range, the same header form a block of a whole file uses."""
+    parts: list[str] = []
+    total = 0
+    for rel, start, end in unit.fragments:
+        path = safe_repo_path(unit.root, rel)
+        if path is None:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        seg = text[start:end]
+        block = f"# file: {rel} chars {start}-{end}\n{seg}"
+        parts.append(block)
+        total += len(block)
+        if total >= _GATHER_TOTAL:
+            break
+    return "\n\n".join(parts)
+
+
 def _gather(unit: Unit) -> str:
     """Pack the unit's files into one bounded block, so a single call can trace
     across them without live file access. Unreadable or oversized files are skipped."""
+    if unit.fragments:
+        return _gather_fragments(unit)
     parts: list[str] = []
     total = 0
     for i, rel in enumerate(unit.files):
@@ -124,7 +160,8 @@ class ModelReviewer(UnitReviewer):
     """Default reviewer: one grounded model call per unit per pass."""
 
     def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096,
-                 content: ContentPaths | None = None) -> None:
+                 content: ContentPaths | None = None,
+                 facts_by_file: dict[str, str] | None = None) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
@@ -132,12 +169,43 @@ class ModelReviewer(UnitReviewer):
         rubric_file = content.severity_rubric_file if content else SEVERITY_RUBRIC_FILE
         self._mandate = mandate_file.read_text(encoding="utf-8")
         self._rubric = rubric_file.read_text(encoding="utf-8")
+        # per-file facts blocks, keyed by a path relative to the repo, see Facts.data["by_file"]. A
+        # basename index backs a loose match when a unit's path and the facts key differ only
+        # by a leading directory. Empty when the domain binds no facts backend, so web is
+        # unchanged
+        self._facts_by_file = facts_by_file or {}
+        self._facts_by_base: dict[str, str] = {}
+        for rel, block in self._facts_by_file.items():
+            self._facts_by_base.setdefault(rel.rsplit("/", 1)[-1], block)
+
+    def _facts_for(self, unit: Unit) -> str:
+        """The facts for the files this unit owns, so a unit reviewing one slice of a large
+        file still carries that file's whole call graph, the cross-slice signal."""
+        if not self._facts_by_file:
+            return ""
+        seen: set[str] = set()
+        blocks: list[str] = []
+        total = 0
+        for rel in unit.files:
+            block = self._facts_by_file.get(rel) or self._facts_by_base.get(rel.rsplit("/", 1)[-1])
+            if not block or block in seen:
+                continue
+            seen.add(block)
+            blocks.append(block)
+            total += len(block)
+            if total >= _FACTS_PER_UNIT:
+                break
+        text = "\n".join(blocks)
+        return text[:_FACTS_PER_UNIT] if len(text) > _FACTS_PER_UNIT else text
 
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
+        unit_facts = self._facts_for(unit)
         prompt = (
             f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
             f"{lens_line(lens)}"
             + (f"Stack and authorization model:\n{shared_context}\n\n" if shared_context else "")
+            + (f"Contract facts for this unit, tool-extracted, the call graph and storage "
+               f"the slice below may not show in full:\n{unit_facts}\n\n" if unit_facts else "")
             + f"Unit `{unit.name}`, the code to review:\n```\n{_gather(unit)}\n```\n\n"
             f"Respond with a single JSON object exactly like:\n{JSON_SHAPE}"
         )

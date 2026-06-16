@@ -105,7 +105,14 @@ class Facts:
     """Deterministic, tool-extracted facts about a source tree, used to ground model review.
     `summary` is prompt-ready text the engine threads into shared context, `data` is the
     structured payload, such as a call graph a backend uses for unit packing. Empty facts
-    mean no backend ran, the engine falls back to its own heuristics."""
+    mean no backend ran, the engine falls back to its own heuristics.
+
+    A backend may also fill `data["by_file"]`, a generic convention the engine reads: a map
+    from a source path relative to the repo to a prompt-ready facts block for that file. When set,
+    the engine grounds each unit with only the facts for the files it owns, so a large file
+    split into slices still carries its whole call graph, the cross-slice signal a flat,
+    truncated global dump loses. The map is data the domain fills, the engine names no
+    contract or function, it only indexes by the unit's files."""
     summary: str = ""
     data: dict = field(default_factory=dict)
 

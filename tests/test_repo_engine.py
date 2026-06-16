@@ -8,7 +8,7 @@ import pytest
 
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.gate import check_gate
-from codejury.review.repo.reviewer import Unit, UnitReviewer, _gather
+from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer, _gather
 from codejury.review.repo.engine import _parse_candidate, _spans, build_units, finalize_repo_review, run_repo_review
 from codejury.review.repo.scaffold import unit_slug
 from codejury.review.repo.union import Candidate
@@ -34,6 +34,96 @@ def test_with_facts_folds_persisted_facts_and_marks_truncation(tmp_path):
     # oversize facts are folded but the cut is marked, never silently dropped, invariant 3
     (tmp_path / "_facts.md").write_text("x" * (_FACTS_CONTEXT_CAP + 500), encoding="utf-8")
     assert "facts truncated" in _with_facts("STACK", tmp_path)
+
+
+def _prompt_of(prov):
+    return prov.calls[0]["messages"][0].content
+
+
+def test_reviewer_grounds_a_unit_with_only_its_own_files_facts(tmp_path):
+    # a unit reviewing one slice of a large file still gets that file's whole call graph, the
+    # cross-slice signal a slice cannot show, and not the facts of files it does not own
+    (tmp_path / "V3Vault.sol").write_text("contract V3Vault { }")
+    prov = MockProvider(default='{"findings": []}')
+    by_file = {
+        "V3Vault.sol": "contract V3Vault\n  internal _cleanupLoan()  calls[_updateAndCheckCollateral] ext-call reenter",
+        "Swapper.sol": "contract Swapper\n  external swap()  ext-call",
+    }
+    rev = ModelReviewer(provider=prov, model="mock", facts_by_file=by_file)
+    rev.review(Unit(name="V3Vault.sol", root=str(tmp_path), files=("V3Vault.sol",)), "reentrancy")
+    prompt = _prompt_of(prov)
+    assert "_cleanupLoan" in prompt and "reenter" in prompt
+    assert "Swapper" not in prompt
+
+
+def test_reviewer_adds_no_facts_block_without_a_map(tmp_path):
+    # the web path binds no facts backend, so the prompt is unchanged, no facts section
+    (tmp_path / "v.py").write_text("x = 1")
+    prov = MockProvider(default='{"findings": []}')
+    ModelReviewer(provider=prov, model="mock").review(
+        Unit(name="v.py", root=str(tmp_path), files=("v.py",)), "general")
+    assert "Contract facts for this unit" not in _prompt_of(prov)
+
+
+def test_reviewer_matches_facts_on_basename_when_the_directory_differs(tmp_path):
+    # a unit path and the facts key may differ only by a leading directory, the loose match
+    # still grounds the unit rather than silently dropping its facts
+    (tmp_path / "V3Vault.sol").write_text("contract V3Vault {}")
+    prov = MockProvider(default='{"findings": []}')
+    rev = ModelReviewer(provider=prov, model="mock",
+                        facts_by_file={"src/V3Vault.sol": "contract V3Vault\n  reenter-marker"})
+    rev.review(Unit(name="x", root=str(tmp_path), files=("V3Vault.sol",)), "reentrancy")
+    assert "reenter-marker" in _prompt_of(prov)
+
+
+def test_load_facts_by_file_reads_the_map_and_drops_empty_and_corrupt(tmp_path):
+    from codejury.review.repo.engine import _load_facts_by_file
+
+    assert _load_facts_by_file(tmp_path) == {}
+    (tmp_path / "_facts_by_file.json").write_text('{"a.sol": "facts A", "b.sol": ""}')
+    assert _load_facts_by_file(tmp_path) == {"a.sol": "facts A"}
+    (tmp_path / "_facts_by_file.json").write_text("not json at all")
+    assert _load_facts_by_file(tmp_path) == {}
+
+
+def test_gather_assembles_call_path_fragments(tmp_path):
+    # a call-path unit reviews its source fragments, the packed function bodies, not whole
+    # files, so the model sees the path co-located and not the rest of a large file
+    (tmp_path / "V.sol").write_text("AAAA" + "B" * 100 + "CCCC_TWO" + "D" * 50)
+    u = Unit(name="cp", root=str(tmp_path), files=("V.sol",),
+             fragments=(("V.sol", 0, 4), ("V.sol", 104, 112)))
+    g = _gather(u)
+    assert "AAAA" in g and "CCCC_TWO" in g
+    assert "B" * 100 not in g            # the gap between fragments is not pulled in
+    assert "chars 0-4" in g
+
+
+def test_build_units_appends_call_path_units_from_facts(tmp_path):
+    (tmp_path / "V.sol").write_text("x" * 500)
+    specs = [{"name": "V.sol#V.liquidate", "files": ["V.sol"],
+              "fragments": [["V.sol", 10, 50], ["V.sol", 60, 120]]}]
+    units = build_units(str(tmp_path), ["V.sol"], [], specs)
+    assert "V.sol" in [u.name for u in units]          # the file unit still covers the file
+    cp = [u for u in units if u.fragments]
+    assert len(cp) == 1
+    assert cp[0].name == "V.sol#V.liquidate" and cp[0].files == ("V.sol",)
+    assert cp[0].fragments == (("V.sol", 10, 50), ("V.sol", 60, 120))
+
+
+def test_build_units_without_facts_units_is_unchanged(tmp_path):
+    (tmp_path / "V.sol").write_text("x" * 500)
+    units = build_units(str(tmp_path), ["V.sol"], [])
+    assert not any(u.fragments for u in units)
+
+
+def test_load_facts_units_reads_specs_empty_and_corrupt(tmp_path):
+    from codejury.review.repo.engine import _load_facts_units
+
+    assert _load_facts_units(tmp_path) == []
+    (tmp_path / "_facts_units.json").write_text('[{"name": "u", "files": ["a.sol"], "fragments": [["a.sol", 0, 10]]}]')
+    assert _load_facts_units(tmp_path)[0]["name"] == "u"
+    (tmp_path / "_facts_units.json").write_text("not json at all")
+    assert _load_facts_units(tmp_path) == []
 
 
 def test_build_units_groups_trace_targets_by_package():

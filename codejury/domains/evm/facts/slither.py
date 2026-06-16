@@ -14,6 +14,7 @@ from importlib.util import find_spec
 from pathlib import Path
 
 from codejury.domains.base import BackendUnavailable, Facts, FactsBackend
+from codejury.domains.evm.facts.packing import call_path_units
 
 _INSTALL_HINT = (
     "Slither is not installed. The evm facts backend needs the optional dependency and a "
@@ -33,6 +34,7 @@ class SlitherFacts(FactsBackend):
         from slither import Slither
         from slither.slithir.operations import InternalCall
 
+        root_abs = Path(root).resolve()
         sl = Slither(str(root))
         contracts: dict = {}
         for c in sl.contracts:
@@ -57,13 +59,66 @@ class SlitherFacts(FactsBackend):
                     "external_call": bool(f.high_level_calls or f.low_level_calls),
                     "sends_eth": f.can_send_eth(),
                     "can_reenter": f.can_reenter(),
+                    "range": _fn_range(f),
                 }
             contracts[c.name] = {
+                "file": _rel_file(c, root_abs),
                 "state": [{"name": v.name, "type": str(v.type)} for v in c.state_variables],
                 "functions": functions,
             }
-        data = {"contracts": contracts}
+        data = {
+            "contracts": contracts,
+            "by_file": _by_file(contracts),
+            "units": call_path_units(contracts),
+        }
         return Facts(summary=_render(contracts), data=data)
+
+
+def _rel_file(contract, root_abs: Path) -> str:
+    """The contract's source file relative to the review root, the key the engine joins a
+    unit's files on. Falls back to the basename when the file is the root itself, a
+    a review of a single file, or lies outside the root, such as a dependency, so the entry
+    is still labeled and a basename match still grounds the unit."""
+    mapping = getattr(contract, "source_mapping", None)
+    filename = getattr(mapping, "filename", None)
+    if filename is None:
+        return ""
+    absolute = getattr(filename, "absolute", "")
+    if absolute:
+        abs_p = Path(absolute).resolve()
+        try:
+            rel = abs_p.relative_to(root_abs).as_posix()
+        except ValueError:
+            rel = ""
+        # relative_to yields "." when the root is the file itself, then the name relative to
+        # the repo is just the basename, the form a unit's files take
+        return rel if rel and rel != "." else abs_p.name
+    return getattr(filename, "short", "") or getattr(filename, "used", "")
+
+
+def _fn_range(function) -> list | None:
+    """A function's source range as [start, end] char offsets in its file, so the engine can
+    slice the body for a call-path unit without parsing Solidity. None when slither recorded
+    no mapping, then the function cannot be packed by source."""
+    mapping = getattr(function, "source_mapping", None)
+    start = getattr(mapping, "start", None)
+    length = getattr(mapping, "length", None)
+    if isinstance(start, int) and isinstance(length, int):
+        return [start, start + length]
+    return None
+
+
+def _by_file(contracts: dict) -> dict:
+    """Group the contracts by source file and render one facts block per file, so the engine
+    can ground a unit with only the facts for the files it owns. A file with no resolved path
+    is dropped from the map, it has no unit to join."""
+    grouped: dict[str, dict] = {}
+    for name, c in contracts.items():
+        rel = c.get("file") or ""
+        if not rel:
+            continue
+        grouped.setdefault(rel, {})[name] = c
+    return {rel: _render(sub) for rel, sub in grouped.items()}
 
 
 def _render(contracts: dict) -> str:

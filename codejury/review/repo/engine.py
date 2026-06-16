@@ -94,11 +94,16 @@ def _spans(text: str) -> list[tuple[int, int] | None]:
         start = next_start
 
 
-def build_units(root: str | Path, candidate_files, trace_targets) -> list[Unit]:
+def build_units(root: str | Path, candidate_files, trace_targets, facts_units=None) -> list[Unit]:
     """One unit per candidate entrypoint, packed with the trace-target files that share its
     top-level package, so a single review call can trace across them. A candidate too large
     for one call is split into several units over overlapping char windows, so the whole
-    file is covered rather than truncated to its head."""
+    file is covered rather than truncated to its head.
+
+    When the facts backend supplied `facts_units`, focused call-path units are appended, one
+    per risk-flagged function packed with its call-graph neighborhood. This is additive: the
+    file units keep coverage of every entrypoint, the call-path units co-locate a cross-
+    function path the file slices would split or bury, and the union dedups across both."""
     root = str(root)
     targets = list(trace_targets)
     units: list[Unit] = []
@@ -111,6 +116,26 @@ def build_units(root: str | Path, candidate_files, trace_targets) -> list[Unit]:
             continue
         for i, span in enumerate(spans):
             units.append(Unit(name=f"{cand}#{i + 1}", root=root, files=(cand, *related), span=span))
+    units += _call_path_units(root, facts_units)
+    return units
+
+
+def _call_path_units(root: str, facts_units) -> list[Unit]:
+    """Materialize the focused call-path units from the facts specs. The packing knowledge,
+    which functions group and how tight, lives in the facts backend, here the engine only
+    reads each spec's source fragments into a Unit."""
+    units: list[Unit] = []
+    for spec in facts_units or ():
+        frags = tuple(
+            (str(f[0]), int(f[1]), int(f[2]))
+            for f in spec.get("fragments", [])
+            if isinstance(f, (list, tuple)) and len(f) == 3
+        )
+        if not frags:
+            continue
+        name = str(spec.get("name") or "")
+        files = tuple(dict.fromkeys(f[0] for f in frags))
+        units.append(Unit(name=name or files[0], root=root, files=files, fragments=frags))
     return units
 
 
@@ -474,13 +499,16 @@ class RunResult:
 
 
 # a cap on the facts text folded into every unit prompt, so a large repo's facts cannot
-# crowd out the unit under review. Truncation is marked, never silent, invariant 3
+# crowd out the unit under review. Truncation is marked, never silent, invariant 3. Only the
+# fallback global fold uses it, per-file facts are scoped to the unit and need no global cap
 _FACTS_CONTEXT_CAP = 16000
 
 
 def _with_facts(shared: str, ws: Path) -> str:
     """Fold the persisted contract facts into the shared review context, when scaffold wrote
-    them. Bounded so a large repo's facts stay an aid, not a flood, with the cut marked."""
+    them but no per-file map exists. The fallback for a backend that emits only a summary, bounded so a
+    large repo's facts stay an aid, not a flood, with the cut marked. A backend that emits
+    `by_file` grounds each unit per file instead, see `_load_facts_by_file`."""
     facts_md = ws / "_facts.md"
     if not facts_md.is_file():
         return shared
@@ -490,6 +518,36 @@ def _with_facts(shared: str, ws: Path) -> str:
     if len(facts) > _FACTS_CONTEXT_CAP:
         facts = facts[:_FACTS_CONTEXT_CAP] + "\n... [facts truncated, see _facts.md]"
     return f"{shared}\n\nContract facts:\n{facts}\n"
+
+
+def _load_facts_by_file(ws: Path) -> dict[str, str]:
+    """The per-file facts map scaffold persisted, so the engine grounds each unit with only
+    the facts for the files it owns. Empty when no backend ran or it emits no by_file map, the
+    run then falls back to the global fold or its own heuristics."""
+    p = ws / "_facts_by_file.json"
+    if not p.is_file():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): str(v) for k, v in data.items() if v}
+
+
+def _load_facts_units(ws: Path) -> list:
+    """The focused call-path unit specs scaffold persisted, so the engine adds them to the
+    worklist. Empty when no backend ran or it emits none, the worklist is then the file units
+    alone."""
+    p = ws / "_facts_units.json"
+    if not p.is_file():
+        return []
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return data if isinstance(data, list) else []
 
 
 def run_repo_review(
@@ -515,7 +573,7 @@ def run_repo_review(
     root = str(Path(target).resolve())
     res = scaffold(target, workspace, fresh=fresh, domain=domain, facts=facts)
     ws = res.workspace
-    units = build_units(root, res.candidate_files, res.trace_targets)
+    units = build_units(root, res.candidate_files, res.trace_targets, _load_facts_units(ws))
     if not units:
         # zero units means the stack detection flagged no entrypoint, so a run would
         # review nothing and still look clean. Fail loud, invariant 3: a review that
@@ -531,12 +589,16 @@ def run_repo_review(
     acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws)),
                       dedup_by_file=domain.dedup_by_file)
 
+    facts_by_file = _load_facts_by_file(ws)
     shared = (ws / "_stack.md").read_text(encoding="utf-8")
-    shared = _with_facts(shared, ws)
+    if not facts_by_file:
+        # no per-file facts, fall back to the global fold for a backend that emits only a summary
+        shared = _with_facts(shared, ws)
     if reviewer is None:
         if provider is None:
             raise ValueError("run_repo_review needs a provider, or an injected reviewer")
-        reviewer = ModelReviewer(provider=provider, model=model, content=paths)
+        reviewer = ModelReviewer(provider=provider, model=model, content=paths,
+                                 facts_by_file=facts_by_file)
 
     run_passes(
         open_units, reviewer, lenses=domain.lenses,
