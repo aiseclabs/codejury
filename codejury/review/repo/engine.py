@@ -562,6 +562,7 @@ def run_repo_review(
     votes: int = 1,
     max_passes: int = 24,
     converge_after: int = 2,
+    min_lens_shots: int = 2,
     concurrency: int = 6,
     fresh: bool = False,
     on_pass=None,
@@ -602,7 +603,7 @@ def run_repo_review(
 
     run_passes(
         open_units, reviewer, lenses=domain.lenses,
-        converge_after=converge_after, max_passes=max_passes,
+        converge_after=converge_after, min_lens_shots=min_lens_shots, max_passes=max_passes,
         shared_context=shared, concurrency=concurrency, on_pass=on_pass,
         persist=lambda f: _save_union(ws, f), accumulator=acc,
     )

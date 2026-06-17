@@ -164,6 +164,9 @@ def main(argv: list[str] | None = None) -> int:
                       help="run only: cap on diverse passes before stopping")
     repo.add_argument("--converge-after", type=int, default=2, dest="converge_after",
                       help="run only: stop once this many consecutive passes add no new finding")
+    repo.add_argument("--min-lens-shots", type=int, default=2, dest="min_lens_shots",
+                      help="run only: keep going until every lens has reviewed this many times, "
+                           "so a hard class is not left to one shot on a repo that converges fast")
     repo.add_argument("--concurrency", type=int, default=6,
                       help="run only: how many unit sub-reviews to run in parallel within a pass")
     repo.add_argument("--no-verify", dest="verify", action="store_false", default=True,
@@ -294,6 +297,7 @@ def _dispatch(args, parser) -> int:
             reviewer=reviewer_obj, verifier=verifier_obj,
             verify=args.verify, votes=args.votes,
             max_passes=args.max_passes, converge_after=args.converge_after,
+            min_lens_shots=args.min_lens_shots,
             concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
             domain=domain, facts=args.facts,
         )

@@ -36,6 +36,25 @@ class NewEachPassReviewer(UnitReviewer):
         return [Candidate(title=f"f{self.n}", endpoint=f"GET /{self.n}")]
 
 
+class SecondShotReviewer(UnitReviewer):
+    """The easy lens finds its issue at once, the hard lens generates only on its second
+    firing, the way a hard class is a coin flip the first shot misses and the second catches.
+    Used to prove the coverage gate holds the run open for that second shot."""
+    def __init__(self):
+        self.hard_shots = 0
+        self.lenses_seen = []
+
+    def review(self, unit, lens, *, shared_context=""):
+        self.lenses_seen.append(lens)
+        if lens == "easy":
+            return [Candidate(title="A", endpoint="GET /a")]
+        if lens == "hard":
+            self.hard_shots += 1
+            if self.hard_shots >= 2:
+                return [Candidate(title="B", endpoint="GET /b")]
+        return []
+
+
 def test_lenses_cycle_and_union_converges_then_stops_early():
     a = Candidate(title="a", endpoint="GET /1")
     b = Candidate(title="b", endpoint="GET /2")
@@ -54,6 +73,26 @@ def test_runs_to_max_passes_when_never_converges():
     assert not acc.converged
     assert len(acc.new_per_pass) == 5
     assert len(acc.findings) == 5
+
+
+def test_coverage_gate_keeps_a_hard_lens_from_one_shot():
+    # the union saturates after the easy finding, but the hard lens generates only on its
+    # second firing, so saturation alone would stop before that shot. The coverage gate holds
+    # the run open until every lens fired min_lens_shots times, so the second shot lands
+    reviewer = SecondShotReviewer()
+    acc = run_passes(_U, reviewer, lenses=("easy", "hard", ""),
+                     converge_after=2, min_lens_shots=2, max_passes=24)
+    assert {c.title for c in acc.findings} == {"A", "B"}
+    assert reviewer.lenses_seen.count("hard") >= 2
+
+
+def test_one_shot_floor_stops_before_a_hard_lens_second_shot():
+    # the contrast: lower the gate to one shot and saturation stops the run after the easy
+    # finding, before the hard lens fires its catching second shot, so B is missed
+    reviewer = SecondShotReviewer()
+    acc = run_passes(_U, reviewer, lenses=("easy", "hard", ""),
+                     converge_after=2, min_lens_shots=1, max_passes=24)
+    assert {c.title for c in acc.findings} == {"A"}
 
 
 class PerUnitReviewer(UnitReviewer):

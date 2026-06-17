@@ -29,6 +29,7 @@ def run_passes(
     *,
     lenses: tuple[str, ...] = DEFAULT_LENSES,
     converge_after: int = 2,
+    min_lens_shots: int = 2,
     max_passes: int = 24,
     shared_context: str = "",
     concurrency: int = 6,
@@ -43,10 +44,20 @@ def run_passes(
     independent, so they run concurrently up to `concurrency`, since each is a network
     bound model call. Results are merged in unit order, so the converged finding set is
     the same as a serial run. `on_pass(pass_number, lens, new_this_pass, union_size)`
-    is called after each pass for progress."""
+    is called after each pass for progress.
+
+    Convergence needs two signals, not one. The union must have saturated, the last
+    `converge_after` passes added nothing, and every lens must have fired at least
+    `min_lens_shots` times. A small repo saturates in a few passes, before the lens
+    rotation has re-tried each class, so saturation alone stops the run with a hard class
+    such as reentrancy reviewed once and never again. Generation is probabilistic, one
+    shot is a coin flip, so the coverage gate keeps the run going until each lens has had
+    its shots. It binds only where the union saturates early, on a large repo every lens
+    already fired many times by the time it goes quiet, so this adds no passes there."""
     acc = accumulator if accumulator is not None else Accumulator(converge_after=converge_after)
     lenses = lenses or ("",)
     reviewed_ok: set[str] = set()
+    lens_shots: dict[str, int] = {}
 
     def review_unit(unit: Unit, lens: str):
         try:
@@ -56,6 +67,7 @@ def run_passes(
 
     for i in range(max_passes):
         lens = lenses[i % len(lenses)]
+        lens_shots[lens] = lens_shots.get(lens, 0) + 1
         if concurrency > 1 and len(units) > 1:
             with ThreadPoolExecutor(max_workers=concurrency) as pool:
                 per_unit = list(pool.map(lambda u: review_unit(u, lens), units))   # order preserved, the zip below relies on it
@@ -69,7 +81,8 @@ def run_passes(
             persist(acc.findings)   # checkpoint the union each pass, so a kill mid-run can resume
         if on_pass is not None:
             on_pass(i + 1, lens, n_new, len(acc.findings))
-        if acc.converged:
+        covered = all(lens_shots.get(l, 0) >= min_lens_shots for l in lenses)
+        if covered and acc.converged:
             break
     acc.failed_units = {u.name for u in units} - reviewed_ok
     return acc
