@@ -3,6 +3,7 @@ id: access-control
 title: Missing or Broken Access Control
 impact: CRITICAL
 tags: [swc-105, swc-115, access-control, fund-loss]
+aliases: [missing-access-control, broken-access-control]
 triggers: ["onlyOwner", "function mint", "function burn", "function withdraw", "selfdestruct", "tx.origin", "require(msg.sender", "_mint", "setOwner", "transferOwnership", "external", "public"]
 ---
 

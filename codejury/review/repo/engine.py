@@ -24,6 +24,7 @@ from codejury.domains.base import ContentPaths, Domain
 from codejury.domains.registry import default_domain
 from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
+from codejury.review.diff.vulnerabilities import canonical_category, category_aliases
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
@@ -399,6 +400,17 @@ def _candidate_body(text: str) -> str:
     return text[m.start():].strip() if m else ""
 
 
+def _canonicalize_categories(cands: list[Candidate], vulnerabilities_dir: Path) -> list[Candidate]:
+    """Fold each candidate's model-emitted category onto its canonical class id, so label
+    variants of one class such as `oracle` and `oracle-manipulation` dedup and collapse as
+    one defect. Data-driven from the domain's declared class aliases. An empty map leaves the
+    list untouched, so a domain that declares no aliases such as web is unchanged."""
+    aliases = category_aliases(vulnerabilities_dir)
+    if not aliases:
+        return cands
+    return [replace(c, category=canonical_category(c.category, aliases)) for c in cands]
+
+
 def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None) -> Candidate | None:
     """Parse an agent-written candidates/<name>.md into a Candidate for coded dedup and
     verification, so those steps do not depend on the agent's prose. The source
@@ -468,6 +480,7 @@ def finalize_repo_review(
 
     by_file = domain.dedup_by_file
     cands = [c for c in (_parse_candidate(p, source_extensions) for p in sorted((ws / "candidates").glob("*.md"))) if c]
+    cands = _canonicalize_categories(cands, paths.vulnerabilities_dir)
     sev_votes: dict = {}
     for c in cands:
         sev_votes.setdefault(c.key(by_file), []).append(c.severity)
@@ -611,7 +624,13 @@ def run_repo_review(
     reviewed_slugs = {unit_slug(u.name) for u in open_units if u.name not in acc.failed_units}
     _mark_units_reviewed(ws, reviewed_slugs)
 
-    findings = acc.findings
+    findings = _canonicalize_categories(acc.findings, paths.vulnerabilities_dir)
+    if domain.dedup_by_file:
+        # the union keys by endpoint so two functions stay separate, but one defect at one
+        # line can survive under several endpoint phrasings. Collapse those by location, as
+        # finalize does, so the run path reports it once. Gated on the domains that dedup by
+        # file, so the web path that keys by endpoint is unchanged.
+        findings = collapse_colocated(findings)
     vr: VerifyResult | None = None
     if verify:
         findings, vr = apply_verification(

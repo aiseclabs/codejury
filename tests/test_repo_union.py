@@ -2,11 +2,19 @@
 only after K consecutive passes add nothing. This is what turns random per-pass
 results into a stable, growing-only union."""
 
+from dataclasses import replace
+
+from codejury.domains.evm import EVM
+from codejury.review.diff.vulnerabilities import canonical_category, category_aliases
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
 
 
 def _c(title, **kw):
     return Candidate(title=title, **kw)
+
+
+def _canon(cands, aliases):
+    return [replace(c, category=canonical_category(c.category, aliases)) for c in cands]
 
 
 def test_collapse_colocated_merges_same_file_line_class_under_different_endpoints():
@@ -28,6 +36,29 @@ def test_collapse_colocated_keeps_distinct_lines_and_classes():
         _c("c", category="replay", file=same_file, line=10),
     ]
     assert len(collapse_colocated(cands)) == 3
+
+
+def test_canonical_categories_collapse_one_defect_under_label_variants():
+    # the same oracle defect at one line, the model labeling it two ways and phrasing the
+    # endpoint two ways, must collapse to one once categories are canonicalized
+    aliases = category_aliases(EVM.paths.vulnerabilities_dir)
+    cands = [
+        _c("loan health unguarded", category="oracle-manipulation", endpoint="liquidate",
+           file="src/V3Vault.sol", line=54462),
+        _c("loan health unguarded", category="oracle", endpoint="external liquidate",
+           file="src/V3Vault.sol", line=54462),
+    ]
+    assert len(collapse_colocated(_canon(cands, aliases))) == 1
+
+
+def test_canonical_categories_keep_distinct_classes_at_one_line():
+    # two genuinely different classes at one line stay separate after canonicalization
+    aliases = category_aliases(EVM.paths.vulnerabilities_dir)
+    cands = [
+        _c("reentry", category="reentrancy", file="src/V3Vault.sol", line=44871),
+        _c("oracle", category="oracle-manipulation", file="src/V3Vault.sol", line=44871),
+    ]
+    assert len(collapse_colocated(_canon(cands, aliases))) == 2
 
 
 def test_collapse_colocated_never_merges_on_file_alone_when_line_missing():

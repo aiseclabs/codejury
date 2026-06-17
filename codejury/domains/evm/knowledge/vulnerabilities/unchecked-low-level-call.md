@@ -3,6 +3,7 @@ id: unchecked-low-level-call
 title: Unchecked Low-Level Call
 impact: HIGH
 tags: [swc-104, low-level-call, return-value, fund-loss]
+aliases: [unchecked-call, unchecked-return]
 triggers: [".call(", ".call{value", ".delegatecall(", ".send(", "transfer(", "bool success", "bool ok", "(bool", "safeTransfer", "returndata"]
 ---
 

@@ -3,6 +3,7 @@ id: reentrancy
 title: Reentrancy
 impact: CRITICAL
 tags: [swc-107, reentrancy, fund-loss]
+aliases: [read-only-reentrancy]
 triggers: [".call{value", ".call(", "transfer(", "send(", "external call", "balances[", "withdraw", "nonReentrant", "safeTransfer", "onERC721Received", "before state"]
 ---
 

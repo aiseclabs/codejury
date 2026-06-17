@@ -3,6 +3,7 @@ id: signature-replay
 title: Signature Replay and Malleability
 impact: HIGH
 tags: [swc-117, swc-121, signature, replay, eip712, fund-loss]
+aliases: [replay, replay-attack]
 triggers: ["ecrecover", "ECDSA.recover", "hashTypedData", "permit", "nonce", "DOMAIN_SEPARATOR", "block.chainid", "_hashTypedDataV4", "signature", "v, r, s"]
 ---
 

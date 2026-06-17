@@ -3,8 +3,11 @@ picks the relevant classes for a diff to inject into the audit prompt."""
 
 import re
 
+from codejury.domains.evm import EVM
 from codejury.review.diff.vulnerabilities import (
     allowed_categories,
+    canonical_category,
+    category_aliases,
     load_vulnerabilities,
     normalize_category,
     select_vulnerabilities,
@@ -42,6 +45,34 @@ def test_normalize_category_maps_onto_vulnerability_id_set():
     assert normalize_category("sql-injection", allowed) == "sql-injection"
     assert normalize_category("buffer overflow", allowed) == "other"
     assert normalize_category("", allowed) == ""
+
+
+def test_web_classes_declare_no_aliases():
+    # web keeps the empty alias map, so the repo category normalization does nothing there
+    assert all(v.aliases == () for v in _VULNS)
+    assert category_aliases() == {}
+
+
+def test_evm_aliases_fold_label_variants_onto_canonical_ids():
+    aliases = category_aliases(EVM.paths.vulnerabilities_dir)
+    assert aliases["oracle"] == "oracle-price-manipulation"
+    assert aliases["oracle-manipulation"] == "oracle-price-manipulation"
+    assert aliases["oracle-validation"] == "oracle-price-manipulation"
+    assert aliases["accounting"] == "accounting-precision"
+    assert aliases["unchecked-call"] == "unchecked-low-level-call"
+    assert aliases["missing-access-control"] == "access-control"
+    assert aliases["dos"] == "denial-of-service"
+    # a canonical id is its own identity, never listed as its own alias
+    assert "oracle-price-manipulation" not in aliases
+
+
+def test_canonical_category_keeps_unknowns_and_empty():
+    aliases = category_aliases(EVM.paths.vulnerabilities_dir)
+    assert canonical_category("Oracle Manipulation", aliases) == "oracle-price-manipulation"
+    assert canonical_category("reentrancy", aliases) == "reentrancy"
+    # an unknown class stays itself, not 'other', so two distinct unknowns never merge
+    assert canonical_category("storage-collision", aliases) == "storage-collision"
+    assert canonical_category("", aliases) == ""
 
 
 def test_vulnerabilities_load_with_frontmatter():
