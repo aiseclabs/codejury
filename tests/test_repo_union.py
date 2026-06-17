@@ -56,17 +56,35 @@ def test_dedup_falls_back_to_file_plus_category():
     assert len(pool) == 2
 
 
-def test_by_file_collapses_one_root_cause_across_functions():
-    # the shared-helper case: one defect reported at every caller of a verifier, where the
-    # endpoint is a function. By file and class it is one finding, not one per function.
+def test_by_file_keeps_distinct_functions_in_one_file():
+    # two distinct reentrancies in one contract, one in _cleanupLoan and one in transform,
+    # are two findings. Collapsing them by file and class drops a real one, invariant 2.
     cands = [
-        _c("domain sep at execute", category="signature-replay", endpoint="execute", file="Forwarder.sol"),
-        _c("domain sep at verify", category="signature-replay", endpoint="verify", file="Forwarder.sol"),
+        _c("reentry in cleanup", category="reentrancy", endpoint="_cleanupLoan", file="V3Vault.sol"),
+        _c("reentry in transform", category="reentrancy", endpoint="transform", file="V3Vault.sol"),
+    ]
+    pool: dict = {}
+    assert merge(pool, cands, by_file=True) == 2
+
+
+def test_by_file_folds_one_function_reported_twice():
+    # the same locus reported by two passes folds, so a shared helper named the same way is
+    # one finding. A blank endpoint also folds to the file and class slot.
+    cands = [
+        _c("domain sep", category="signature-replay", endpoint="verify", file="Forwarder.sol"),
+        _c("domain sep again", category="signature-replay", endpoint="verify", file="Forwarder.sol"),
         _c("domain sep raw", category="signature-replay", endpoint="", file="Forwarder.sol"),
     ]
     pool: dict = {}
-    assert merge(pool, cands, by_file=True) == 1
-    assert len(pool) == 1
+    assert merge(pool, cands, by_file=True) == 2
+
+
+def test_by_file_separates_same_endpoint_across_files():
+    a = _c("a", category="reentrancy", endpoint="execute", file="Vault.sol")
+    b = _c("b", category="reentrancy", endpoint="execute", file="Router.sol")
+    pool: dict = {}
+    merge(pool, [a, b], by_file=True)
+    assert len(pool) == 2
 
 
 def test_by_file_keeps_distinct_classes_in_one_file():
@@ -85,10 +103,10 @@ def test_endpoint_dedup_is_default_when_not_by_file():
     assert len(pool) == 2
 
 
-def test_accumulator_by_file_unions_one_per_file_class():
+def test_accumulator_by_file_unions_one_per_function():
     acc = Accumulator(converge_after=1, dedup_by_file=True)
-    acc.add_pass([_c("at execute", category="signature-replay", endpoint="execute", file="Forwarder.sol")])
     acc.add_pass([_c("at verify", category="signature-replay", endpoint="verify", file="Forwarder.sol")])
+    acc.add_pass([_c("at verify again", category="signature-replay", endpoint="verify", file="Forwarder.sol")])
     assert len(acc.findings) == 1
 
 

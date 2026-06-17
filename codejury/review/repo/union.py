@@ -44,13 +44,16 @@ class Candidate:
         so two distinct classes on the same endpoint, a missing binding and a race on
         the same token route, stay separate findings and are not merged away.
 
-        With `by_file`, the endpoint is dropped from the key and findings collapse by file
-        and class. A domain whose endpoint is a function sets this, since one root cause in
-        a shared helper is reported at every caller and is one finding, not one per function."""
+        With `by_file`, the file joins the key so the same endpoint name in two files stays
+        separate. The endpoint still keys when a pass records it, since two distinct functions
+        of one contract, a reentrancy in `_cleanupLoan` and one in `transform`, are two
+        findings, not one, and collapsing them drops a real finding. A defect a domain reports
+        at several callers of a shared helper folds only when the passes name the same locus,
+        the helper, or leave the endpoint blank."""
         cat = self.category.strip().lower()
-        if self.endpoint and not by_file:
+        if self.endpoint:
             ep = re.sub(r"\s+", " ", re.sub(r"[<{][^>}]*[>}]", "*", self.endpoint.strip().lower()))
-            return ("ep", ep, cat)
+            return ("fc", self.file.strip().lower(), cat, ep) if by_file else ("ep", ep, cat)
         return ("fc", self.file.strip().lower(), cat)
 
 
