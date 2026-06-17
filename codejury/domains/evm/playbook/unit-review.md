@@ -30,12 +30,15 @@ of a named guard:
   updating collateral or debt accounting hands that owner a reentry into the partly updated
   state, and the owner can instead revert in the hook to block the transfer for an
   unliquidatable position. Trace the full effects-then-interactions ordering, an internal
-  settlement function counts even though it is not an entrypoint. A token typed `ERC20` is
-  not automatically safe here. When the asset address is set by config, by a per-market
-  parameter, or by the caller, the deployed token may be `ERC777`, whose `tokensReceived`
-  hook fires on a plain transfer, so a raw `ERC20` transfer or `safeTransfer` to a recipient
-  the caller controls before state is final is the same reentrancy vector as an NFT push.
-  Treat it as exploitable unless the asset is a single fixed token known not to call back.
+  settlement function counts even though it is not an entrypoint. Do not clear a token
+  transfer as safe because the token is typed `ERC20`. If the token address is not one
+  hardcoded constant but is set per loan, per market, or by the caller, the concrete token
+  may be an `ERC777`, whose `tokensReceived` hook runs inside a plain `transfer` or
+  `safeTransfer` and hands control to the recipient. A payout, a buyout, or a settlement that
+  sends such a token to a recipient the caller controls, and only afterward finalizes the loan
+  or position record, is a reentrancy you must surface, the same as an NFT push. A fungible
+  token does not close the hook. Refute this only when the asset is one fixed address you can
+  read and confirm has no callback.
 - **Access control**: is the privileged function gated to the exact role, by a modifier
   that may live in an inherited base, and on `msg.sender` not `tx.origin`? Compare
   siblings: where most privileged functions carry a modifier and one does not, that one is
