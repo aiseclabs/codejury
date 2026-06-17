@@ -1,0 +1,36 @@
+id: basin
+kind: repo
+
+# Basin, Code4rena competitive audit July 2024. A set of upgradeable Well AMM contracts.
+# This target carries the proxy and delegatecall class as a real positive, the first one in
+# the suite, since the prior solidity targets only ever exercised it as a safe anchor. The
+# Well proxy overrides UUPS upgrade authorization with custom proxy checks but drops the
+# owner gate, so anyone can upgrade the implementation. A second high in a different file
+# covers a decimals accounting slip, so the two planted entries do not share a file or class.
+target:
+  type: git
+  url: https://github.com/code-423n4/2024-07-basin
+  ref: 7d5aacbb144d0ba0bc358dfde6e0cc913d25310e
+  path: src
+
+stack:
+  languages:
+    - solidity
+  frameworks: []
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - proxy-delegatecall
+    - accounting-precision
+  guides:
+    - languages/solidity
+
+tags:
+  - public
+  - evm
+  - solidity
+  - code4rena
+  - upgradeable
+  - uups
+  - proxy-delegatecall
