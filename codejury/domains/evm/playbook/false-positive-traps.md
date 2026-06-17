@@ -12,6 +12,21 @@ the code. When a real run later proves a new recurring misjudgement, add it here
   reentrancy where another protocol reads this contract's view mid-update.
   Controlling fact: is state written before the external call on this path, and are the
   other functions that touch the same state also guarded or already updated?
+- The obvious record being written before the external call does not refute the finding by
+  itself. A buyout, a settlement, or a swap often finalizes in stages: it writes the main
+  struct, makes a payout, then hands an ownership token or a position to the new party. List
+  every state write and every ownership or authorization handover that runs after the
+  external call, in this function and in any function the callback can reach such as a repay
+  or close that reads `ownerOf`. The reentrant caller still holds whatever a later handover
+  has not yet moved. Controlling fact: during the callback window, what does each `ownerOf`,
+  balance, or role read return, and can a reentrant call into another function be paid or
+  authorized against that stale ownership?
+- A payout made with a plain ERC20 `transfer` or `safeTransfer` still hands control to the
+  recipient when that token is ERC777 or carries a transfer hook, so paying a recipient the
+  caller chooses before the position is finalized is a reentrancy sink, not only a
+  `.call{value:}` or an NFT `safeTransferFrom`. Controlling fact: is the asset one fixed
+  address you can read and confirm has no callback, or is it set per market, per loan, or by
+  the caller?
 - A `.transfer` or `.send` forwards only 2300 gas, too little to reenter, so a plain ETH
   `transfer` is not a reentrancy sink. A `.call{value:}` forwards all gas and is.
 
