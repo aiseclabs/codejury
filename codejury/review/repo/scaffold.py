@@ -127,7 +127,7 @@ def _facts_cache_key(target: Path, files: tuple[str, ...], domain: Domain) -> st
 
 
 def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...], *,
-                 enabled: bool, cache_root: Path) -> None:
+                 enabled: bool, cache_root: Path, detection: Detection) -> None:
     """Extract deterministic facts and persist them to `_facts.md`, the way `_stack.md`
     persists the stack, so the run, resume, and finalize steps read the same grounding
     from the workspace. Facts are opt-in since extraction is heavy, the caller passes
@@ -179,8 +179,14 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
             payload = json.dumps(by_file)
             dest_by_file.write_text(payload, encoding="utf-8")
             cached_by_file.write_text(payload, encoding="utf-8")
-        # the focused call-path units the engine adds to the worklist, see Facts.data["units"]
+        # the focused call-path units the engine adds to the worklist, see Facts.data["units"].
+        # The facts backend compiles the whole project, tests included, so drop a unit packed
+        # from a test or mock contract, the same test paths the candidate selection excludes,
+        # so the call-path units never pull the review into test code
         units = facts.data.get("units") if isinstance(facts.data, dict) else None
+        if units:
+            units = [u for u in units
+                     if not any(detection.is_test_path(str(f[0])) for f in u.get("fragments", []))]
         if units:
             payload = json.dumps(units)
             dest_units.write_text(payload, encoding="utf-8")
@@ -355,7 +361,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
     )
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
     _write_facts(ws, target, dom, model.files, enabled=facts,
-                 cache_root=Path(workspace) / ".facts-cache")
+                 cache_root=Path(workspace) / ".facts-cache", detection=detection)
 
     candidates = candidate_entrypoint_files(
         model.files, root=target,

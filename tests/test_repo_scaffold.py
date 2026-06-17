@@ -150,7 +150,10 @@ class _CountingBackend(FactsBackend):
         block = "contract Fake\n  external f()  ext-call"
         return Facts(summary=block, data={
             "contracts": {}, "by_file": {"app.py": block},
-            "units": [{"name": "app.py#Fake.f", "files": ["app.py"], "fragments": [["app.py", 0, 12]]}],
+            "units": [
+                {"name": "app.py#Fake.f", "files": ["app.py"], "fragments": [["app.py", 0, 12]]},
+                {"name": "tests/t.py#T.f", "files": ["tests/t.py"], "fragments": [["tests/t.py", 0, 9]]},
+            ],
         })
 
 
@@ -192,6 +195,17 @@ def test_scaffold_persists_the_call_path_units(tmp_path):
     units = json.loads((res.workspace / "_facts_units.json").read_text())
     assert units[0]["name"] == "app.py#Fake.f"
     assert units[0]["fragments"] == [["app.py", 0, 12]]
+
+
+def test_scaffold_drops_call_path_units_packed_from_test_code(tmp_path):
+    # the facts backend compiles the whole project, tests included, but the call-path units
+    # must not pull the review into test code, the same exclusion the candidate selection makes
+    import json
+
+    backend = _CountingBackend()
+    res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend), facts=True)
+    units = json.loads((res.workspace / "_facts_units.json").read_text())
+    assert not any("tests/" in f[0] for u in units for f in u["fragments"])
 
 
 def test_scaffold_reuses_the_cached_per_file_facts_map(tmp_path):
