@@ -22,7 +22,20 @@ of a named guard:
 - **Reentrancy**: is state written before every external call or token transfer on this
   path? A `nonReentrant` modifier guards one function, not the cross-function path that
   shares the same state, nor a read-only reentrancy where another protocol reads this
-  contract's view mid-update. Trace the full effects-then-interactions ordering.
+  contract's view mid-update. A push transfer re-enters too: when this contract itself
+  calls `safeTransferFrom` of an NFT or an ERC1155, or sends an ERC777 token, to a
+  recipient the caller controls, the recipient's `onERC721Received`, `onERC1155Received`,
+  or `tokensReceived` hook runs before the calling function returns, so a liquidation, a
+  settlement, or a loan cleanup that moves a position to its owner before it finishes
+  updating collateral or debt accounting hands that owner a reentry into the partly updated
+  state, and the owner can instead revert in the hook to block the transfer for an
+  unliquidatable position. Trace the full effects-then-interactions ordering, an internal
+  settlement function counts even though it is not an entrypoint. A token typed `ERC20` is
+  not automatically safe here. When the asset address is set by config, by a per-market
+  parameter, or by the caller, the deployed token may be `ERC777`, whose `tokensReceived`
+  hook fires on a plain transfer, so a raw `ERC20` transfer or `safeTransfer` to a recipient
+  the caller controls before state is final is the same reentrancy vector as an NFT push.
+  Treat it as exploitable unless the asset is a single fixed token known not to call back.
 - **Access control**: is the privileged function gated to the exact role, by a modifier
   that may live in an inherited base, and on `msg.sender` not `tx.origin`? Compare
   siblings: where most privileged functions carry a modifier and one does not, that one is
