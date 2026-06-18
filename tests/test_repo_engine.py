@@ -12,7 +12,7 @@ from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer, _ga
 from codejury.review.repo.engine import _parse_candidate, _spans, build_units, finalize_repo_review, run_repo_review
 from codejury.review.repo.scaffold import unit_slug
 from codejury.review.repo.union import Candidate
-from codejury.review.repo.verifier import Verdict, Verifier
+from codejury.review.repo.verifier import RefutationChecker, Verdict, Verifier
 
 _REPLY = (
     '{"findings": [{"title": "wallet idor", "category": "insecure-direct-object-reference", '
@@ -272,7 +272,12 @@ def test_finalize_dedups_verifies_and_reports(tmp_path):
             bad = "/r" in c.endpoint
             return Verdict(real=not bad, reason="lock holds on prod" if bad else "")
 
-    fr = finalize_repo_review(target, ws, verifier=_V(), concurrency=1)
+    class _C(RefutationChecker):
+        # the independent second read a deletion rests on, confirms the refutation here
+        def holds(self, c, reason, root):
+            return "/r" in c.endpoint
+
+    fr = finalize_repo_review(target, ws, verifier=_V(), checker=_C(), concurrency=1)
     assert fr.parsed == 4
     assert len(fr.verify.confirmed) == 2
     assert len(fr.verify.refuted) == 1

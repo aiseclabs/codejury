@@ -31,7 +31,14 @@ from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
 from codejury.review.repo.severity import median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
-from codejury.review.repo.verifier import ModelVerifier, VerifyResult, Verifier, verify_findings
+from codejury.review.repo.verifier import (
+    ModelRefutationChecker,
+    ModelVerifier,
+    RefutationChecker,
+    VerifyResult,
+    Verifier,
+    verify_findings,
+)
 
 _MAX_RELATED = 20
 # a file longer than this many chars is reviewed in overlapping windows, not truncated
@@ -352,6 +359,7 @@ def apply_verification(
     concurrency: int,
     fresh: bool,
     content: ContentPaths | None = None,
+    checker: RefutationChecker | None = None,
 ) -> tuple[list[Candidate], VerifyResult]:
     """Adversarially verify a finding list, resumable via `_verified.json`, and record
     the refuted. The single home for the verify step the coded run and the finalize pass
@@ -363,9 +371,15 @@ def apply_verification(
         if provider is None:
             raise ValueError("verification needs a provider, or an injected verifier")
         verifier = ModelVerifier(provider=provider, model=model, content=content)
+    # the independent second read that a deletion rests on: a refutation drops a finding only
+    # when this checker confirms its controlling fact, so no single skeptic opinion deletes a
+    # real finding. Wired only when a provider is available, an injected verifier with no
+    # provider keeps every refutation pending a check, the recall-safe default.
+    if checker is None and provider is not None:
+        checker = ModelRefutationChecker(provider=provider, model=model)
     verified = {} if fresh else _load_verified(ws)
     to_verify = [c for c in findings if _keystr(c) not in verified]
-    new_vr = verify_findings(to_verify, verifier, root, votes=votes, concurrency=concurrency)
+    new_vr = verify_findings(to_verify, verifier, root, checker=checker, votes=votes, concurrency=concurrency)
     for c in new_vr.confirmed:
         verified[_keystr(c)] = {"real": True, "reason": ""}
     for c, reason in new_vr.refuted:
@@ -461,6 +475,7 @@ def finalize_repo_review(
     workspace: str | Path,
     *,
     verifier: Verifier | None = None,
+    checker: RefutationChecker | None = None,
     provider: Provider | None = None,
     model: str = "",
     verify: bool = True,
@@ -496,7 +511,7 @@ def finalize_repo_review(
     vr: VerifyResult | None = None
     if verify and deduped:
         deduped, vr = apply_verification(
-            ws, deduped, root=root, verifier=verifier, provider=provider, model=model,
+            ws, deduped, root=root, verifier=verifier, checker=checker, provider=provider, model=model,
             votes=votes, concurrency=concurrency, fresh=False, content=paths,
         )
 
@@ -573,6 +588,7 @@ def run_repo_review(
     model: str = "",
     reviewer: UnitReviewer | None = None,
     verifier: Verifier | None = None,
+    checker: RefutationChecker | None = None,
     verify: bool = True,
     votes: int = 1,
     max_passes: int = 24,
@@ -636,7 +652,7 @@ def run_repo_review(
     vr: VerifyResult | None = None
     if verify:
         findings, vr = apply_verification(
-            ws, findings, root=root, verifier=verifier, provider=provider, model=model,
+            ws, findings, root=root, verifier=verifier, checker=checker, provider=provider, model=model,
             votes=votes, concurrency=concurrency, fresh=fresh, content=paths,
         )
 

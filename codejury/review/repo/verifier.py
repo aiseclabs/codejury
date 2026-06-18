@@ -1,4 +1,4 @@
-"""Adversarial verification: try to REFUTE each candidate, keep the survivors.
+"""Adversarial verification: try to REFUTE each candidate, drop only a confirmed refutation.
 
 High recall comes from the union of diverse passes, but that also lets false
 positives and bounded-but-real-looking misreads through. This stage is the
@@ -7,8 +7,14 @@ candidate is handed to an independent skeptic whose job is to DISPROVE it by rea
 the code, judging against production semantics, not a shallow read. A select_for_update
 holds the row lock on a real RDBMS even if its result is discarded. A check defined in
 a base class still fires on the subclass. A value an attacker cannot reach is not a
-sink. A candidate that survives is confirmed. One refuted with a named controlling
-fact is dropped and recorded, so the drop is auditable.
+sink. A candidate that survives is confirmed.
+
+A refutation alone is an opinion, not a deletion, and a single skeptic that misreads
+drops a real finding, the worst outcome for recall. So a refuted candidate is dropped
+only when a second independent read, the `RefutationChecker`, confirms the controlling
+fact genuinely neutralizes the finding on its real path, the rate==0 reason rejected for
+a bug that bites at rate>0. With no checker, no confirmation, or any keep vote, the
+finding stays. Every drop is recorded, so it is auditable.
 
 The skeptic sees only the finding's own file, so a refutation that rests on a control
 in another file it was not shown is an assumption, not a refutation, the failure that
@@ -135,19 +141,79 @@ class ModelVerifier(Verifier):
         return Verdict(real=False, reason=str(obj.get("reason", "")))
 
 
+class RefutationChecker(ABC):
+    @abstractmethod
+    def holds(self, candidate: Candidate, reason: str, root: str) -> bool:
+        """Independently check whether a refutation's controlling fact genuinely neutralizes
+        the finding on its real exploit path. True only when it clearly does, so a deletion
+        rests on confirmed evidence, not a single skeptic's opinion."""
+
+
+_CHECK_SYSTEM = (
+    "You audit a proposed refutation, not the finding. A reviewer claims a security finding is "
+    "safe because of one controlling fact. Assume the finding is REAL and try to show the fact "
+    "does not actually neutralize it: the fact may be true yet guard a different path, a "
+    "different precondition, or a different function than the one the finding exploits, the "
+    "rate==0 branch when the bug bites at rate>0. Read the code at the finding's file. Conclude "
+    "the refutation holds only when the controlling fact clearly and completely makes the "
+    "finding unexploitable on its real path. Any doubt, any gap, the refutation does not hold "
+    "and the finding stays. Respond with a single JSON object and nothing else."
+)
+
+_CHECK_SHAPE = '{"holds": true, "reason": "why the controlling fact does or does not neutralize the finding"}'
+
+
+class ModelRefutationChecker(RefutationChecker):
+    """Default checker: one independent grounded call that audits whether a refutation holds.
+
+    A different angle from the skeptic, defending the finding rather than refuting it, so a
+    deletion needs two independent reads to agree, not one skeptic's possibly shared blind spot."""
+
+    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 1024) -> None:
+        self._provider = provider
+        self._model = model
+        self._max_tokens = max_tokens
+
+    def holds(self, candidate: Candidate, reason: str, root: str) -> bool:
+        code = _read_file(root, candidate.file)
+        prompt = (
+            "Audit this refutation. Does the controlling fact genuinely make the finding "
+            "unexploitable on its real path, or does it guard a different path or precondition?\n\n"
+            f"Finding:\n- {candidate.title}\n- category: {candidate.category}\n"
+            f"- location: {candidate.file}:{candidate.line}\n- claimed evidence: {candidate.evidence}\n\n"
+            f"Refutation's controlling fact, the reason it is called safe:\n{reason}\n\n"
+            f"Code at {candidate.file}:\n```\n{code}\n```\n\n"
+            f"Respond with a single JSON object exactly like:\n{_CHECK_SHAPE}"
+        )
+        result = self._provider.complete(
+            system=_CHECK_SYSTEM,
+            messages=[Message(role="user", content=prompt)],
+            model=self._model,
+            max_tokens=self._max_tokens,
+            cache=True,
+        )
+        obj, ok = optional_json_object(result.text, required_key="holds")
+        # an unreadable audit cannot confirm the refutation, so the finding stays, the red line
+        if not ok:
+            return False
+        return bool(obj.get("holds"))
+
+
 def verify_findings(
     candidates: list[Candidate],
     verifier: Verifier,
     root: str,
     *,
+    checker: RefutationChecker | None = None,
     votes: int = 1,
     concurrency: int = 6,
 ) -> VerifyResult:
-    """Verify every candidate, optionally with several independent votes per candidate.
-
-    A candidate is refuted only when a majority of its COMPLETED votes refute it, so a
-    single skeptic error cannot drop a finding. With no completed vote at all the
-    candidate is kept and the error counted. Candidates are verified concurrently."""
+    """Verify every candidate. A finding is dropped only when every completed skeptic vote
+    refutes it AND an independent `checker` confirms the refutation's controlling fact truly
+    neutralizes it. Any keep vote saves it, asymmetric since dropping a real finding is the
+    worst outcome for recall. With no completed vote, a failed check, or no checker at all the
+    finding is kept, so a single opinion or a shared blind spot can never drop it. The error is
+    counted, never read as a refutation. Candidates are verified concurrently."""
 
     def verify_one(candidate: Candidate):
         verdicts: list[Verdict] = []
@@ -157,11 +223,20 @@ def verify_findings(
                 verdicts.append(verifier.verify(candidate, root))
             except Exception:
                 errors += 1
-        if not verdicts:
+        # asymmetric keep: one vote that cannot refute saves the finding, and with no completed
+        # vote at all it is kept and the error counted
+        if not verdicts or any(v.real for v in verdicts):
             return candidate, True, "", errors
-        refuted = sum(1 for v in verdicts if not v.real)
-        if refuted * 2 > len(verdicts):
-            reason = next((v.reason for v in verdicts if not v.real), "")
+        # every completed vote refuted it, still only an opinion. A deletion needs an independent
+        # checker to confirm the controlling fact genuinely neutralizes the finding, invariant 3.
+        reason = next((v.reason for v in verdicts if not v.real), "")
+        if checker is None:
+            return candidate, True, "", errors
+        try:
+            confirmed_safe = checker.holds(candidate, reason, root)
+        except Exception:
+            return candidate, True, "", errors + 1
+        if confirmed_safe:
             return candidate, False, reason, errors
         return candidate, True, "", errors
 
