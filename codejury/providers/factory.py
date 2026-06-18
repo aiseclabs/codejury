@@ -27,13 +27,16 @@ DEFAULT_CHECKER_PROVIDER = os.environ.get("CODEJURY_CHECKER_PROVIDER", "openai")
 DEFAULT_CHECKER_MODEL = os.environ.get("CODEJURY_CHECKER_MODEL")
 DEFAULT_CHECKER_API_BASE = os.environ.get("CODEJURY_CHECKER_API_BASE")
 DEFAULT_CHECKER_API_KEY = os.environ.get("CODEJURY_CHECKER_API_KEY")
+# gpt-5 reasoning models reach this proxy through the Responses API, see ~/.codex wire_api.
+DEFAULT_CHECKER_WIRE_API = os.environ.get("CODEJURY_CHECKER_WIRE_API", "responses")
 
 
 def make_provider(
-    name: str, *, api_key: str | None = None, api_base: str | None = None, retries: int = 0
+    name: str, *, api_key: str | None = None, api_base: str | None = None, retries: int = 0,
+    wire_api: str = "chat"
 ) -> Provider:
     if name == "openai":
-        provider: Provider = OpenAIProvider(api_key=api_key, base_url=api_base)
+        provider: Provider = OpenAIProvider(api_key=api_key, base_url=api_base, wire_api=wire_api)
     elif name == "litellm":
         provider = LiteLLMProvider(api_key=api_key, api_base=api_base)
     else:

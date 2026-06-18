@@ -34,6 +34,7 @@ from codejury.providers.factory import (
     DEFAULT_CHECKER_API_KEY,
     DEFAULT_CHECKER_MODEL,
     DEFAULT_CHECKER_PROVIDER,
+    DEFAULT_CHECKER_WIRE_API,
     DEFAULT_FINDER_MODEL,
     DEFAULT_JUDGE_MODEL,
     DEFAULT_MODEL,
@@ -117,7 +118,8 @@ def _build_checker(args):
         return None
     from codejury.review.repo.verifier import ModelRefutationChecker
     provider = make_provider(args.checker_provider, api_key=args.checker_api_key,
-                             api_base=args.checker_api_base, retries=args.retries)
+                             api_base=args.checker_api_base, retries=args.retries,
+                             wire_api=args.checker_wire_api)
     return ModelRefutationChecker(provider=provider, model=args.checker_model)
 
 
@@ -193,6 +195,9 @@ def main(argv: list[str] | None = None) -> int:
                            "With none set, no finding is refuted, the recall-safe default")
     repo.add_argument("--checker-api-base", default=DEFAULT_CHECKER_API_BASE, dest="checker_api_base")
     repo.add_argument("--checker-api-key", default=DEFAULT_CHECKER_API_KEY, dest="checker_api_key")
+    repo.add_argument("--checker-wire-api", default=DEFAULT_CHECKER_WIRE_API, dest="checker_wire_api",
+                      choices=("chat", "responses"),
+                      help="openai checker wire API, responses for the gpt-5 reasoning models")
     repo.add_argument("--retries", type=int, default=2, help="provider retry attempts on transient failure")
     repo.add_argument("--max-passes", type=int, default=24, dest="max_passes",
                       help="run only: cap on diverse passes before stopping")

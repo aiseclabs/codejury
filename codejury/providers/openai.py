@@ -1,7 +1,10 @@
-"""OpenAIProvider: Provider backed by the OpenAI Chat Completions API.
+"""OpenAIProvider: Provider backed by the OpenAI API, Chat Completions or Responses.
 
-The system prompt is sent as the first chat message. ``cache`` is accepted but
-not applied: OpenAI caches long prompts automatically server-side, with no
+The default wire API is Chat Completions, where the system prompt is the first chat
+message. ``wire_api="responses"`` switches to the Responses API the gpt-5 reasoning
+models use, where the system prompt is ``instructions`` and the turns are the ``input``.
+A reasoning model rejects a fixed temperature, so the Responses path sets none. ``cache``
+is accepted but not applied: OpenAI caches long prompts automatically server-side, with no
 request parameter to set.
 
 The client is injectable so the mapping can be tested without the SDK or a key.
@@ -16,10 +19,12 @@ from codejury.providers.chat_format import choice_text
 
 
 class OpenAIProvider(Provider):
-    def __init__(self, *, api_key: str | None = None, base_url: str | None = None, client: Any | None = None) -> None:
+    def __init__(self, *, api_key: str | None = None, base_url: str | None = None,
+                 client: Any | None = None, wire_api: str = "chat") -> None:
         self._api_key = api_key
         self._base_url = base_url
         self._client = client
+        self._wire_api = wire_api
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -44,6 +49,9 @@ class OpenAIProvider(Provider):
         max_tokens: int,
         cache: bool = False,
     ) -> CompletionResult:
+        if self._wire_api == "responses":
+            return self._complete_responses(system=system, messages=messages, model=model,
+                                            max_tokens=max_tokens)
         api_messages: list[dict] = []
         if system:
             api_messages.append({"role": "system", "content": system})
@@ -57,3 +65,19 @@ class OpenAIProvider(Provider):
             timeout=600,
         )
         return CompletionResult(text=choice_text(response))
+
+    def _complete_responses(
+        self, *, system: str, messages: list[Message], model: str, max_tokens: int
+    ) -> CompletionResult:
+        """The Responses API path the gpt-5 reasoning models use. The budget covers reasoning
+        plus output, so it is generous: a budget too small yields empty output, which reads as
+        an unusable reply upstream and keeps the finding, never a silent wrong refutation."""
+        user_input = "\n\n".join(m.content for m in messages)
+        response = self._get_client().responses.create(
+            model=model,
+            instructions=system or None,
+            input=user_input,
+            max_output_tokens=max(max_tokens, 8000),
+            timeout=600,
+        )
+        return CompletionResult(text=getattr(response, "output_text", "") or "")

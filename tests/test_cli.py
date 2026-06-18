@@ -201,7 +201,8 @@ def test_build_checker_is_none_without_a_checker_model():
     from argparse import Namespace
     from codejury.cli import _build_checker
     args = Namespace(dry_run=False, checker_model=None, checker_provider="openai",
-                     checker_api_base=None, checker_api_key=None, retries=0)
+                     checker_api_base=None, checker_api_key=None, checker_wire_api="responses",
+                     retries=0)
     assert _build_checker(args) is None
 
 
@@ -212,7 +213,8 @@ def test_build_checker_uses_a_different_model_when_configured():
     from codejury.cli import _build_checker
     from codejury.review.repo.verifier import ModelRefutationChecker
     args = Namespace(dry_run=False, checker_model="gpt-mock", checker_provider="openai",
-                     checker_api_base=None, checker_api_key="k", retries=0)
+                     checker_api_base=None, checker_api_key="k", checker_wire_api="responses",
+                     retries=0)
     checker = _build_checker(args)
     assert isinstance(checker, ModelRefutationChecker)
     assert checker._model == "gpt-mock"

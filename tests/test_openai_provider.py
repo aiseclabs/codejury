@@ -80,3 +80,29 @@ def test_missing_sdk_raises_a_clear_error(monkeypatch):
         OpenAIProvider().complete(
             system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
         )
+
+
+class _FakeResponsesClient:
+    def __init__(self, output_text="{}"):
+        self.kwargs = {}
+        self._out = output_text
+        self.responses = SimpleNamespace(create=self._create)
+
+    def _create(self, **kwargs):
+        self.kwargs = kwargs
+        return SimpleNamespace(output_text=self._out)
+
+
+def test_responses_wire_api_maps_system_to_instructions_and_returns_output_text():
+    client = _FakeResponsesClient(output_text='{"holds": true}')
+    result = OpenAIProvider(client=client, wire_api="responses").complete(
+        system="be skeptical",
+        messages=[Message(role="user", content="audit this")],
+        model="gpt-5.5",
+        max_tokens=1024,
+    )
+    assert result.text == '{"holds": true}'
+    assert client.kwargs["instructions"] == "be skeptical"
+    assert client.kwargs["input"] == "audit this"
+    # the budget covers reasoning plus output, so a small request still leaves room to answer
+    assert client.kwargs["max_output_tokens"] >= 8000
