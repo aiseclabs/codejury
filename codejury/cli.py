@@ -229,6 +229,10 @@ def main(argv: list[str] | None = None) -> int:
                            "read and write sets when the domain binds a facts backend such as "
                            "the EVM slither backend. Off by default since extraction is heavy, "
                            "the result is cached by source content hash so a re-run is free")
+    repo.add_argument("--agentic", action="store_true", default=False,
+                      help="run only: review with the agentic reviewer that follows calls with "
+                           "read/grep/find-definition tools, so a cross-file or inherited defect "
+                           "a single grounded call cannot see is reachable. Costs more model calls")
     repo.add_argument("--reviewer", choices=("model", "claude-cli"), default="model",
                       help="run only: 'model' calls the provider once per unit, 'claude-cli' runs "
                            "each unit and verification as a headless `claude -p` agent that reads "
@@ -362,7 +366,7 @@ def _dispatch(args, parser) -> int:
             max_passes=args.max_passes, converge_after=args.converge_after,
             min_lens_shots=args.min_lens_shots,
             concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
-            domain=domain, facts=args.facts,
+            domain=domain, facts=args.facts, agentic=args.agentic,
         )
         acc = res.accumulator
         reported = res.verify.confirmed if res.verify else acc.findings

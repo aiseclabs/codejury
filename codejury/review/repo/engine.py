@@ -26,6 +26,7 @@ from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
 from codejury.review.diff.vulnerabilities import canonical_category, category_aliases
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
+from codejury.review.repo.agentic import AgenticReviewer
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
@@ -628,6 +629,7 @@ def run_repo_review(
     on_pass=None,
     domain: Domain | None = None,
     facts: bool = False,
+    agentic: bool = False,
     extra_finder_backends: tuple = (),
 ) -> RunResult:
     domain = domain or default_domain()
@@ -656,17 +658,22 @@ def run_repo_review(
     if not facts_by_file:
         # no per-file facts, fall back to the global fold for a backend that emits only a summary
         shared = _with_facts(shared, ws)
+    def _make_reviewer(p: Provider, m: str) -> UnitReviewer:
+        # the agentic reviewer follows calls with tools, so it does not need facts pre-packed,
+        # it fetches the called code itself. The single-call reviewer leans on facts grounding.
+        if agentic:
+            return AgenticReviewer(provider=p, model=m, content=paths)
+        return ModelReviewer(provider=p, model=m, content=paths, facts_by_file=facts_by_file)
+
     if reviewer is None:
         if provider is None:
             raise ValueError("run_repo_review needs a provider, or an injected reviewer")
-        reviewer = ModelReviewer(provider=provider, model=model, content=paths,
-                                 facts_by_file=facts_by_file)
+        reviewer = _make_reviewer(provider, model)
     # multi-model fanout: a different model finds alongside the main one, so the union takes
-    # whatever any model catches and a single model's blind spot no longer caps recall. Each
-    # extra backend grounds on the same facts, see the rotation in run_passes.
+    # whatever any model catches and a single model's blind spot no longer caps recall.
     reviewers: list[UnitReviewer] = [reviewer]
     for p, m in extra_finder_backends:
-        reviewers.append(ModelReviewer(provider=p, model=m, content=paths, facts_by_file=facts_by_file))
+        reviewers.append(_make_reviewer(p, m))
 
     run_passes(
         open_units, reviewers, lenses=domain.lenses,
