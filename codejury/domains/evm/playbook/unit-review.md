@@ -47,7 +47,11 @@ of a named guard:
   the invariant and confirm each one does, do not stop at the first that holds: when
   `transfer` and `transferFrom` route through a blacklist or sanity check but `approve`,
   `permit`, or a sibling that grants or moves value does not, that uncovered sibling breaks
-  the invariant. Check the initializer is guarded and the proxy cannot be re-initialized.
+  the invariant. The uncovered sibling may be inherited and not restated in this file: a
+  token that gates `transfer` and `transferFrom` but leaves the inherited `approve`,
+  `increaseAllowance`, or `permit` ungated still lets a blacklisted account hold an
+  allowance, so treat the standard inherited entrypoints as present even when the file does
+  not redefine them. Check the initializer is guarded and the proxy cannot be re-initialized.
 - **Oracle and value source**: is a price or value read from a manipulation-resistant
   source with a staleness and bounds check, or from an in-transaction-movable spot price,
   reserves, or raw balance a flash loan can move for free?
