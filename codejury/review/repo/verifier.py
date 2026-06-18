@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from codejury.domains.base import ContentPaths
 from codejury.json_parse import optional_json_object
@@ -250,3 +250,106 @@ def verify_findings(
     refuted = [(c, reason) for c, real, reason, _e in results if not real]
     errors = sum(e for _c, _real, _r, e in results)
     return VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors)
+
+
+@dataclass(frozen=True, kw_only=True)
+class Assessment:
+    stance: str   # "confirm" | "dispute" | "unsure"
+    reason: str = ""
+
+
+class Judge(ABC):
+    @abstractmethod
+    def assess(self, candidate: Candidate, root: str) -> Assessment:
+        """Independently judge a finding another model surfaced: confirm, dispute, or unsure."""
+
+
+_JUDGE_SYSTEM = (
+    "You are a security reviewer giving an INDEPENDENT second opinion on a finding another "
+    "reviewer reported. Read the code at the finding's file and judge on production semantics: "
+    "confirm if you agree it is a real, exploitable issue, dispute if you can show it is safe and "
+    "name the exact controlling fact and where it lives, unsure if you genuinely cannot tell. Do "
+    "not confirm just to agree, nor dispute just to seem rigorous, judge the code. Dispute only "
+    "when the controlling fact clearly neutralizes the finding on its real path, any doubt is "
+    "unsure not dispute, since dropping a real finding is the worst outcome. Respond with a single "
+    "JSON object and nothing else."
+)
+
+_JUDGE_SHAPE = ('{"stance": "confirm|dispute|unsure", "reason": "the controlling fact at file:line, '
+                'or why it is real"}')
+
+
+class ModelJudge(Judge):
+    """A second opinion from one model: confirm, dispute, or unsure on another model's finding."""
+
+    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 2048) -> None:
+        self._provider = provider
+        self._model = model
+        self._max_tokens = max_tokens
+
+    def assess(self, candidate: Candidate, root: str) -> Assessment:
+        code = _read_file(root, candidate.file)
+        prompt = (
+            "Give an independent second opinion on this finding. Read the code and decide: "
+            "confirm, dispute, or unsure.\n\n"
+            f"Finding:\n- {candidate.title}\n- category: {candidate.category}\n"
+            f"- location: {candidate.file}:{candidate.line}\n- claimed evidence: {candidate.evidence}\n\n"
+            f"Code at {candidate.file}:\n```\n{code}\n```\n\n"
+            f"Respond with a single JSON object exactly like:\n{_JUDGE_SHAPE}"
+        )
+        result = self._provider.complete(
+            system=_JUDGE_SYSTEM,
+            messages=[Message(role="user", content=prompt)],
+            model=self._model,
+            max_tokens=self._max_tokens,
+            cache=True,
+        )
+        obj, ok = optional_json_object(result.text, required_key="stance")
+        if not ok:
+            return Assessment(stance="unsure", reason="unparseable assessment, kept")
+        stance = str(obj.get("stance", "")).strip().lower()
+        if stance not in ("confirm", "dispute", "unsure"):
+            stance = "unsure"
+        return Assessment(stance=stance, reason=str(obj.get("reason", "")))
+
+
+@dataclass(frozen=True, kw_only=True)
+class CrossResult:
+    kept: list = field(default_factory=list)
+    dropped: list = field(default_factory=list)   # (candidate, reason)
+    errors: int = 0
+
+
+def cross_confirm(candidates: list[Candidate], judges: list, root: str, *,
+                  concurrency: int = 6) -> CrossResult:
+    """Adjudicate each finding with a model that did NOT surface it, the most independent second
+    read. Confirm promotes it to a cross-model consensus, recorded on `found_by`. A clear dispute,
+    a different model naming a controlling fact, drops it. Anything else, unsure, an error, or no
+    available judge, keeps it, since dropping a real finding is the worst outcome for recall.
+    `judges` is a list of (label, Judge), the label matching a model name on `found_by`."""
+
+    def one(c: Candidate):
+        others = [(lbl, j) for lbl, j in judges if lbl not in set(c.found_by)]
+        if not others:
+            return "keep", c, ""   # every configured model already found it, already a consensus
+        lbl, judge = others[0]
+        try:
+            a = judge.assess(c, root)
+        except Exception:
+            return "error", c, ""
+        if a.stance == "dispute":
+            return "drop", c, a.reason
+        if a.stance == "confirm":
+            return "keep", replace(c, found_by=tuple(sorted(set(c.found_by) | {lbl}))), ""
+        return "keep", c, ""   # unsure
+
+    if concurrency > 1 and len(candidates) > 1:
+        with ThreadPoolExecutor(max_workers=concurrency) as pool:
+            results = list(pool.map(one, candidates))
+    else:
+        results = [one(c) for c in candidates]
+
+    kept = [c for verdict, c, _r in results if verdict in ("keep", "error")]
+    dropped = [(c, r) for verdict, c, r in results if verdict == "drop"]
+    errors = sum(1 for verdict, _c, _r in results if verdict == "error")
+    return CrossResult(kept=kept, dropped=dropped, errors=errors)

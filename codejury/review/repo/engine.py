@@ -32,10 +32,12 @@ from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
 from codejury.review.repo.severity import median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
 from codejury.review.repo.verifier import (
+    ModelJudge,
     ModelVerifier,
     RefutationChecker,
     VerifyResult,
     Verifier,
+    cross_confirm,
     verify_findings,
 )
 
@@ -184,17 +186,28 @@ def _poc_for(ws: Path, name: str) -> str:
     return ""
 
 
+_SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+
+
+def _confidence(c: Candidate) -> int:
+    """How many models independently surfaced this finding, the consensus strength used to rank."""
+    return len(set(c.found_by))
+
+
 def _finding_entry(ws: Path, c: Candidate) -> dict:
     candidate = f"candidates/{c.source}" if c.source.endswith(".md") else ""
     return {"title": c.title, "category": c.category, "entry": c.endpoint,
             "file": c.file, "line": c.line, "severity": c.severity, "status": c.status,
+            "found_by": list(c.found_by), "models": _confidence(c),
             "candidate": candidate, "poc": _poc_for(ws, _finding_name(c))}
 
 
 def _write_findings(ws: Path, findings: list[Candidate]) -> None:
-    """Write the confirmed findings, the code-owned output. findings/ is cleared and
-    rewritten in full, so a shrunk or refuted set leaves no stale file behind, and the
-    agent's candidates/ and pocs/ are never touched."""
+    """Write the confirmed findings, the code-owned output. Ranked by how many models agreed
+    then severity, so a cross-model consensus surfaces above a lone model's finding. findings/
+    is cleared and rewritten in full, so a shrunk or refuted set leaves no stale file behind,
+    and the agent's candidates/ and pocs/ are never touched."""
+    findings = sorted(findings, key=lambda c: (-_confidence(c), _SEV_RANK.get(c.severity, 4)))
     findings_dir = ws / "findings"
     findings_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     for p in findings_dir.glob("*.md"):
@@ -360,42 +373,52 @@ def apply_verification(
     fresh: bool,
     content: ContentPaths | None = None,
     checker: RefutationChecker | None = None,
+    judge_backends: tuple = (),
 ) -> tuple[list[Candidate], VerifyResult]:
-    """Adversarially verify a finding list, resumable via `_verified.json`, and record
-    the refuted. The single home for the verify step the coded run and the finalize pass
-    both share, so a change to the cache format or the refuted output cannot drift
-    between them. A finding already verified is not re-verified, and on fresh the cache
-    is ignored. A failed verification is counted in the result and the finding is kept,
-    never silently dropped, invariant 3."""
+    """Verify a finding list, resumable via `_verified.json`, and record the refuted. The single
+    home for the verify step the coded run and the finalize pass both share. With two or more
+    judge models it cross-confirms: a model that did NOT surface a finding adjudicates it, confirm
+    promotes it to a cross-model consensus, a clear dispute drops it, else it stays. Consensus
+    findings, two models already reached independently, skip adjudication. Without a second judge
+    it falls back to the skeptic plus checker path, which drops only a checker-confirmed refutation.
+    A failed call keeps the finding and is counted, never silently dropped, invariant 3."""
     if verifier is None:
         if provider is None:
             raise ValueError("verification needs a provider, or an injected verifier")
         verifier = ModelVerifier(provider=provider, model=model, content=content)
-    # The independent second read a deletion rests on is the injected `checker`, a deliberately
-    # different model wired by the caller. It is never built from the skeptic's own provider here,
-    # since a same-model second read shares the skeptic's blind spot and rubber-stamps a wrong
-    # refutation, as it did on the backed buyout reentrancy. With no checker, no finding is
-    # refuted, the recall-safe default.
+    judges = [(m, ModelJudge(provider=p, model=m)) for p, m in judge_backends]
     verified = {} if fresh else _load_verified(ws)
     pending = [c for c in findings if _keystr(c) not in verified]
-    # consensus skips the refutation pass: two models surfacing the same finding independently
-    # is a stronger signal than one skeptic's read, and re-checking it only risks a wrong drop
-    # while spending calls. Only the singletons, found by one model, are put to verification.
+    # consensus skips adjudication: two models surfacing the same finding independently is a
+    # stronger signal than a re-check, which would only risk a wrong drop while spending calls
     consensus = [c for c in pending if len(set(c.found_by)) >= 2]
     for c in consensus:
         verified[_keystr(c)] = {"real": True, "reason": "consensus of models"}
-    to_verify = [c for c in pending if len(set(c.found_by)) < 2]
-    new_vr = verify_findings(to_verify, verifier, root, checker=checker, votes=votes, concurrency=concurrency)
-    for c in new_vr.confirmed:
-        verified[_keystr(c)] = {"real": True, "reason": ""}
-    for c, reason in new_vr.refuted:
-        verified[_keystr(c)] = {"real": False, "reason": reason}
+    singletons = [c for c in pending if len(set(c.found_by)) < 2]
+    updated: dict = {}
+    if len(judges) >= 2:
+        cr = cross_confirm(singletons, judges, root, concurrency=concurrency)
+        for c in cr.kept:
+            updated[_keystr(c)] = c   # carries the promoted found_by from a cross-model confirm
+            reason = "cross-confirmed" if len(set(c.found_by)) >= 2 else "kept, not disputed"
+            verified[_keystr(c)] = {"real": True, "reason": reason}
+        for c, reason in cr.dropped:
+            verified[_keystr(c)] = {"real": False, "reason": reason}
+        errors = cr.errors
+    else:
+        new_vr = verify_findings(singletons, verifier, root, checker=checker, votes=votes, concurrency=concurrency)
+        for c in new_vr.confirmed:
+            verified[_keystr(c)] = {"real": True, "reason": ""}
+        for c, reason in new_vr.refuted:
+            verified[_keystr(c)] = {"real": False, "reason": reason}
+        errors = new_vr.errors
     _save_verified(ws, verified)
-    confirmed = [c for c in findings if verified.get(_keystr(c), {"real": True})["real"]]
+    confirmed = [updated.get(_keystr(c), c) for c in findings
+                 if verified.get(_keystr(c), {"real": True})["real"]]
     refuted = [(c, verified[_keystr(c)]["reason"]) for c in findings
                if not verified.get(_keystr(c), {"real": True})["real"]]
     _write_refuted(ws, refuted)
-    return confirmed, VerifyResult(confirmed=confirmed, refuted=refuted, errors=new_vr.errors)
+    return confirmed, VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors)
 
 
 def _md_field(text: str, key: str) -> str:
@@ -664,9 +687,12 @@ def run_repo_review(
         findings = collapse_colocated(findings)
     vr: VerifyResult | None = None
     if verify:
+        # every finder model is also a judge, so a singleton is adjudicated by a model that did
+        # not surface it, the most independent second read for the cross-confirmation step
+        judge_backends = ((provider, model),) + tuple(extra_finder_backends) if provider is not None else ()
         findings, vr = apply_verification(
             ws, findings, root=root, verifier=verifier, checker=checker, provider=provider, model=model,
-            votes=votes, concurrency=concurrency, fresh=fresh, content=paths,
+            votes=votes, concurrency=concurrency, fresh=fresh, content=paths, judge_backends=judge_backends,
         )
 
     _write_surface(ws, units, acc.failed_units)

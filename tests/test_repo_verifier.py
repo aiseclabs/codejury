@@ -4,12 +4,15 @@ a finding on a failed call, decide by majority when multiple votes are cast."""
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import (
+    Assessment,
+    Judge,
     ModelRefutationChecker,
     ModelVerifier,
     RefutationChecker,
     Verdict,
     Verifier,
     _read_file,
+    cross_confirm,
     verify_findings,
 )
 
@@ -145,3 +148,46 @@ def test_read_file_returns_empty_for_an_out_of_root_path(tmp_path):
     root.mkdir()
     assert _read_file(str(root), "../secret.py") == ""
     assert _read_file(str(root), str(secret)) == ""
+
+
+class StubJudge(Judge):
+    """Returns a fixed stance, modelling one model's second opinion on another's finding."""
+    def __init__(self, stance, reason=""):
+        self._stance = stance
+        self._reason = reason
+
+    def assess(self, candidate, root):
+        return Assessment(stance=self._stance, reason=self._reason)
+
+
+def test_cross_confirm_promotes_on_confirm():
+    # a singleton found by claude, confirmed by gpt, becomes a two-model consensus
+    c = Candidate(title="x", endpoint="GET /a", found_by=("claude",))
+    cr = cross_confirm([c], [("claude", StubJudge("confirm")), ("gpt", StubJudge("confirm"))], ".")
+    assert not cr.dropped
+    (kept,) = cr.kept
+    assert set(kept.found_by) == {"claude", "gpt"}
+
+
+def test_cross_confirm_drops_on_dispute_by_the_other_model():
+    c = Candidate(title="fp", endpoint="GET /a", found_by=("claude",))
+    cr = cross_confirm([c], [("claude", StubJudge("confirm")), ("gpt", StubJudge("dispute", "guard at f:10"))], ".")
+    assert not cr.kept
+    assert [t for (cand, _r) in cr.dropped for t in [cand.title]] == ["fp"]
+
+
+def test_cross_confirm_keeps_on_unsure():
+    c = Candidate(title="maybe", endpoint="GET /a", found_by=("claude",))
+    cr = cross_confirm([c], [("claude", StubJudge("confirm")), ("gpt", StubJudge("unsure"))], ".")
+    assert [k.title for k in cr.kept] == ["maybe"] and not cr.dropped
+
+
+class RaisingJudge(Judge):
+    def assess(self, candidate, root):
+        raise RuntimeError("rate limited")
+
+
+def test_cross_confirm_keeps_and_counts_on_judge_error():
+    c = Candidate(title="boom", endpoint="GET /a", found_by=("claude",))
+    cr = cross_confirm([c], [("claude", StubJudge("confirm")), ("gpt", RaisingJudge())], ".", concurrency=1)
+    assert [k.title for k in cr.kept] == ["boom"] and cr.errors >= 1 and not cr.dropped
