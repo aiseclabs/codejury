@@ -11,7 +11,7 @@ from codejury.providers.openai import OpenAIProvider
 from codejury.providers.retry import RetryProvider
 
 PROVIDERS = ("anthropic", "openai", "litellm")
-DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-sonnet-4-6")
+DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-opus-4-8")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
 DEFAULT_FINDER_MODEL = os.environ.get("CODEJURY_FINDER_MODEL")

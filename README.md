@@ -48,7 +48,7 @@ Set a provider key through flags or environment variables:
 
 ```bash
 export CODEJURY_API_KEY=...
-export CODEJURY_MODEL=claude-sonnet-4-6
+export CODEJURY_MODEL=claude-opus-4-8
 export CODEJURY_API_BASE=...   # optional gateway or proxy
 ```
 
