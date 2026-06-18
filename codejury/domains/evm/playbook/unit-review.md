@@ -42,12 +42,20 @@ of a named guard:
 - **Access control**: is the privileged function gated to the exact role, by a modifier
   that may live in an inherited base, and on `msg.sender` not `tx.origin`? Compare
   siblings: where most privileged functions carry a modifier and one does not, that one is
-  the likely hole. Check the initializer is guarded and the proxy cannot be re-initialized.
+  the likely hole. The gate is not only a modifier, it may be a call to a shared check, a
+  blacklist, a pause, a freeze, a sanity hook. Enumerate every entrypoint that should carry
+  the invariant and confirm each one does, do not stop at the first that holds: when
+  `transfer` and `transferFrom` route through a blacklist or sanity check but `approve`,
+  `permit`, or a sibling that grants or moves value does not, that uncovered sibling breaks
+  the invariant. Check the initializer is guarded and the proxy cannot be re-initialized.
 - **Oracle and value source**: is a price or value read from a manipulation-resistant
   source with a staleness and bounds check, or from an in-transaction-movable spot price,
   reserves, or raw balance a flash loan can move for free?
 - **Accounting**: does share, fee, or balance math round against the user and multiply
   before dividing, and is the first deposit seeded or capped against share-price inflation?
+  When a `transferFrom` or a pull payment charges a fee on top of the amount, confirm the
+  allowance or approval covers the amount plus the fee, not the amount alone, or a spender
+  moves more of the holder's balance than was approved.
 - **Signatures**: is a signed privileged message bound to a nonce, a chainid, and a domain
   separator, the signer checked nonzero? A signature alone is replayable.
 - **Trusted-source**: a value is not safe because a caller you treat as trusted set it, if
