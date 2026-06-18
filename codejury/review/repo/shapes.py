@@ -8,6 +8,7 @@ from __future__ import annotations
 
 JSON_SHAPE = (
     '{"findings": [{"title": "...", "category": "<class id>", '
+    '"symbol": "exact function or method name the finding lives in, identifier only", '
     '"endpoint": "METHOD /path or empty", "file": "path", "line": 0, '
     '"severity": "CRITICAL|HIGH|MEDIUM|LOW", "evidence": "controlling fact at file:line", '
     '"status": "confirmed|blocked"}]}'

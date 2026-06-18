@@ -110,6 +110,63 @@ def test_by_file_folds_one_function_reported_twice():
     assert merge(pool, cands, by_file=True) == 2
 
 
+def test_blank_endpoint_siblings_at_distinct_lines_stay_separate():
+    # two distinct access-control findings in one file with no endpoint prose, as in eurf
+    # where approve hid behind setOwner. Falling to file and class would drop one, the red line
+    # forbids it.
+    cands = [
+        _c("approve skips blacklist", category="access-control", file="Token.sol", line=120),
+        _c("setOwner ungated", category="access-control", file="Token.sol", line=88),
+    ]
+    pool: dict = {}
+    assert merge(pool, cands, by_file=True) == 2
+
+
+def test_blank_endpoint_same_line_folds():
+    # the same defect re-reported with no endpoint at one line is one finding, so a line
+    # anchor un-masks siblings without minting a duplicate for an exact re-report.
+    cands = [
+        _c("x", category="access-control", file="Token.sol", line=88),
+        _c("x again", category="access-control", file="Token.sol", line=88),
+    ]
+    pool: dict = {}
+    assert merge(pool, cands, by_file=True) == 1
+
+
+def test_symbol_anchor_folds_endpoint_prose_variants():
+    # the same defect named with different endpoint prose across passes folds when both name
+    # the symbol, so the union converges instead of minting a new key each pass.
+    cands = [
+        _c("a", category="reentrancy", symbol="liquidate", endpoint="external liquidate()",
+           file="V.sol", line=10),
+        _c("b", category="reentrancy", symbol="Vault.liquidate", endpoint="POST /liquidate",
+           file="V.sol", line=20),
+    ]
+    pool: dict = {}
+    assert merge(pool, cands, by_file=True) == 1
+
+
+def test_symbol_anchor_separates_distinct_functions():
+    cands = [
+        _c("a", category="access-control", symbol="approve", file="Token.sol"),
+        _c("b", category="access-control", symbol="setOwner", file="Token.sol"),
+    ]
+    pool: dict = {}
+    assert merge(pool, cands, by_file=True) == 2
+
+
+def test_fold_unions_evidence_never_drops_the_second_report():
+    # two reports share the symbol anchor, so they fold, but the second's evidence is kept,
+    # never silently dropped, the recall red line.
+    a = _c("a", category="reentrancy", symbol="f", file="V.sol", evidence="no guard at f:10")
+    b = _c("b", category="reentrancy", symbol="f", file="V.sol", evidence="also reverts at f:20")
+    pool: dict = {}
+    merge(pool, [a], by_file=True)
+    merge(pool, [b], by_file=True)
+    (kept,) = pool.values()
+    assert "no guard at f:10" in kept.evidence and "also reverts at f:20" in kept.evidence
+
+
 def test_by_file_separates_same_endpoint_across_files():
     a = _c("a", category="reentrancy", endpoint="execute", file="Vault.sol")
     b = _c("b", category="reentrancy", endpoint="execute", file="Router.sol")

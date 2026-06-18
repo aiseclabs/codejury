@@ -30,6 +30,7 @@ class Candidate:
     title: str
     category: str = ""
     endpoint: str = ""
+    symbol: str = ""   # the function or method the finding lives in, the stable dedup anchor
     file: str = ""
     line: int | None = None
     severity: str = "HIGH"
@@ -51,18 +52,48 @@ class Candidate:
         at several callers of a shared helper folds only when the passes name the same locus,
         the helper, or leave the endpoint blank."""
         cat = self.category.strip().lower()
+        file = self.file.strip().lower()
+        # A function or method name is the stable anchor for the code domains: two passes that
+        # name the same symbol mean the same locus even when they phrase the endpoint or cite
+        # the line differently, so the union folds them and converges instead of minting a new
+        # key each pass. The web path keeps its route endpoint key, so it is unchanged.
+        if by_file:
+            sym = re.sub(r"[^a-z0-9_]", "", self.symbol.strip().lower().rsplit(".", 1)[-1])
+            if sym:
+                return ("fc", file, cat, sym)
         if self.endpoint:
             ep = re.sub(r"\s+", " ", re.sub(r"[<{][^>}]*[>}]", "*", self.endpoint.strip().lower()))
-            return ("fc", self.file.strip().lower(), cat, ep) if by_file else ("ep", ep, cat)
-        return ("fc", self.file.strip().lower(), cat)
+            return ("fc", file, cat, ep) if by_file else ("ep", ep, cat)
+        # No endpoint to anchor on. Falling straight to file and class would merge two distinct
+        # same-class findings in one file into one slot and silently drop the second, the recall
+        # loss the red line forbids, as eurf masked approve behind setOwner. A line is an objective
+        # per-finding anchor, so when present it keeps distinct findings apart. Only with neither
+        # endpoint nor line do we fall to file and class.
+        if self.line is not None:
+            return ("fl", file, cat, self.line)
+        return ("fc", file, cat)
+
+
+def _fold(existing: Candidate, incoming: Candidate) -> Candidate:
+    """Fold a re-report into the kept candidate, never dropping it. The second report may be
+    a distinct defect that only shares the anchor, so its evidence is unioned rather than
+    discarded, the recall red line. A confirmed status upgrades a blocked one, since a later
+    pass that confirms what an earlier could only block is strictly more informative."""
+    status = "confirmed" if "confirmed" in (existing.status, incoming.status) else existing.status
+    evidence = existing.evidence
+    if incoming.evidence and incoming.evidence not in existing.evidence:
+        evidence = f"{evidence}; {incoming.evidence}" if evidence else incoming.evidence
+    if status == existing.status and evidence == existing.evidence:
+        return existing
+    return replace(existing, status=status, evidence=evidence)
 
 
 def merge(pool: dict[tuple, Candidate], incoming: list[Candidate], by_file: bool = False) -> int:
     """Fold `incoming` into `pool` keyed by location, return how many were new.
 
-    A duplicate does not overwrite, except a confirmed candidate upgrades a blocked
-    one at the same location, since a later pass that confirms what an earlier pass
-    could only block is strictly more informative."""
+    A duplicate never overwrites and never drops: it folds into the kept candidate, unioning
+    evidence and upgrading a blocked status to confirmed, so a distinct defect that shares the
+    anchor cannot be silently lost."""
     new = 0
     for cand in incoming:
         k = cand.key(by_file)
@@ -70,8 +101,8 @@ def merge(pool: dict[tuple, Candidate], incoming: list[Candidate], by_file: bool
         if existing is None:
             pool[k] = cand
             new += 1
-        elif existing.status != "confirmed" and cand.status == "confirmed":
-            pool[k] = cand
+        else:
+            pool[k] = _fold(existing, cand)
     return new
 
 

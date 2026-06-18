@@ -273,14 +273,15 @@ def _mark_units_reviewed(ws: Path, reviewed_slugs: set) -> None:
 
 
 def _cand_to_dict(c: Candidate) -> dict:
-    return {"title": c.title, "category": c.category, "endpoint": c.endpoint, "file": c.file,
-            "line": c.line, "severity": c.severity, "evidence": c.evidence, "status": c.status,
-            "source": c.source}
+    return {"title": c.title, "category": c.category, "endpoint": c.endpoint, "symbol": c.symbol,
+            "file": c.file, "line": c.line, "severity": c.severity, "evidence": c.evidence,
+            "status": c.status, "source": c.source}
 
 
 def _cand_from_dict(d: dict) -> Candidate:
     return Candidate(title=d.get("title", ""), category=d.get("category", ""),
-                     endpoint=d.get("endpoint", ""), file=d.get("file", ""), line=d.get("line"),
+                     endpoint=d.get("endpoint", ""), symbol=d.get("symbol", ""),
+                     file=d.get("file", ""), line=d.get("line"),
                      severity=d.get("severity", "MEDIUM"), evidence=d.get("evidence", ""),
                      status=d.get("status", "confirmed"), source=d.get("source", ""))
 
@@ -437,6 +438,7 @@ def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None
         title=title or path.stem,
         category=_md_field(text, "type"),
         endpoint=_md_field(text, "source"),
+        symbol=_md_field(text, "source"),
         file=fm.group(1),
         line=int(fm.group(2)) if fm.group(2) else None,
         severity=severity,

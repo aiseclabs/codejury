@@ -79,6 +79,7 @@ def candidates_from_obj(obj: object) -> list[Candidate]:
             title=title,
             category=str(d.get("category", "")).strip(),
             endpoint=str(d.get("endpoint") or d.get("source") or "").strip(),
+            symbol=str(d.get("symbol") or "").strip(),
             file=file,
             line=line if isinstance(line, int) and not isinstance(line, bool) and line >= 1 else None,
             severity=sev if sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else "MEDIUM",
