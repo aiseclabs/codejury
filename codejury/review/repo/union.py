@@ -53,14 +53,14 @@ class Candidate:
         the helper, or leave the endpoint blank."""
         cat = self.category.strip().lower()
         file = self.file.strip().lower()
-        # A function or method name is the stable anchor for the code domains: two passes that
-        # name the same symbol mean the same locus even when they phrase the endpoint or cite
-        # the line differently, so the union folds them and converges instead of minting a new
-        # key each pass. The web path keeps its route endpoint key, so it is unchanged.
-        if by_file:
-            sym = re.sub(r"[^a-z0-9_]", "", self.symbol.strip().lower().rsplit(".", 1)[-1])
-            if sym:
-                return ("fc", file, cat, sym)
+        # A function or method name is the stable anchor in both modes: two passes that name the
+        # same symbol mean the same locus even when they phrase the endpoint or cite the line
+        # differently, so the union folds them and converges instead of minting a new key each
+        # pass, the web non-convergence as much as the code one. The file joins the key so the
+        # same handler name in two files stays separate.
+        sym = re.sub(r"[^a-z0-9_]", "", self.symbol.strip().lower().rsplit(".", 1)[-1])
+        if sym:
+            return ("sym", file, cat, sym)
         if self.endpoint:
             ep = re.sub(r"\s+", " ", re.sub(r"[<{][^>}]*[>}]", "*", self.endpoint.strip().lower()))
             return ("fc", file, cat, ep) if by_file else ("ep", ep, cat)

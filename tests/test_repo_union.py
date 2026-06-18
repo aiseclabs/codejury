@@ -167,6 +167,28 @@ def test_fold_unions_evidence_never_drops_the_second_report():
     assert "no guard at f:10" in kept.evidence and "also reverts at f:20" in kept.evidence
 
 
+def test_symbol_anchor_folds_web_route_prose_variants():
+    # the web path, not by_file: two passes name one handler through different route prose,
+    # they fold on the symbol so the union converges instead of minting a key each pass.
+    cands = [
+        _c("a", category="authorization", symbol="getDatabase", endpoint="GET /db/:db",
+           file="lib/routes/db.js"),
+        _c("b", category="authorization", symbol="getDatabase", endpoint="the database listing route",
+           file="lib/routes/db.js"),
+    ]
+    pool: dict = {}
+    assert merge(pool, cands) == 1
+
+
+def test_symbol_anchor_separates_same_name_handler_across_files():
+    cands = [
+        _c("a", category="authorization", symbol="index", file="lib/routes/db.js"),
+        _c("b", category="authorization", symbol="index", file="lib/routes/collection.js"),
+    ]
+    pool: dict = {}
+    assert merge(pool, cands) == 2
+
+
 def test_by_file_separates_same_endpoint_across_files():
     a = _c("a", category="reentrancy", endpoint="execute", file="Vault.sol")
     b = _c("b", category="reentrancy", endpoint="execute", file="Router.sol")
