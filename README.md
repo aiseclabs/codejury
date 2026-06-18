@@ -52,10 +52,13 @@ export CODEJURY_MODEL=claude-opus-4-8
 export CODEJURY_API_BASE=...   # optional gateway or proxy
 ```
 
-Repo Review can refute a candidate only when a second, deliberately different model agrees,
-so a deletion needs two models with uncorrelated blind spots and no single skeptic drops a
-real finding. Point it at a cross-vendor model. With none set, the verify stage keeps every
-candidate, the recall-safe default.
+Repo Review uses a second, deliberately different model for two roles at once. On the recall
+side it finds alongside the main model, so the union takes whatever either catches and a
+single model's blind spot no longer caps recall. On the precision side it must agree before a
+candidate is refuted, so a deletion needs two models with uncorrelated blind spots and no lone
+skeptic drops a real finding. Point it at a cross-vendor model. With none set, both models
+collapse to one, the finder is single-model and the verify stage keeps every candidate, the
+recall-safe default.
 
 ```bash
 export CODEJURY_CHECKER_PROVIDER=openai   # default

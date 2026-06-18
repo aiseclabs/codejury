@@ -25,7 +25,7 @@ DEFAULT_LENSES = WEB_LENSES
 
 def run_passes(
     units: list[Unit],
-    reviewer: UnitReviewer,
+    reviewer: UnitReviewer | list[UnitReviewer],
     *,
     lenses: tuple[str, ...] = DEFAULT_LENSES,
     converge_after: int = 2,
@@ -40,11 +40,13 @@ def run_passes(
     """Run diverse passes over the worklist until the union converges or `max_passes`.
 
     Every pass reviews every unit, so coverage is total each pass. The lens rotates so
-    diversity drives the union. Passes run in order, but the units within a pass are
-    independent, so they run concurrently up to `concurrency`, since each is a network
-    bound model call. Results are merged in unit order, so the converged finding set is
-    the same as a serial run. `on_pass(pass_number, lens, new_this_pass, union_size)`
-    is called after each pass for progress.
+    diversity drives the union. `reviewer` may be several models, rotated one per lens
+    cycle: a single model's blind spots cap recall no matter how many passes, so different
+    models each review and the union takes whatever any of them finds, raising the recall
+    ceiling. Passes run in order, but the units within a pass are independent, so they run
+    concurrently up to `concurrency`, since each is a network bound model call. Results are
+    merged in unit order, so the converged finding set is the same as a serial run.
+    `on_pass(pass_number, lens, new_this_pass, union_size)` is called after each pass.
 
     Convergence needs two signals, not one. The union must have saturated, the last
     `converge_after` passes added nothing, and every lens must have fired at least
@@ -52,27 +54,34 @@ def run_passes(
     rotation has re-tried each class, so saturation alone stops the run with a hard class
     such as reentrancy reviewed once and never again. Generation is probabilistic, one
     shot is a coin flip, so the coverage gate keeps the run going until each lens has had
-    its shots. It binds only where the union saturates early, on a large repo every lens
-    already fired many times by the time it goes quiet, so this adds no passes there."""
+    its shots. With several models the floor rises to at least one lens cycle per model, so
+    no model is skipped before the run can stop. It binds only where the union saturates
+    early, on a large repo every lens already fired many times by the time it goes quiet."""
     acc = accumulator if accumulator is not None else Accumulator(converge_after=converge_after)
     lenses = lenses or ("",)
+    reviewers = list(reviewer) if isinstance(reviewer, (list, tuple)) else [reviewer]
+    # each model must get at least one full lens cycle before the run may stop, so a second
+    # model is never skipped by an early saturation, the recall ceiling it exists to lift
+    floor = max(min_lens_shots, len(reviewers))
     reviewed_ok: set[str] = set()
     lens_shots: dict[str, int] = {}
 
-    def review_unit(unit: Unit, lens: str):
+    def review_unit(unit: Unit, lens: str, rv: UnitReviewer):
         try:
-            return reviewer.review(unit, lens, shared_context=shared_context), None
+            return rv.review(unit, lens, shared_context=shared_context), None
         except Exception as exc:
             return [], exc
 
     for i in range(max_passes):
         lens = lenses[i % len(lenses)]
+        # rotate the model after a full lens cycle, so each model sweeps every lens in turn
+        rv = reviewers[(i // len(lenses)) % len(reviewers)]
         lens_shots[lens] = lens_shots.get(lens, 0) + 1
         if concurrency > 1 and len(units) > 1:
             with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                per_unit = list(pool.map(lambda u: review_unit(u, lens), units))   # order preserved, the zip below relies on it
+                per_unit = list(pool.map(lambda u: review_unit(u, lens, rv), units))   # order preserved, the zip below relies on it
         else:
-            per_unit = [review_unit(u, lens) for u in units]
+            per_unit = [review_unit(u, lens, rv) for u in units]
         candidates = [c for cands, _err in per_unit for c in cands]
         acc.errors += sum(1 for _cands, err in per_unit if err is not None)
         reviewed_ok.update(u.name for u, (_cands, err) in zip(units, per_unit) if err is None)
@@ -81,7 +90,7 @@ def run_passes(
             persist(acc.findings)   # checkpoint the union each pass, so a kill mid-run can resume
         if on_pass is not None:
             on_pass(i + 1, lens, n_new, len(acc.findings))
-        covered = all(lens_shots.get(l, 0) >= min_lens_shots for l in lenses)
+        covered = all(lens_shots.get(l, 0) >= floor for l in lenses)
         if covered and acc.converged:
             break
     acc.failed_units = {u.name for u in units} - reviewed_ok

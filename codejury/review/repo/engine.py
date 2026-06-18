@@ -597,6 +597,7 @@ def run_repo_review(
     on_pass=None,
     domain: Domain | None = None,
     facts: bool = False,
+    extra_finder_backends: tuple = (),
 ) -> RunResult:
     domain = domain or default_domain()
     paths = domain.paths
@@ -629,9 +630,15 @@ def run_repo_review(
             raise ValueError("run_repo_review needs a provider, or an injected reviewer")
         reviewer = ModelReviewer(provider=provider, model=model, content=paths,
                                  facts_by_file=facts_by_file)
+    # multi-model fanout: a different model finds alongside the main one, so the union takes
+    # whatever any model catches and a single model's blind spot no longer caps recall. Each
+    # extra backend grounds on the same facts, see the rotation in run_passes.
+    reviewers: list[UnitReviewer] = [reviewer]
+    for p, m in extra_finder_backends:
+        reviewers.append(ModelReviewer(provider=p, model=m, content=paths, facts_by_file=facts_by_file))
 
     run_passes(
-        open_units, reviewer, lenses=domain.lenses,
+        open_units, reviewers, lenses=domain.lenses,
         converge_after=converge_after, min_lens_shots=min_lens_shots, max_passes=max_passes,
         shared_context=shared, concurrency=concurrency, on_pass=on_pass,
         persist=lambda f: _save_union(ws, f), accumulator=acc,

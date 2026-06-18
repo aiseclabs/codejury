@@ -109,18 +109,29 @@ _REPO_MOCK_REPLY = (
 )
 
 
+def _checker_backend(args):
+    """The checker's provider and model, or (None, None) when no checker model is configured.
+    One backend serves two roles: it confirms refutations on the delete side and finds
+    alongside the main model on the recall side, so a single different model lifts recall and
+    guards deletion at once."""
+    if args.dry_run or not args.checker_model:
+        return None, None
+    provider = make_provider(args.checker_provider, api_key=args.checker_api_key,
+                             api_base=args.checker_api_base, retries=args.retries,
+                             wire_api=args.checker_wire_api)
+    return provider, args.checker_model
+
+
 def _build_checker(args):
     """The refutation checker, a DIFFERENT model from the skeptic, or None when no checker
     model is configured. A deletion needs this second model to confirm a refutation, so a
     same-model second read cannot rubber-stamp a wrong refutation and drop a real finding. With
     no checker model set, nothing is refuted, the recall-safe default."""
-    if args.dry_run or not args.checker_model:
+    provider, model = _checker_backend(args)
+    if provider is None:
         return None
     from codejury.review.repo.verifier import ModelRefutationChecker
-    provider = make_provider(args.checker_provider, api_key=args.checker_api_key,
-                             api_base=args.checker_api_base, retries=args.retries,
-                             wire_api=args.checker_wire_api)
-    return ModelRefutationChecker(provider=provider, model=args.checker_model)
+    return ModelRefutationChecker(provider=provider, model=model)
 
 
 def _warn_no_checker(args) -> None:
@@ -332,10 +343,21 @@ def _dispatch(args, parser) -> int:
             print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
 
         _warn_no_checker(args)
+        # one different-model backend, reused for both roles: it finds alongside the main model
+        # (recall side, union) and confirms refutations (delete side), so a single second model
+        # lifts the recall ceiling and guards deletion at once.
+        checker_provider, checker_model = _checker_backend(args)
+        checker_obj = None
+        extra_finder_backends: tuple = ()
+        if checker_provider is not None:
+            from codejury.review.repo.verifier import ModelRefutationChecker
+            checker_obj = ModelRefutationChecker(provider=checker_provider, model=checker_model)
+            extra_finder_backends = ((checker_provider, checker_model),)
         print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
         res = run_repo_review(
             args.directory, args.workspace, provider=provider, model=args.model,
-            reviewer=reviewer_obj, verifier=verifier_obj, checker=_build_checker(args),
+            reviewer=reviewer_obj, verifier=verifier_obj, checker=checker_obj,
+            extra_finder_backends=extra_finder_backends,
             verify=args.verify, votes=args.votes,
             max_passes=args.max_passes, converge_after=args.converge_after,
             min_lens_shots=args.min_lens_shots,

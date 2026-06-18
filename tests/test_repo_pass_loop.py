@@ -178,3 +178,26 @@ def test_run_passes_counts_an_unparseable_reply_as_an_error():
     prov = MockProvider(default="sorry, no JSON here")
     acc = run_passes(_U, ModelReviewer(provider=prov, model="mock"), lenses=("",), max_passes=2)
     assert acc.errors >= 1 and acc.findings == []
+
+
+class OneFindingReviewer(UnitReviewer):
+    """A model that only ever finds its own single issue, so two such models cover different
+    issues and the union needs both, the recall ceiling a single model cannot reach alone."""
+    def __init__(self, title):
+        self.title = title
+        self.calls = 0
+
+    def review(self, unit, lens, *, shared_context=""):
+        self.calls += 1
+        return [Candidate(title=self.title, endpoint=f"GET /{self.title}")]
+
+
+def test_multi_model_fanout_unions_what_each_model_finds():
+    # model A only finds a, model B only finds b. A single model caps recall at its own blind
+    # spot, two models rotated over the passes union to both, the recall ceiling lifted.
+    a = OneFindingReviewer("a")
+    b = OneFindingReviewer("b")
+    acc = run_passes(_U, [a, b], lenses=("x",), converge_after=2, max_passes=24)
+    assert {c.title for c in acc.findings} == {"a", "b"}
+    # both models were actually run, neither skipped by an early stop
+    assert a.calls >= 1 and b.calls >= 1
