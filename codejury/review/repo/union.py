@@ -37,6 +37,7 @@ class Candidate:
     evidence: str = ""
     status: str = "confirmed"
     source: str = ""   # agent candidate file basename, links a finding to its candidate and poc, empty in the coded run
+    found_by: tuple[str, ...] = ()   # the models that independently surfaced this finding, the consensus signal
 
     def key(self, by_file: bool = False) -> tuple:
         """The dedup identity, location plus class. Endpoint is the precise location
@@ -83,9 +84,12 @@ def _fold(existing: Candidate, incoming: Candidate) -> Candidate:
     evidence = existing.evidence
     if incoming.evidence and incoming.evidence not in existing.evidence:
         evidence = f"{evidence}; {incoming.evidence}" if evidence else incoming.evidence
-    if status == existing.status and evidence == existing.evidence:
+    # union the models that found it: two models reaching the same finding independently is the
+    # consensus signal a later stage trusts, so fold records both rather than keeping the first
+    found_by = tuple(sorted(set(existing.found_by) | set(incoming.found_by)))
+    if status == existing.status and evidence == existing.evidence and found_by == existing.found_by:
         return existing
-    return replace(existing, status=status, evidence=evidence)
+    return replace(existing, status=status, evidence=evidence, found_by=found_by)
 
 
 def merge(pool: dict[tuple, Candidate], incoming: list[Candidate], by_file: bool = False) -> int:

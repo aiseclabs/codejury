@@ -267,3 +267,15 @@ def test_findings_keep_the_model_grade_with_no_keyword_override():
                      file="a.py", severity="LOW")])
     (f,) = acc.findings
     assert f.severity == "LOW"
+
+
+def test_merge_unions_found_by_for_consensus():
+    # the same finding surfaced by two models folds and records both, the consensus signal a
+    # later stage trusts without re-checking
+    a = _c("reentry", category="reentrancy", symbol="lend", file="V.sol", found_by=("claude",))
+    b = _c("reentry too", category="reentrancy", symbol="lend", file="V.sol", found_by=("gpt",))
+    pool: dict = {}
+    merge(pool, [a], by_file=True)
+    merge(pool, [b], by_file=True)
+    (kept,) = pool.values()
+    assert set(kept.found_by) == {"claude", "gpt"}

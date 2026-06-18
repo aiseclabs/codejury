@@ -201,3 +201,28 @@ def test_multi_model_fanout_unions_what_each_model_finds():
     assert {c.title for c in acc.findings} == {"a", "b"}
     # both models were actually run, neither skipped by an early stop
     assert a.calls >= 1 and b.calls >= 1
+
+
+class FixedReviewer(UnitReviewer):
+    """A model that always returns the one finding it is given, labelled by its model name."""
+    def __init__(self, label, cand):
+        self._model = label
+        self._cand = cand
+
+    @property
+    def label(self):
+        return self._model
+
+    def review(self, unit, lens, *, shared_context=""):
+        return [self._cand]
+
+
+def test_two_models_finding_the_same_issue_record_consensus():
+    # both models surface the same finding, so it folds and carries both names: a later stage
+    # can trust the consensus and skip re-checking it
+    shared = Candidate(title="reentry", category="reentrancy", symbol="lend", file="V.sol")
+    a = FixedReviewer("claude", shared)
+    b = FixedReviewer("gpt", shared)
+    acc = run_passes(_U, [a, b], lenses=("x",), converge_after=2, max_passes=24)
+    (f,) = acc.findings
+    assert set(f.found_by) == {"claude", "gpt"}

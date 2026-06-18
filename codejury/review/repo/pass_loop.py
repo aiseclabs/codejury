@@ -12,6 +12,7 @@ comprehensive and does not vary run to run.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from typing import Callable
 
 from codejury.domains.web import WEB_LENSES
@@ -60,6 +61,7 @@ def run_passes(
     acc = accumulator if accumulator is not None else Accumulator(converge_after=converge_after)
     lenses = lenses or ("",)
     reviewers = list(reviewer) if isinstance(reviewer, (list, tuple)) else [reviewer]
+    labels = [getattr(rv, "label", "") or f"model-{k}" for k, rv in enumerate(reviewers)]
     # each model must get at least one full lens cycle before the run may stop, so a second
     # model is never skipped by an early saturation, the recall ceiling it exists to lift
     floor = max(min_lens_shots, len(reviewers))
@@ -75,14 +77,17 @@ def run_passes(
     for i in range(max_passes):
         lens = lenses[i % len(lenses)]
         # rotate the model after a full lens cycle, so each model sweeps every lens in turn
-        rv = reviewers[(i // len(lenses)) % len(reviewers)]
+        mi = (i // len(lenses)) % len(reviewers)
+        rv = reviewers[mi]
         lens_shots[lens] = lens_shots.get(lens, 0) + 1
         if concurrency > 1 and len(units) > 1:
             with ThreadPoolExecutor(max_workers=concurrency) as pool:
                 per_unit = list(pool.map(lambda u: review_unit(u, lens, rv), units))   # order preserved, the zip below relies on it
         else:
             per_unit = [review_unit(u, lens, rv) for u in units]
-        candidates = [c for cands, _err in per_unit for c in cands]
+        # tag each finding with the model that produced it, so two models reaching the same
+        # finding fold to a consensus a later stage can trust without re-checking
+        candidates = [replace(c, found_by=(labels[mi],)) for cands, _err in per_unit for c in cands]
         acc.errors += sum(1 for _cands, err in per_unit if err is not None)
         reviewed_ok.update(u.name for u, (_cands, err) in zip(units, per_unit) if err is None)
         n_new = acc.add_pass(candidates)

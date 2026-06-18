@@ -281,7 +281,7 @@ def _mark_units_reviewed(ws: Path, reviewed_slugs: set) -> None:
 def _cand_to_dict(c: Candidate) -> dict:
     return {"title": c.title, "category": c.category, "endpoint": c.endpoint, "symbol": c.symbol,
             "file": c.file, "line": c.line, "severity": c.severity, "evidence": c.evidence,
-            "status": c.status, "source": c.source}
+            "status": c.status, "source": c.source, "found_by": list(c.found_by)}
 
 
 def _cand_from_dict(d: dict) -> Candidate:
@@ -289,7 +289,8 @@ def _cand_from_dict(d: dict) -> Candidate:
                      endpoint=d.get("endpoint", ""), symbol=d.get("symbol", ""),
                      file=d.get("file", ""), line=d.get("line"),
                      severity=d.get("severity", "MEDIUM"), evidence=d.get("evidence", ""),
-                     status=d.get("status", "confirmed"), source=d.get("source", ""))
+                     status=d.get("status", "confirmed"), source=d.get("source", ""),
+                     found_by=tuple(d.get("found_by", ())))
 
 
 def _keystr(c: Candidate) -> str:
@@ -376,7 +377,14 @@ def apply_verification(
     # refutation, as it did on the backed buyout reentrancy. With no checker, no finding is
     # refuted, the recall-safe default.
     verified = {} if fresh else _load_verified(ws)
-    to_verify = [c for c in findings if _keystr(c) not in verified]
+    pending = [c for c in findings if _keystr(c) not in verified]
+    # consensus skips the refutation pass: two models surfacing the same finding independently
+    # is a stronger signal than one skeptic's read, and re-checking it only risks a wrong drop
+    # while spending calls. Only the singletons, found by one model, are put to verification.
+    consensus = [c for c in pending if len(set(c.found_by)) >= 2]
+    for c in consensus:
+        verified[_keystr(c)] = {"real": True, "reason": "consensus of models"}
+    to_verify = [c for c in pending if len(set(c.found_by)) < 2]
     new_vr = verify_findings(to_verify, verifier, root, checker=checker, votes=votes, concurrency=concurrency)
     for c in new_vr.confirmed:
         verified[_keystr(c)] = {"real": True, "reason": ""}

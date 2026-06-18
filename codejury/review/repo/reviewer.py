@@ -179,6 +179,11 @@ class ModelReviewer(UnitReviewer):
         for rel, block in self._facts_by_file.items():
             self._facts_by_base.setdefault(rel.rsplit("/", 1)[-1], block)
 
+    @property
+    def label(self) -> str:
+        """The model name, used to tag which model surfaced a finding for the consensus signal."""
+        return self._model
+
     def _facts_for(self, unit: Unit) -> str:
         """The facts for the files this unit owns, so a unit reviewing one slice of a large
         file still carries that file's whole call graph, the cross-slice signal."""
