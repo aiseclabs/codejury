@@ -317,8 +317,15 @@ def _dispatch(args, parser) -> int:
             print(f"WARNING: {failures} model calls failed, e.g. provider errors or rate limits. "
                   "Results may be understated. Lower --concurrency or raise --retries and re-run.",
                   file=sys.stderr)
+        if not acc.converged:
+            print(f"WARNING: the union did not converge within {args.max_passes} passes, it was "
+                  "still finding new issues when the cap stopped it. Coverage is incomplete and "
+                  "recall is not guaranteed. Raise --max-passes or narrow the scope and re-run.",
+                  file=sys.stderr)
         print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
-        return 1 if failures else 0   # fail loud: a partial run must not exit clean, invariant 3
+        # fail loud: a partial run or a run still finding issues at the cap must not exit clean,
+        # invariant 3 and the stability red line, so a non-converged run is not reported as done
+        return 1 if failures or not acc.converged else 0
 
     if args.command == "review" and scope == "repo":
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
