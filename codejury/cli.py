@@ -30,6 +30,10 @@ from codejury.providers.factory import (
     DEFAULT_API_BASE,
     DEFAULT_API_KEY,
     DEFAULT_CHALLENGER_MODEL,
+    DEFAULT_CHECKER_API_BASE,
+    DEFAULT_CHECKER_API_KEY,
+    DEFAULT_CHECKER_MODEL,
+    DEFAULT_CHECKER_PROVIDER,
     DEFAULT_FINDER_MODEL,
     DEFAULT_JUDGE_MODEL,
     DEFAULT_MODEL,
@@ -104,6 +108,28 @@ _REPO_MOCK_REPLY = (
 )
 
 
+def _build_checker(args):
+    """The refutation checker, a DIFFERENT model from the skeptic, or None when no checker
+    model is configured. A deletion needs this second model to confirm a refutation, so a
+    same-model second read cannot rubber-stamp a wrong refutation and drop a real finding. With
+    no checker model set, nothing is refuted, the recall-safe default."""
+    if args.dry_run or not args.checker_model:
+        return None
+    from codejury.review.repo.verifier import ModelRefutationChecker
+    provider = make_provider(args.checker_provider, api_key=args.checker_api_key,
+                             api_base=args.checker_api_base, retries=args.retries)
+    return ModelRefutationChecker(provider=provider, model=args.checker_model)
+
+
+def _warn_no_checker(args) -> None:
+    """Tell the operator a verify run with no checker drops nothing, so they can wire a second
+    model to enable deletion instead of reading a noisy keep-everything report as filtered."""
+    if args.verify and not args.dry_run and not args.checker_model:
+        print("NOTE: no --checker-model set, so the verify stage refutes nothing and keeps every "
+              "candidate. Set a different model via --checker-model or CODEJURY_CHECKER_MODEL so a "
+              "deletion is confirmed by a second model.", file=sys.stderr)
+
+
 def _add_audit_args(p) -> None:
     """The diff-audit flags for `review diff`."""
     p.add_argument("--file", default=None, help="unified diff file (default: read stdin)")
@@ -159,6 +185,14 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("--model", default=DEFAULT_MODEL)
     repo.add_argument("--api-base", default=DEFAULT_API_BASE)
     repo.add_argument("--api-key", default=DEFAULT_API_KEY)
+    repo.add_argument("--checker-provider", choices=PROVIDERS, default=DEFAULT_CHECKER_PROVIDER,
+                      dest="checker_provider")
+    repo.add_argument("--checker-model", default=DEFAULT_CHECKER_MODEL, dest="checker_model",
+                      help="a DIFFERENT model from --model that confirms a refutation before any "
+                           "finding is dropped, so a deletion needs two uncorrelated reads to agree. "
+                           "With none set, no finding is refuted, the recall-safe default")
+    repo.add_argument("--checker-api-base", default=DEFAULT_CHECKER_API_BASE, dest="checker_api_base")
+    repo.add_argument("--checker-api-key", default=DEFAULT_CHECKER_API_KEY, dest="checker_api_key")
     repo.add_argument("--retries", type=int, default=2, help="provider retry attempts on transient failure")
     repo.add_argument("--max-passes", type=int, default=24, dest="max_passes",
                       help="run only: cap on diverse passes before stopping")
@@ -256,11 +290,12 @@ def _dispatch(args, parser) -> int:
         else:
             verifier_obj = None
             provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
+        _warn_no_checker(args)
         print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
         fr = finalize_repo_review(
-            args.directory, args.workspace, verifier=verifier_obj, provider=provider,
-            model=args.model, verify=args.verify, votes=args.votes, concurrency=args.concurrency,
-            domain=domain,
+            args.directory, args.workspace, verifier=verifier_obj, checker=_build_checker(args),
+            provider=provider, model=args.model, verify=args.verify, votes=args.votes,
+            concurrency=args.concurrency, domain=domain,
         )
         kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
         refuted = len(fr.verify.refuted) if fr.verify else 0
@@ -291,10 +326,11 @@ def _dispatch(args, parser) -> int:
         def _progress(p, lens, new, total):
             print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
 
+        _warn_no_checker(args)
         print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
         res = run_repo_review(
             args.directory, args.workspace, provider=provider, model=args.model,
-            reviewer=reviewer_obj, verifier=verifier_obj,
+            reviewer=reviewer_obj, verifier=verifier_obj, checker=_build_checker(args),
             verify=args.verify, votes=args.votes,
             max_passes=args.max_passes, converge_after=args.converge_after,
             min_lens_shots=args.min_lens_shots,

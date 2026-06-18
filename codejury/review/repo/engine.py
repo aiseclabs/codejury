@@ -32,7 +32,6 @@ from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
 from codejury.review.repo.severity import median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
 from codejury.review.repo.verifier import (
-    ModelRefutationChecker,
     ModelVerifier,
     RefutationChecker,
     VerifyResult,
@@ -371,12 +370,11 @@ def apply_verification(
         if provider is None:
             raise ValueError("verification needs a provider, or an injected verifier")
         verifier = ModelVerifier(provider=provider, model=model, content=content)
-    # the independent second read that a deletion rests on: a refutation drops a finding only
-    # when this checker confirms its controlling fact, so no single skeptic opinion deletes a
-    # real finding. Wired only when a provider is available, an injected verifier with no
-    # provider keeps every refutation pending a check, the recall-safe default.
-    if checker is None and provider is not None:
-        checker = ModelRefutationChecker(provider=provider, model=model)
+    # The independent second read a deletion rests on is the injected `checker`, a deliberately
+    # different model wired by the caller. It is never built from the skeptic's own provider here,
+    # since a same-model second read shares the skeptic's blind spot and rubber-stamps a wrong
+    # refutation, as it did on the backed buyout reentrancy. With no checker, no finding is
+    # refuted, the recall-safe default.
     verified = {} if fresh else _load_verified(ws)
     to_verify = [c for c in findings if _keystr(c) not in verified]
     new_vr = verify_findings(to_verify, verifier, root, checker=checker, votes=votes, concurrency=concurrency)

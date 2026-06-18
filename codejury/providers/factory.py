@@ -18,6 +18,16 @@ DEFAULT_FINDER_MODEL = os.environ.get("CODEJURY_FINDER_MODEL")
 DEFAULT_CHALLENGER_MODEL = os.environ.get("CODEJURY_CHALLENGER_MODEL")
 DEFAULT_JUDGE_MODEL = os.environ.get("CODEJURY_JUDGE_MODEL")
 
+# The repo-review refutation checker, a deliberately DIFFERENT model from the skeptic, so a
+# deletion needs two models with uncorrelated blind spots to agree. A same-model second read
+# shares the skeptic's blind spot and rubber-stamps a wrong refutation, as it did on the
+# backed buyout reentrancy. Defaults to an OpenAI model so the second opinion is cross-vendor.
+# With no checker model set, no finding is refuted, the recall-safe default.
+DEFAULT_CHECKER_PROVIDER = os.environ.get("CODEJURY_CHECKER_PROVIDER", "openai")
+DEFAULT_CHECKER_MODEL = os.environ.get("CODEJURY_CHECKER_MODEL")
+DEFAULT_CHECKER_API_BASE = os.environ.get("CODEJURY_CHECKER_API_BASE")
+DEFAULT_CHECKER_API_KEY = os.environ.get("CODEJURY_CHECKER_API_KEY")
+
 
 def make_provider(
     name: str, *, api_key: str | None = None, api_base: str | None = None, retries: int = 0
