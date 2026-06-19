@@ -17,6 +17,7 @@ focus it exists to create. Pure functions over the filesystem, no model calls.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from pathlib import Path
 
 from codejury.review.repo import navigation
@@ -129,7 +130,10 @@ def pack_fragments(root: str, files: tuple[str, ...], *, max_defs: int = _MAX_DE
         seen_ref.add(sym)
         if len(fragments) >= max_defs or total >= max_total:
             break
-        for d in navigation.find_definition(root, sym, max_hits=3):
+        # in-project only: co-locate cross-file and cross-function code in the project, fast.
+        # Resolving into a large vendored tree per symbol is too slow for a per-unit packer, so
+        # the inherited-from-dependency case is left to a separate, import-scoped resolver.
+        for d in navigation.find_definition(root, sym, max_hits=3, include_deps=False):
             df = d["file"]
             if df in owned:
                 continue   # defined in the unit already, visible
@@ -156,9 +160,11 @@ def pack_fragments(root: str, files: tuple[str, ...], *, max_defs: int = _MAX_DE
     return fragments
 
 
+@lru_cache(maxsize=512)
 def pack_context(root: str, files: tuple[str, ...]) -> str:
     """The co-located called and inherited definitions for a unit, a labeled block to append to
-    the unit's own code, or empty when nothing resolves outside the unit."""
+    the unit's own code, or empty when nothing resolves outside the unit. Cached per unit, since
+    it is deterministic and the same unit is reviewed across many passes and models."""
     parts: list[str] = []
     for df, s_char, e_char in pack_fragments(root, files):
         path = safe_repo_path(root, df)

@@ -14,6 +14,7 @@ Pure functions over the filesystem, no model calls, fully testable.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -62,23 +63,25 @@ def read_file(root: str, rel: str, start: int | None = None, end: int | None = N
 
 def _iter_files(base: Path, include_deps: bool):
     """Walk the repo's text source files, skipping noise always and vendored deps unless asked.
-    Bounded by a file cap so a huge tree cannot stall a search."""
+    The skip dirs are pruned from the walk, not just filtered, so a search never descends into a
+    huge vendored tree it would only discard. Bounded by a file cap."""
     skip = _NOISE_DIRS if include_deps else _NOISE_DIRS | _DEP_DIRS
     seen = 0
-    for path in base.rglob("*"):
-        if seen >= _GREP_MAX_FILES:
-            break
-        if any(part in skip for part in path.parts):
-            continue
-        if not path.is_file() or path.suffix.lower() not in _TEXT_EXT:
-            continue
-        try:
-            if path.stat().st_size > _FILE_MAX_BYTES:
+    for dirpath, dirnames, filenames in os.walk(base):
+        dirnames[:] = [d for d in dirnames if d not in skip]   # prune, do not descend
+        for name in filenames:
+            if seen >= _GREP_MAX_FILES:
+                return
+            path = Path(dirpath) / name
+            if path.suffix.lower() not in _TEXT_EXT:
                 continue
-        except OSError:
-            continue
-        seen += 1
-        yield path
+            try:
+                if path.stat().st_size > _FILE_MAX_BYTES:
+                    continue
+            except OSError:
+                continue
+            seen += 1
+            yield path
 
 
 def grep(root: str, pattern: str, *, include_deps: bool = False, max_hits: int = _GREP_MAX_HITS) -> list[dict]:
@@ -106,12 +109,13 @@ def grep(root: str, pattern: str, *, include_deps: bool = False, max_hits: int =
     return hits
 
 
-def find_definition(root: str, symbol: str, *, max_hits: int = 20) -> list[dict]:
+def find_definition(root: str, symbol: str, *, max_hits: int = 20, include_deps: bool = True) -> list[dict]:
     """Resolve where `symbol` is defined, the go-to-definition a human follows. Heuristic and
-    language-agnostic: it matches the common definition forms across languages, and it searches
-    vendored deps too, since a called method on the path may be defined in an internal or
-    vendored library. Returns capped `{file, line, text}` hits, the reviewer reads the file to
-    confirm."""
+    language-agnostic: it matches the common definition forms across languages. With
+    `include_deps` it falls into vendored libraries when the symbol is defined nowhere in the
+    project, the called or inherited library code on the path, at the cost of walking a large
+    tree. With `include_deps=False` it stays in the project, fast. Returns capped
+    `{file, line, text}` hits, the reviewer reads the file to confirm."""
     ident = re.escape(symbol.strip())
     if not ident:
         return []
@@ -121,4 +125,9 @@ def find_definition(root: str, symbol: str, *, max_hits: int = 20) -> list[dict]
         rf"|(\b{ident}\s*[:=]\s*(function|async|\()).*"
         rf"|(\b{ident}\s*\([^)]*\)\s*(public|private|internal|external|returns|\{{))"
     )
+    # in-project first, the common case and fast, since vendored deps can be a huge tree to walk.
+    # Only fall into the deps when asked and the symbol is defined nowhere in the project.
+    hits = grep(root, pattern, include_deps=False, max_hits=max_hits)
+    if hits or not include_deps:
+        return hits
     return grep(root, pattern, include_deps=True, max_hits=max_hits)
