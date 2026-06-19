@@ -17,6 +17,7 @@ focus it exists to create. Pure functions over the filesystem, no model calls.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from codejury.review.repo import navigation
 from codejury.review.repo.paths import safe_repo_path
@@ -105,6 +106,10 @@ def pack_fragments(root: str, files: tuple[str, ...], *, max_defs: int = _MAX_DE
     visible. Definitions in vendored or internal libraries on the path are pulled, that is the
     inherited and called code a single-shot reviewer cannot otherwise see."""
     owned = set(files)
+    # only pull definitions in the unit's own languages, so a fuzzy resolve does not co-locate an
+    # unrelated dependency in another language, the type-fest .d.ts a Solidity unit must not pull,
+    # which would dilute the focused window the packer exists to keep small
+    owned_exts = {Path(f).suffix.lower() for f in files if Path(f).suffix}
     refs: list[str] = []
     for rel in files:
         path = safe_repo_path(root, rel)
@@ -128,6 +133,8 @@ def pack_fragments(root: str, files: tuple[str, ...], *, max_defs: int = _MAX_DE
             df = d["file"]
             if df in owned:
                 continue   # defined in the unit already, visible
+            if owned_exts and Path(df).suffix.lower() not in owned_exts:
+                continue   # a different language, a fuzzy match into an unrelated dep, skip
             path = safe_repo_path(root, df)
             if path is None or not path.is_file():
                 continue
