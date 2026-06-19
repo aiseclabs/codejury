@@ -1,12 +1,18 @@
 """Focused packing: co-locate the definitions a unit calls or inherits into a small window,
-so the reviewer sees the cross-file and inherited code together and judges it in one shot.
+so the reviewer sees the cross-file and cross-slice code together and judges it in one shot.
 
-A defect whose logic spans a call into another function, file, or inherited base is invisible
-to a reviewer that only sees the unit's own text. The fix is not to let the model wander the
-tree, that dilutes the context and the model talks itself out of findings. It is to resolve
-the called and inherited definitions at pack time and co-locate them in one focused window, the
-arrangement that makes the model frame a cross-function defect reliably. Focus is the lever,
-not access.
+A defect whose logic spans a call into another function, file, slice, or inherited base is
+invisible to a reviewer that only sees the unit's own text. The fix is not to let the model
+wander the tree, that dilutes the context and the model talks itself out of findings. It is to
+resolve the called and inherited definitions at pack time and co-locate them in one focused
+window, the arrangement that makes the model frame a cross-function defect reliably. Focus is
+the lever, not access.
+
+It follows the call chain, not one hop: when a pulled definition itself calls outward, those
+callees are resolved too, so a path such as `liquidate` into `_cleanupLoan` into
+`_updateAndCheckCollateral` lands whole in one window even when the file is reviewed in slices
+and the path crosses a slice boundary. The `visible` ranges tell it what the reviewer already
+shows, so it pulls only what the slice omits, including a same-file definition in another slice.
 
 Language-agnostic: it resolves a symbol with the repo's `find_definition`, so it needs no per
 language call graph and works the same on a contract, a service, or a handler. Bounded hard, a
@@ -17,6 +23,7 @@ focus it exists to create. Pure functions over the filesystem, no model calls.
 from __future__ import annotations
 
 import re
+from collections import deque
 from functools import lru_cache
 from pathlib import Path
 
@@ -99,55 +106,88 @@ def _char_range(lines: list[str], start_line: int, end_line: int) -> tuple[int, 
     return start_char, end_char
 
 
-def pack_fragments(root: str, files: tuple[str, ...], *, max_defs: int = _MAX_DEFS,
-                   max_total: int = _MAX_TOTAL) -> list[tuple[str, int, int]]:
-    """For symbols the owned files reference but do not define, resolve each with find_definition
-    and return `(file, start_char, end_char)` fragments of their blocks, bounded so the packed
-    window stays focused. A symbol defined in the unit's own files is skipped, it is already
-    visible. Definitions in vendored or internal libraries on the path are pulled, that is the
-    inherited and called code a single-shot reviewer cannot otherwise see."""
-    owned = set(files)
-    # only pull definitions in the unit's own languages, so a fuzzy resolve does not co-locate an
-    # unrelated dependency in another language, the type-fest .d.ts a Solidity unit must not pull,
-    # which would dilute the focused window the packer exists to keep small
-    owned_exts = {Path(f).suffix.lower() for f in files if Path(f).suffix}
-    refs: list[str] = []
+def _default_visible(root: str, files: tuple[str, ...]) -> tuple[tuple[str, int, int], ...]:
+    """Each readable file in full, the visible ranges to assume when a caller passes none. This
+    keeps a direct `pack_context(root, files)` co-locating only outside-file definitions, the
+    behavior before slice-aware packing."""
+    ranges: list[tuple[str, int, int]] = []
     for rel in files:
         path = safe_repo_path(root, rel)
         if path is None or not path.is_file():
             continue
         try:
-            refs += referenced_symbols(path.read_text(encoding="utf-8"))
+            n = len(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError):
             continue
-    seen_ref: set[str] = set()
+        ranges.append((rel, 0, n))
+    return tuple(ranges)
+
+
+def _is_shown(rel: str, s_char: int, visible: tuple[tuple[str, int, int], ...]) -> bool:
+    """Whether a definition starting at `s_char` in `rel` is already in a visible range, so the
+    reviewer sees it without a pull. A same-file definition in another slice is not shown, that
+    is the cross-slice code this packer co-locates."""
+    return any(vrel == rel and vs <= s_char < ve for vrel, vs, ve in visible)
+
+
+def pack_fragments(root: str, files: tuple[str, ...],
+                   visible: tuple[tuple[str, int, int], ...] | None = None,
+                   *, max_defs: int = _MAX_DEFS,
+                   max_total: int = _MAX_TOTAL) -> list[tuple[str, int, int]]:
+    """For symbols the visible code references but does not already show, resolve each with
+    find_definition and return `(file, start_char, end_char)` fragments of their blocks, bounded
+    so the packed window stays focused. `visible` is the ranges the reviewer already shows,
+    defaulting to whole files. A definition inside a visible range is skipped, it is on screen.
+    The chain is followed: a pulled definition's own outward calls are resolved too, so a path
+    across functions, files, or slices lands whole. Definitions in vendored or internal libraries
+    on the path are pulled, that is the called code a single-shot reviewer cannot otherwise see."""
+    if visible is None:
+        visible = _default_visible(root, files)
+    # only pull definitions in the unit's own languages, so a fuzzy resolve does not co-locate an
+    # unrelated dependency in another language, the type-fest .d.ts a Solidity unit must not pull,
+    # which would dilute the focused window the packer exists to keep small
+    owned_exts = {Path(f).suffix.lower() for f in files if Path(f).suffix}
+    queue: deque[str] = deque()
+    queued: set[str] = set()
+    def enqueue(syms: list[str]) -> None:
+        for s in syms:
+            if s not in queued:
+                queued.add(s)
+                queue.append(s)
+    for vrel, vs, ve in visible:
+        path = safe_repo_path(root, vrel)
+        if path is None or not path.is_file():
+            continue
+        try:
+            enqueue(referenced_symbols(path.read_text(encoding="utf-8")[vs:ve]))
+        except (OSError, UnicodeDecodeError):
+            continue
     fragments: list[tuple[str, int, int]] = []
     seen_frag: set[tuple[str, int, int]] = set()
     total = 0
-    for sym in refs:
-        if sym in seen_ref:
-            continue
-        seen_ref.add(sym)
+    while queue:
         if len(fragments) >= max_defs or total >= max_total:
             break
+        sym = queue.popleft()
         # in-project only: co-locate cross-file and cross-function code in the project, fast.
         # Resolving into a large vendored tree per symbol is too slow for a per-unit packer, so
         # the inherited-from-dependency case is left to a separate, import-scoped resolver.
         for d in navigation.find_definition(root, sym, max_hits=3, include_deps=False):
             df = d["file"]
-            if df in owned:
-                continue   # defined in the unit already, visible
             if owned_exts and Path(df).suffix.lower() not in owned_exts:
                 continue   # a different language, a fuzzy match into an unrelated dep, skip
             path = safe_repo_path(root, df)
             if path is None or not path.is_file():
                 continue
             try:
-                dlines = path.read_text(encoding="utf-8").splitlines()
+                dtext = path.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
                 continue
+            dlines = dtext.splitlines()
             s_line, e_line = extract_block(dlines, d["line"])
             s_char, e_char = _char_range(dlines, s_line, e_line)
+            if _is_shown(df, s_char, visible):
+                continue   # already on screen in a visible slice
             frag = (df, s_char, e_char)
             if frag in seen_frag or e_char - s_char > max_total:
                 continue
@@ -156,17 +196,22 @@ def pack_fragments(root: str, files: tuple[str, ...], *, max_defs: int = _MAX_DE
             fragments.append(frag)
             seen_frag.add(frag)
             total += e_char - s_char
+            # follow the chain: the pulled body's own calls may be the next link off-slice.
+            # Enqueuing only on a pull bounds growth to the callees of at most max_defs defs.
+            enqueue(referenced_symbols(dtext[s_char:e_char]))
             break   # one definition per symbol
     return fragments
 
 
 @lru_cache(maxsize=512)
-def pack_context(root: str, files: tuple[str, ...]) -> str:
+def pack_context(root: str, files: tuple[str, ...],
+                 visible: tuple[tuple[str, int, int], ...] | None = None) -> str:
     """The co-located called and inherited definitions for a unit, a labeled block to append to
-    the unit's own code, or empty when nothing resolves outside the unit. Cached per unit, since
-    it is deterministic and the same unit is reviewed across many passes and models."""
+    the unit's own code, or empty when nothing resolves outside what the reviewer shows. `visible`
+    is the ranges already on screen, so a slice unit pulls the off-slice code it omits. Cached per
+    unit, since it is deterministic and the same unit is reviewed across many passes and models."""
     parts: list[str] = []
-    for df, s_char, e_char in pack_fragments(root, files):
+    for df, s_char, e_char in pack_fragments(root, files, visible):
         path = safe_repo_path(root, df)
         if path is None:
             continue
