@@ -229,6 +229,10 @@ def main(argv: list[str] | None = None) -> int:
                            "read and write sets when the domain binds a facts backend such as "
                            "the EVM slither backend. Off by default since extraction is heavy, "
                            "the result is cached by source content hash so a re-run is free")
+    repo.add_argument("--pack", action="store_true", default=False,
+                      help="run only: co-locate the called and inherited code each unit reaches "
+                           "into its prompt, so a cross-file or inherited defect is visible to a "
+                           "single-shot review. Deterministic and language-agnostic")
     repo.add_argument("--agentic", action="store_true", default=False,
                       help="run only: review with the agentic reviewer that follows calls with "
                            "read/grep/find-definition tools, so a cross-file or inherited defect "
@@ -366,7 +370,7 @@ def _dispatch(args, parser) -> int:
             max_passes=args.max_passes, converge_after=args.converge_after,
             min_lens_shots=args.min_lens_shots,
             concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
-            domain=domain, facts=args.facts, agentic=args.agentic,
+            domain=domain, facts=args.facts, agentic=args.agentic, pack=args.pack,
         )
         acc = res.accumulator
         reported = res.verify.confirmed if res.verify else acc.findings

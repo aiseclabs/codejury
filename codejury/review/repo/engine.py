@@ -630,6 +630,7 @@ def run_repo_review(
     domain: Domain | None = None,
     facts: bool = False,
     agentic: bool = False,
+    pack: bool = False,
     extra_finder_backends: tuple = (),
 ) -> RunResult:
     domain = domain or default_domain()
@@ -663,7 +664,7 @@ def run_repo_review(
         # it fetches the called code itself. The single-call reviewer leans on facts grounding.
         if agentic:
             return AgenticReviewer(provider=p, model=m, content=paths)
-        return ModelReviewer(provider=p, model=m, content=paths, facts_by_file=facts_by_file)
+        return ModelReviewer(provider=p, model=m, content=paths, facts_by_file=facts_by_file, pack=pack)
 
     if reviewer is None:
         if provider is None:
