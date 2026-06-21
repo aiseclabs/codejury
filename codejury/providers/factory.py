@@ -29,18 +29,22 @@ DEFAULT_CHECKER_API_BASE = os.environ.get("CODEJURY_CHECKER_API_BASE")
 DEFAULT_CHECKER_API_KEY = os.environ.get("CODEJURY_CHECKER_API_KEY")
 # gpt-5 reasoning models reach this proxy through the Responses API, see ~/.codex wire_api.
 DEFAULT_CHECKER_WIRE_API = os.environ.get("CODEJURY_CHECKER_WIRE_API", "responses")
+# per-request deadline in seconds. Short enough that a hung or stalled call returns to the
+# retry layer to back off rather than holding a worker until a far longer ceiling, see the
+# blind run where a 600s timeout let one stalled call stack into hours.
+DEFAULT_TIMEOUT = float(os.environ.get("CODEJURY_TIMEOUT", "240"))
 
 
 def make_provider(
     name: str, *, api_key: str | None = None, api_base: str | None = None, retries: int = 0,
-    wire_api: str = "chat"
+    wire_api: str = "chat", timeout: float = DEFAULT_TIMEOUT
 ) -> Provider:
     if name == "openai":
-        provider: Provider = OpenAIProvider(api_key=api_key, base_url=api_base, wire_api=wire_api)
+        provider: Provider = OpenAIProvider(api_key=api_key, base_url=api_base, wire_api=wire_api, timeout=timeout)
     elif name == "litellm":
-        provider = LiteLLMProvider(api_key=api_key, api_base=api_base)
+        provider = LiteLLMProvider(api_key=api_key, api_base=api_base, timeout=timeout)
     else:
-        provider = AnthropicProvider(api_key=api_key, base_url=api_base)
+        provider = AnthropicProvider(api_key=api_key, base_url=api_base, timeout=timeout)
     if retries > 0:
         provider = RetryProvider(provider, max_attempts=retries + 1)
     return provider

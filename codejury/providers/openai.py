@@ -20,11 +20,14 @@ from codejury.providers.chat_format import choice_text
 
 class OpenAIProvider(Provider):
     def __init__(self, *, api_key: str | None = None, base_url: str | None = None,
-                 client: Any | None = None, wire_api: str = "chat") -> None:
+                 client: Any | None = None, wire_api: str = "chat", timeout: float = 240.0) -> None:
         self._api_key = api_key
         self._base_url = base_url
         self._client = client
         self._wire_api = wire_api
+        # per-request deadline: a hung or rate-limit-stalled call returns to the retry layer
+        # to back off, instead of holding the slot until a far longer ceiling
+        self._timeout = timeout
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -62,7 +65,7 @@ class OpenAIProvider(Provider):
             messages=api_messages,
             max_tokens=max_tokens,
             temperature=0,  # determinism: same input gives the same verdicts, invariant 2
-            timeout=600,
+            timeout=self._timeout,
         )
         return CompletionResult(text=choice_text(response))
 
@@ -78,6 +81,6 @@ class OpenAIProvider(Provider):
             instructions=system or None,
             input=user_input,
             max_output_tokens=max(max_tokens, 8000),
-            timeout=600,
+            timeout=self._timeout,
         )
         return CompletionResult(text=getattr(response, "output_text", "") or "")

@@ -24,12 +24,16 @@ class AnthropicProvider(Provider):
         base_url: str | None = None,
         client: Any | None = None,
         temperature: float | None = 0.0,
+        timeout: float = 240.0,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url
         self._client = client
         # determinism: temperature 0 so the same input yields the same verdicts, invariant 2
         self._temperature = temperature
+        # per-request deadline: a hung or rate-limit-stalled call returns to the retry layer
+        # to back off, instead of holding the slot until a far longer ceiling
+        self._timeout = timeout
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -63,7 +67,7 @@ class AnthropicProvider(Provider):
         request: dict[str, Any] = {
             "model": model,
             "max_tokens": max_tokens,
-            "timeout": 600,
+            "timeout": self._timeout,
             "system": system_param,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
         }

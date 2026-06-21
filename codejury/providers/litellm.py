@@ -24,11 +24,15 @@ class LiteLLMProvider(Provider):
         api_base: str | None = None,
         temperature: float = 0.0,  # determinism: same input gives the same verdicts, invariant 2
         completion: Callable[..., Any] | None = None,
+        timeout: float = 240.0,
     ) -> None:
         self._api_key = api_key
         self._api_base = api_base
         self._temperature = temperature
         self._completion = completion
+        # per-request deadline: a hung or rate-limit-stalled call returns to the retry layer
+        # to back off, instead of holding the slot until a far longer ceiling
+        self._timeout = timeout
 
     def _completion_fn(self) -> Callable[..., Any]:
         if self._completion is None:
@@ -58,7 +62,7 @@ class LiteLLMProvider(Provider):
             "messages": api_messages,
             "max_tokens": max_tokens,
             "temperature": self._temperature,
-            "timeout": 600,
+            "timeout": self._timeout,
         }
         if self._api_key:
             kwargs["api_key"] = self._api_key
