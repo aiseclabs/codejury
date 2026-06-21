@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 
 from codejury.providers.base import CompletionResult, Message, Provider
@@ -145,3 +147,45 @@ def test_non_rate_limit_keeps_linear_backoff():
     provider = RetryProvider(inner, max_attempts=3, base_delay=1.0, sleep=slept.append)
     assert _call(provider).text == "ok"
     assert slept == [1.0, 2.0]
+
+
+class _Hang(Provider):
+    """Blocks on complete() until released, the proxy-holds-the-connection failure an SDK
+    timeout does not catch."""
+
+    def __init__(self):
+        self.release = threading.Event()
+        self.calls = 0
+
+    def complete(self, **kwargs):
+        self.calls += 1
+        self.release.wait()
+        return CompletionResult(text="late")
+
+
+def test_hard_timeout_aborts_a_hung_call():
+    # a call that never returns is abandoned as a TimeoutError once the deadline passes,
+    # instead of hanging forever, so the run survives a stalled provider
+    inner = _Hang()
+    provider = RetryProvider(inner, max_attempts=1, hard_timeout=0.2, sleep=lambda _: None)
+    try:
+        with pytest.raises(TimeoutError):
+            _call(provider)
+        assert inner.calls == 1
+    finally:
+        inner.release.set()   # let the abandoned daemon thread finish, no leak across tests
+
+
+def test_hard_timeout_retries_then_recovers():
+    # the deadline failure feeds the retry loop, so a one-off stall is retried and recovers
+    inner = _Hang()
+    inner.release.set()   # second attempt returns immediately
+    provider = RetryProvider(inner, max_attempts=2, hard_timeout=5.0, sleep=lambda _: None)
+    assert _call(provider).text == "late"
+
+
+def test_no_hard_timeout_leaves_call_unbounded():
+    # without a deadline the inner call runs to completion, the behavior before the bound
+    inner = _Flaky(fail_times=0)
+    provider = RetryProvider(inner)
+    assert _call(provider).text == "ok"

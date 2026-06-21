@@ -6,13 +6,21 @@ handled specially: it honors the server's Retry-After when present, else backs o
 exponentially with full jitter, since a large fan-out hammers the provider and a flat linear
 retry just collides again at the same moment. Any other error keeps the simple linear
 backoff. A 200 response with a blank body is a transient failure and is retried too, since an
-empty reply is unusable and must not pass downstream as a clean no-findings result. ``sleep``
+empty reply is unusable and must not pass downstream as a clean no-findings result.
+
+A hard deadline bounds each call from outside the SDK: an SDK request timeout does not
+fire when a proxy holds the connection open and trickles bytes, so a single stalled call can
+hang a whole fan-out for hours. The call runs in a daemon thread the provider waits on for
+``hard_timeout`` seconds, then abandons as a TimeoutError the retry path treats like any other
+failure. The abandoned thread is a daemon, so a hung call never blocks process exit. ``sleep``
 and ``rand`` are injectable so tests stay deterministic and do not actually wait.
 """
 
 from __future__ import annotations
 
+import queue
 import random
+import threading
 import time
 from typing import Callable
 
@@ -21,6 +29,29 @@ from codejury.providers.base import CompletionResult, Message, Provider
 
 class EmptyResponseError(RuntimeError):
     """The provider returned a blank body on every attempt."""
+
+
+def _call_with_deadline(fn: Callable[[], CompletionResult], timeout: float) -> CompletionResult:
+    """Run fn in a daemon thread, return its result, or raise TimeoutError after `timeout`
+    seconds. This is the bound the SDK timeout fails to enforce against a proxy that never
+    closes the connection. The thread is a daemon, so an abandoned hung call cannot keep the
+    process alive."""
+    out: queue.Queue = queue.Queue(maxsize=1)
+
+    def run() -> None:
+        try:
+            out.put((True, fn()))
+        except BaseException as exc:   # carry any failure back to the caller's retry handling
+            out.put((False, exc))
+
+    threading.Thread(target=run, daemon=True).start()
+    try:
+        ok, value = out.get(timeout=timeout)
+    except queue.Empty:
+        raise TimeoutError(f"call exceeded the {timeout}s hard deadline") from None
+    if ok:
+        return value
+    raise value
 
 
 def _is_rate_limit(exc: BaseException) -> bool:
@@ -63,6 +94,7 @@ class RetryProvider(Provider):
         max_attempts: int = 3,
         base_delay: float = 1.0,
         max_delay: float = 60.0,
+        hard_timeout: float | None = None,
         sleep: Callable[[float], None] = time.sleep,
         rand: Callable[[float, float], float] = random.uniform,
         retryable: tuple[type[BaseException], ...] = (Exception,),
@@ -71,9 +103,17 @@ class RetryProvider(Provider):
         self._max_attempts = max_attempts
         self._base_delay = base_delay
         self._max_delay = max_delay
+        # None leaves the inner call unbounded, the behavior before the deadline existed
+        self._hard_timeout = hard_timeout
         self._sleep = sleep
         self._rand = rand
         self._retryable = retryable
+
+    def _call_inner(self, **kwargs) -> CompletionResult:
+        """Invoke the wrapped provider, bounded by the hard deadline when one is set."""
+        if self._hard_timeout is None:
+            return self._inner.complete(**kwargs)
+        return _call_with_deadline(lambda: self._inner.complete(**kwargs), self._hard_timeout)
 
     def _backoff(self, exc: BaseException, attempt: int) -> float:
         """Seconds to wait before the next attempt. A rate limit honors the server's
@@ -98,7 +138,7 @@ class RetryProvider(Provider):
     ) -> CompletionResult:
         for attempt in range(1, self._max_attempts + 1):
             try:
-                result = self._inner.complete(
+                result = self._call_inner(
                     system=system, messages=messages, model=model, max_tokens=max_tokens, cache=cache
                 )
             except self._retryable as exc:
