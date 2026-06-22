@@ -12,9 +12,6 @@ planted:
     category: signature-replay
     file: contracts/Forwarder.sol
     severity: HIGH
-    symbols:
-      - domainSeparator
-      - deadline
     note: >-
       C4 H-01 plus M-03. domainSeparator is a caller supplied parameter to verify and
       execute, so a signed ForwardRequest is valid on any chain, and ForwardRequest has no
@@ -45,15 +42,20 @@ planted:
 
   - id: approve-skips-blacklist
     category: access-control
-    file: contracts/Token.sol
+    files:
+      - contracts/Token.sol
+      - contracts/ERC20AdminUpgradeable.sol
     severity: MEDIUM
     symbols:
       - approve
       - transferSanity
+      - adminSanity
     note: >-
       C4 M-02. transfer and transferFrom call transferSanity, which runs the blacklist check,
       but approve is never overridden to do the same, so a blacklisted account can still be
-      granted an allowance, breaking the blacklist invariant.
+      granted an allowance, breaking the blacklist invariant. The same defect is correctly
+      reported at the blacklist logic in ERC20AdminUpgradeable.sol as well as at Token.sol,
+      so both files are accepted anchors.
     knowledge:
       vulnerabilities:
         - access-control
