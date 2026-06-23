@@ -180,8 +180,24 @@ For a headless run, use:
 codejury review repo /path/to/repo --run
 ```
 
-Use `--reviewer claude-cli` only when you want the Claude Code backend to run unit reviews
-and verification through local Claude CLI access.
+### Review Strategy
+
+A `--run` chooses how each unit is reviewed:
+
+- `--reviewer model` is the default. It makes one grounded model call per unit. Add
+  `--facts` to ground that call in a tool-extracted call graph, storage layout, and read
+  and write sets when the domain binds a facts backend, such as the EVM Slither backend.
+  This is what gives a smart contract review its call relationships, so prefer
+  `--run --facts` on Solidity.
+- `--reviewer claude-cli` runs each unit and its verification as a headless `claude -p`
+  agent that reads and traces the files itself with read-only tools, using your Claude Code
+  access and no provider key. Use it when you want a tool-using agent rather than a single
+  grounded call.
+
+Add `--checker-model`, a different model from `--model`, to enable cross-model
+verification. It finds alongside the main model on the recall side and must agree before a
+finding is dropped on the precision side. With none set, the verify stage refutes nothing,
+the recall-safe default.
 
 ## Supported Knowledge
 

@@ -199,45 +199,53 @@ def main(argv: list[str] | None = None) -> int:
                            "adversarially verify, and write the ranked report, resumable")
     repo.add_argument("--dry-run", action="store_true",
                       help="run only: drive the engine with a mock provider and no key, to smoke-test the pipeline")
-    repo.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
-    repo.add_argument("--model", default=DEFAULT_MODEL)
-    repo.add_argument("--api-base", default=DEFAULT_API_BASE)
-    repo.add_argument("--api-key", default=DEFAULT_API_KEY)
-    repo.add_argument("--checker-provider", choices=PROVIDERS, default=DEFAULT_CHECKER_PROVIDER,
-                      dest="checker_provider")
-    repo.add_argument("--checker-model", default=DEFAULT_CHECKER_MODEL, dest="checker_model",
-                      help="a DIFFERENT model from --model that confirms a refutation before any "
-                           "finding is dropped, so a deletion needs two uncorrelated reads to agree. "
-                           "With none set, no finding is refuted, the recall-safe default")
-    repo.add_argument("--checker-api-base", default=DEFAULT_CHECKER_API_BASE, dest="checker_api_base")
-    repo.add_argument("--checker-api-key", default=DEFAULT_CHECKER_API_KEY, dest="checker_api_key")
-    repo.add_argument("--checker-wire-api", default=DEFAULT_CHECKER_WIRE_API, dest="checker_wire_api",
-                      choices=("chat", "responses"),
-                      help="openai checker wire API, responses for the gpt-5 reasoning models")
-    repo.add_argument("--retries", type=int, default=2, help="provider retry attempts on transient failure")
-    repo.add_argument("--max-passes", type=int, default=24, dest="max_passes",
-                      help="run only: cap on diverse passes before stopping")
-    repo.add_argument("--converge-after", type=int, default=2, dest="converge_after",
-                      help="run only: stop once this many consecutive passes add no new finding")
-    repo.add_argument("--min-lens-shots", type=int, default=2, dest="min_lens_shots",
-                      help="run only: keep going until every lens has reviewed this many times, "
-                           "so a hard class is not left to one shot on a repo that converges fast")
-    repo.add_argument("--concurrency", type=int, default=6,
-                      help="run only: how many unit sub-reviews to run in parallel within a pass")
-    repo.add_argument("--no-verify", dest="verify", action="store_false", default=True,
-                      help="run only: skip the adversarial verification stage (keep every candidate)")
-    repo.add_argument("--votes", type=int, default=1,
-                      help="run only: independent skeptic votes per candidate, a candidate is "
-                           "refuted only on a majority")
-    repo.add_argument("--facts", action="store_true", default=False,
-                      help="ground review in a tool-extracted call graph, storage layout, and "
-                           "read and write sets when the domain binds a facts backend such as "
-                           "the EVM slither backend. Off by default since extraction is heavy, "
-                           "the result is cached by source content hash so a re-run is free")
-    repo.add_argument("--reviewer", choices=("model", "claude-cli"), default="model",
-                      help="run only: 'model' calls the provider once per unit, 'claude-cli' runs "
-                           "each unit and verification as a headless `claude -p` agent that reads "
-                           "files itself, using your Claude Code access, no provider key")
+
+    backend = repo.add_argument_group("model backend")
+    backend.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
+    backend.add_argument("--model", default=DEFAULT_MODEL)
+    backend.add_argument("--api-base", default=DEFAULT_API_BASE)
+    backend.add_argument("--api-key", default=DEFAULT_API_KEY)
+    backend.add_argument("--retries", type=int, default=2, help="provider retry attempts on transient failure")
+
+    strategy = repo.add_argument_group("review strategy")
+    strategy.add_argument("--reviewer", choices=("model", "claude-cli"), default="model",
+                          help="'model' calls the provider once per unit, 'claude-cli' runs each unit "
+                               "and verification as a headless `claude -p` agent that reads files "
+                               "itself, using your Claude Code access, no provider key")
+    strategy.add_argument("--facts", action="store_true", default=False,
+                          help="ground review in a tool-extracted call graph, storage layout, and "
+                               "read and write sets when the domain binds a facts backend such as "
+                               "the EVM slither backend. Off by default since extraction is heavy, "
+                               "the result is cached by source content hash so a re-run is free")
+
+    checker = repo.add_argument_group(
+        "checker model (advanced)",
+        "a DIFFERENT model from --model that must confirm a refutation before any finding is "
+        "dropped, so a deletion needs two uncorrelated reads to agree. With none set, no finding "
+        "is refuted, the recall-safe default. Usually set through CODEJURY_CHECKER_* instead")
+    checker.add_argument("--checker-provider", choices=PROVIDERS, default=DEFAULT_CHECKER_PROVIDER,
+                         dest="checker_provider")
+    checker.add_argument("--checker-model", default=DEFAULT_CHECKER_MODEL, dest="checker_model")
+    checker.add_argument("--checker-api-base", default=DEFAULT_CHECKER_API_BASE, dest="checker_api_base")
+    checker.add_argument("--checker-api-key", default=DEFAULT_CHECKER_API_KEY, dest="checker_api_key")
+    checker.add_argument("--checker-wire-api", default=DEFAULT_CHECKER_WIRE_API, dest="checker_wire_api",
+                         choices=("chat", "responses"),
+                         help="openai checker wire API, responses for the gpt-5 reasoning models")
+
+    tuning = repo.add_argument_group("run tuning (advanced)", "only affect --run, sane defaults otherwise")
+    tuning.add_argument("--max-passes", type=int, default=24, dest="max_passes",
+                        help="cap on diverse passes before stopping")
+    tuning.add_argument("--converge-after", type=int, default=2, dest="converge_after",
+                        help="stop once this many consecutive passes add no new finding")
+    tuning.add_argument("--min-lens-shots", type=int, default=2, dest="min_lens_shots",
+                        help="keep going until every lens has reviewed this many times, so a hard "
+                             "class is not left to one shot on a repo that converges fast")
+    tuning.add_argument("--concurrency", type=int, default=6,
+                        help="how many unit sub-reviews to run in parallel within a pass")
+    tuning.add_argument("--no-verify", dest="verify", action="store_false", default=True,
+                        help="skip the adversarial verification stage, keep every candidate")
+    tuning.add_argument("--votes", type=int, default=1,
+                        help="independent skeptic votes per candidate, refuted only on a majority")
     _add_domain_arg(repo)
 
     inst = sub.add_parser("install-slash-command",
@@ -396,6 +404,16 @@ def _dispatch(args, parser) -> int:
         return 1 if failures or not acc.converged else 0
 
     if args.command == "review" and scope == "repo":
+        # a bare scaffold consumes none of the run-only options, so flag the common mistake
+        # of setting one without --run rather than silently doing nothing with it
+        ignored = [flag for flag, used in (
+            ("--dry-run", args.dry_run),
+            ("--reviewer", args.reviewer != "model"),
+            ("--no-verify", not args.verify),
+        ) if used]
+        if ignored:
+            print(f"NOTE: {', '.join(ignored)} only affect --run, this bare scaffold ignores them. "
+                  "Add --run to drive the coded engine.", file=sys.stderr)
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
         res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain,
                        facts=args.facts)
