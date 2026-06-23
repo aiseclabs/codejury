@@ -47,6 +47,11 @@ def score(key: AnswerKey, reports: list[Report]) -> Result:
             res.missed.append(p.id)
     for s in key.safe:
         for r in reports:
+            # count a report once: skip one already credited to a planted finding or to an
+            # earlier safe anchor, so a report matching several safe entries is one false
+            # positive, not several, which would understate precision
+            if r.name in matched_reports:
+                continue
             if _matches(r, s):
                 res.false_positives.append(r.name)
                 matched_reports.add(r.name)

@@ -86,6 +86,26 @@ def test_score_counts_found_missed_fp_and_extra(tmp_path):
     assert res.to_dict()["precision_known"] == 0.5
 
 
+def test_one_report_on_several_safe_anchors_counts_as_one_false_positive(tmp_path):
+    # a report matching more than one safe lookalike is a single false positive, not several,
+    # which would understate precision by inflating the denominator
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: real\n    category: idor\n    entry: GET /x/<id>\n"
+        "safe:\n"
+        "  - id: look1\n    category: idor\n    files: [svc/a.py]\n"
+        "  - id: look2\n    category: idor\n    files: [svc/a.py]\n"))
+    reports = [
+        Report.make("r-hit", "GET /x/9", "idor", []),
+        Report.make("r-dup", "", "idor", ["svc/a.py"]),
+    ]
+    res = score(key, reports)
+    assert res.found == ["real"]
+    assert res.false_positives == ["r-dup"]            # counted once, not twice
+    assert res.to_dict()["precision_known"] == 0.5     # 1 found / (1 found + 1 fp)
+
+
 def test_file_keyed_planted_credits_a_report_at_any_accepted_anchor(tmp_path):
     # a code injection sink with no endpoint, reported at a call site that feeds it, a real
     # detection the scorer used to miss when it pinned only the single sink file
