@@ -1,11 +1,9 @@
 """Claude-CLI backends for the reviewer and verifier.
 
 A per-unit review and a per-candidate verification, each run as a headless Claude
-Code agent via `claude -p`. Two wins over the single grounded model call: it uses the
-operator's Claude Code access, no provider key or proxy limit, and each call is a
-real tool-using agent that reads the files itself and traces across them, the depth
-that reached full recall in testing. The coded orchestration around it, the worklist,
-the passes, the union, the verification, is unchanged.
+Code agent via `claude -p`. It uses the operator's Claude Code access, no provider key
+or proxy limit, and each call is a real tool-using agent that reads the files itself
+and traces across them, rather than a single grounded model call.
 
 The exact `claude` invocation varies by version, so the binary and its args are
 configurable, via the constructor or `CODEJURY_CLAUDE_BIN` / `CODEJURY_CLAUDE_ARGS`.

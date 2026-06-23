@@ -64,6 +64,8 @@ def endpoint_match(report_ep: str, key_entry: str) -> bool:
 
 
 def category_of(text: str) -> str:
+    """The canonical class a free-text category maps to by a soft hint match, else the text
+    lowercased, so a report and a key entry naming the same class are compared on one form."""
     low = text.lower()
     for cat, hints in _CATEGORY_HINTS.items():
         if any(h in low for h in hints):

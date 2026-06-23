@@ -46,6 +46,7 @@ def detect_domain(files) -> str:
     named domain to be registered, the caller resolves and fails loud if it is not."""
     paths = list(files)
     sol = sum(1 for f in paths if Path(f).suffix.lower() == ".sol")
+    # evm only when Solidity is at least half, so a stray .sol among many web files stays web
     return "evm" if sol > 0 and sol >= (len(paths) - sol) else "web"
 
 

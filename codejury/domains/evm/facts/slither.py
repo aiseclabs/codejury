@@ -77,7 +77,7 @@ class SlitherFacts(FactsBackend):
 def _rel_file(contract, root_abs: Path) -> str:
     """The contract's source file relative to the review root, the key the engine joins a
     unit's files on. Falls back to the basename when the file is the root itself, a
-    a review of a single file, or lies outside the root, such as a dependency, so the entry
+    review of a single file, or lies outside the root, such as a dependency, so the entry
     is still labeled and a basename match still grounds the unit."""
     mapping = getattr(contract, "source_mapping", None)
     filename = getattr(mapping, "filename", None)

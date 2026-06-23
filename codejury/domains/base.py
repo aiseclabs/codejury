@@ -28,8 +28,8 @@ from pathlib import Path
 class ContentPaths:
     """The fixed content layout under one domain's root, resolved to absolute paths.
 
-    Mirrors the constants the engine has always read, so a caller given a `ContentPaths`
-    reads the same files whether the domain is web or another."""
+    The same fixed layout for every domain, so a caller given a `ContentPaths` reads the
+    same files whether the domain is web or another."""
     knowledge: Path
     vulnerabilities_dir: Path
     languages_dir: Path

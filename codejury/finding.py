@@ -29,6 +29,7 @@ class Finding:
 
 
 def _to_float(value: object, default: float) -> float:
+    # bool is an int subclass, so reject it explicitly or True would pass as confidence 1.0
     if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         return default
     try:
@@ -39,6 +40,7 @@ def _to_float(value: object, default: float) -> float:
 
 
 def _to_line(value: object) -> int | None:
+    # bool is an int subclass, so reject it or True would read as line 1
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 1 else None
 
 

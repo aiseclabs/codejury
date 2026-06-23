@@ -103,7 +103,7 @@ class RetryProvider(Provider):
         self._max_attempts = max_attempts
         self._base_delay = base_delay
         self._max_delay = max_delay
-        # None leaves the inner call unbounded, the behavior before the deadline existed
+        # None leaves the inner call unbounded
         self._hard_timeout = hard_timeout
         self._sleep = sleep
         self._rand = rand

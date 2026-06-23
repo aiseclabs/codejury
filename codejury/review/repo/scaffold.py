@@ -245,6 +245,8 @@ def _entrypoints_md(candidates: list[str], layers: list[str]) -> str:
 def unit_slug(path: str) -> str:
     """The slug a unit file is named by, derived from the path it owns. Public so the
     engine can recompute the same name when resuming, instead of reaching for a private."""
+    # the .py strip is a legacy nicety, other extensions stay in the slug. The slug only has to
+    # be unique and stable per path, so the inconsistency is cosmetic, not a collision risk
     s = path.replace("\\", "/").removesuffix(".py")
     return "".join(c if c.isalnum() else "-" for c in s).strip("-").lower() or "unit"
 

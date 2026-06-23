@@ -349,6 +349,7 @@ def cross_confirm(candidates: list[Candidate], judges: list, root: str, *,
     else:
         results = [one(c) for c in candidates]
 
+    # an error verdict keeps the finding, never drops it on a failed judge call, invariant 3
     kept = [c for verdict, c, _r in results if verdict in ("keep", "error")]
     dropped = [(c, r) for verdict, c, r in results if verdict == "drop"]
     errors = sum(1 for verdict, _c, _r in results if verdict == "error")

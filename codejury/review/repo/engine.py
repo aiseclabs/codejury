@@ -327,6 +327,8 @@ def _cand_from_dict(d: dict) -> Candidate:
 
 
 def _keystr(c: Candidate, by_file: bool = False) -> str:
+    # the resume key for _verified.json. by_file must match across the run and a later finalize,
+    # else the same finding recomputes a different key and is re-verified or mis-resumed
     return "|".join(str(p) for p in c.key(by_file))
 
 

@@ -40,18 +40,16 @@ class Candidate:
     found_by: tuple[str, ...] = ()   # the models that independently surfaced this finding, the consensus signal
 
     def key(self, by_file: bool = False) -> tuple:
-        """The dedup identity, location plus class. Endpoint is the precise location
-        when a pass records it, path params normalized so /x/<id> and /x/{id}
-        collapse. Otherwise fall back to file. The category is always part of the key,
-        so two distinct classes on the same endpoint, a missing binding and a race on
-        the same token route, stay separate findings and are not merged away.
+        """The dedup identity, a stable anchor plus the class. The anchor is the first of these
+        a pass records: the function or method symbol, else the endpoint with path params
+        normalized so /x/<id> and /x/{id} collapse, else the line, else the file alone. The
+        category is always part of the key, so two distinct classes at one anchor, a missing
+        binding and a race on the same token route, stay separate findings.
 
-        With `by_file`, the file joins the key so the same endpoint name in two files stays
-        separate. The endpoint still keys when a pass records it, since two distinct functions
-        of one contract, a reentrancy in `_cleanupLoan` and one in `transform`, are two
-        findings, not one, and collapsing them drops a real finding. A defect a domain reports
-        at several callers of a shared helper folds only when the passes name the same locus,
-        the helper, or leave the endpoint blank."""
+        With `by_file` the file joins the endpoint key, so the same endpoint name in two files
+        stays separate. Two distinct functions of one contract, a reentrancy in `_cleanupLoan`
+        and one in `transform`, are two findings, not one, so collapsing them drops a real
+        finding."""
         cat = self.category.strip().lower()
         file = self.file.strip().lower()
         # A function or method name is the stable anchor in both modes: two passes that name the

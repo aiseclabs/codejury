@@ -61,6 +61,7 @@ def candidates_from_obj(obj: object) -> list[Candidate]:
             endpoint=str(d.get("endpoint") or d.get("source") or "").strip(),
             symbol=str(d.get("symbol") or "").strip(),
             file=file,
+            # bool is an int subclass, so reject it or True would read as line 1
             line=line if isinstance(line, int) and not isinstance(line, bool) and line >= 1 else None,
             severity=sev if sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else "MEDIUM",
             evidence=str(d.get("evidence", "")).strip(),
