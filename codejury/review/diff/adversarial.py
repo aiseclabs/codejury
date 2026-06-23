@@ -231,20 +231,26 @@ class AdversarialAuditRunner:
         converged = False
         degraded = False
         for rounds in range(1, max_rounds + 1):
-            finder, _ = self._ask(
-                FINDER_SYSTEM,
-                finder_prompt(diff, vulnerabilities=vulnerabilities, context=context, prior=prior,
-                              vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report),
-                self._finder,
-            )
+            fp = finder_prompt(diff, vulnerabilities=vulnerabilities, context=context, prior=prior,
+                               vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report)
+            finder, finder_ok = self._ask(FINDER_SYSTEM, fp, self._finder)
+            if not finder_ok:
+                finder, finder_ok = self._ask(FINDER_SYSTEM, fp, self._finder)
+            if not finder_ok:
+                # a finder reply that does not parse even on a retry is a failed step, not a clean
+                # empty result, so surface it as degraded rather than report no findings, invariant 3
+                degraded = True
+                break
             finder_findings = _dicts(finder.get("findings"))
 
-            challenger, _ = self._ask(
-                CHALLENGER_SYSTEM,
-                challenger_prompt(diff, finder_findings, vulnerabilities=vulnerabilities, context=context,
-                                  vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report),
-                self._challenger,
-            )
+            cp = challenger_prompt(diff, finder_findings, vulnerabilities=vulnerabilities, context=context,
+                                   vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report)
+            challenger, challenger_ok = self._ask(CHALLENGER_SYSTEM, cp, self._challenger)
+            if not challenger_ok:
+                challenger, challenger_ok = self._ask(CHALLENGER_SYSTEM, cp, self._challenger)
+            if not challenger_ok:
+                degraded = True
+                break
             rebuttals = _dicts(challenger.get("rebuttals"))
             new_findings = _dicts(challenger.get("new_findings"))
 

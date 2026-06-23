@@ -39,7 +39,9 @@ def score(key: AnswerKey, reports: list[Report]) -> Result:
     res = Result(target=key.target, n_planted=len(key.planted), n_reports=len(reports))
     matched_reports: set[str] = set()
     for p in key.planted:
-        hit = next((r for r in reports if _matches(r, p)), None)
+        # credit a report to one planted entry only, so a single report cannot satisfy two
+        # planted entries that share a loose file and class anchor and inflate recall
+        hit = next((r for r in reports if r.name not in matched_reports and _matches(r, p)), None)
         if hit is not None:
             res.found.append(p.id)
             matched_reports.add(hit.name)

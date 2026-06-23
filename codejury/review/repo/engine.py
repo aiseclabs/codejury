@@ -28,7 +28,7 @@ from codejury.review.diff.vulnerabilities import canonical_category, category_al
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, UnitReviewer
-from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
+from codejury.review.repo.scaffold import ScaffoldResult, _unit_md, scaffold, unit_slug
 from codejury.review.repo.shapes import Unit
 from codejury.review.repo.severity import median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
@@ -281,6 +281,25 @@ def _write_refuted(ws: Path, refuted: list[tuple[Candidate, str]]) -> None:
     (ws / "_refuted.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _seed_run_units(ws: Path, units: list[Unit], paths) -> None:
+    """Reconcile the units worklist to the coded run's actual units. Scaffold seeds one file per
+    candidate file, but the run splits a large file into several window units and adds call-path
+    units, whose names are not candidate paths. Without a file per run unit the split and call-path
+    units have nothing to mark reviewed, so a resume re-reviews them and the orphan candidate file
+    is left open forever. Seed a file per run unit and drop the stale ones so resume, marking, and
+    the gate all key on the same set. Existing files are kept, so a reviewed unit is not reset."""
+    udir = ws / "units"
+    wanted = {unit_slug(u.name): u for u in units}
+    for f in udir.glob("*.md"):
+        if f.stem not in wanted:
+            f.unlink()
+    mandate = paths.unit_review_file.read_text(encoding="utf-8")
+    for slug, u in wanted.items():
+        up = udir / f"{slug}.md"
+        if not up.exists():
+            up.write_text(_unit_md(u.name, mandate), encoding="utf-8")
+
+
 def _mark_units_reviewed(ws: Path, reviewed_slugs: set) -> None:
     """Flip a unit from open to reviewed only when it reviewed cleanly this run. A unit
     that raised on every pass is left open, so the gate catches it and a later resume
@@ -307,8 +326,8 @@ def _cand_from_dict(d: dict) -> Candidate:
                      found_by=tuple(d.get("found_by", ())))
 
 
-def _keystr(c: Candidate) -> str:
-    return "|".join(str(p) for p in c.key())
+def _keystr(c: Candidate, by_file: bool = False) -> str:
+    return "|".join(str(p) for p in c.key(by_file))
 
 
 def _save_union(ws: Path, cands: list[Candidate]) -> None:
@@ -327,7 +346,7 @@ def _resume_corrupt(p: Path, exc: Exception) -> ValueError:
     )
 
 
-def _load_union(ws: Path) -> dict:
+def _load_union(ws: Path, by_file: bool = False) -> dict:
     p = ws / "_union.json"
     if not p.is_file():
         return {}
@@ -338,7 +357,7 @@ def _load_union(ws: Path) -> dict:
     pool: dict = {}
     for d in data.get("findings", []):
         c = _cand_from_dict(d)
-        pool[c.key()] = c
+        pool[c.key(by_file)] = c
     return pool
 
 
@@ -375,6 +394,7 @@ def apply_verification(
     content: ContentPaths | None = None,
     checker: RefutationChecker | None = None,
     judge_backends: tuple = (),
+    by_file: bool = False,
 ) -> tuple[list[Candidate], VerifyResult]:
     """Verify a finding list, resumable via `_verified.json`, and record the refuted. The single
     home for the verify step the coded run and the finalize pass both share. With two or more
@@ -389,35 +409,35 @@ def apply_verification(
         verifier = ModelVerifier(provider=provider, model=model, content=content)
     judges = [(m, ModelJudge(provider=p, model=m)) for p, m in judge_backends]
     verified = {} if fresh else _load_verified(ws)
-    pending = [c for c in findings if _keystr(c) not in verified]
+    pending = [c for c in findings if _keystr(c, by_file) not in verified]
     # consensus skips adjudication: two models surfacing the same finding independently is a
     # stronger signal than a re-check, which would only risk a wrong drop while spending calls
     consensus = [c for c in pending if len(set(c.found_by)) >= 2]
     for c in consensus:
-        verified[_keystr(c)] = {"real": True, "reason": "consensus of models"}
+        verified[_keystr(c, by_file)] = {"real": True, "reason": "consensus of models"}
     singletons = [c for c in pending if len(set(c.found_by)) < 2]
     updated: dict = {}
     if len(judges) >= 2:
         cr = cross_confirm(singletons, judges, root, concurrency=concurrency)
         for c in cr.kept:
-            updated[_keystr(c)] = c   # carries the promoted found_by from a cross-model confirm
+            updated[_keystr(c, by_file)] = c   # carries the promoted found_by from a cross-model confirm
             reason = "cross-confirmed" if len(set(c.found_by)) >= 2 else "kept, not disputed"
-            verified[_keystr(c)] = {"real": True, "reason": reason}
+            verified[_keystr(c, by_file)] = {"real": True, "reason": reason}
         for c, reason in cr.dropped:
-            verified[_keystr(c)] = {"real": False, "reason": reason}
+            verified[_keystr(c, by_file)] = {"real": False, "reason": reason}
         errors = cr.errors
     else:
         new_vr = verify_findings(singletons, verifier, root, checker=checker, votes=votes, concurrency=concurrency)
         for c in new_vr.confirmed:
-            verified[_keystr(c)] = {"real": True, "reason": ""}
+            verified[_keystr(c, by_file)] = {"real": True, "reason": ""}
         for c, reason in new_vr.refuted:
-            verified[_keystr(c)] = {"real": False, "reason": reason}
+            verified[_keystr(c, by_file)] = {"real": False, "reason": reason}
         errors = new_vr.errors
     _save_verified(ws, verified)
-    confirmed = [updated.get(_keystr(c), c) for c in findings
-                 if verified.get(_keystr(c), {"real": True})["real"]]
-    refuted = [(c, verified[_keystr(c)]["reason"]) for c in findings
-               if not verified.get(_keystr(c), {"real": True})["real"]]
+    confirmed = [updated.get(_keystr(c, by_file), c) for c in findings
+                 if verified.get(_keystr(c, by_file), {"real": True})["real"]]
+    refuted = [(c, verified[_keystr(c, by_file)]["reason"]) for c in findings
+               if not verified.get(_keystr(c, by_file), {"real": True})["real"]]
     _write_refuted(ws, refuted)
     return confirmed, VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors)
 
@@ -542,7 +562,7 @@ def finalize_repo_review(
     if verify and deduped:
         deduped, vr = apply_verification(
             ws, deduped, root=root, verifier=verifier, checker=checker, provider=provider, model=model,
-            votes=votes, concurrency=concurrency, fresh=False, content=paths,
+            votes=votes, concurrency=concurrency, fresh=False, content=paths, by_file=by_file,
         )
 
     _write_findings(ws, deduped)
@@ -648,9 +668,12 @@ def run_repo_review(
             "review. Add a guide for this stack or seed inventory/_entrypoints.md, then re-run."
         )
 
+    # reconcile the units worklist to the actual run units, including split windows and call-path
+    # units, so resume, marking, and the gate key on the same set
+    _seed_run_units(ws, units, paths)
     reviewed = set() if fresh else _reviewed_slugs(ws)
     open_units = [u for u in units if unit_slug(u.name) not in reviewed]
-    acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws)),
+    acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws, domain.dedup_by_file)),
                       dedup_by_file=domain.dedup_by_file)
 
     facts_by_file = _load_facts_by_file(ws)
@@ -699,6 +722,7 @@ def run_repo_review(
         findings, vr = apply_verification(
             ws, findings, root=root, verifier=verifier, checker=checker, provider=provider, model=model,
             votes=votes, concurrency=concurrency, fresh=fresh, content=paths, judge_backends=judge_backends,
+            by_file=domain.dedup_by_file,
         )
 
     _write_surface(ws, units, acc.failed_units)

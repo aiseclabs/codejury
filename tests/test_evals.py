@@ -495,3 +495,19 @@ def test_coverage_problems_flag_entry_without_knowledge(tmp_path, monkeypatch):
     from evals.coverage import coverage_problems
     problems = coverage_problems()
     assert any(p.kind == "entry-without-knowledge" and p.ref == "b1" for p in problems)
+
+
+def test_one_report_cannot_satisfy_two_planted_entries(tmp_path):
+    # two planted entries sharing a loose file and class anchor must not both be credited by a
+    # single report, that would inflate recall
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: p1\n    category: idor\n    files: [svc/a.py]\n"
+        "  - id: p2\n    category: idor\n    files: [svc/a.py]\n"
+        "safe: []\n"))
+    reports = [Report.make("r-one", "", "idor", ["svc/a.py"])]
+    res = score(key, reports)
+    assert len(res.found) == 1
+    assert len(res.missed) == 1
+    assert res.recall == 0.5

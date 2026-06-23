@@ -508,3 +508,29 @@ def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
     assert "key-leak.md" not in finding   # the basename never leaks into the analysis body
     data = json.loads((proj / "findings.json").read_text())
     assert data["findings"][0]["candidate"] == "candidates/key-leak.md"
+
+
+def test_keystr_respects_by_file_for_cross_file_findings():
+    # two findings of the same class and endpoint in different files: by_file keeps them
+    # distinct in the verified store, the default collapses them and one verdict would mask the other
+    from codejury.review.repo.engine import _keystr
+    from codejury.review.repo.union import Candidate
+    a = Candidate(title="t", category="reentrancy", endpoint="withdraw", file="A.sol")
+    b = Candidate(title="t", category="reentrancy", endpoint="withdraw", file="B.sol")
+    assert _keystr(a, True) != _keystr(b, True)
+    assert _keystr(a, False) == _keystr(b, False)
+
+
+def test_seed_run_units_seeds_split_units_and_prunes_orphan(tmp_path):
+    # the coded run splits a large file into window units, so the worklist must hold a file per
+    # run unit and drop the scaffold-seeded candidate file that no run unit is named after
+    from codejury.review.repo.engine import _seed_run_units
+    from codejury.review.repo.shapes import Unit
+    from codejury.domains.registry import default_domain
+    (tmp_path / "units").mkdir()
+    (tmp_path / "units" / "foo.md").write_text("# Unit: foo.py\n- Status: open\n", encoding="utf-8")
+    units = [Unit(name="foo.py#1", root=str(tmp_path), files=("foo.py",)),
+             Unit(name="foo.py#2", root=str(tmp_path), files=("foo.py",))]
+    _seed_run_units(tmp_path, units, default_domain().paths)
+    got = {p.name for p in (tmp_path / "units").glob("*.md")}
+    assert got == {"foo-py-1.md", "foo-py-2.md"}

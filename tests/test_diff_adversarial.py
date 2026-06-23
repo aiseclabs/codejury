@@ -250,3 +250,22 @@ def test_adversarial_routes_each_role_to_its_own_provider():
     assert finder_p.systems == [FINDER_SYSTEM] and finder_p.models == ["finder-m"]
     assert challenger_p.systems == [CHALLENGER_SYSTEM] and challenger_p.models == ["challenger-m"]
     assert judge_p.systems == [JUDGE_SYSTEM] and judge_p.models == ["judge-m"]
+
+
+def test_finder_unparseable_reply_degrades_not_clean_pass():
+    # a finder reply that does not parse even on a retry is a failed step, not a clean empty pass
+    runner = AdversarialAuditRunner(provider=MockProvider(default="not json at all"), model="m")
+    res = runner.run(_DIFF, max_rounds=2)
+    assert res.degraded is True
+
+
+def test_challenger_unparseable_reply_degrades():
+    # finder parses, challenger does not: the round is still a degraded, not a clean, result
+    runner = AdversarialAuditRunner(
+        provider=MockProvider(default="{}"), model="m",
+        finder_provider=_RoleProvider(_finder([_VULN])), finder_model="f",
+        challenger_provider=_RoleProvider("not json"), challenger_model="c",
+        judge_provider=_RoleProvider(_judge([_VULN], converged=True)), judge_model="j",
+    )
+    res = runner.run(_DIFF, max_rounds=1)
+    assert res.degraded is True
