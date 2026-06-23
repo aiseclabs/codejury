@@ -26,18 +26,17 @@ DEFAULT_JUDGE_MODEL = os.environ.get("CODEJURY_JUDGE_MODEL")
 
 # The repo-review refutation checker, a deliberately DIFFERENT model from the skeptic, so a
 # deletion needs two models with uncorrelated blind spots to agree. A same-model second read
-# shares the skeptic's blind spot and rubber-stamps a wrong refutation, as it did on the
-# backed buyout reentrancy. Defaults to an OpenAI model so the second opinion is cross-vendor.
-# With no checker model set, no finding is refuted, the recall-safe default.
+# shares the skeptic's blind spot and rubber-stamps a wrong refutation. Defaults to an OpenAI
+# model so the second opinion is cross-vendor. With no checker model set, no finding is
+# refuted, the recall-safe default.
 DEFAULT_CHECKER_PROVIDER = os.environ.get("CODEJURY_CHECKER_PROVIDER", "openai")
 DEFAULT_CHECKER_MODEL = os.environ.get("CODEJURY_CHECKER_MODEL")
 DEFAULT_CHECKER_API_BASE = os.environ.get("CODEJURY_CHECKER_API_BASE")
 DEFAULT_CHECKER_API_KEY = os.environ.get("CODEJURY_CHECKER_API_KEY")
-# gpt-5 reasoning models reach this proxy through the Responses API, see ~/.codex wire_api.
+# the gpt-5 reasoning models speak the Responses API rather than Chat Completions
 DEFAULT_CHECKER_WIRE_API = os.environ.get("CODEJURY_CHECKER_WIRE_API", "responses")
 # per-request deadline in seconds. Short enough that a hung or stalled call returns to the
-# retry layer to back off rather than holding a worker until a far longer ceiling, see the
-# blind run where a 600s timeout let one stalled call stack into hours.
+# retry layer to back off rather than holding a worker until a far longer ceiling.
 DEFAULT_TIMEOUT = float(os.environ.get("CODEJURY_TIMEOUT", "240"))
 # the outer hard deadline the retry layer enforces with a daemon thread, the bound the SDK
 # timeout failed to apply against a proxy that holds the connection open. Shorter than the SDK

@@ -193,8 +193,8 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("--fresh", action="store_true",
                       help="clear a previous review's output in the workspace first")
     # the workspace modes are mutually exclusive, scaffold is the default when none is set.
-    # Passing two at once used to be resolved by a silent dispatch precedence, so --run
-    # --finalize quietly ran finalize and rewrote findings/, argparse now rejects it instead
+    # Two at once would otherwise fall to a dispatch precedence and silently run just one, so
+    # --run --finalize could finalize and rewrite findings/, argparse rejects the pair instead
     mode = repo.add_mutually_exclusive_group()
     mode.add_argument("--gate", action="store_true",
                       help="check the existing workspace against the Completeness Gate instead of scaffolding, "
