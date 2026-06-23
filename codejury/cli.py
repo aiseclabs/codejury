@@ -278,9 +278,10 @@ def main(argv: list[str] | None = None) -> int:
 
     roles = repo.add_argument_group(
         "model roles (advanced)",
-        "finder finds, challenger refutes, judge confirms before a deletion. Each defaults to the "
-        "base --model, set a different vendor in any seat for cross-model review, for example a "
-        "GPT challenger and a Claude judge. A deletion needs the judge to be a distinct model from "
+        "finder finds, challenger refutes, judge confirms before a deletion. Each field inherits the "
+        "base backend when unset, so override only the seat you change, set a different vendor in any "
+        "seat for cross-model review, for example a GPT challenger and a Claude judge. A cross-vendor "
+        "seat brings its own api-key. A deletion needs the judge to be a distinct model from "
         "the challenger, with none distinct no finding is refuted, the recall-safe default. Ignored "
         "under --executor claude-cli. Usually set through CODEJURY_FINDER_*/CHALLENGER_*/JUDGE_*")
     for role in ROLES:

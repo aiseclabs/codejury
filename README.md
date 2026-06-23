@@ -62,8 +62,14 @@ cross-model review, where uncorrelated blind spots catch what one model misses, 
 needs the judge to be a distinct model from the challenger so no lone skeptic drops a real
 finding. With the judge not distinct, nothing is refuted, the recall-safe default.
 
-Each role takes a full backend override, all defaulting to the base. For example a Claude base
-finder challenged by GPT and confirmed by Claude:
+Each role takes a full backend, the same five fields as the base, every one unset by default:
+`CODEJURY_<ROLE>_PROVIDER`, `_MODEL`, `_API_KEY`, `_API_BASE`, `_WIRE_API`, with `<ROLE>` one of
+`FINDER`, `CHALLENGER`, `JUDGE`, and the matching `--<role>-provider`, `--<role>-model`,
+`--<role>-api-key`, `--<role>-api-base`, `--<role>-wire-api` flags. An unset field inherits the
+base, so you set none of these for a single-model run and override only the seat you want to
+change. The key and the api-base inherit the base only when the role keeps the base provider. A
+role that switches vendor brings its own key, since the base key belongs to the base vendor. For
+example a Claude base finder challenged by GPT and confirmed by Claude:
 
 ```bash
 export CODEJURY_CHALLENGER_PROVIDER=openai
