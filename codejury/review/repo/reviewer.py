@@ -21,9 +21,8 @@ from codejury.domains.base import ContentPaths
 from codejury.json_parse import require_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
-from codejury.review.repo.packing import pack_context
 from codejury.review.repo.paths import is_unsafe_rel
-from codejury.review.repo.shapes import JSON_SHAPE, Unit, gather, lens_line, visible_ranges
+from codejury.review.repo.shapes import JSON_SHAPE, Unit, gather, lens_line
 from codejury.review.repo.union import Candidate
 
 
@@ -88,11 +87,10 @@ class ModelReviewer(UnitReviewer):
 
     def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096,
                  content: ContentPaths | None = None,
-                 facts_by_file: dict[str, str] | None = None, pack: bool = False) -> None:
+                 facts_by_file: dict[str, str] | None = None) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
-        self._pack = pack
         mandate_file = content.unit_review_file if content else UNIT_REVIEW_FILE
         rubric_file = content.severity_rubric_file if content else SEVERITY_RUBRIC_FILE
         self._mandate = mandate_file.read_text(encoding="utf-8")
@@ -133,7 +131,6 @@ class ModelReviewer(UnitReviewer):
 
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
         unit_facts = self._facts_for(unit)
-        packed = pack_context(unit.root, unit.files, visible_ranges(unit)) if self._pack else ""
         prompt = (
             f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
             f"{lens_line(lens)}"
@@ -141,8 +138,6 @@ class ModelReviewer(UnitReviewer):
             + (f"Contract facts for this unit, tool-extracted, the call graph and storage "
                f"the slice below may not show in full:\n{unit_facts}\n\n" if unit_facts else "")
             + f"Unit `{unit.name}`, the code to review:\n```\n{gather(unit)}\n```\n\n"
-            + (f"Called and inherited code this unit reaches, pulled so you can judge the full "
-               f"path in one place:\n```\n{packed}\n```\n\n" if packed else "")
             + f"Respond with a single JSON object exactly like:\n{JSON_SHAPE}"
         )
         result = self._provider.complete(

@@ -2,11 +2,9 @@
 `reviewer.py` and the claude-cli agent reviewer in `agent.py`.
 
 `Unit` is the worklist item both backends review. `gather` reads a unit's code into one
-bounded block, and `visible_ranges` reports which char ranges that block shows, the input
-the focused packer needs to pull only what a slice omits. `JSON_SHAPE` and `lens_line` are
-the output contract both backends emit and parse. These live here so neither backend reaches
-into the other for a shared shape, and so the core `Unit` type does not sit inside one
-backend's module.
+bounded block. `JSON_SHAPE` and `lens_line` are the output contract both backends emit and
+parse. These live here so neither backend reaches into the other for a shared shape, and so
+the core `Unit` type does not sit inside one backend's module.
 """
 
 from __future__ import annotations
@@ -56,31 +54,6 @@ def _gather_fragments(unit: Unit) -> str:
         if total >= _GATHER_TOTAL:
             break
     return "\n\n".join(parts)
-
-
-def visible_ranges(unit: Unit) -> tuple[tuple[str, int, int], ...]:
-    """The char ranges of each file `gather` shows this unit, so the packer pulls only the
-    code the unit omits, a same-file function in another slice or a cross-file callee. Mirrors
-    `gather`: fragments as themselves, the first file's span or whole body, later files at
-    their head."""
-    if unit.fragments:
-        return unit.fragments
-    ranges: list[tuple[str, int, int]] = []
-    for i, rel in enumerate(unit.files):
-        path = safe_repo_path(unit.root, rel)
-        if path is None:
-            continue
-        try:
-            n = len(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError):
-            continue
-        if i == 0 and unit.span is not None:
-            ranges.append((rel, unit.span[0], unit.span[1]))
-        elif i == 0:
-            ranges.append((rel, 0, n))
-        else:
-            ranges.append((rel, 0, min(n, _GATHER_PER_FILE)))
-    return tuple(ranges)
 
 
 def gather(unit: Unit) -> str:
