@@ -600,6 +600,15 @@ def _with_facts(shared: str, ws: Path) -> str:
     return f"{shared}\n\nContract facts:\n{facts}\n"
 
 
+def _corrupt_facts(p: Path, exc: Exception) -> ValueError:
+    # a facts artifact that exists but does not parse is corrupt, not absent. Silently treating
+    # it as empty makes the review look more grounded than it was, so fail loud and let the
+    # operator regenerate it. Invariant 3. A never-generated facts file is still optional.
+    return ValueError(
+        f"facts artifact {p} is corrupt: {exc}. Delete it or re-run with --fresh to regenerate."
+    )
+
+
 def _load_facts_by_file(ws: Path) -> dict[str, str]:
     """The per-file facts map scaffold persisted, so the engine grounds each unit with only
     the facts for the files it owns. Empty when no backend ran or it emits no by_file map, the
@@ -609,8 +618,8 @@ def _load_facts_by_file(ws: Path) -> dict[str, str]:
         return {}
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
+    except (OSError, ValueError) as exc:
+        raise _corrupt_facts(p, exc) from exc
     if not isinstance(data, dict):
         return {}
     return {str(k): str(v) for k, v in data.items() if v}
@@ -625,8 +634,8 @@ def _load_facts_units(ws: Path) -> list:
         return []
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return []
+    except (OSError, ValueError) as exc:
+        raise _corrupt_facts(p, exc) from exc
     return data if isinstance(data, list) else []
 
 
@@ -672,6 +681,14 @@ def run_repo_review(
     # units, so resume, marking, and the gate key on the same set
     _seed_run_units(ws, units, paths)
     reviewed = set() if fresh else _reviewed_slugs(ws)
+    if reviewed and not (ws / "_union.json").is_file():
+        # units are marked reviewed but the union checkpoint is gone, so the prior findings are
+        # lost and a run now would re-skip those units and write a zero-finding clean report.
+        # Fail loud rather than report lost progress as clean, invariant 3.
+        raise ValueError(
+            f"resume found reviewed units under {ws} but no _union.json checkpoint, the prior "
+            "findings are lost. Re-run with --fresh to discard the markers and start over."
+        )
     open_units = [u for u in units if unit_slug(u.name) not in reviewed]
     acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws, domain.dedup_by_file)),
                       dedup_by_file=domain.dedup_by_file)

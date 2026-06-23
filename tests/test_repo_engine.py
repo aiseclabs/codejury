@@ -77,14 +77,16 @@ def test_reviewer_matches_facts_on_basename_when_the_directory_differs(tmp_path)
     assert "reenter-marker" in _prompt_of(prov)
 
 
-def test_load_facts_by_file_reads_the_map_and_drops_empty_and_corrupt(tmp_path):
+def test_load_facts_by_file_reads_the_map_drops_empty_and_fails_loud_on_corrupt(tmp_path):
     from codejury.review.repo.engine import _load_facts_by_file
 
     assert _load_facts_by_file(tmp_path) == {}
     (tmp_path / "_facts_by_file.json").write_text('{"a.sol": "facts A", "b.sol": ""}')
     assert _load_facts_by_file(tmp_path) == {"a.sol": "facts A"}
+    # an existing but corrupt facts artifact fails loud, it is not silently treated as absent
     (tmp_path / "_facts_by_file.json").write_text("not json at all")
-    assert _load_facts_by_file(tmp_path) == {}
+    with pytest.raises(ValueError, match="corrupt"):
+        _load_facts_by_file(tmp_path)
 
 
 def test_gather_assembles_call_path_fragments(tmp_path):
@@ -117,14 +119,15 @@ def test_build_units_without_facts_units_is_unchanged(tmp_path):
     assert not any(u.fragments for u in units)
 
 
-def test_load_facts_units_reads_specs_empty_and_corrupt(tmp_path):
+def test_load_facts_units_reads_specs_empty_and_fails_loud_on_corrupt(tmp_path):
     from codejury.review.repo.engine import _load_facts_units
 
     assert _load_facts_units(tmp_path) == []
     (tmp_path / "_facts_units.json").write_text('[{"name": "u", "files": ["a.sol"], "fragments": [["a.sol", 0, 10]]}]')
     assert _load_facts_units(tmp_path)[0]["name"] == "u"
     (tmp_path / "_facts_units.json").write_text("not json at all")
-    assert _load_facts_units(tmp_path) == []
+    with pytest.raises(ValueError, match="corrupt"):
+        _load_facts_units(tmp_path)
 
 
 def test_build_units_groups_trace_targets_by_package():
@@ -226,6 +229,18 @@ def test_resume_skips_reviewed_units_and_verified_findings(custody_repo, tmp_pat
     assert r2v.calls == 0
     findings_after_2 = json.loads((ws / "custody" / "findings.json").read_text())["findings"]
     assert {f["entry"] for f in findings_after_2} == {f["entry"] for f in findings_after_1}
+
+
+def test_resume_with_reviewed_units_but_missing_union_fails_loud(custody_repo, tmp_path):
+    # the union checkpoint is gone but units are still marked reviewed, so a resume would re-skip
+    # them and write a zero-finding clean report. That lost progress must fail loud, not pass.
+    ws = tmp_path / "ws"
+    run_repo_review(custody_repo, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
+                    converge_after=1, max_passes=4)
+    (ws / "custody" / "_union.json").unlink()
+    with pytest.raises(ValueError, match="no _union.json"):
+        run_repo_review(custody_repo, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
+                        converge_after=1, max_passes=4, fresh=False)
 
 
 def test_parse_candidate_captures_file_and_line_from_a_range(tmp_path):

@@ -34,7 +34,7 @@ jobs:
         env:
           CODEJURY_API_KEY: ${{ secrets.CODEJURY_API_KEY }}
           CODEJURY_API_BASE: ${{ secrets.CODEJURY_API_BASE }}   # optional: for a gateway
-          CODEJURY_MODEL: claude-sonnet-4-6                     # a strong model matters most
+          CODEJURY_MODEL: claude-sonnet-4-6                     # the cost-conscious tier for CI, the package default is claude-opus-4-8
         run: |
           set +e
           codejury review diff \
