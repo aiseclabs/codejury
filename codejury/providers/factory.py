@@ -49,11 +49,11 @@ def make_provider(
     wire_api: str = "chat", timeout: float = DEFAULT_TIMEOUT
 ) -> Provider:
     if name == "openai":
-        provider: Provider = OpenAIProvider(api_key=api_key, base_url=api_base, wire_api=wire_api, timeout=timeout)
+        provider: Provider = OpenAIProvider(api_key=api_key, api_base=api_base, wire_api=wire_api, timeout=timeout)
     elif name == "litellm":
         provider = LiteLLMProvider(api_key=api_key, api_base=api_base, timeout=timeout)
     else:
-        provider = AnthropicProvider(api_key=api_key, base_url=api_base, timeout=timeout)
+        provider = AnthropicProvider(api_key=api_key, api_base=api_base, timeout=timeout)
     if retries > 0:
         provider = RetryProvider(provider, max_attempts=retries + 1, hard_timeout=timeout)
     return provider

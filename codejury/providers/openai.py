@@ -19,10 +19,10 @@ from codejury.providers.chat_format import choice_text
 
 
 class OpenAIProvider(Provider):
-    def __init__(self, *, api_key: str | None = None, base_url: str | None = None,
+    def __init__(self, *, api_key: str | None = None, api_base: str | None = None,
                  client: Any | None = None, wire_api: str = "chat", timeout: float = 240.0) -> None:
         self._api_key = api_key
-        self._base_url = base_url
+        self._api_base = api_base
         self._client = client
         self._wire_api = wire_api
         # per-request deadline: a hung or rate-limit-stalled call returns to the retry layer
@@ -38,8 +38,9 @@ class OpenAIProvider(Provider):
             kwargs: dict[str, Any] = {}
             if self._api_key:
                 kwargs["api_key"] = self._api_key
-            if self._base_url:
-                kwargs["base_url"] = self._base_url
+            if self._api_base:
+                # the openai SDK names this base_url
+                kwargs["base_url"] = self._api_base
             self._client = openai.OpenAI(**kwargs)
         return self._client
 

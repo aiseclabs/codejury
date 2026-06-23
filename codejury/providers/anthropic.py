@@ -21,13 +21,13 @@ class AnthropicProvider(Provider):
         self,
         *,
         api_key: str | None = None,
-        base_url: str | None = None,
+        api_base: str | None = None,
         client: Any | None = None,
         temperature: float | None = 0.0,
         timeout: float = 240.0,
     ) -> None:
         self._api_key = api_key
-        self._base_url = base_url
+        self._api_base = api_base
         self._client = client
         # determinism: temperature 0 so the same input yields the same verdicts
         self._temperature = temperature
@@ -46,8 +46,9 @@ class AnthropicProvider(Provider):
             kwargs: dict[str, Any] = {}
             if self._api_key:
                 kwargs["api_key"] = self._api_key
-            if self._base_url:
-                kwargs["base_url"] = self._base_url
+            if self._api_base:
+                # the anthropic SDK names this base_url
+                kwargs["base_url"] = self._api_base
             self._client = anthropic.Anthropic(**kwargs)
         return self._client
 
