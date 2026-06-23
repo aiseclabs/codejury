@@ -7,7 +7,7 @@
  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚════╝  ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 ```
 
-[![Tests](https://github.com/aiseclabs/codejury/actions/workflows/test.yml/badge.svg)](https://github.com/aiseclabs/codejury/actions/workflows/test.yml)
+[![tests](https://img.shields.io/github/actions/workflow/status/aiseclabs/codejury/test.yml?label=tests)](https://github.com/aiseclabs/codejury/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/pypi/l/codejury)](https://github.com/aiseclabs/codejury/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/codejury)](https://pypi.org/project/codejury/)
 [![Python](https://img.shields.io/pypi/pyversions/codejury)](https://pypi.org/project/codejury/)
