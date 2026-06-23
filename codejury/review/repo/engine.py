@@ -630,6 +630,7 @@ def run_repo_review(
     domain: Domain | None = None,
     facts: bool = False,
     extra_finder_backends: tuple = (),
+    judge_backends: tuple | None = None,
 ) -> RunResult:
     domain = domain or default_domain()
     paths = domain.paths
@@ -690,8 +691,11 @@ def run_repo_review(
     vr: VerifyResult | None = None
     if verify:
         # every finder model is also a judge, so a singleton is adjudicated by a model that did
-        # not surface it, the most independent second read for the cross-confirmation step
-        judge_backends = ((provider, model),) + tuple(extra_finder_backends) if provider is not None else ()
+        # not surface it, the most independent second read for the cross-confirmation step. The
+        # caller may pass an explicit set of role backends, otherwise it is the primary plus the
+        # extra finders.
+        if judge_backends is None:
+            judge_backends = ((provider, model),) + tuple(extra_finder_backends) if provider is not None else ()
         findings, vr = apply_verification(
             ws, findings, root=root, verifier=verifier, checker=checker, provider=provider, model=model,
             votes=votes, concurrency=concurrency, fresh=fresh, content=paths, judge_backends=judge_backends,

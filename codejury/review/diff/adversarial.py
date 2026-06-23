@@ -180,26 +180,32 @@ class AdversarialAuditRunner:
         finder_model: str | None = None,
         challenger_model: str | None = None,
         judge_model: str | None = None,
+        finder_provider: Provider | None = None,
+        challenger_provider: Provider | None = None,
+        judge_provider: Provider | None = None,
         content: ContentPaths | None = None,
         focus: str = FOCUS,
         do_not_report: str = DO_NOT_REPORT,
     ) -> None:
         self._provider = provider
         self._max_tokens = max_tokens
-        self._finder_model = finder_model or model
-        self._challenger_model = challenger_model or model
-        self._judge_model = judge_model or model
+        # each role is a (provider, model) backend, defaulting field by field to the shared one,
+        # so a different vendor can sit in any seat for cross-model review
+        self._finder = (finder_provider or provider, finder_model or model)
+        self._challenger = (challenger_provider or provider, challenger_model or model)
+        self._judge = (judge_provider or provider, judge_model or model)
         self._content = content
         self._focus = focus
         self._do_not_report = do_not_report
 
-    def _ask(self, system: str, prompt: str, model: str) -> tuple[dict, bool]:
+    def _ask(self, system: str, prompt: str, backend: tuple) -> tuple[dict, bool]:
         """Return the parsed object and an ok flag. ok is False when the response
         could not be parsed into a JSON object, for example a provider error page,
         a blocked request, or prose, so the caller does not treat an unusable reply
-        as an empty result."""
+        as an empty result. `backend` is the role's (provider, model)."""
+        provider, model = backend
         try:
-            result = self._provider.complete(
+            result = provider.complete(
                 system=system,
                 messages=[Message(role="user", content=prompt)],
                 model=model,
@@ -229,7 +235,7 @@ class AdversarialAuditRunner:
                 FINDER_SYSTEM,
                 finder_prompt(diff, vulnerabilities=vulnerabilities, context=context, prior=prior,
                               vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report),
-                self._finder_model,
+                self._finder,
             )
             finder_findings = _dicts(finder.get("findings"))
 
@@ -237,15 +243,15 @@ class AdversarialAuditRunner:
                 CHALLENGER_SYSTEM,
                 challenger_prompt(diff, finder_findings, vulnerabilities=vulnerabilities, context=context,
                                   vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report),
-                self._challenger_model,
+                self._challenger,
             )
             rebuttals = _dicts(challenger.get("rebuttals"))
             new_findings = _dicts(challenger.get("new_findings"))
 
             jp = judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context)
-            verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge_model)
+            verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge)
             if not judge_ok:
-                verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge_model)
+                verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge)
             if not judge_ok:
                 # judge still unusable: degrade, but apply the recall-safe
                 # challenger dismissals so a transient judge outage does not pass

@@ -216,3 +216,37 @@ def test_prompts_carry_role_context():
     assert "rebuttal" in fp and "Independently" in fp and "sql_injection" in fp
     jp = judge_prompt(_DIFF, [_VULN], [], [])
     assert "Finder findings" in jp and "Challenger" in jp
+
+
+class _RoleProvider:
+    """Records the system prompt and model of each call and returns a fixed reply, so a test
+    can assert which provider a role was routed to."""
+
+    def __init__(self, reply):
+        self._reply = reply
+        self.systems = []
+        self.models = []
+
+    def complete(self, *, system, messages, model, max_tokens):
+        import types
+        self.systems.append(system)
+        self.models.append(model)
+        return types.SimpleNamespace(text=self._reply)
+
+
+def test_adversarial_routes_each_role_to_its_own_provider():
+    # a different provider in each seat lets the finder, challenger, and judge be different vendors
+    finder_p = _RoleProvider(_finder([_VULN]))
+    challenger_p = _RoleProvider(_challenger())
+    judge_p = _RoleProvider(_judge([_VULN], converged=True))
+    base = MockProvider(default="{}")
+    runner = AdversarialAuditRunner(
+        provider=base, model="base-model",
+        finder_provider=finder_p, finder_model="finder-m",
+        challenger_provider=challenger_p, challenger_model="challenger-m",
+        judge_provider=judge_p, judge_model="judge-m",
+    )
+    runner.run(_DIFF, max_rounds=1)
+    assert finder_p.systems == [FINDER_SYSTEM] and finder_p.models == ["finder-m"]
+    assert challenger_p.systems == [CHALLENGER_SYSTEM] and challenger_p.models == ["challenger-m"]
+    assert judge_p.systems == [JUDGE_SYSTEM] and judge_p.models == ["judge-m"]

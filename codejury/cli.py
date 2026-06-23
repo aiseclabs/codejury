@@ -29,18 +29,12 @@ from codejury.review.diff.engine import audit_diff
 from codejury.providers.factory import (
     DEFAULT_API_BASE,
     DEFAULT_API_KEY,
-    DEFAULT_CHALLENGER_MODEL,
-    DEFAULT_FINDER_MODEL,
-    DEFAULT_JUDGE_MODEL,
     DEFAULT_MODEL,
     DEFAULT_PROVIDER,
     DEFAULT_RETRIES,
-    DEFAULT_SECONDARY_API_BASE,
-    DEFAULT_SECONDARY_API_KEY,
-    DEFAULT_SECONDARY_MODEL,
-    DEFAULT_SECONDARY_PROVIDER,
-    DEFAULT_SECONDARY_WIRE_API,
+    DEFAULT_ROLE_BACKENDS,
     PROVIDERS,
+    ROLES,
     make_provider,
 )
 from codejury.providers.mock import MockProvider
@@ -111,38 +105,80 @@ _REPO_MOCK_REPLY = (
 )
 
 
-def _secondary_backend(args):
-    """The secondary model's provider and model, or (None, None) when none is configured.
-    One backend serves two roles: it confirms refutations on the delete side and finds
-    alongside the main model on the recall side, so a single different model lifts recall and
-    guards deletion at once."""
-    if args.dry_run or not args.secondary_model:
-        return None, None
-    provider = make_provider(args.secondary_provider, api_key=args.secondary_api_key,
-                             api_base=args.secondary_api_base, retries=args.retries,
-                             wire_api=args.secondary_wire_api)
-    return provider, args.secondary_model
+def _base_spec(args):
+    """The base backend each role inherits from when its own field is unset."""
+    return {"provider": args.provider, "model": args.model,
+            "api_key": args.api_key, "api_base": args.api_base, "wire_api": "chat"}
 
 
-def _build_checker(args):
-    """The refutation checker, built from the secondary model, or None when none is configured.
-    A deletion needs this second model to confirm a refutation, so a same-model second read
-    cannot rubber-stamp a wrong refutation and drop a real finding. With no secondary model set,
-    nothing is refuted, the recall-safe default."""
-    provider, model = _secondary_backend(args)
-    if provider is None:
-        return None
-    from codejury.review.repo.verifier import ModelRefutationChecker
-    return ModelRefutationChecker(provider=provider, model=model)
+def _role_spec(args, role, base):
+    """Resolve one role's backend, each field inheriting the base when its own is unset. A role
+    that overrides the provider to a different vendor does not inherit the base key or endpoint,
+    which belong to the base vendor, it falls back to its own field or the SDK env."""
+    provider = getattr(args, f"{role}_provider") or base["provider"]
+    same_vendor = provider == base["provider"]
+    return {
+        "provider": provider,
+        "model": getattr(args, f"{role}_model") or base["model"],
+        "api_key": getattr(args, f"{role}_api_key") or (base["api_key"] if same_vendor else None),
+        "api_base": getattr(args, f"{role}_api_base") or (base["api_base"] if same_vendor else None),
+        "wire_api": getattr(args, f"{role}_wire_api") or "chat",
+    }
 
 
-def _warn_no_secondary(args) -> None:
-    """Tell the operator a verify run with no secondary model drops nothing, so they can wire a
-    second model to enable deletion instead of reading a noisy keep-everything report as filtered."""
-    if args.verify and not args.dry_run and not args.secondary_model:
-        print("NOTE: no --secondary-model set, so the verify stage refutes nothing and keeps every "
-              "candidate. Set a different model via --secondary-model or CODEJURY_SECONDARY_MODEL so a "
-              "deletion is confirmed by a second model.", file=sys.stderr)
+def _role_provider(args, spec):
+    """Build a provider for a resolved role spec. Construction is lazy, so a per-role provider
+    object is cheap, no SDK or key is touched until a call is made."""
+    return make_provider(spec["provider"], api_key=spec["api_key"], api_base=spec["api_base"],
+                         retries=args.retries, wire_api=spec["wire_api"])
+
+
+def _same_backend(a, b) -> bool:
+    """Two role specs name the same model when their vendor and model match."""
+    return (a["provider"], a["model"]) == (b["provider"], b["model"])
+
+
+def _warn_no_judge(args, challenger, judge) -> None:
+    """A verify run whose judge is not a distinct model from the challenger refutes nothing, since
+    a deletion needs two different reads to agree. Tell the operator so they wire a distinct judge
+    instead of reading a keep-everything report as filtered."""
+    if args.verify and not args.dry_run and _same_backend(challenger, judge):
+        print("NOTE: the judge model is the same as the challenger, so the verify stage refutes "
+              "nothing and keeps every candidate. Set a distinct --judge-model or CODEJURY_JUDGE_MODEL "
+              "so a deletion is confirmed by a second model.", file=sys.stderr)
+
+
+def _warn_secondary_env() -> None:
+    """The CODEJURY_SECONDARY_* names were replaced by the per-role CODEJURY_CHALLENGER_* and
+    CODEJURY_JUDGE_* names. Warn when the old names are still set so they are not silently ignored."""
+    if any(k.startswith("CODEJURY_SECONDARY_") for k in os.environ):
+        print("NOTE: CODEJURY_SECONDARY_* is no longer read. Use CODEJURY_CHALLENGER_* for the "
+              "skeptic and CODEJURY_JUDGE_* for the confirmer.", file=sys.stderr)
+
+
+def _distinct_backends(args, specs):
+    """The distinct (provider object, model) backends among role specs, for the cross-confirm
+    judge set on a coded run. Deduped by vendor and model so the same model is not a judge twice."""
+    out = []
+    seen = set()
+    for spec in specs:
+        key = (spec["provider"], spec["model"])
+        if key not in seen:
+            seen.add(key)
+            out.append((_role_provider(args, spec), spec["model"]))
+    return tuple(out)
+
+
+def _warn_roles_under_agent(args) -> None:
+    """Under --reviewer claude-cli the finder and skeptic are the Claude Code agent, so the finder
+    and challenger backend flags are ignored. The judge still applies as the confirmer."""
+    fields = ("provider", "model", "api_key", "api_base", "wire_api")
+    overridden = [r for r in ("finder", "challenger")
+                  if any(getattr(args, f"{r}_{f}") for f in fields)]
+    if overridden:
+        print(f"NOTE: --reviewer claude-cli ignores the {' and '.join(overridden)} backend flags, "
+              "the agent supplies the finder and skeptic. The judge still applies as the confirmer.",
+              file=sys.stderr)
 
 
 def _add_backend_args(target) -> None:
@@ -156,6 +192,21 @@ def _add_backend_args(target) -> None:
                         help="provider retry attempts on transient failure")
 
 
+def _add_role_backend_args(target, role: str) -> None:
+    """The per-role backend override flags for finder, challenger, or judge. Each field defaults
+    to None meaning inherit the base --provider/--model/--api-key/--api-base, resolved at build
+    time, so a single-model run sets only --model. A role that overrides the provider to a
+    different vendor takes its own key, not the base vendor's."""
+    d = DEFAULT_ROLE_BACKENDS[role]
+    target.add_argument(f"--{role}-provider", choices=PROVIDERS, default=d["provider"], dest=f"{role}_provider")
+    target.add_argument(f"--{role}-model", default=d["model"], dest=f"{role}_model")
+    target.add_argument(f"--{role}-api-key", default=d["api_key"], dest=f"{role}_api_key")
+    target.add_argument(f"--{role}-api-base", default=d["api_base"], dest=f"{role}_api_base")
+    target.add_argument(f"--{role}-wire-api", default=d["wire_api"], dest=f"{role}_wire_api",
+                        choices=("chat", "responses"),
+                        help=f"openai {role} wire API, responses for the gpt-5 reasoning models")
+
+
 def _add_audit_args(p) -> None:
     """The diff-audit flags for `review diff`."""
     p.add_argument("--file", default=None, help="unified diff file (default: read stdin)")
@@ -167,10 +218,10 @@ def _add_audit_args(p) -> None:
                    help="drop findings whose file path contains this substring (repeatable)")
     p.add_argument("--mode", choices=("standard", "adversarial"), default="standard")
     p.add_argument("--rounds", type=int, default=3, help="adversarial only: debate rounds")
-    p.add_argument("--finder-model", default=DEFAULT_FINDER_MODEL, help="adversarial only: finder role model (default: --model)")
-    p.add_argument("--challenger-model", default=DEFAULT_CHALLENGER_MODEL, help="adversarial only: challenger role model")
-    p.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL, help="adversarial only: judge role model")
     _add_backend_args(p)
+    # adversarial only: finder scans, challenger refutes, judge decides, each defaults to --model
+    for role in ROLES:
+        _add_role_backend_args(p, role)
     p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     p.add_argument("--no-filter", action="store_true", help="skip the false-positive filter")
     p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on")
@@ -221,22 +272,15 @@ def main(argv: list[str] | None = None) -> int:
                                "the EVM slither backend. Off by default since extraction is heavy, "
                                "the result is cached by source content hash so a re-run is free")
 
-    secondary = repo.add_argument_group(
-        "secondary model (advanced)",
-        "a DIFFERENT model from --model that finds alongside it for recall and must confirm a "
-        "refutation before any finding is dropped, so a deletion needs two uncorrelated reads to "
-        "agree. With none set, no finding is refuted, the recall-safe default. Usually set through "
-        "CODEJURY_SECONDARY_* instead")
-    secondary.add_argument("--secondary-provider", choices=PROVIDERS,
-                           default=DEFAULT_SECONDARY_PROVIDER, dest="secondary_provider")
-    secondary.add_argument("--secondary-model", default=DEFAULT_SECONDARY_MODEL, dest="secondary_model")
-    secondary.add_argument("--secondary-api-key", default=DEFAULT_SECONDARY_API_KEY,
-                           dest="secondary_api_key")
-    secondary.add_argument("--secondary-api-base", default=DEFAULT_SECONDARY_API_BASE,
-                           dest="secondary_api_base")
-    secondary.add_argument("--secondary-wire-api", default=DEFAULT_SECONDARY_WIRE_API,
-                           dest="secondary_wire_api", choices=("chat", "responses"),
-                           help="openai secondary-model wire API, responses for the gpt-5 reasoning models")
+    roles = repo.add_argument_group(
+        "model roles (advanced)",
+        "finder finds, challenger refutes, judge confirms before a deletion. Each defaults to the "
+        "base --model, set a different vendor in any seat for cross-model review, for example a "
+        "GPT challenger and a Claude judge. A deletion needs the judge to be a distinct model from "
+        "the challenger, with none distinct no finding is refuted, the recall-safe default. Ignored "
+        "under --reviewer claude-cli. Usually set through CODEJURY_FINDER_*/CHALLENGER_*/JUDGE_*")
+    for role in ROLES:
+        _add_role_backend_args(roles, role)
 
     tuning = repo.add_argument_group("run tuning (advanced)", "only affect --run, sane defaults otherwise")
     tuning.add_argument("--max-passes", type=int, default=24, dest="max_passes",
@@ -285,10 +329,20 @@ def _dispatch(args, parser) -> int:
             model = args.model
             diff = _read_diff(args)
         domain = resolve_domain(args.domain, _diff_paths(diff))
+        base = _base_spec(args)
+        finder = _role_spec(args, "finder", base)
+        challenger = _role_spec(args, "challenger", base)
+        judge = _role_spec(args, "judge", base)
+        # role backends only matter in adversarial mode, and not in dry-run where the mock
+        # provider serves every role, so build them only when they will be used
+        build_roles = not args.dry_run and args.mode == "adversarial"
         kept, _, degraded = audit_diff(
             diff, provider=provider, model=model,
             mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
-            finder_model=args.finder_model, challenger_model=args.challenger_model, judge_model=args.judge_model,
+            finder_model=finder["model"], challenger_model=challenger["model"], judge_model=judge["model"],
+            finder_provider=_role_provider(args, finder) if build_roles else None,
+            challenger_provider=_role_provider(args, challenger) if build_roles else None,
+            judge_provider=_role_provider(args, judge) if build_roles else None,
             exclude_paths=tuple(args.exclude or ()), domain=domain,
         )
         print(render(args.fmt, kept))
@@ -315,20 +369,32 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo" and args.finalize:
         from codejury.review.repo.engine import finalize_repo_review
+        from codejury.review.repo.verifier import ModelRefutationChecker, ModelVerifier
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+        _warn_secondary_env()
+        base = _base_spec(args)
+        challenger = _role_spec(args, "challenger", base)
+        judge = _role_spec(args, "judge", base)
+        provider = None
+        # challenger backs the skeptic, judge backs the confirmer, a deletion needs the two to be
+        # distinct models so a single read cannot drop a real finding
         if args.reviewer == "claude-cli":
             from codejury.review.repo.agent import AgentVerifier
-            verifier_obj, provider = AgentVerifier(content=domain.paths), None
+            verifier_obj = AgentVerifier(content=domain.paths)
+            _warn_roles_under_agent(args)
         elif args.dry_run:
             verifier_obj, provider = None, MockProvider(default='{"real": true, "reason": "[mock]"}')
             args.model = "mock"
         else:
-            verifier_obj = None
-            provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
-        _warn_no_secondary(args)
+            verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
+                                         model=challenger["model"], content=domain.paths)
+        checker_obj = None
+        if not args.dry_run and not _same_backend(challenger, judge):
+            checker_obj = ModelRefutationChecker(provider=_role_provider(args, judge), model=judge["model"])
+        _warn_no_judge(args, challenger, judge)
         print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
         fr = finalize_repo_review(
-            args.directory, args.workspace, verifier=verifier_obj, checker=_build_checker(args),
+            args.directory, args.workspace, verifier=verifier_obj, checker=checker_obj,
             provider=provider, model=args.model, verify=args.verify, votes=args.votes,
             concurrency=args.concurrency, domain=domain,
         )
@@ -345,38 +411,49 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo" and args.run:
         from codejury.review.repo.engine import run_repo_review
+        from codejury.review.repo.verifier import ModelRefutationChecker, ModelVerifier
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
-        reviewer_obj = verifier_obj = None
+        _warn_secondary_env()
+        base = _base_spec(args)
+        finder = _role_spec(args, "finder", base)
+        challenger = _role_spec(args, "challenger", base)
+        judge = _role_spec(args, "judge", base)
+        reviewer_obj = verifier_obj = checker_obj = None
+        provider = None
+        model = args.model
+        judge_backends: tuple = ()
         if args.reviewer == "claude-cli":
             from codejury.review.repo.agent import AgentReviewer, AgentVerifier
             reviewer_obj = AgentReviewer(content=domain.paths)
             verifier_obj = AgentVerifier(content=domain.paths)
-            provider = None
+            _warn_roles_under_agent(args)
+            if not _same_backend(challenger, judge):
+                checker_obj = ModelRefutationChecker(provider=_role_provider(args, judge), model=judge["model"])
         elif args.dry_run:
             provider = MockProvider(default=_REPO_MOCK_REPLY)
-            args.model = "mock"
+            model = "mock"
         else:
-            provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
+            # finder goes through provider+model so the engine builds the unit reviewer with its
+            # facts wiring, the skeptic and confirmer are injected from the challenger and judge
+            provider = _role_provider(args, finder)
+            model = finder["model"]
+            verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
+                                         model=challenger["model"], content=domain.paths)
+            if not _same_backend(challenger, judge):
+                checker_obj = ModelRefutationChecker(provider=_role_provider(args, judge), model=judge["model"])
+            # the distinct role models are the cross-confirm judge set, so a singleton is judged
+            # by a model that did not surface it when two or more vendors are in play
+            judge_backends = _distinct_backends(args, (finder, challenger, judge))
 
         def _progress(p, lens, new, total):
             print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
 
-        _warn_no_secondary(args)
-        # one different-model backend, reused for both roles: it finds alongside the main model
-        # (recall side, union) and confirms refutations (delete side), so a single second model
-        # lifts the recall ceiling and guards deletion at once.
-        secondary_provider, secondary_model = _secondary_backend(args)
-        checker_obj = None
-        extra_finder_backends: tuple = ()
-        if secondary_provider is not None:
-            from codejury.review.repo.verifier import ModelRefutationChecker
-            checker_obj = ModelRefutationChecker(provider=secondary_provider, model=secondary_model)
-            extra_finder_backends = ((secondary_provider, secondary_model),)
+        _warn_no_judge(args, challenger, judge)
         print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
         res = run_repo_review(
-            args.directory, args.workspace, provider=provider, model=args.model,
+            args.directory, args.workspace, provider=provider, model=model,
             reviewer=reviewer_obj, verifier=verifier_obj, checker=checker_obj,
-            extra_finder_backends=extra_finder_backends,
+            judge_backends=(judge_backends or None),
             verify=args.verify, votes=args.votes,
             max_passes=args.max_passes, converge_after=args.converge_after,
             min_lens_shots=args.min_lens_shots,

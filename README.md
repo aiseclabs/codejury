@@ -55,20 +55,29 @@ export CODEJURY_API_KEY=...
 export CODEJURY_API_BASE=...   # optional gateway or proxy
 ```
 
-Repo Review uses a second, deliberately different model, the secondary model, for two roles at
-once. On the recall side it finds alongside the main model, so the union takes whatever either
-catches and a single model's blind spot no longer caps recall. On the precision side it must
-agree before a candidate is refuted, so a deletion needs two models with uncorrelated blind
-spots and no lone skeptic drops a real finding. Point it at a cross-vendor model. With none set,
-both models collapse to one, the finder is single-model and the verify stage keeps every
-candidate, the recall-safe default.
+Both review paths name three model roles, finder, challenger, and judge. The finder finds, the
+challenger refutes, the judge confirms before a deletion. Each role defaults to the base
+`--model`, so a single-model run sets only `--model`. Put a different vendor in any seat for
+cross-model review, where uncorrelated blind spots catch what one model misses, and a deletion
+needs the judge to be a distinct model from the challenger so no lone skeptic drops a real
+finding. With the judge not distinct, nothing is refuted, the recall-safe default.
+
+Each role takes a full backend override, all defaulting to the base. For example a Claude base
+finder challenged by GPT and confirmed by Claude:
 
 ```bash
-export CODEJURY_SECONDARY_PROVIDER=openai   # default
-export CODEJURY_SECONDARY_MODEL=...         # a different model from CODEJURY_MODEL
-export CODEJURY_SECONDARY_API_KEY=...
-export CODEJURY_SECONDARY_API_BASE=...      # optional
+export CODEJURY_CHALLENGER_PROVIDER=openai
+export CODEJURY_CHALLENGER_MODEL=...         # a GPT model, the skeptic
+export CODEJURY_CHALLENGER_API_KEY=...
+export CODEJURY_CHALLENGER_WIRE_API=responses   # the gpt-5 reasoning models speak Responses
+export CODEJURY_JUDGE_MODEL=...              # a Claude model, the confirmer, distinct from the challenger
 ```
+
+The same `CODEJURY_FINDER_*` / `CODEJURY_CHALLENGER_*` / `CODEJURY_JUDGE_*` and the matching
+`--finder-* / --challenger-* / --judge-*` flags work on both `review diff` and `review repo`.
+Note that `review repo --run` finds with one model, the finder, it no longer adds a second
+co-finder, and `--reviewer claude-cli` supplies the finder and skeptic itself, so it ignores
+the finder and challenger flags while the judge still applies.
 
 The tool does not auto-load `.env`.
 
@@ -195,10 +204,10 @@ A `--run` chooses how each unit is reviewed:
   access and no provider key. Use it when you want a tool-using agent rather than a single
   grounded call.
 
-Add `--secondary-model`, a different model from `--model`, to enable cross-model
-verification. It finds alongside the main model on the recall side and must agree before a
-finding is dropped on the precision side. With none set, the verify stage refutes nothing,
-the recall-safe default.
+Set a distinct `--judge-model`, the confirmer, from the challenger to enable cross-model
+verification. The challenger refutes a finding and the judge must agree before it is dropped,
+so a deletion needs two models. With the judge not distinct from the challenger, the verify
+stage refutes nothing, the recall-safe default.
 
 ## Supported Knowledge
 

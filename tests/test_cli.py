@@ -200,26 +200,103 @@ def test_repo_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
     assert rc == 1
 
 
-def test_build_checker_is_none_without_a_secondary_model():
-    # no secondary model configured means the verify stage refutes nothing, the recall-safe
-    # default, so a real finding is never dropped on an unconfigured second read
+def _role_args(**over):
     from argparse import Namespace
-    from codejury.cli import _build_checker
-    args = Namespace(dry_run=False, secondary_model=None, secondary_provider="openai",
-                     secondary_api_base=None, secondary_api_key=None, secondary_wire_api="responses",
-                     retries=0)
-    assert _build_checker(args) is None
+    base = dict(provider="anthropic", model="claude-base", api_key="basekey", api_base=None)
+    for role in ("finder", "challenger", "judge"):
+        for field in ("provider", "model", "api_key", "api_base", "wire_api"):
+            base[f"{role}_{field}"] = None
+    base.update(over)
+    return Namespace(**base)
 
 
-def test_build_checker_uses_a_different_model_when_configured():
-    # a configured secondary model builds the independent second read, a different model from the
-    # skeptic so a deletion needs two uncorrelated reads to agree
-    from argparse import Namespace
-    from codejury.cli import _build_checker
-    from codejury.review.repo.verifier import ModelRefutationChecker
-    args = Namespace(dry_run=False, secondary_model="gpt-mock", secondary_provider="openai",
-                     secondary_api_base=None, secondary_api_key="k", secondary_wire_api="responses",
-                     retries=0)
-    checker = _build_checker(args)
-    assert isinstance(checker, ModelRefutationChecker)
-    assert checker._model == "gpt-mock"
+def test_role_spec_inherits_base_when_unset():
+    from codejury.cli import _base_spec, _role_spec
+    a = _role_args()
+    s = _role_spec(a, "challenger", _base_spec(a))
+    assert (s["provider"], s["model"], s["api_key"]) == ("anthropic", "claude-base", "basekey")
+
+
+def test_role_spec_cross_vendor_override_drops_base_key():
+    # a role that switches vendor must not inherit the base vendor's key, it is the wrong key
+    from codejury.cli import _base_spec, _role_spec
+    a = _role_args(challenger_provider="openai", challenger_model="gpt-x")
+    s = _role_spec(a, "challenger", _base_spec(a))
+    assert (s["provider"], s["model"]) == ("openai", "gpt-x")
+    assert s["api_key"] is None
+
+
+def test_role_spec_same_vendor_override_keeps_base_key():
+    from codejury.cli import _base_spec, _role_spec
+    a = _role_args(challenger_model="claude-other")
+    s = _role_spec(a, "challenger", _base_spec(a))
+    assert (s["provider"], s["model"], s["api_key"]) == ("anthropic", "claude-other", "basekey")
+
+
+def test_same_backend():
+    from codejury.cli import _same_backend
+    assert _same_backend({"provider": "a", "model": "m"}, {"provider": "a", "model": "m"})
+    assert not _same_backend({"provider": "a", "model": "m"}, {"provider": "a", "model": "n"})
+
+
+def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_path):
+    # the challenger backs the skeptic, the judge backs the confirmer, two distinct vendors
+    import codejury.review.repo.engine as eng
+    from codejury.review.repo.verifier import ModelRefutationChecker, ModelVerifier
+    captured = {}
+
+    class _FR:
+        parsed = 0
+        deduped = 0
+        workspace = str(tmp_path)
+        verify = None
+
+    def fake_finalize(target, workspace, *, verifier, checker, **kw):
+        captured["verifier"], captured["checker"] = verifier, checker
+        return _FR()
+
+    monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    rc = main(["review", "repo", str(tmp_path), "--finalize",
+               "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k",
+               "--judge-provider", "anthropic", "--judge-model", "claude-x", "--judge-api-key", "k2"])
+    assert rc == 0
+    assert isinstance(captured["verifier"], ModelVerifier) and captured["verifier"]._model == "gpt-x"
+    assert isinstance(captured["checker"], ModelRefutationChecker) and captured["checker"]._model == "claude-x"
+
+
+def test_finalize_default_has_no_confirmer_and_warns(monkeypatch, tmp_path, capsys):
+    # nothing overridden, so judge == challenger, no distinct confirmer, keep everything and warn
+    import codejury.review.repo.engine as eng
+
+    class _FR:
+        parsed = 0
+        deduped = 0
+        workspace = str(tmp_path)
+        verify = None
+
+    def fake_finalize(target, workspace, *, verifier, checker, **kw):
+        fake_finalize.checker = checker
+        return _FR()
+
+    monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
+    rc = main(["review", "repo", str(tmp_path), "--finalize"])
+    assert rc == 0
+    assert fake_finalize.checker is None
+    assert "refutes nothing" in capsys.readouterr().err
+
+
+def test_run_passes_judge_backends_and_no_extra_finders(monkeypatch, tmp_path):
+    import codejury.review.repo.engine as eng
+    captured = {}
+
+    def fake_run(target, workspace, **kw):
+        captured.update(kw)
+        raise RuntimeError("stop after capture")
+
+    monkeypatch.setattr(eng, "run_repo_review", fake_run)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    main(["review", "repo", str(tmp_path), "--run", "--no-verify",
+          "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k"])
+    assert "extra_finder_backends" not in captured
+    assert "judge_backends" in captured

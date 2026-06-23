@@ -20,22 +20,24 @@ DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 # retry attempts on a transient failure, env-backed like the rest of the backend config so
 # CI can set it once, symmetric with the timeout knobs that were already env-only
 DEFAULT_RETRIES = int(os.environ.get("CODEJURY_RETRIES", "2"))
-DEFAULT_FINDER_MODEL = os.environ.get("CODEJURY_FINDER_MODEL")
-DEFAULT_CHALLENGER_MODEL = os.environ.get("CODEJURY_CHALLENGER_MODEL")
-DEFAULT_JUDGE_MODEL = os.environ.get("CODEJURY_JUDGE_MODEL")
 
-# The secondary model, a deliberately DIFFERENT model from the primary one that serves two
-# roles at once. On the recall side it finds alongside the primary model, so the union takes
-# whatever either catches. On the precision side it must confirm a refutation before any
-# finding is dropped, so a deletion needs two models with uncorrelated blind spots to agree.
-# Defaults to an OpenAI model so the second opinion is cross-vendor. With none set, no finding
-# is refuted, the recall-safe default.
-DEFAULT_SECONDARY_PROVIDER = os.environ.get("CODEJURY_SECONDARY_PROVIDER", "openai")
-DEFAULT_SECONDARY_MODEL = os.environ.get("CODEJURY_SECONDARY_MODEL")
-DEFAULT_SECONDARY_API_KEY = os.environ.get("CODEJURY_SECONDARY_API_KEY")
-DEFAULT_SECONDARY_API_BASE = os.environ.get("CODEJURY_SECONDARY_API_BASE")
-# the gpt-5 reasoning models speak the Responses API rather than Chat Completions
-DEFAULT_SECONDARY_WIRE_API = os.environ.get("CODEJURY_SECONDARY_WIRE_API", "responses")
+# Per-role model backends, finder, challenger, and judge, shared by both review paths. A role
+# names what a model does, finder scans, challenger refutes, judge confirms before a deletion,
+# so a different vendor in any seat gives uncorrelated blind spots. Each field defaults to None
+# meaning inherit the base backend, resolved at build time, so the common single-model run sets
+# only --model. A distinct judge from the challenger is what lets a deletion need two models to
+# agree, with none set nothing is refuted, the recall-safe default.
+ROLES = ("finder", "challenger", "judge")
+DEFAULT_ROLE_BACKENDS = {
+    role: {
+        "provider": os.environ.get(f"CODEJURY_{role.upper()}_PROVIDER"),
+        "model": os.environ.get(f"CODEJURY_{role.upper()}_MODEL"),
+        "api_key": os.environ.get(f"CODEJURY_{role.upper()}_API_KEY"),
+        "api_base": os.environ.get(f"CODEJURY_{role.upper()}_API_BASE"),
+        "wire_api": os.environ.get(f"CODEJURY_{role.upper()}_WIRE_API"),
+    }
+    for role in ROLES
+}
 # A single per-call deadline in seconds. The provider SDK enforces it, and when retries are on
 # the retry layer enforces the same bound with a daemon thread, for the case the SDK timeout
 # cannot cover such as a proxy that holds the connection open.

@@ -58,6 +58,9 @@ def audit_diff(
     finder_model: str | None = None,
     challenger_model: str | None = None,
     judge_model: str | None = None,
+    finder_provider=None,
+    challenger_provider=None,
+    judge_provider=None,
     exclude_paths: tuple[str, ...] = (),
     domain: Domain | None = None,
 ) -> tuple[list[Finding], list[tuple[Finding, str]], bool]:
@@ -80,6 +83,8 @@ def audit_diff(
             result = AdversarialAuditRunner(
                 provider=provider, model=model,
                 finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
+                finder_provider=finder_provider, challenger_provider=challenger_provider,
+                judge_provider=judge_provider,
                 content=content, focus=focus, do_not_report=do_not_report,
             ).run(d, max_rounds=max_rounds)
             degraded = degraded or result.degraded
