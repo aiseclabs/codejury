@@ -39,6 +39,7 @@ from codejury.providers.factory import (
     DEFAULT_JUDGE_MODEL,
     DEFAULT_MODEL,
     DEFAULT_PROVIDER,
+    DEFAULT_RETRIES,
     PROVIDERS,
     make_provider,
 )
@@ -144,6 +145,17 @@ def _warn_no_checker(args) -> None:
               "deletion is confirmed by a second model.", file=sys.stderr)
 
 
+def _add_backend_args(target) -> None:
+    """The model-backend flags shared by both review paths, so the two parsers cannot drift on
+    a default. `target` is a parser or an argument group, both expose add_argument."""
+    target.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
+    target.add_argument("--model", default=DEFAULT_MODEL)
+    target.add_argument("--api-base", default=DEFAULT_API_BASE)
+    target.add_argument("--api-key", default=DEFAULT_API_KEY)
+    target.add_argument("--retries", type=int, default=DEFAULT_RETRIES,
+                        help="provider retry attempts on transient failure")
+
+
 def _add_audit_args(p) -> None:
     """The diff-audit flags for `review diff`."""
     p.add_argument("--file", default=None, help="unified diff file (default: read stdin)")
@@ -155,14 +167,10 @@ def _add_audit_args(p) -> None:
                    help="drop findings whose file path contains this substring (repeatable)")
     p.add_argument("--mode", choices=("standard", "adversarial"), default="standard")
     p.add_argument("--rounds", type=int, default=3, help="adversarial only: debate rounds")
-    p.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
-    p.add_argument("--model", default=DEFAULT_MODEL)
     p.add_argument("--finder-model", default=DEFAULT_FINDER_MODEL, help="adversarial only: finder role model (default: --model)")
     p.add_argument("--challenger-model", default=DEFAULT_CHALLENGER_MODEL, help="adversarial only: challenger role model")
     p.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL, help="adversarial only: judge role model")
-    p.add_argument("--api-base", default=DEFAULT_API_BASE)
-    p.add_argument("--api-key", default=DEFAULT_API_KEY)
-    p.add_argument("--retries", type=int, default=2, help="provider retry attempts on transient failure")
+    _add_backend_args(p)
     p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
     p.add_argument("--no-filter", action="store_true", help="skip the false-positive filter")
     p.add_argument("--fail-on", choices=_FAIL_ON, default=None, dest="fail_on")
@@ -200,12 +208,7 @@ def main(argv: list[str] | None = None) -> int:
     repo.add_argument("--dry-run", action="store_true",
                       help="run only: drive the engine with a mock provider and no key, to smoke-test the pipeline")
 
-    backend = repo.add_argument_group("model backend")
-    backend.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
-    backend.add_argument("--model", default=DEFAULT_MODEL)
-    backend.add_argument("--api-base", default=DEFAULT_API_BASE)
-    backend.add_argument("--api-key", default=DEFAULT_API_KEY)
-    backend.add_argument("--retries", type=int, default=2, help="provider retry attempts on transient failure")
+    _add_backend_args(repo.add_argument_group("model backend"))
 
     strategy = repo.add_argument_group("review strategy")
     strategy.add_argument("--reviewer", choices=("model", "claude-cli"), default="model",

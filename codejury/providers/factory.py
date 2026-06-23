@@ -17,6 +17,9 @@ DEFAULT_PROVIDER = os.environ.get("CODEJURY_PROVIDER", "anthropic")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-opus-4-8")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
+# retry attempts on a transient failure, env-backed like the rest of the backend config so
+# CI can set it once, symmetric with the timeout knobs that were already env-only
+DEFAULT_RETRIES = int(os.environ.get("CODEJURY_RETRIES", "2"))
 DEFAULT_FINDER_MODEL = os.environ.get("CODEJURY_FINDER_MODEL")
 DEFAULT_CHALLENGER_MODEL = os.environ.get("CODEJURY_CHALLENGER_MODEL")
 DEFAULT_JUDGE_MODEL = os.environ.get("CODEJURY_JUDGE_MODEL")
