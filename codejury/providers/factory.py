@@ -36,13 +36,10 @@ DEFAULT_SECONDARY_API_KEY = os.environ.get("CODEJURY_SECONDARY_API_KEY")
 DEFAULT_SECONDARY_API_BASE = os.environ.get("CODEJURY_SECONDARY_API_BASE")
 # the gpt-5 reasoning models speak the Responses API rather than Chat Completions
 DEFAULT_SECONDARY_WIRE_API = os.environ.get("CODEJURY_SECONDARY_WIRE_API", "responses")
-# per-request deadline in seconds. Short enough that a hung or stalled call returns to the
-# retry layer to back off rather than holding a worker until a far longer ceiling.
+# A single per-call deadline in seconds. The provider SDK enforces it, and when retries are on
+# the retry layer enforces the same bound with a daemon thread, for the case the SDK timeout
+# cannot cover such as a proxy that holds the connection open.
 DEFAULT_TIMEOUT = float(os.environ.get("CODEJURY_TIMEOUT", "240"))
-# the outer hard deadline the retry layer enforces with a daemon thread, the bound the SDK
-# timeout failed to apply against a proxy that holds the connection open. Shorter than the SDK
-# timeout so it is the one that actually fires on a stalled call.
-DEFAULT_HARD_TIMEOUT = float(os.environ.get("CODEJURY_HARD_TIMEOUT", "180"))
 
 
 def make_provider(
@@ -56,5 +53,5 @@ def make_provider(
     else:
         provider = AnthropicProvider(api_key=api_key, base_url=api_base, timeout=timeout)
     if retries > 0:
-        provider = RetryProvider(provider, max_attempts=retries + 1, hard_timeout=DEFAULT_HARD_TIMEOUT)
+        provider = RetryProvider(provider, max_attempts=retries + 1, hard_timeout=timeout)
     return provider
