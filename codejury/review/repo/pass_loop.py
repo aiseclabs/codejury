@@ -15,14 +15,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from typing import Callable
 
-from codejury.domains.web import WEB_LENSES
+from codejury.domains.registry import default_domain
 from codejury.review.repo.reviewer import UnitReviewer
 from codejury.review.repo.shapes import Unit
 from codejury.review.repo.union import Accumulator
 
-# the generic default rotation, the web domain's lenses, used when a caller names none.
+# the generic default rotation, the default domain's lenses, used when a caller names none.
 # A domain passes its own lenses through run_repo_review.
-DEFAULT_LENSES = WEB_LENSES
+DEFAULT_LENSES = default_domain().lenses
 
 
 def run_passes(

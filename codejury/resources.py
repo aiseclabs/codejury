@@ -1,16 +1,18 @@
 """Locations of the content bundled inside the installed package.
 
-The constants here are the web domain's content paths, the default the engine reads when
-no domain is selected, so every existing importer keeps resolving the same files. A
-non-default domain is reached through `codejury.domains`, whose `Domain.paths` returns the
-same `ContentPaths` shape these constants come from. Content lives per domain under
-`domains/<name>/`: `knowledge/` is the pluggable security knowledge, `playbook/` is the
-repo-review agent path's assets, `detection.yaml` is the file classification config.
+The constants here are the default domain's content paths, the web domain today, resolved
+through the registry so the default lives in one place rather than being named here too.
+They are the paths the engine reads when no domain is selected, so every existing importer
+keeps resolving the same files. A non-default domain is reached through `codejury.domains`,
+whose `Domain.paths` returns the same `ContentPaths` shape these constants come from.
+Content lives per domain under `domains/<name>/`: `knowledge/` is the pluggable security
+knowledge, `playbook/` is the repo-review agent path's assets, `detection.yaml` is the file
+classification config.
 """
 
-from codejury.domains.web import WEB
+from codejury.domains.registry import default_domain
 
-_PATHS = WEB.paths
+_PATHS = default_domain().paths
 
 VULNERABILITIES_DIR = _PATHS.vulnerabilities_dir
 LANGUAGES_DIR = _PATHS.languages_dir

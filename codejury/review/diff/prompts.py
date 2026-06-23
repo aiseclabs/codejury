@@ -1,11 +1,11 @@
 """Standard diff-audit prompt: the security knowledge lives in data, in a rich
 prompt, not in a rendered schema. The focus and do-not-report blocks are the
-selected domain's, the web domain's by default, naming the high-value classes to
-hunt and the noise to skip, and the prompt asks for findings as a single JSON object."""
+selected domain's, the default domain's when a caller names none, naming the high-value
+classes to hunt and the noise to skip, and the prompt asks for findings as a single JSON object."""
 
 from __future__ import annotations
 
-from codejury.domains.web import WEB_DIFF_DO_NOT_REPORT, WEB_DIFF_FOCUS
+from codejury.domains.registry import default_domain
 
 SYSTEM = (
     "You are a senior application security engineer reviewing a code change. You "
@@ -14,9 +14,9 @@ SYSTEM = (
     "style notes or speculation. Respond with a single JSON object and nothing else."
 )
 
-# the web domain's blocks, the defaults a caller overrides with the selected domain's
-FOCUS = WEB_DIFF_FOCUS
-DO_NOT_REPORT = WEB_DIFF_DO_NOT_REPORT
+# the default domain's blocks, what a caller overrides with the selected domain's
+FOCUS = default_domain().diff_focus
+DO_NOT_REPORT = default_domain().diff_do_not_report
 
 _JSON_SHAPE = (
     '{"findings": [{"file": "path", "line": 0, "severity": "CRITICAL|HIGH|MEDIUM|LOW", '
