@@ -38,6 +38,7 @@ from codejury.providers.factory import (
     DEFAULT_FINDER_MODEL,
     DEFAULT_JUDGE_MODEL,
     DEFAULT_MODEL,
+    DEFAULT_PROVIDER,
     PROVIDERS,
     make_provider,
 )
@@ -154,7 +155,7 @@ def _add_audit_args(p) -> None:
                    help="drop findings whose file path contains this substring (repeatable)")
     p.add_argument("--mode", choices=("standard", "adversarial"), default="standard")
     p.add_argument("--rounds", type=int, default=3, help="adversarial only: debate rounds")
-    p.add_argument("--provider", choices=PROVIDERS, default="anthropic")
+    p.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
     p.add_argument("--model", default=DEFAULT_MODEL)
     p.add_argument("--finder-model", default=DEFAULT_FINDER_MODEL, help="adversarial only: finder role model (default: --model)")
     p.add_argument("--challenger-model", default=DEFAULT_CHALLENGER_MODEL, help="adversarial only: challenger role model")
@@ -183,18 +184,22 @@ def main(argv: list[str] | None = None) -> int:
                            "directory under XDG_STATE_HOME or ~/.local/state")
     repo.add_argument("--fresh", action="store_true",
                       help="clear a previous review's output in the workspace first")
-    repo.add_argument("--gate", action="store_true",
+    # the workspace modes are mutually exclusive, scaffold is the default when none is set.
+    # Passing two at once used to be resolved by a silent dispatch precedence, so --run
+    # --finalize quietly ran finalize and rewrote findings/, argparse now rejects it instead
+    mode = repo.add_mutually_exclusive_group()
+    mode.add_argument("--gate", action="store_true",
                       help="check the existing workspace against the Completeness Gate instead of scaffolding, "
                            "exit 0 if it passes, 1 if any item is unmet")
-    repo.add_argument("--run", action="store_true",
+    mode.add_argument("--run", action="store_true",
                       help="run the coded multi-pass engine over the repo, not just scaffold, "
                            "covers every unit each pass, cycles lenses, unions until convergence")
-    repo.add_argument("--finalize", action="store_true",
+    mode.add_argument("--finalize", action="store_true",
                       help="post-process an existing workspace's candidates in code: dedup, "
                            "adversarially verify, and write the ranked report, resumable")
     repo.add_argument("--dry-run", action="store_true",
                       help="run only: drive the engine with a mock provider and no key, to smoke-test the pipeline")
-    repo.add_argument("--provider", choices=PROVIDERS, default="anthropic")
+    repo.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
     repo.add_argument("--model", default=DEFAULT_MODEL)
     repo.add_argument("--api-base", default=DEFAULT_API_BASE)
     repo.add_argument("--api-key", default=DEFAULT_API_KEY)

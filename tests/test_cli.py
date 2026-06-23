@@ -178,11 +178,16 @@ def test_review_diff_empty_stdin_is_clean(monkeypatch, capsys):
     assert "no findings" in capsys.readouterr().out.lower()
 
 
-def test_repo_run_and_gate_flags_gate_takes_precedence(tmp_path):
+def test_repo_mode_flags_are_mutually_exclusive(tmp_path):
+    # --run, --finalize, and --gate are workspace modes, scaffold is the default. Passing two
+    # used to be resolved by a silent dispatch precedence, so --run --finalize quietly ran
+    # finalize and rewrote findings/. argparse now rejects the combination loudly.
     repo = _flask_repo(tmp_path / "svc")
     ws = tmp_path / "ws"
-    rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--gate", "--dry-run"])
-    assert rc == 1
+    for combo in (["--run", "--gate"], ["--run", "--finalize"], ["--finalize", "--gate"]):
+        with pytest.raises(SystemExit) as exc:
+            main(["review", "repo", str(repo), "--workspace", str(ws), *combo])
+        assert exc.value.code == 2          # argparse usage error, not a silent pick
     assert not (ws / "svc" / "findings.json").exists()
 
 

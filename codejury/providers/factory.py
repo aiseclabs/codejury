@@ -11,6 +11,9 @@ from codejury.providers.openai import OpenAIProvider
 from codejury.providers.retry import RetryProvider
 
 PROVIDERS = ("anthropic", "openai", "litellm")
+# the default provider, env-backed like the model and the checker provider, so the main
+# backend can be set once in the environment instead of named on every invocation
+DEFAULT_PROVIDER = os.environ.get("CODEJURY_PROVIDER", "anthropic")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-opus-4-8")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
