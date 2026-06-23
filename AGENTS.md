@@ -9,10 +9,10 @@ orchestration and agents or model calls provide per-unit judgment.
 
 ## Non-Negotiable Invariants
 
-1. **Knowledge is data, the engine is generic.** Security knowledge belongs in
-   `codejury/knowledge/` markdown and in prompts that reference it. Do not hardcode
-   language, framework, or vulnerability-specific detection logic in Python. Adding a
-   stack or vulnerability class should usually be a data change.
+1. **Knowledge is data, the engine is generic.** Security knowledge belongs in each
+   domain's `knowledge/` markdown under `codejury/domains/<domain>/` and in prompts that
+   reference it. Do not hardcode language, framework, or vulnerability-specific detection
+   logic in Python. Adding a stack or vulnerability class should usually be a data change.
 2. **Findings are real, evidenced, and scoped.** Report only exploitable,
    high-confidence issues with a concrete file location and exploit scenario. No
    location means not reportable. Prioritize high-impact classes such as business
@@ -34,6 +34,22 @@ orchestration and agents or model calls provide per-unit judgment.
 
 ## Architecture Map
 
+### Domains
+
+- A domain bundles one body of security knowledge under its own content root,
+  `codejury/domains/<name>/`, holding `knowledge/`, `playbook/`, and `detection.yaml`.
+- `domains/base.py` defines `Domain`, the `ContentPaths` layout resolver, and the
+  optional `FactsBackend` and `SourceLoader` seams. It imports nothing from `codejury`,
+  so leaf modules depend on it with no import cycle.
+- `domains/registry.py` is the one place that lists the domains. `web` is the default,
+  `evm` reviews Solidity smart contracts. `resolve_domain` maps a `--domain` choice or
+  `auto` detection to a `Domain`.
+- The engine reads knowledge, pass lenses, and the diff prompt blocks from the selected
+  domain, so a new domain is a content directory plus a registry entry, not an engine
+  change.
+- `codejury/resources.py` exposes the web domain's paths as the default constants the
+  Diff Review path reads when no domain is selected.
+
 ### Diff Review
 
 - Lives under `codejury/review/diff/`.
@@ -45,7 +61,7 @@ orchestration and agents or model calls provide per-unit judgment.
 
 ### Repo Review
 
-- Lives under `codejury/review/repo/` with playbook assets in `codejury/playbook/`.
+- Lives under `codejury/review/repo/` with playbook assets in each domain's `playbook/`.
 - `scaffold.py` builds the workspace, stack notes, candidate files, unit files, and
   methodology assets.
 - `model.py` builds a language-agnostic repository file map from data-driven detection
@@ -57,21 +73,24 @@ orchestration and agents or model calls provide per-unit judgment.
 
 ### Knowledge and Detection
 
-- Vulnerability classes live in `codejury/knowledge/vulnerabilities/`.
-- Language, framework, and protocol guides live in `codejury/knowledge/guides/`.
+- Vulnerability classes live in `codejury/domains/<domain>/knowledge/vulnerabilities/`.
+- Language, framework, and protocol guides live in
+  `codejury/domains/<domain>/knowledge/guides/`.
 - Framework guides belong under their language, for example
-  `knowledge/guides/frameworks/python/django.md`, and declare `language:` in
+  `domains/web/knowledge/guides/frameworks/python/django.md`, and declare `language:` in
   frontmatter.
-- Source extensions, manifests, noise directories, and test conventions live in
-  `codejury/detection.yaml`.
+- Source extensions, manifests, noise directories, and test conventions live in each
+  domain's `detection.yaml`, for example `codejury/domains/web/detection.yaml`.
+- The evm domain adds an optional `facts/` package, a Slither call-graph backend and a
+  Forge PoC seam, behind the `codejury[evm]` extra.
 
 ### Providers and Integrations
 
 - Providers live in `codejury/providers/`: Anthropic, OpenAI, LiteLLM, mock, and retry.
 - JSON extraction lives in `codejury/json_parse.py`.
 - The CLI entry point is `codejury.cli:main`.
-- `install-slash-command` copies `playbook/slash-command.md` into the selected agent's
-  command directory.
+- `install-slash-command` copies the selected domain's `playbook/slash-command.md` into
+  the selected agent's command directory.
 
 ## Agent Workflow
 
@@ -108,11 +127,12 @@ orchestration and agents or model calls provide per-unit judgment.
 
 ## Contributing Rules
 
-- Add a vulnerability class by adding `knowledge/vulnerabilities/<id>.md` with
-  frontmatter for title, impact, tags, and triggers, plus vulnerable and secure
-  examples.
-- Add a language, framework, or protocol guide under `knowledge/guides/` with detection
-  signals, entrypoint markers, logic-layer globs, and review guidance.
+- Add a vulnerability class by adding
+  `domains/<domain>/knowledge/vulnerabilities/<id>.md` with frontmatter for title,
+  impact, tags, and triggers, plus vulnerable and secure examples.
+- Add a language, framework, or protocol guide under
+  `domains/<domain>/knowledge/guides/` with detection signals, entrypoint markers,
+  logic-layer globs, and review guidance.
 - Add or update tests when behavior changes, especially for failure handling, parsing,
   filtering, gates, and report formats.
 - Release by bumping `pyproject.toml`, creating a GitHub Release `vX.Y.Z`, and relying

@@ -29,7 +29,7 @@ class AnthropicProvider(Provider):
         self._api_key = api_key
         self._base_url = base_url
         self._client = client
-        # determinism: temperature 0 so the same input yields the same verdicts, invariant 2
+        # determinism: temperature 0 so the same input yields the same verdicts
         self._temperature = temperature
         # per-request deadline: a hung or rate-limit-stalled call returns to the retry layer
         # to back off, instead of holding the slot until a far longer ceiling

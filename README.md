@@ -20,8 +20,10 @@ The tool has two review paths:
   candidates, verifies findings, and checks coverage with a gate.
 
 Security knowledge is data. Vulnerability classes, language guides, framework guides, and
-protocol guides live in markdown under `codejury/knowledge/`, so adding a stack or class is
-usually a data change rather than a Python code change.
+protocol guides live in markdown under each review domain's `knowledge/` directory, for
+example `codejury/domains/web/knowledge/`, so adding a stack or class is usually a data
+change rather than a Python code change. The `web` domain is the default and `evm` reviews
+Solidity smart contracts, selected with `--domain` or detected automatically.
 
 ## Install
 
@@ -183,13 +185,19 @@ and verification through local Claude CLI access.
 
 ## Supported Knowledge
 
-Current guide coverage includes:
+The tool selects a review domain with `--domain`, `auto` by default. The `web` domain is
+the default for application code. The `evm` domain reviews Solidity smart contracts for
+classes such as reentrancy, access control, oracle manipulation, accounting precision, and
+signature replay.
+
+Current guide coverage in the web domain includes:
 
 - Python: Django, Flask, FastAPI, Celery
 - Go: Gin, Echo
 - JavaScript and TypeScript: Express, NestJS
 - Protocols: OAuth and OIDC
 
+The evm domain ships a Solidity guide and the smart contract vulnerability classes above.
 Unguided stacks still work, but the agent relies more on general methodology and model
 knowledge.
 
@@ -233,13 +241,13 @@ uploads SARIF to code scanning, and fails on HIGH or CRITICAL findings.
 Add security knowledge as markdown:
 
 - Vulnerability class:
-  `codejury/knowledge/vulnerabilities/<id>.md`
+  `codejury/domains/<domain>/knowledge/vulnerabilities/<id>.md`
 - Language guide:
-  `codejury/knowledge/guides/languages/<language>.md`
+  `codejury/domains/<domain>/knowledge/guides/languages/<language>.md`
 - Framework guide:
-  `codejury/knowledge/guides/frameworks/<language>/<framework>.md`
+  `codejury/domains/<domain>/knowledge/guides/frameworks/<language>/<framework>.md`
 - Protocol guide:
-  `codejury/knowledge/guides/protocols/<protocol>.md`
+  `codejury/domains/<domain>/knowledge/guides/protocols/<protocol>.md`
 
 Keep frontmatter and detection signals data-driven. Avoid adding language, framework, or
 vulnerability-specific detection logic to Python unless the engine itself needs a generic
