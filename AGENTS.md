@@ -123,7 +123,7 @@ orchestration and agents or model calls provide per-unit judgment.
 - Install slash command:
   `codejury install-slash-command --agent claude|codex`
 - Provider configuration comes from flags or environment, not an auto-loaded `.env`:
-  `CODEJURY_API_BASE`, `CODEJURY_API_KEY`, `CODEJURY_MODEL`
+  `CODEJURY_MODEL`, `CODEJURY_API_KEY`, `CODEJURY_API_BASE`
 
 ## Contributing Rules
 

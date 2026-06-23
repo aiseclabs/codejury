@@ -15,8 +15,8 @@ PROVIDERS = ("anthropic", "openai", "litellm")
 # backend can be set once in the environment instead of named on every invocation
 DEFAULT_PROVIDER = os.environ.get("CODEJURY_PROVIDER", "anthropic")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-opus-4-8")
-DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
+DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 # retry attempts on a transient failure, env-backed like the rest of the backend config so
 # CI can set it once, symmetric with the timeout knobs that were already env-only
 DEFAULT_RETRIES = int(os.environ.get("CODEJURY_RETRIES", "2"))
@@ -32,8 +32,8 @@ DEFAULT_JUDGE_MODEL = os.environ.get("CODEJURY_JUDGE_MODEL")
 # is refuted, the recall-safe default.
 DEFAULT_SECONDARY_PROVIDER = os.environ.get("CODEJURY_SECONDARY_PROVIDER", "openai")
 DEFAULT_SECONDARY_MODEL = os.environ.get("CODEJURY_SECONDARY_MODEL")
-DEFAULT_SECONDARY_API_BASE = os.environ.get("CODEJURY_SECONDARY_API_BASE")
 DEFAULT_SECONDARY_API_KEY = os.environ.get("CODEJURY_SECONDARY_API_KEY")
+DEFAULT_SECONDARY_API_BASE = os.environ.get("CODEJURY_SECONDARY_API_BASE")
 # the gpt-5 reasoning models speak the Responses API rather than Chat Completions
 DEFAULT_SECONDARY_WIRE_API = os.environ.get("CODEJURY_SECONDARY_WIRE_API", "responses")
 # per-request deadline in seconds. Short enough that a hung or stalled call returns to the

@@ -150,8 +150,8 @@ def _add_backend_args(target) -> None:
     a default. `target` is a parser or an argument group, both expose add_argument."""
     target.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
     target.add_argument("--model", default=DEFAULT_MODEL)
-    target.add_argument("--api-base", default=DEFAULT_API_BASE)
     target.add_argument("--api-key", default=DEFAULT_API_KEY)
+    target.add_argument("--api-base", default=DEFAULT_API_BASE)
     target.add_argument("--retries", type=int, default=DEFAULT_RETRIES,
                         help="provider retry attempts on transient failure")
 
@@ -230,10 +230,10 @@ def main(argv: list[str] | None = None) -> int:
     secondary.add_argument("--secondary-provider", choices=PROVIDERS,
                            default=DEFAULT_SECONDARY_PROVIDER, dest="secondary_provider")
     secondary.add_argument("--secondary-model", default=DEFAULT_SECONDARY_MODEL, dest="secondary_model")
-    secondary.add_argument("--secondary-api-base", default=DEFAULT_SECONDARY_API_BASE,
-                           dest="secondary_api_base")
     secondary.add_argument("--secondary-api-key", default=DEFAULT_SECONDARY_API_KEY,
                            dest="secondary_api_key")
+    secondary.add_argument("--secondary-api-base", default=DEFAULT_SECONDARY_API_BASE,
+                           dest="secondary_api_base")
     secondary.add_argument("--secondary-wire-api", default=DEFAULT_SECONDARY_WIRE_API,
                            dest="secondary_wire_api", choices=("chat", "responses"),
                            help="openai secondary-model wire API, responses for the gpt-5 reasoning models")
