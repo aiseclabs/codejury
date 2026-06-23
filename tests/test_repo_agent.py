@@ -11,7 +11,7 @@ from codejury.review.repo.agent import (
     _envelope_error,
     _result_text,
 )
-from codejury.review.repo.reviewer import Unit
+from codejury.review.repo.shapes import Unit
 from codejury.review.repo.engine import run_repo_review
 from codejury.review.repo.union import Candidate
 

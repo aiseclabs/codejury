@@ -16,7 +16,8 @@ from dataclasses import replace
 from typing import Callable
 
 from codejury.domains.web import WEB_LENSES
-from codejury.review.repo.reviewer import Unit, UnitReviewer
+from codejury.review.repo.reviewer import UnitReviewer
+from codejury.review.repo.shapes import Unit
 from codejury.review.repo.union import Accumulator
 
 # the generic default rotation, the web domain's lenses, used when a caller names none.

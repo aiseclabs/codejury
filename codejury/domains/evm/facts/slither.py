@@ -14,7 +14,7 @@ from importlib.util import find_spec
 from pathlib import Path
 
 from codejury.domains.base import BackendUnavailable, Facts, FactsBackend
-from codejury.domains.evm.facts.packing import call_path_units
+from codejury.domains.evm.facts.call_path import call_path_units
 
 _INSTALL_HINT = (
     "Slither is not installed. The evm facts backend needs the optional dependency and a "

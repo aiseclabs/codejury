@@ -1,10 +1,119 @@
-"""The unit reviewer output contract, shared by both Repo Review backends, the model
-reviewer in `reviewer.py` and the claude-cli agent reviewer in `agent.py`. It lives in its
-own module so neither backend reaches into the other for it, the shape is one contract both
-emit and parse.
+"""Shared shapes and contracts for both Repo Review backends, the model reviewer in
+`reviewer.py` and the claude-cli agent reviewer in `agent.py`.
+
+`Unit` is the worklist item both backends review. `gather` reads a unit's code into one
+bounded block, and `visible_ranges` reports which char ranges that block shows, the input
+the focused packer needs to pull only what a slice omits. `JSON_SHAPE` and `lens_line` are
+the output contract both backends emit and parse. These live here so neither backend reaches
+into the other for a shared shape, and so the core `Unit` type does not sit inside one
+backend's module.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
+
+from codejury.review.repo.paths import safe_repo_path
+
+_GATHER_PER_FILE = 24_000
+_GATHER_TOTAL = 120_000
+
+
+@dataclass(frozen=True, kw_only=True)
+class Unit:
+    """One unit of the worklist: the files it owns plus the files it traces into. `span`,
+    when set, is the char window of the first owned file this unit reviews, so a file too
+    large for one call is split across sibling units instead of being silently truncated.
+    `fragments`, when set, are `(file, start, end)` source slices this unit reviews instead
+    of whole files, so a call-path unit co-locates a function and its call-graph neighborhood
+    rather than a char window. `files` still names the source files for facts grounding and
+    coverage bookkeeping."""
+    name: str
+    root: str
+    files: tuple[str, ...]
+    span: tuple[int, int] | None = None
+    fragments: tuple[tuple[str, int, int], ...] = ()
+
+
+def _gather_fragments(unit: Unit) -> str:
+    """Assemble a call-path unit from its source fragments, the function bodies the packer
+    co-located, so the model sees the path in one focused window. Each fragment is labeled
+    with its file and char range, the same header form a block of a whole file uses."""
+    parts: list[str] = []
+    total = 0
+    for rel, start, end in unit.fragments:
+        path = safe_repo_path(unit.root, rel)
+        if path is None:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        seg = text[start:end]
+        block = f"# file: {rel} chars {start}-{end}\n{seg}"
+        parts.append(block)
+        total += len(block)
+        if total >= _GATHER_TOTAL:
+            break
+    return "\n\n".join(parts)
+
+
+def visible_ranges(unit: Unit) -> tuple[tuple[str, int, int], ...]:
+    """The char ranges of each file `gather` shows this unit, so the packer pulls only the
+    code the unit omits, a same-file function in another slice or a cross-file callee. Mirrors
+    `gather`: fragments as themselves, the first file's span or whole body, later files at
+    their head."""
+    if unit.fragments:
+        return unit.fragments
+    ranges: list[tuple[str, int, int]] = []
+    for i, rel in enumerate(unit.files):
+        path = safe_repo_path(unit.root, rel)
+        if path is None:
+            continue
+        try:
+            n = len(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError):
+            continue
+        if i == 0 and unit.span is not None:
+            ranges.append((rel, unit.span[0], unit.span[1]))
+        elif i == 0:
+            ranges.append((rel, 0, n))
+        else:
+            ranges.append((rel, 0, min(n, _GATHER_PER_FILE)))
+    return tuple(ranges)
+
+
+def gather(unit: Unit) -> str:
+    """Pack the unit's files into one bounded block, so a single call can trace
+    across them without live file access. Unreadable or oversized files are skipped."""
+    if unit.fragments:
+        return _gather_fragments(unit)
+    parts: list[str] = []
+    total = 0
+    for i, rel in enumerate(unit.files):
+        path = safe_repo_path(unit.root, rel)
+        if path is None:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if i == 0 and unit.span is not None:
+            # this unit owns one char window of a file too large for a single call, so it
+            # reviews just that slice and sibling units cover the rest, no silent truncation
+            start, end = unit.span
+            header = f"# file: {rel} chars {start}-{end}"
+            text = text[start:end]
+        else:
+            header = f"# file: {rel}"
+            text = text[:_GATHER_PER_FILE]
+        block = f"{header}\n{text}"
+        parts.append(block)
+        total += len(block)
+        if total >= _GATHER_TOTAL:
+            break
+    return "\n\n".join(parts)
+
 
 JSON_SHAPE = (
     '{"findings": [{"title": "...", "category": "<class id>", '

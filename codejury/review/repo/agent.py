@@ -28,11 +28,10 @@ from codejury.json_parse import optional_json_object, require_json_object
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE, SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.reviewer import (
     RepoReviewError,
-    Unit,
     UnitReviewer,
     candidates_from_obj,
 )
-from codejury.review.repo.shapes import JSON_SHAPE, lens_line
+from codejury.review.repo.shapes import JSON_SHAPE, Unit, lens_line
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import Verdict, Verifier
 

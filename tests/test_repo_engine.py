@@ -8,7 +8,8 @@ import pytest
 
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.gate import check_gate
-from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer, _gather
+from codejury.review.repo.reviewer import ModelReviewer, UnitReviewer
+from codejury.review.repo.shapes import Unit, gather
 from codejury.review.repo.engine import _parse_candidate, _spans, build_units, finalize_repo_review, run_repo_review
 from codejury.review.repo.scaffold import unit_slug
 from codejury.review.repo.union import Candidate
@@ -92,7 +93,7 @@ def test_gather_assembles_call_path_fragments(tmp_path):
     (tmp_path / "V.sol").write_text("AAAA" + "B" * 100 + "CCCC_TWO" + "D" * 50)
     u = Unit(name="cp", root=str(tmp_path), files=("V.sol",),
              fragments=(("V.sol", 0, 4), ("V.sol", 104, 112)))
-    g = _gather(u)
+    g = gather(u)
     assert "AAAA" in g and "CCCC_TWO" in g
     assert "B" * 100 not in g            # the gap between fragments is not pulled in
     assert "chars 0-4" in g
@@ -163,7 +164,7 @@ def test_build_units_keeps_a_small_file_whole(tmp_path):
 
 def test_gather_reads_only_the_span_window_of_a_chunked_unit(tmp_path):
     (tmp_path / "big.py").write_text("AAAA" + "B" * 30_000 + "ZZZZ")
-    tail = _gather(Unit(name="big.py#2", root=str(tmp_path), files=("big.py",), span=(30_000, 30_008)))
+    tail = gather(Unit(name="big.py#2", root=str(tmp_path), files=("big.py",), span=(30_000, 30_008)))
     assert "ZZZZ" in tail and "AAAA" not in tail
 
 

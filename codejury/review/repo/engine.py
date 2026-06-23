@@ -28,8 +28,9 @@ from codejury.review.diff.vulnerabilities import canonical_category, category_al
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.agentic import AgenticReviewer
 from codejury.review.repo.pass_loop import run_passes
-from codejury.review.repo.reviewer import ModelReviewer, Unit, UnitReviewer
+from codejury.review.repo.reviewer import ModelReviewer, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
+from codejury.review.repo.shapes import Unit
 from codejury.review.repo.severity import median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
 from codejury.review.repo.verifier import (

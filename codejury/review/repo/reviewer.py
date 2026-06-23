@@ -16,15 +16,14 @@ language, the unit's files come from the data-driven worklist.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 
 from codejury.domains.base import ContentPaths
 from codejury.json_parse import require_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo.packing import pack_context
-from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
-from codejury.review.repo.shapes import JSON_SHAPE, lens_line
+from codejury.review.repo.paths import is_unsafe_rel
+from codejury.review.repo.shapes import JSON_SHAPE, Unit, gather, lens_line, visible_ranges
 from codejury.review.repo.union import Candidate
 
 
@@ -35,30 +34,11 @@ class RepoReviewError(RuntimeError):
     reply such as a refusal or an error page as a clean unit."""
 
 
-_GATHER_PER_FILE = 24_000
-_GATHER_TOTAL = 120_000
-
 # a cap on the per-unit facts block, so a unit owning many files still leads with code, not
 # a flood of facts. Per-unit facts are already scoped to the unit's files, so this is a
 # guard against a unit that owns many files, set above the largest single contract's facts
 # so a unit of one file is never truncated, not the head truncation a global dump needs
 _FACTS_PER_UNIT = 16_000
-
-
-@dataclass(frozen=True, kw_only=True)
-class Unit:
-    """One unit of the worklist: the files it owns plus the files it traces into. `span`,
-    when set, is the char window of the first owned file this unit reviews, so a file too
-    large for one call is split across sibling units instead of being silently truncated.
-    `fragments`, when set, are `(file, start, end)` source slices this unit reviews instead
-    of whole files, so a call-path unit co-locates a function and its call-graph neighborhood
-    rather than a char window. `files` still names the source files for facts grounding and
-    coverage bookkeeping."""
-    name: str
-    root: str
-    files: tuple[str, ...]
-    span: tuple[int, int] | None = None
-    fragments: tuple[tuple[str, int, int], ...] = ()
 
 
 def candidates_from_obj(obj: object) -> list[Candidate]:
@@ -94,86 +74,6 @@ class UnitReviewer(ABC):
     @abstractmethod
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
         """Deeply review one unit through one lens, return its candidate findings."""
-
-
-def _gather_fragments(unit: Unit) -> str:
-    """Assemble a call-path unit from its source fragments, the function bodies the packer
-    co-located, so the model sees the path in one focused window. Each fragment is labeled
-    with its file and char range, the same header form a block of a whole file uses."""
-    parts: list[str] = []
-    total = 0
-    for rel, start, end in unit.fragments:
-        path = safe_repo_path(unit.root, rel)
-        if path is None:
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        seg = text[start:end]
-        block = f"# file: {rel} chars {start}-{end}\n{seg}"
-        parts.append(block)
-        total += len(block)
-        if total >= _GATHER_TOTAL:
-            break
-    return "\n\n".join(parts)
-
-
-def _visible_ranges(unit: Unit) -> tuple[tuple[str, int, int], ...]:
-    """The char ranges of each file `_gather` shows this unit, so the packer pulls only the
-    code the unit omits, a same-file function in another slice or a cross-file callee. Mirrors
-    `_gather`: fragments as themselves, the first file's span or whole body, later files at
-    their head."""
-    if unit.fragments:
-        return unit.fragments
-    ranges: list[tuple[str, int, int]] = []
-    for i, rel in enumerate(unit.files):
-        path = safe_repo_path(unit.root, rel)
-        if path is None:
-            continue
-        try:
-            n = len(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError):
-            continue
-        if i == 0 and unit.span is not None:
-            ranges.append((rel, unit.span[0], unit.span[1]))
-        elif i == 0:
-            ranges.append((rel, 0, n))
-        else:
-            ranges.append((rel, 0, min(n, _GATHER_PER_FILE)))
-    return tuple(ranges)
-
-
-def _gather(unit: Unit) -> str:
-    """Pack the unit's files into one bounded block, so a single call can trace
-    across them without live file access. Unreadable or oversized files are skipped."""
-    if unit.fragments:
-        return _gather_fragments(unit)
-    parts: list[str] = []
-    total = 0
-    for i, rel in enumerate(unit.files):
-        path = safe_repo_path(unit.root, rel)
-        if path is None:
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        if i == 0 and unit.span is not None:
-            # this unit owns one char window of a file too large for a single call, so it
-            # reviews just that slice and sibling units cover the rest, no silent truncation
-            start, end = unit.span
-            header = f"# file: {rel} chars {start}-{end}"
-            text = text[start:end]
-        else:
-            header = f"# file: {rel}"
-            text = text[:_GATHER_PER_FILE]
-        block = f"{header}\n{text}"
-        parts.append(block)
-        total += len(block)
-        if total >= _GATHER_TOTAL:
-            break
-    return "\n\n".join(parts)
 
 
 _SYSTEM = (
@@ -233,14 +133,14 @@ class ModelReviewer(UnitReviewer):
 
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
         unit_facts = self._facts_for(unit)
-        packed = pack_context(unit.root, unit.files, _visible_ranges(unit)) if self._pack else ""
+        packed = pack_context(unit.root, unit.files, visible_ranges(unit)) if self._pack else ""
         prompt = (
             f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
             f"{lens_line(lens)}"
             + (f"Stack and authorization model:\n{shared_context}\n\n" if shared_context else "")
             + (f"Contract facts for this unit, tool-extracted, the call graph and storage "
                f"the slice below may not show in full:\n{unit_facts}\n\n" if unit_facts else "")
-            + f"Unit `{unit.name}`, the code to review:\n```\n{_gather(unit)}\n```\n\n"
+            + f"Unit `{unit.name}`, the code to review:\n```\n{gather(unit)}\n```\n\n"
             + (f"Called and inherited code this unit reaches, pulled so you can judge the full "
                f"path in one place:\n```\n{packed}\n```\n\n" if packed else "")
             + f"Respond with a single JSON object exactly like:\n{JSON_SHAPE}"

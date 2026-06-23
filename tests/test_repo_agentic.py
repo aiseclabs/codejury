@@ -6,7 +6,8 @@ import pytest
 from codejury.domains.evm import EVM
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.agentic import AgenticReviewer
-from codejury.review.repo.reviewer import RepoReviewError, Unit
+from codejury.review.repo.reviewer import RepoReviewError
+from codejury.review.repo.shapes import Unit
 
 
 def _unit(tmp_path):

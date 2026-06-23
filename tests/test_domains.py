@@ -169,7 +169,7 @@ def _fn(rng, **flags):
 
 
 def test_call_path_units_anchor_on_risk_functions_with_neighborhood():
-    from codejury.domains.evm.facts.packing import call_path_units
+    from codejury.domains.evm.facts.call_path import call_path_units
 
     contracts = {
         "Vault": {"file": "src/Vault.sol", "state": [], "functions": {
@@ -192,7 +192,7 @@ def test_call_path_units_anchor_on_risk_functions_with_neighborhood():
 
 
 def test_call_path_units_skip_no_range_and_respect_the_char_cap():
-    from codejury.domains.evm.facts.packing import _UNIT_CHAR_CAP, call_path_units
+    from codejury.domains.evm.facts.call_path import _UNIT_CHAR_CAP, call_path_units
 
     contracts = {
         "C": {"file": "a.sol", "state": [], "functions": {

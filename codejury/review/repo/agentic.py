@@ -23,12 +23,10 @@ from codejury.resources import SEVERITY_RUBRIC_FILE, UNIT_REVIEW_FILE
 from codejury.review.repo import navigation
 from codejury.review.repo.reviewer import (
     RepoReviewError,
-    Unit,
     UnitReviewer,
-    _gather,
     candidates_from_obj,
 )
-from codejury.review.repo.shapes import JSON_SHAPE, lens_line
+from codejury.review.repo.shapes import JSON_SHAPE, Unit, gather, lens_line
 from codejury.review.repo.union import Candidate
 
 _SYSTEM = (
@@ -97,7 +95,7 @@ class AgenticReviewer(UnitReviewer):
             f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
             f"{lens_line(lens)}"
             + (f"Stack and authorization model:\n{shared_context}\n\n" if shared_context else "")
-            + f"Unit `{unit.name}`, the code to start from:\n```\n{_gather(unit)}\n```\n\n"
+            + f"Unit `{unit.name}`, the code to start from:\n```\n{gather(unit)}\n```\n\n"
             f"{_PROTOCOL}"
         )
         messages = [Message(role="user", content=prompt)]

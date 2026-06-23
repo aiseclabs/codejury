@@ -9,7 +9,8 @@ import pytest
 
 from codejury.providers.mock import MockProvider
 from codejury.review.repo.pass_loop import run_passes
-from codejury.review.repo.reviewer import ModelReviewer, RepoReviewError, Unit, UnitReviewer, candidates_from_obj
+from codejury.review.repo.reviewer import ModelReviewer, RepoReviewError, UnitReviewer, candidates_from_obj
+from codejury.review.repo.shapes import Unit
 from codejury.review.repo.union import Candidate
 
 _U = [Unit(name="u", root=".", files=())]
