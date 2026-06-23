@@ -30,16 +30,16 @@ from codejury.providers.factory import (
     DEFAULT_API_BASE,
     DEFAULT_API_KEY,
     DEFAULT_CHALLENGER_MODEL,
-    DEFAULT_CHECKER_API_BASE,
-    DEFAULT_CHECKER_API_KEY,
-    DEFAULT_CHECKER_MODEL,
-    DEFAULT_CHECKER_PROVIDER,
-    DEFAULT_CHECKER_WIRE_API,
     DEFAULT_FINDER_MODEL,
     DEFAULT_JUDGE_MODEL,
     DEFAULT_MODEL,
     DEFAULT_PROVIDER,
     DEFAULT_RETRIES,
+    DEFAULT_SECONDARY_API_BASE,
+    DEFAULT_SECONDARY_API_KEY,
+    DEFAULT_SECONDARY_MODEL,
+    DEFAULT_SECONDARY_PROVIDER,
+    DEFAULT_SECONDARY_WIRE_API,
     PROVIDERS,
     make_provider,
 )
@@ -111,37 +111,37 @@ _REPO_MOCK_REPLY = (
 )
 
 
-def _checker_backend(args):
-    """The checker's provider and model, or (None, None) when no checker model is configured.
+def _secondary_backend(args):
+    """The secondary model's provider and model, or (None, None) when none is configured.
     One backend serves two roles: it confirms refutations on the delete side and finds
     alongside the main model on the recall side, so a single different model lifts recall and
     guards deletion at once."""
-    if args.dry_run or not args.checker_model:
+    if args.dry_run or not args.secondary_model:
         return None, None
-    provider = make_provider(args.checker_provider, api_key=args.checker_api_key,
-                             api_base=args.checker_api_base, retries=args.retries,
-                             wire_api=args.checker_wire_api)
-    return provider, args.checker_model
+    provider = make_provider(args.secondary_provider, api_key=args.secondary_api_key,
+                             api_base=args.secondary_api_base, retries=args.retries,
+                             wire_api=args.secondary_wire_api)
+    return provider, args.secondary_model
 
 
 def _build_checker(args):
-    """The refutation checker, a DIFFERENT model from the skeptic, or None when no checker
-    model is configured. A deletion needs this second model to confirm a refutation, so a
-    same-model second read cannot rubber-stamp a wrong refutation and drop a real finding. With
-    no checker model set, nothing is refuted, the recall-safe default."""
-    provider, model = _checker_backend(args)
+    """The refutation checker, built from the secondary model, or None when none is configured.
+    A deletion needs this second model to confirm a refutation, so a same-model second read
+    cannot rubber-stamp a wrong refutation and drop a real finding. With no secondary model set,
+    nothing is refuted, the recall-safe default."""
+    provider, model = _secondary_backend(args)
     if provider is None:
         return None
     from codejury.review.repo.verifier import ModelRefutationChecker
     return ModelRefutationChecker(provider=provider, model=model)
 
 
-def _warn_no_checker(args) -> None:
-    """Tell the operator a verify run with no checker drops nothing, so they can wire a second
-    model to enable deletion instead of reading a noisy keep-everything report as filtered."""
-    if args.verify and not args.dry_run and not args.checker_model:
-        print("NOTE: no --checker-model set, so the verify stage refutes nothing and keeps every "
-              "candidate. Set a different model via --checker-model or CODEJURY_CHECKER_MODEL so a "
+def _warn_no_secondary(args) -> None:
+    """Tell the operator a verify run with no secondary model drops nothing, so they can wire a
+    second model to enable deletion instead of reading a noisy keep-everything report as filtered."""
+    if args.verify and not args.dry_run and not args.secondary_model:
+        print("NOTE: no --secondary-model set, so the verify stage refutes nothing and keeps every "
+              "candidate. Set a different model via --secondary-model or CODEJURY_SECONDARY_MODEL so a "
               "deletion is confirmed by a second model.", file=sys.stderr)
 
 
@@ -221,19 +221,22 @@ def main(argv: list[str] | None = None) -> int:
                                "the EVM slither backend. Off by default since extraction is heavy, "
                                "the result is cached by source content hash so a re-run is free")
 
-    checker = repo.add_argument_group(
-        "checker model (advanced)",
-        "a DIFFERENT model from --model that must confirm a refutation before any finding is "
-        "dropped, so a deletion needs two uncorrelated reads to agree. With none set, no finding "
-        "is refuted, the recall-safe default. Usually set through CODEJURY_CHECKER_* instead")
-    checker.add_argument("--checker-provider", choices=PROVIDERS, default=DEFAULT_CHECKER_PROVIDER,
-                         dest="checker_provider")
-    checker.add_argument("--checker-model", default=DEFAULT_CHECKER_MODEL, dest="checker_model")
-    checker.add_argument("--checker-api-base", default=DEFAULT_CHECKER_API_BASE, dest="checker_api_base")
-    checker.add_argument("--checker-api-key", default=DEFAULT_CHECKER_API_KEY, dest="checker_api_key")
-    checker.add_argument("--checker-wire-api", default=DEFAULT_CHECKER_WIRE_API, dest="checker_wire_api",
-                         choices=("chat", "responses"),
-                         help="openai checker wire API, responses for the gpt-5 reasoning models")
+    secondary = repo.add_argument_group(
+        "secondary model (advanced)",
+        "a DIFFERENT model from --model that finds alongside it for recall and must confirm a "
+        "refutation before any finding is dropped, so a deletion needs two uncorrelated reads to "
+        "agree. With none set, no finding is refuted, the recall-safe default. Usually set through "
+        "CODEJURY_SECONDARY_* instead")
+    secondary.add_argument("--secondary-provider", choices=PROVIDERS,
+                           default=DEFAULT_SECONDARY_PROVIDER, dest="secondary_provider")
+    secondary.add_argument("--secondary-model", default=DEFAULT_SECONDARY_MODEL, dest="secondary_model")
+    secondary.add_argument("--secondary-api-base", default=DEFAULT_SECONDARY_API_BASE,
+                           dest="secondary_api_base")
+    secondary.add_argument("--secondary-api-key", default=DEFAULT_SECONDARY_API_KEY,
+                           dest="secondary_api_key")
+    secondary.add_argument("--secondary-wire-api", default=DEFAULT_SECONDARY_WIRE_API,
+                           dest="secondary_wire_api", choices=("chat", "responses"),
+                           help="openai secondary-model wire API, responses for the gpt-5 reasoning models")
 
     tuning = repo.add_argument_group("run tuning (advanced)", "only affect --run, sane defaults otherwise")
     tuning.add_argument("--max-passes", type=int, default=24, dest="max_passes",
@@ -322,7 +325,7 @@ def _dispatch(args, parser) -> int:
         else:
             verifier_obj = None
             provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
-        _warn_no_checker(args)
+        _warn_no_secondary(args)
         print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
         fr = finalize_repo_review(
             args.directory, args.workspace, verifier=verifier_obj, checker=_build_checker(args),
@@ -358,17 +361,17 @@ def _dispatch(args, parser) -> int:
         def _progress(p, lens, new, total):
             print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
 
-        _warn_no_checker(args)
+        _warn_no_secondary(args)
         # one different-model backend, reused for both roles: it finds alongside the main model
         # (recall side, union) and confirms refutations (delete side), so a single second model
         # lifts the recall ceiling and guards deletion at once.
-        checker_provider, checker_model = _checker_backend(args)
+        secondary_provider, secondary_model = _secondary_backend(args)
         checker_obj = None
         extra_finder_backends: tuple = ()
-        if checker_provider is not None:
+        if secondary_provider is not None:
             from codejury.review.repo.verifier import ModelRefutationChecker
-            checker_obj = ModelRefutationChecker(provider=checker_provider, model=checker_model)
-            extra_finder_backends = ((checker_provider, checker_model),)
+            checker_obj = ModelRefutationChecker(provider=secondary_provider, model=secondary_model)
+            extra_finder_backends = ((secondary_provider, secondary_model),)
         print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
         res = run_repo_review(
             args.directory, args.workspace, provider=provider, model=args.model,

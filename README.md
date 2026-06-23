@@ -55,19 +55,19 @@ export CODEJURY_MODEL=claude-opus-4-8
 export CODEJURY_API_BASE=...   # optional gateway or proxy
 ```
 
-Repo Review uses a second, deliberately different model for two roles at once. On the recall
-side it finds alongside the main model, so the union takes whatever either catches and a
-single model's blind spot no longer caps recall. On the precision side it must agree before a
-candidate is refuted, so a deletion needs two models with uncorrelated blind spots and no lone
-skeptic drops a real finding. Point it at a cross-vendor model. With none set, both models
-collapse to one, the finder is single-model and the verify stage keeps every candidate, the
-recall-safe default.
+Repo Review uses a second, deliberately different model, the secondary model, for two roles at
+once. On the recall side it finds alongside the main model, so the union takes whatever either
+catches and a single model's blind spot no longer caps recall. On the precision side it must
+agree before a candidate is refuted, so a deletion needs two models with uncorrelated blind
+spots and no lone skeptic drops a real finding. Point it at a cross-vendor model. With none set,
+both models collapse to one, the finder is single-model and the verify stage keeps every
+candidate, the recall-safe default.
 
 ```bash
-export CODEJURY_CHECKER_PROVIDER=openai   # default
-export CODEJURY_CHECKER_MODEL=...         # a different model from CODEJURY_MODEL
-export CODEJURY_CHECKER_API_KEY=...
-export CODEJURY_CHECKER_API_BASE=...      # optional
+export CODEJURY_SECONDARY_PROVIDER=openai   # default
+export CODEJURY_SECONDARY_MODEL=...         # a different model from CODEJURY_MODEL
+export CODEJURY_SECONDARY_API_KEY=...
+export CODEJURY_SECONDARY_API_BASE=...      # optional
 ```
 
 The tool does not auto-load `.env`.
@@ -195,7 +195,7 @@ A `--run` chooses how each unit is reviewed:
   access and no provider key. Use it when you want a tool-using agent rather than a single
   grounded call.
 
-Add `--checker-model`, a different model from `--model`, to enable cross-model
+Add `--secondary-model`, a different model from `--model`, to enable cross-model
 verification. It finds alongside the main model on the recall side and must agree before a
 finding is dropped on the precision side. With none set, the verify stage refutes nothing,
 the recall-safe default.

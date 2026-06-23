@@ -24,17 +24,18 @@ DEFAULT_FINDER_MODEL = os.environ.get("CODEJURY_FINDER_MODEL")
 DEFAULT_CHALLENGER_MODEL = os.environ.get("CODEJURY_CHALLENGER_MODEL")
 DEFAULT_JUDGE_MODEL = os.environ.get("CODEJURY_JUDGE_MODEL")
 
-# The repo-review refutation checker, a deliberately DIFFERENT model from the skeptic, so a
-# deletion needs two models with uncorrelated blind spots to agree. A same-model second read
-# shares the skeptic's blind spot and rubber-stamps a wrong refutation. Defaults to an OpenAI
-# model so the second opinion is cross-vendor. With no checker model set, no finding is
-# refuted, the recall-safe default.
-DEFAULT_CHECKER_PROVIDER = os.environ.get("CODEJURY_CHECKER_PROVIDER", "openai")
-DEFAULT_CHECKER_MODEL = os.environ.get("CODEJURY_CHECKER_MODEL")
-DEFAULT_CHECKER_API_BASE = os.environ.get("CODEJURY_CHECKER_API_BASE")
-DEFAULT_CHECKER_API_KEY = os.environ.get("CODEJURY_CHECKER_API_KEY")
+# The secondary model, a deliberately DIFFERENT model from the primary one that serves two
+# roles at once. On the recall side it finds alongside the primary model, so the union takes
+# whatever either catches. On the precision side it must confirm a refutation before any
+# finding is dropped, so a deletion needs two models with uncorrelated blind spots to agree.
+# Defaults to an OpenAI model so the second opinion is cross-vendor. With none set, no finding
+# is refuted, the recall-safe default.
+DEFAULT_SECONDARY_PROVIDER = os.environ.get("CODEJURY_SECONDARY_PROVIDER", "openai")
+DEFAULT_SECONDARY_MODEL = os.environ.get("CODEJURY_SECONDARY_MODEL")
+DEFAULT_SECONDARY_API_BASE = os.environ.get("CODEJURY_SECONDARY_API_BASE")
+DEFAULT_SECONDARY_API_KEY = os.environ.get("CODEJURY_SECONDARY_API_KEY")
 # the gpt-5 reasoning models speak the Responses API rather than Chat Completions
-DEFAULT_CHECKER_WIRE_API = os.environ.get("CODEJURY_CHECKER_WIRE_API", "responses")
+DEFAULT_SECONDARY_WIRE_API = os.environ.get("CODEJURY_SECONDARY_WIRE_API", "responses")
 # per-request deadline in seconds. Short enough that a hung or stalled call returns to the
 # retry layer to back off rather than holding a worker until a far longer ceiling.
 DEFAULT_TIMEOUT = float(os.environ.get("CODEJURY_TIMEOUT", "240"))

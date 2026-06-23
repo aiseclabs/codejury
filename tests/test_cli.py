@@ -200,25 +200,25 @@ def test_repo_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
     assert rc == 1
 
 
-def test_build_checker_is_none_without_a_checker_model():
-    # no checker model configured means the verify stage refutes nothing, the recall-safe
+def test_build_checker_is_none_without_a_secondary_model():
+    # no secondary model configured means the verify stage refutes nothing, the recall-safe
     # default, so a real finding is never dropped on an unconfigured second read
     from argparse import Namespace
     from codejury.cli import _build_checker
-    args = Namespace(dry_run=False, checker_model=None, checker_provider="openai",
-                     checker_api_base=None, checker_api_key=None, checker_wire_api="responses",
+    args = Namespace(dry_run=False, secondary_model=None, secondary_provider="openai",
+                     secondary_api_base=None, secondary_api_key=None, secondary_wire_api="responses",
                      retries=0)
     assert _build_checker(args) is None
 
 
 def test_build_checker_uses_a_different_model_when_configured():
-    # a configured checker model builds the independent second read, a different model from the
+    # a configured secondary model builds the independent second read, a different model from the
     # skeptic so a deletion needs two uncorrelated reads to agree
     from argparse import Namespace
     from codejury.cli import _build_checker
     from codejury.review.repo.verifier import ModelRefutationChecker
-    args = Namespace(dry_run=False, checker_model="gpt-mock", checker_provider="openai",
-                     checker_api_base=None, checker_api_key="k", checker_wire_api="responses",
+    args = Namespace(dry_run=False, secondary_model="gpt-mock", secondary_provider="openai",
+                     secondary_api_base=None, secondary_api_key="k", secondary_wire_api="responses",
                      retries=0)
     checker = _build_checker(args)
     assert isinstance(checker, ModelRefutationChecker)
