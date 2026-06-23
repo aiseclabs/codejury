@@ -26,7 +26,6 @@ from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
 from codejury.review.diff.vulnerabilities import canonical_category, category_aliases
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
-from codejury.review.repo.agentic import AgenticReviewer
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, UnitReviewer
 from codejury.review.repo.scaffold import ScaffoldResult, scaffold, unit_slug
@@ -630,7 +629,6 @@ def run_repo_review(
     on_pass=None,
     domain: Domain | None = None,
     facts: bool = False,
-    agentic: bool = False,
     extra_finder_backends: tuple = (),
 ) -> RunResult:
     domain = domain or default_domain()
@@ -660,10 +658,6 @@ def run_repo_review(
         # no per-file facts, fall back to the global fold for a backend that emits only a summary
         shared = _with_facts(shared, ws)
     def _make_reviewer(p: Provider, m: str) -> UnitReviewer:
-        # the agentic reviewer follows calls with tools, so it does not need facts pre-packed,
-        # it fetches the called code itself. The single-call reviewer leans on facts grounding.
-        if agentic:
-            return AgenticReviewer(provider=p, model=m, content=paths)
         return ModelReviewer(provider=p, model=m, content=paths, facts_by_file=facts_by_file)
 
     if reviewer is None:
