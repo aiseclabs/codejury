@@ -75,7 +75,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    codejury review repo $ARGUMENTS --finalize
    ```
 
-   In Claude Code, add `--reviewer claude-cli` to verify through your Claude Code access
+   In Claude Code, add `--executor claude-cli` to verify through your Claude Code access
    with no provider key. This is deterministic and resumable: it dedups the findings by
    location and class, adversarially verifies each survivor, drops the refuted into
    `_refuted.md`, and writes the ranked `findings.json`. The skeptic traces across files
@@ -84,7 +84,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    limit interrupts, findings already verified are skipped. Your job is the fan-out. The
    dedup, verification, and report are the code's job.
 
-   Cross-model verification. With `--reviewer claude-cli` the skeptic is Claude, the same
+   Cross-model verification. With `--executor claude-cli` the skeptic is Claude, the same
    family that found the issue, so its blind spots are shared. Name a different vendor in the
    challenger seat to get an independent skeptic, Claude finds, GPT challenges, Claude confirms,
    by running finalize with the model reviewer:
@@ -93,7 +93,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    CODEJURY_PROVIDER=anthropic CODEJURY_MODEL=<a claude model> \
    CODEJURY_CHALLENGER_PROVIDER=openai CODEJURY_CHALLENGER_MODEL=<a gpt model> CODEJURY_CHALLENGER_WIRE_API=responses \
    CODEJURY_JUDGE_PROVIDER=anthropic CODEJURY_JUDGE_MODEL=<a claude model> \
-   codejury review repo $ARGUMENTS --finalize --reviewer model
+   codejury review repo $ARGUMENTS --finalize --executor api
    ```
 
    The challenger GPT refutes and the judge Claude confirms, so a finding is dropped only when

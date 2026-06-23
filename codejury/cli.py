@@ -33,6 +33,7 @@ from codejury.providers.factory import (
     DEFAULT_PROVIDER,
     DEFAULT_RETRIES,
     DEFAULT_ROLE_BACKENDS,
+    DEFAULT_TIMEOUT,
     PROVIDERS,
     ROLES,
     make_provider,
@@ -130,7 +131,7 @@ def _role_provider(args, spec):
     """Build a provider for a resolved role spec. Construction is lazy, so a per-role provider
     object is cheap, no SDK or key is touched until a call is made."""
     return make_provider(spec["provider"], api_key=spec["api_key"], api_base=spec["api_base"],
-                         retries=args.retries, wire_api=spec["wire_api"])
+                         retries=args.retries, wire_api=spec["wire_api"], timeout=args.timeout)
 
 
 def _same_backend(a, b) -> bool:
@@ -170,13 +171,13 @@ def _distinct_backends(args, specs):
 
 
 def _warn_roles_under_agent(args) -> None:
-    """Under --reviewer claude-cli the finder and skeptic are the Claude Code agent, so the finder
+    """Under --executor claude-cli the finder and skeptic are the Claude Code agent, so the finder
     and challenger backend flags are ignored. The judge still applies as the confirmer."""
     fields = ("provider", "model", "api_key", "api_base", "wire_api")
     overridden = [r for r in ("finder", "challenger")
                   if any(getattr(args, f"{r}_{f}") for f in fields)]
     if overridden:
-        print(f"NOTE: --reviewer claude-cli ignores the {' and '.join(overridden)} backend flags, "
+        print(f"NOTE: --executor claude-cli ignores the {' and '.join(overridden)} backend flags, "
               "the agent supplies the finder and skeptic. The judge still applies as the confirmer.",
               file=sys.stderr)
 
@@ -190,6 +191,8 @@ def _add_backend_args(target) -> None:
     target.add_argument("--api-base", default=DEFAULT_API_BASE)
     target.add_argument("--retries", type=int, default=DEFAULT_RETRIES,
                         help="provider retry attempts on transient failure")
+    target.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT,
+                        help="per-call deadline in seconds, also honored when a retry holds the bound")
 
 
 def _add_role_backend_args(target, role: str) -> None:
@@ -262,10 +265,11 @@ def main(argv: list[str] | None = None) -> int:
     _add_backend_args(repo.add_argument_group("model backend"))
 
     strategy = repo.add_argument_group("review strategy")
-    strategy.add_argument("--reviewer", choices=("model", "claude-cli"), default="model",
-                          help="'model' calls the provider once per unit, 'claude-cli' runs each unit "
-                               "and verification as a headless `claude -p` agent that reads files "
-                               "itself, using your Claude Code access, no provider key")
+    strategy.add_argument("--executor", choices=("api", "claude-cli"), default="api",
+                          help="how the finder and skeptic run: 'api' calls the provider once per "
+                               "unit, 'claude-cli' runs each unit and its verification as a headless "
+                               "`claude -p` agent that reads files itself, using your Claude Code "
+                               "access, no provider key")
     strategy.add_argument("--facts", action="store_true", default=False,
                           help="ground review in a tool-extracted call graph, storage layout, and "
                                "read and write sets when the domain binds a facts backend such as "
@@ -278,7 +282,7 @@ def main(argv: list[str] | None = None) -> int:
         "base --model, set a different vendor in any seat for cross-model review, for example a "
         "GPT challenger and a Claude judge. A deletion needs the judge to be a distinct model from "
         "the challenger, with none distinct no finding is refuted, the recall-safe default. Ignored "
-        "under --reviewer claude-cli. Usually set through CODEJURY_FINDER_*/CHALLENGER_*/JUDGE_*")
+        "under --executor claude-cli. Usually set through CODEJURY_FINDER_*/CHALLENGER_*/JUDGE_*")
     for role in ROLES:
         _add_role_backend_args(roles, role)
 
@@ -325,7 +329,8 @@ def _dispatch(args, parser) -> int:
             model = "mock"
             diff = _read_diff(args) if (args.file or args.git_range) else _dry_run_diff()
         else:
-            provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base, retries=args.retries)
+            provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base,
+                                     retries=args.retries, timeout=args.timeout)
             model = args.model
             diff = _read_diff(args)
         domain = resolve_domain(args.domain, _diff_paths(diff))
@@ -378,7 +383,7 @@ def _dispatch(args, parser) -> int:
         provider = None
         # challenger backs the skeptic, judge backs the confirmer, a deletion needs the two to be
         # distinct models so a single read cannot drop a real finding
-        if args.reviewer == "claude-cli":
+        if args.executor == "claude-cli":
             from codejury.review.repo.agent import AgentVerifier
             verifier_obj = AgentVerifier(content=domain.paths)
             _warn_roles_under_agent(args)
@@ -422,7 +427,7 @@ def _dispatch(args, parser) -> int:
         provider = None
         model = args.model
         judge_backends: tuple = ()
-        if args.reviewer == "claude-cli":
+        if args.executor == "claude-cli":
             from codejury.review.repo.agent import AgentReviewer, AgentVerifier
             reviewer_obj = AgentReviewer(content=domain.paths)
             verifier_obj = AgentVerifier(content=domain.paths)
@@ -491,7 +496,7 @@ def _dispatch(args, parser) -> int:
         # of setting one without --run rather than silently doing nothing with it
         ignored = [flag for flag, used in (
             ("--dry-run", args.dry_run),
-            ("--reviewer", args.reviewer != "model"),
+            ("--executor", args.executor != "api"),
             ("--no-verify", not args.verify),
         ) if used]
         if ignored:

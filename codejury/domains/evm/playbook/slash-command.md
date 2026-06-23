@@ -64,12 +64,12 @@ happens inside each sub-review, never in this main context.
    codejury review repo $ARGUMENTS --domain evm --finalize
    ```
 
-   In Claude Code, add `--reviewer claude-cli` to verify through your Claude Code access
+   In Claude Code, add `--executor claude-cli` to verify through your Claude Code access
    with no provider key. This dedups by location and class, adversarially verifies each
    survivor, drops the refuted into `_refuted.md`, and writes the ranked `findings.json`.
    Re-run it to resume if interrupted.
 
-   Cross-model verification. With `--reviewer claude-cli` the skeptic is Claude, the same
+   Cross-model verification. With `--executor claude-cli` the skeptic is Claude, the same
    family that found the issue, so its blind spots are shared. Name a different vendor in the
    challenger seat to get an independent skeptic, Claude finds, GPT challenges, Claude confirms,
    by running finalize with the model reviewer:
@@ -78,7 +78,7 @@ happens inside each sub-review, never in this main context.
    CODEJURY_PROVIDER=anthropic CODEJURY_MODEL=<a claude model> \
    CODEJURY_CHALLENGER_PROVIDER=openai CODEJURY_CHALLENGER_MODEL=<a gpt model> CODEJURY_CHALLENGER_WIRE_API=responses \
    CODEJURY_JUDGE_PROVIDER=anthropic CODEJURY_JUDGE_MODEL=<a claude model> \
-   codejury review repo $ARGUMENTS --domain evm --finalize --reviewer model
+   codejury review repo $ARGUMENTS --domain evm --finalize --executor api
    ```
 
    The challenger GPT refutes and the judge Claude confirms, so a finding is dropped only when

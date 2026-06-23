@@ -76,7 +76,7 @@ export CODEJURY_JUDGE_MODEL=...              # a Claude model, the confirmer, di
 The same `CODEJURY_FINDER_*` / `CODEJURY_CHALLENGER_*` / `CODEJURY_JUDGE_*` and the matching
 `--finder-* / --challenger-* / --judge-*` flags work on both `review diff` and `review repo`.
 Note that `review repo --run` finds with one model, the finder, it no longer adds a second
-co-finder, and `--reviewer claude-cli` supplies the finder and skeptic itself, so it ignores
+co-finder, and `--executor claude-cli` supplies the finder and skeptic itself, so it ignores
 the finder and challenger flags while the judge still applies.
 
 The tool does not auto-load `.env`.
@@ -88,6 +88,7 @@ Useful flags:
 - `--api-key <key>`
 - `--api-base <url>`
 - `--retries <n>`
+- `--timeout <seconds>`
 
 ## Data Boundary
 
@@ -95,12 +96,12 @@ The tool sends code-derived content to the model provider you configure, so know
 leaves the machine before reviewing a proprietary repository:
 
 - Diff Review sends the unified diff under review.
-- Repo Review with `--reviewer model` sends bounded source snippets, the detected stack
+- Repo Review with `--executor api` sends bounded source snippets, the detected stack
   notes, the vulnerability guidance, and the findings.
-- Verification with `--reviewer model` sends the cited source file and the finding
-  details. With `--reviewer claude-cli`, Claude Code receives the finding details and
+- Verification with `--executor api` sends the cited source file and the finding
+  details. With `--executor claude-cli`, Claude Code receives the finding details and
   reads the code itself through its read-only tools.
-- `--reviewer claude-cli` does not use the configured provider key. It runs Claude Code
+- `--executor claude-cli` does not use the configured provider key. It runs Claude Code
   with read-only file tools, and Claude Code may send prompts and the code it reads
   through your Claude Code account, so the code does not stay local.
 
@@ -194,12 +195,12 @@ codejury review repo /path/to/repo --run
 
 A `--run` chooses how each unit is reviewed:
 
-- `--reviewer model` is the default. It makes one grounded model call per unit. Add
+- `--executor api` is the default. It makes one grounded model call per unit. Add
   `--facts` to ground that call in a tool-extracted call graph, storage layout, and read
   and write sets when the domain binds a facts backend, such as the EVM Slither backend.
   This is what gives a smart contract review its call relationships, so prefer
   `--run --facts` on Solidity.
-- `--reviewer claude-cli` runs each unit and its verification as a headless `claude -p`
+- `--executor claude-cli` runs each unit and its verification as a headless `claude -p`
   agent that reads and traces the files itself with read-only tools, using your Claude Code
   access and no provider key. Use it when you want a tool-using agent rather than a single
   grounded call.

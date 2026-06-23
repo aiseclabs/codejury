@@ -300,3 +300,38 @@ def test_run_passes_judge_backends_and_no_extra_finders(monkeypatch, tmp_path):
           "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k"])
     assert "extra_finder_backends" not in captured
     assert "judge_backends" in captured
+
+
+def test_executor_claude_cli_wires_the_agent_verifier(monkeypatch, tmp_path):
+    # --executor claude-cli runs the finder and skeptic as the Claude Code agent, not a provider call
+    import codejury.review.repo.engine as eng
+    from codejury.review.repo.agent import AgentVerifier
+    captured = {}
+
+    class _FR:
+        parsed = 0
+        deduped = 0
+        workspace = str(tmp_path)
+        verify = None
+
+    def fake_finalize(target, workspace, *, verifier, checker, **kw):
+        captured["verifier"] = verifier
+        return _FR()
+
+    monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
+    rc = main(["review", "repo", str(tmp_path), "--finalize", "--executor", "claude-cli"])
+    assert rc == 0
+    assert isinstance(captured["verifier"], AgentVerifier)
+
+
+def test_reviewer_flag_is_a_clean_break(tmp_path):
+    # the old --reviewer was renamed to --executor with no alias, so argparse rejects it
+    with pytest.raises(SystemExit):
+        main(["review", "repo", str(tmp_path), "--finalize", "--reviewer", "model"])
+
+
+def test_timeout_flag_is_accepted(tmp_path):
+    repo = _flask_repo(tmp_path / "svc")
+    ws = tmp_path / "ws"
+    assert main(["review", "repo", str(repo), "--workspace", str(ws),
+                 "--run", "--dry-run", "--timeout", "5"]) == 0
