@@ -40,15 +40,29 @@ class Coverage:
     private: int = 0
 
     @property
+    def diff_covered(self) -> bool:
+        return bool(self.diff_positive or self.diff_safe)
+
+    @property
+    def repo_covered(self) -> bool:
+        return bool(self.repo_planted or self.repo_safe)
+
+    @property
     def covered(self) -> bool:
-        return bool(self.diff_positive or self.diff_safe or self.repo_planted or self.repo_safe)
+        # coverage has two dimensions. A class exercised only by a diff case is still unmeasured at
+        # the integration level, where business logic and cross-file recall live. The old flat flag
+        # hid that, marking a class covered on one diff case while no whole-repo target planted it,
+        # see missing-repo-target.
+        return self.diff_covered or self.repo_covered
 
 
 @dataclass(frozen=True, kw_only=True)
 class CoverageProblem:
     """A gate-facing coverage gap. kind is one of missing-positive, missing-safe,
-    unresolved-reference, entry-without-knowledge. unresolved-reference is a broken
-    benchmark, the rest are gaps the case library should fill."""
+    missing-repo-target, unresolved-reference, entry-without-knowledge. unresolved-reference is a
+    broken benchmark, the rest are gaps the case library should fill. missing-repo-target is the
+    integration gap, a class a diff case exercises but no whole-repo benchmark plants, so its
+    cross-file and business-logic recall is unmeasured."""
     kind: str
     ref: str
     detail: str
@@ -164,6 +178,10 @@ def coverage_problems(cov: dict[str, Coverage] | None = None) -> list[CoveragePr
         if not c.diff_safe:
             problems.append(CoverageProblem(kind="missing-safe", ref=ref,
                                             detail="no safe diff case to guard the false positive on this class"))
+        if not c.repo_planted:
+            problems.append(CoverageProblem(kind="missing-repo-target", ref=ref,
+                                            detail="no whole-repo benchmark plants this class, so its "
+                                                   "cross-file and business-logic recall is unmeasured"))
 
     known = set(scan_knowledge())
     for ref, where in _all_referenced():
@@ -188,11 +206,19 @@ def format_matrix(cov: dict[str, Coverage], problems: list[CoverageProblem]) -> 
              f"  {'knowledge':52} diff+  diff-  repo+  repo-  prov"]
     for c in rows:
         prov = "/".join(p for p, n in (("pub", c.public), ("priv", c.private)) if n) or "-"
-        flag = "" if c.covered else "  UNCOVERED"
+        if not c.covered:
+            flag = "  UNCOVERED"
+        elif c.item.kind == "vulnerability" and not c.repo_covered:
+            flag = "  REPO-UNCOVERED"
+        else:
+            flag = ""
         lines.append(f"  {c.item.ref:52} {c.diff_positive:>4}  {c.diff_safe:>4}  "
                      f"{c.repo_planted:>4}  {c.repo_safe:>4}  {prov}{flag}")
     uncovered = sum(1 for c in rows if not c.covered)
+    repo_gap = sum(1 for c in rows if c.item.kind == "vulnerability" and not c.repo_covered)
+    vulns = sum(1 for c in rows if c.item.kind == "vulnerability")
     lines.append(f"  {uncovered} of {len(rows)} knowledge files have no eval coverage")
+    lines.append(f"  {repo_gap} of {vulns} vulnerability classes have no whole-repo target")
     if problems:
         lines.append("")
         lines.append(f"=== coverage problems ({len(problems)}) ===")

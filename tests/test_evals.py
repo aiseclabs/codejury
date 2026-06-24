@@ -511,3 +511,29 @@ def test_one_report_cannot_satisfy_two_planted_entries(tmp_path):
     assert len(res.found) == 1
     assert len(res.missed) == 1
     assert res.recall == 0.5
+
+
+def test_coverage_splits_diff_and_repo_dimensions():
+    from evals.coverage import Coverage, KnowledgeItem
+    it = KnowledgeItem(ref="vuln:x", kind="vulnerability", path=Path("x.md"))
+    diff_only = Coverage(item=it, diff_positive=1, diff_safe=1)
+    assert diff_only.diff_covered and not diff_only.repo_covered and diff_only.covered
+    repo_only = Coverage(item=it, repo_planted=1)
+    assert repo_only.repo_covered and not repo_only.diff_covered and repo_only.covered
+    assert not Coverage(item=it).covered
+
+
+def test_coverage_problems_flags_a_class_with_no_repo_target():
+    # the integration gap, a class a diff case exercises but no whole-repo benchmark plants
+    from evals.coverage import Coverage, KnowledgeItem, coverage_problems
+    def item(ref):
+        return KnowledgeItem(ref=ref, kind="vulnerability", path=Path(f"{ref}.md"))
+    cov = {
+        "vuln:diffonly": Coverage(item=item("vuln:diffonly"), diff_positive=1, diff_safe=1),
+        "vuln:hasrepo": Coverage(item=item("vuln:hasrepo"), diff_positive=1, diff_safe=1, repo_planted=1),
+    }
+    kinds = {(p.ref, p.kind) for p in coverage_problems(cov)}
+    assert ("vuln:diffonly", "missing-repo-target") in kinds
+    assert ("vuln:hasrepo", "missing-repo-target") not in kinds
+    # a diff case present means no missing-positive/safe for either
+    assert ("vuln:diffonly", "missing-positive") not in kinds
