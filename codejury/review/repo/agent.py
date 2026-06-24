@@ -31,14 +31,23 @@ from codejury.review.repo.reviewer import (
 )
 from codejury.review.repo.shapes import JSON_SHAPE, Unit, lens_line
 from codejury.review.repo.union import Candidate
-from codejury.review.repo.verifier import Verdict, Verifier
+from codejury.review.repo.verifier import RefutationChecker, Verdict, Verifier
 
 _OUTPUT_ARGS = ("--output-format", "json")
 READ_ONLY_TOOLS = ("--allowedTools", "Read,Grep,Glob,LS")
 DEFAULT_CLAUDE_ARGS = (*_OUTPUT_ARGS, *READ_ONLY_TOOLS)
 _UNSAFE_TOOLS_ENV = "CODEJURY_CLAUDE_UNSAFE_TOOLS"
+# The nested `claude -p` must authenticate with the operator's Claude Code subscription, not an
+# API key codejury carries for its own provider call. An inherited ANTHROPIC_API_KEY or base URL,
+# stale or pointed at a proxy, makes the nested agent 401 instead of riding the subscription, so
+# they are scrubbed from its environment.
+_SCRUBBED_AUTH_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL")
 
 Runner = Callable[..., str]
+
+
+def _subscription_env() -> dict[str, str]:
+    return {k: v for k, v in os.environ.items() if k not in _SCRUBBED_AUTH_ENV}
 
 
 def _drop_flag(args: tuple[str, ...], flag: str) -> tuple[str, ...]:
@@ -85,7 +94,7 @@ def _default_runner(prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, 
     """Run `claude -p` headless with the prompt on stdin, return stdout, raise on error."""
     proc = subprocess.run(
         [claude_bin, "-p", *args],
-        input=prompt, cwd=cwd or None,
+        input=prompt, cwd=cwd or None, env=_subscription_env(),
         capture_output=True, text=True, timeout=timeout,
     )
     if proc.returncode != 0:
@@ -195,3 +204,35 @@ class AgentVerifier(_ClaudeBackend, Verifier):
         if not ok:
             return Verdict(real=True, reason="unparseable verification, kept")
         return Verdict(real=bool(obj.get("real")), reason=str(obj.get("reason", "")))
+
+
+_CHECK_SHAPE = '{"holds": true, "reason": "why the controlling fact does or does not neutralize the finding"}'
+
+
+class AgentRefutationChecker(_ClaudeBackend, RefutationChecker):
+    """Audit a refutation as a headless Claude Code agent that reads the code itself.
+
+    The keyless twin of ModelRefutationChecker, so the deletion-confirming judge can ride the
+    subscription. It defends the finding rather than refuting it, the second independent read a
+    deletion needs, and reads no content file so it takes no constructor content."""
+
+    def holds(self, candidate: Candidate, reason: str, root: str) -> bool:
+        prompt = (
+            "Audit this proposed refutation, not the finding. A reviewer claims the finding is safe "
+            "because of one controlling fact. Assume the finding is REAL and try to show the fact "
+            "does not neutralize it: it may guard a different path, precondition, or function than "
+            "the one the finding exploits, the rate==0 branch when the bug bites at rate>0. Read the "
+            "cited code yourself, tracing across files, judging PRODUCTION semantics.\n\n"
+            f"Finding:\n- {candidate.title}\n- category: {candidate.category}\n"
+            f"- location: {candidate.file}:{candidate.line}\n- claimed evidence: {candidate.evidence}\n\n"
+            f"Refutation's controlling fact, the reason it is called safe:\n{reason}\n\n"
+            "Conclude the refutation holds only when the fact clearly and completely makes the "
+            "finding unexploitable on its real path. Any doubt, any gap, it does not hold and the "
+            "finding stays. Read the code under the current directory, starting at the cited file, "
+            f"then respond with a single JSON object exactly like:\n{_CHECK_SHAPE}"
+        )
+        obj, ok = optional_json_object(_result_text(self._ask(prompt, root)), required_key="holds")
+        # an unreadable audit cannot confirm the refutation, so the finding stays, the red line
+        if not ok:
+            return False
+        return bool(obj.get("holds"))

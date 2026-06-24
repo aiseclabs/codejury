@@ -196,7 +196,10 @@ def test_repo_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
     ws = tmp_path / "ws"
     monkeypatch.setattr("codejury.cli.make_provider",
                         lambda *a, **k: MockProvider(default="not json at all"))
-    rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--no-verify"])
+    # a key keeps the seat on the provider path, the subject under test, the engine then fails loud
+    # on the unparseable reply rather than the seat erroring at startup on a missing key
+    rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--no-verify",
+               "--executor", "api", "--api-key", "x"])
     assert rc == 1
 
 
@@ -237,6 +240,76 @@ def test_same_backend():
     from codejury.cli import _same_backend
     assert _same_backend({"provider": "a", "model": "m"}, {"provider": "a", "model": "m"})
     assert not _same_backend({"provider": "a", "model": "m"}, {"provider": "a", "model": "n"})
+
+
+def test_key_reachable_by_explicit_key_or_vendor_env(monkeypatch):
+    from codejury.cli import _key_reachable
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert _key_reachable({"provider": "anthropic", "api_key": "k"})
+    assert not _key_reachable({"provider": "anthropic", "api_key": None})
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "env-key")
+    assert _key_reachable({"provider": "anthropic", "api_key": None})
+    # litellm has no single SDK env var, so it is reachable only with an explicit key
+    assert not _key_reachable({"provider": "litellm", "api_key": None})
+
+
+def test_seat_backend_auto_falls_back_for_a_keyless_anthropic_seat(monkeypatch):
+    from codejury.cli import _seat_backend
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert _seat_backend({"provider": "anthropic", "api_key": None}, "auto") == "agent"
+    assert _seat_backend({"provider": "anthropic", "api_key": "k"}, "auto") == "api"
+    # subscription forces the agent regardless of key, api with a key calls the provider
+    assert _seat_backend({"provider": "openai", "api_key": "k"}, "subscription") == "agent"
+    assert _seat_backend({"provider": "anthropic", "api_key": "k"}, "api") == "api"
+
+
+def test_seat_backend_errors_loud_at_startup_on_a_missing_key(monkeypatch):
+    from codejury.cli import _seat_backend
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    # auto: a keyless non-Anthropic seat has no subscription to fall back to
+    with pytest.raises(SystemExit, match="no reachable API key"):
+        _seat_backend({"provider": "openai", "api_key": None}, "auto")
+    # api: a keyless seat fails at startup, the same point as auto, not deferred to the first call
+    with pytest.raises(SystemExit, match="--executor api requires one"):
+        _seat_backend({"provider": "anthropic", "api_key": None}, "api")
+
+
+def test_note_verify_route_states_the_active_route(capsys):
+    from argparse import Namespace
+    from codejury.cli import _note_verify_route
+    args = Namespace(verify=True, dry_run=False)
+    _note_verify_route(args, judge_backends=(("p", "m1"), ("p", "m2")), checker=None)
+    assert "cross-confirm" in capsys.readouterr().err
+    _note_verify_route(args, judge_backends=(), checker=object())
+    assert "skeptic plus confirmer" in capsys.readouterr().err
+    _note_verify_route(args, judge_backends=(), checker=None)
+    assert "keep-all" in capsys.readouterr().err
+    # silent on a dry run, there is no real verification to describe
+    _note_verify_route(Namespace(verify=True, dry_run=True), judge_backends=(), checker=None)
+    assert "Verify route" not in capsys.readouterr().err
+
+
+def test_run_auto_falls_back_to_agent_finder_and_skeptic_without_a_key(monkeypatch, tmp_path):
+    # the motivating case in miniature: no key anywhere, so the anthropic finder and skeptic ride
+    # the subscription as agents, no provider is built
+    import codejury.review.repo.engine as eng
+    from codejury.review.repo.agent import AgentReviewer, AgentVerifier
+    captured = {}
+
+    def fake_run(target, workspace, **kw):
+        captured.update(kw)
+        raise RuntimeError("stop after capture")
+
+    monkeypatch.setattr(eng, "run_repo_review", fake_run)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
+    main(["review", "repo", str(tmp_path), "--run", "--no-verify"])
+    assert isinstance(captured["reviewer"], AgentReviewer)
+    assert isinstance(captured["verifier"], AgentVerifier)
+    assert captured["provider"] is None
 
 
 def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_path):
@@ -296,14 +369,44 @@ def test_run_passes_judge_backends_and_no_extra_finders(monkeypatch, tmp_path):
 
     monkeypatch.setattr(eng, "run_repo_review", fake_run)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    main(["review", "repo", str(tmp_path), "--run", "--no-verify",
+    # the base key keeps the anthropic finder and judge on the API path so the cross-confirm set is
+    # built, the openai challenger brings its own key
+    main(["review", "repo", str(tmp_path), "--run", "--no-verify", "--api-key", "basekey",
           "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k"])
     assert "extra_finder_backends" not in captured
     assert "judge_backends" in captured
 
 
-def test_executor_claude_cli_wires_the_agent_verifier(monkeypatch, tmp_path):
-    # --executor claude-cli runs the finder and skeptic as the Claude Code agent, not a provider call
+def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monkeypatch, tmp_path):
+    # the motivating case: an OpenAI challenger with its own key, a keyless Claude judge confirms
+    # deletions on the subscription, no Anthropic key needed
+    import codejury.review.repo.engine as eng
+    from codejury.review.repo.agent import AgentRefutationChecker
+    from codejury.review.repo.verifier import ModelVerifier
+    captured = {}
+
+    class _FR:
+        parsed = 0
+        deduped = 0
+        workspace = str(tmp_path)
+        verify = None
+
+    def fake_finalize(target, workspace, *, verifier, checker, **kw):
+        captured["verifier"], captured["checker"] = verifier, checker
+        return _FR()
+
+    monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    rc = main(["review", "repo", str(tmp_path), "--finalize",
+               "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k",
+               "--judge-provider", "anthropic", "--judge-model", "claude-x"])
+    assert rc == 0
+    assert isinstance(captured["verifier"], ModelVerifier) and captured["verifier"]._model == "gpt-x"
+    assert isinstance(captured["checker"], AgentRefutationChecker)
+
+
+def test_executor_subscription_wires_the_agent_verifier(monkeypatch, tmp_path):
+    # --executor subscription runs the finder and skeptic as the Claude Code agent, not a provider call
     import codejury.review.repo.engine as eng
     from codejury.review.repo.agent import AgentVerifier
     captured = {}
@@ -319,15 +422,18 @@ def test_executor_claude_cli_wires_the_agent_verifier(monkeypatch, tmp_path):
         return _FR()
 
     monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
-    rc = main(["review", "repo", str(tmp_path), "--finalize", "--executor", "claude-cli"])
+    rc = main(["review", "repo", str(tmp_path), "--finalize", "--executor", "subscription"])
     assert rc == 0
     assert isinstance(captured["verifier"], AgentVerifier)
 
 
-def test_reviewer_flag_is_a_clean_break(tmp_path):
-    # the old --reviewer was renamed to --executor with no alias, so argparse rejects it
+def test_executor_rename_is_a_clean_break(tmp_path):
+    # the old --reviewer was renamed to --executor, and the executor value claude-cli to
+    # subscription, both clean breaks with no alias, so argparse rejects the retired spellings
     with pytest.raises(SystemExit):
         main(["review", "repo", str(tmp_path), "--finalize", "--reviewer", "model"])
+    with pytest.raises(SystemExit):
+        main(["review", "repo", str(tmp_path), "--finalize", "--executor", "claude-cli"])
 
 
 def test_timeout_flag_is_accepted(tmp_path):

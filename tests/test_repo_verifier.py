@@ -78,6 +78,23 @@ def test_error_keeps_finding_and_is_counted_never_silently_refuted():
     assert vr.errors >= 1
     assert [c.title for c in vr.confirmed] == ["boom"]
     assert not vr.refuted
+    # the keep was forced by the failure, so it is reported incomplete, not a confirmation, so a
+    # resume re-attempts it rather than freezing the failure as kept
+    assert [c.title for c in vr.incomplete] == ["boom"]
+
+
+def test_a_checker_error_keeps_the_finding_incomplete_not_frozen():
+    # every vote refuted, but the checker that must confirm a deletion raised, so the finding is
+    # kept and marked incomplete rather than confirmed safe on a failed audit
+    class BoomChecker(StubChecker):
+        def holds(self, candidate, reason, root):
+            raise RuntimeError("rate limited")
+
+    vr = verify_findings([Candidate(title="fp", endpoint="GET /b")],
+                         StubVerifier(["fp"]), ".", checker=BoomChecker([]), concurrency=1)
+    assert [c.title for c in vr.confirmed] == ["fp"]
+    assert [c.title for c in vr.incomplete] == ["fp"]
+    assert vr.errors >= 1
 
 
 class SequenceVerifier(Verifier):
@@ -188,6 +205,9 @@ class RaisingJudge(Judge):
 
 
 def test_cross_confirm_keeps_and_counts_on_judge_error():
+    # a failed judge keeps the finding and counts the error, never drops it, invariant 3, but it is
+    # reported as errored not kept, so a resume re-adjudicates rather than freezing the failure
     c = Candidate(title="boom", endpoint="GET /a", found_by=("claude",))
     cr = cross_confirm([c], [("claude", StubJudge("confirm")), ("gpt", RaisingJudge())], ".", concurrency=1)
-    assert [k.title for k in cr.kept] == ["boom"] and cr.errors >= 1 and not cr.dropped
+    assert not cr.kept and not cr.dropped
+    assert [k.title for k in cr.errored] == ["boom"] and cr.errors >= 1

@@ -419,6 +419,9 @@ def apply_verification(
         verified[_keystr(c, by_file)] = {"real": True, "reason": "consensus of models"}
     singletons = [c for c in pending if len(set(c.found_by)) < 2]
     updated: dict = {}
+    # a finding kept only because a verify call could not complete is kept for this run but never
+    # written to _verified.json, so a resume re-attempts it rather than freezing the failure as
+    # confirmed, the resume-integrity rule of invariant 3
     if len(judges) >= 2:
         cr = cross_confirm(singletons, judges, root, concurrency=concurrency)
         for c in cr.kept:
@@ -430,8 +433,10 @@ def apply_verification(
         errors = cr.errors
     else:
         new_vr = verify_findings(singletons, verifier, root, checker=checker, votes=votes, concurrency=concurrency)
+        incomplete = {_keystr(c, by_file) for c in new_vr.incomplete}
         for c in new_vr.confirmed:
-            verified[_keystr(c, by_file)] = {"real": True, "reason": ""}
+            if _keystr(c, by_file) not in incomplete:
+                verified[_keystr(c, by_file)] = {"real": True, "reason": ""}
         for c, reason in new_vr.refuted:
             verified[_keystr(c, by_file)] = {"real": False, "reason": reason}
         errors = new_vr.errors

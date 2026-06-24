@@ -82,8 +82,8 @@ export CODEJURY_JUDGE_MODEL=...              # a Claude model, the confirmer, di
 The same `CODEJURY_FINDER_*` / `CODEJURY_CHALLENGER_*` / `CODEJURY_JUDGE_*` and the matching
 `--finder-* / --challenger-* / --judge-*` flags work on both `review diff` and `review repo`.
 Note that `review repo --run` finds with one model, the finder, it no longer adds a second
-co-finder, and `--executor claude-cli` supplies the finder and skeptic itself, so it ignores
-the finder and challenger flags while the judge still applies.
+co-finder, and a seat that runs on the subscription supplies its own review, so it ignores
+that seat's backend flags while the others still apply.
 
 The tool does not auto-load `.env`.
 
@@ -102,13 +102,16 @@ The tool sends code-derived content to the model provider you configure, so know
 leaves the machine before reviewing a proprietary repository:
 
 - Diff Review sends the unified diff under review.
+- Under the default `--executor auto`, each seat follows the `api` row when it has a key
+  and the `subscription` row when it falls back to your Claude Code subscription, so what
+  leaves the machine is decided per seat by whether that seat has a key.
 - Repo Review with `--executor api` sends bounded source snippets, the detected stack
   notes, the vulnerability guidance, and the findings.
 - Verification with `--executor api` sends the cited source file and the finding
-  details. With `--executor claude-cli`, Claude Code receives the finding details and
-  reads the code itself through its read-only tools.
-- `--executor claude-cli` does not use the configured provider key. It runs Claude Code
-  with read-only file tools, and Claude Code may send prompts and the code it reads
+  details. On the `subscription` row, Claude Code receives the finding details and reads
+  the code itself through its read-only tools.
+- A seat on the `subscription` row does not use the configured provider key. It runs Claude
+  Code with read-only file tools, and Claude Code may send prompts and the code it reads
   through your Claude Code account, so the code does not stay local.
 
 A custom `--api-base` or a LiteLLM proxy becomes part of the trust boundary, so the data
@@ -201,15 +204,21 @@ codejury review repo /path/to/repo --run
 
 A `--run` chooses how each unit is reviewed:
 
-- `--executor api` is the default. It makes one grounded model call per unit. Add
-  `--facts` to ground that call in a tool-extracted call graph, storage layout, and read
-  and write sets when the domain binds a facts backend, such as the EVM Slither backend.
-  This is what gives a smart contract review its call relationships, so prefer
-  `--run --facts` on Solidity.
-- `--executor claude-cli` runs each unit and its verification as a headless `claude -p`
-  agent that reads and traces the files itself with read-only tools, using your Claude Code
-  access and no provider key. Use it when you want a tool-using agent rather than a single
-  grounded call.
+- `--executor auto` is the default. Each seat, the finder and the skeptic, calls the
+  provider when it has a reachable key and falls back to a headless `claude -p`
+  subscription agent for a keyless Anthropic seat, so a keyless run works with no provider
+  key. A keyless non-Anthropic seat, such as an OpenAI finder with no key, is a loud error,
+  it has no subscription to fall back to. This is what lets a Claude finder ride your
+  subscription while an OpenAI challenger uses its own key.
+- `--executor api` makes one grounded model call per unit and requires a key, a missing key
+  is a loud startup error, the same point as auto. Add `--facts` to ground that call in a
+  tool-extracted call graph, storage layout, and read and write sets when the domain binds a
+  facts backend, such as the EVM Slither backend. This is what gives a smart contract review
+  its call relationships, so prefer `--run --facts` on Solidity.
+- `--executor subscription` always runs each unit and its verification as a headless
+  `claude -p` agent that reads and traces the files itself with read-only tools, using your
+  Claude Code access and no provider key. Use it when you want a tool-using agent rather
+  than a single grounded call even where a key is present.
 
 Set a distinct `--judge-model`, the confirmer, from the challenger to enable cross-model
 verification. The challenger refutes a finding and the judge must agree before it is dropped,

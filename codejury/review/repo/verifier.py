@@ -60,6 +60,10 @@ class VerifyResult:
     confirmed: list[Candidate] = field(default_factory=list)
     refuted: list[tuple[Candidate, str]] = field(default_factory=list)
     errors: int = 0
+    # confirmed candidates kept only because verification could not complete, a rate limit or a
+    # failed checker, not a genuine keep vote. They are kept for this run, recall-safe, but must not
+    # be frozen as final so a resume re-attempts them rather than reading the failure as confirmed.
+    incomplete: list[Candidate] = field(default_factory=list)
 
 
 _SYSTEM = (
@@ -216,6 +220,8 @@ def verify_findings(
     counted, never read as a refutation. Candidates are verified concurrently."""
 
     def verify_one(candidate: Candidate):
+        # `incomplete` marks a keep forced by a failed call, not a genuine keep vote, so the caller
+        # can keep it for this run yet leave it unfrozen for a resume to re-attempt, invariant 3.
         verdicts: list[Verdict] = []
         errors = 0
         for _ in range(max(1, votes)):
@@ -223,22 +229,25 @@ def verify_findings(
                 verdicts.append(verifier.verify(candidate, root))
             except Exception:
                 errors += 1
-        # asymmetric keep: one vote that cannot refute saves the finding, and with no completed
-        # vote at all it is kept and the error counted
-        if not verdicts or any(v.real for v in verdicts):
-            return candidate, True, "", errors
+        # asymmetric keep: one vote that cannot refute saves the finding. With no completed vote at
+        # all it is kept and the error counted, an incomplete keep, not a confirmation
+        if not verdicts:
+            return candidate, True, "", errors, True
+        if any(v.real for v in verdicts):
+            return candidate, True, "", errors, False
         # every completed vote refuted it, still only an opinion. A deletion needs an independent
         # checker to confirm the controlling fact genuinely neutralizes the finding, invariant 3.
         reason = next((v.reason for v in verdicts if not v.real), "")
         if checker is None:
-            return candidate, True, "", errors
+            return candidate, True, "", errors, False
         try:
             confirmed_safe = checker.holds(candidate, reason, root)
         except Exception:
-            return candidate, True, "", errors + 1
+            # the checker could not complete, so the deletion is unconfirmed: keep but stay unfrozen
+            return candidate, True, "", errors + 1, True
         if confirmed_safe:
-            return candidate, False, reason, errors
-        return candidate, True, "", errors
+            return candidate, False, reason, errors, False
+        return candidate, True, "", errors, False
 
     if concurrency > 1 and len(candidates) > 1:
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
@@ -246,10 +255,11 @@ def verify_findings(
     else:
         results = [verify_one(c) for c in candidates]
 
-    confirmed = [c for c, real, _r, _e in results if real]
-    refuted = [(c, reason) for c, real, reason, _e in results if not real]
-    errors = sum(e for _c, _real, _r, e in results)
-    return VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors)
+    confirmed = [c for c, real, _r, _e, _i in results if real]
+    refuted = [(c, reason) for c, real, reason, _e, _i in results if not real]
+    errors = sum(e for _c, _real, _r, e, _i in results)
+    incomplete = [c for c, real, _r, _e, inc in results if real and inc]
+    return VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors, incomplete=incomplete)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -318,6 +328,9 @@ class CrossResult:
     kept: list = field(default_factory=list)
     dropped: list = field(default_factory=list)   # (candidate, reason)
     errors: int = 0
+    # candidates kept only because their judge call failed, not a confirm or an unsure. Kept for
+    # this run but left unfrozen so a resume re-adjudicates them rather than freezing the failure.
+    errored: list = field(default_factory=list)
 
 
 def cross_confirm(candidates: list[Candidate], judges: list, root: str, *,
@@ -349,8 +362,9 @@ def cross_confirm(candidates: list[Candidate], judges: list, root: str, *,
     else:
         results = [one(c) for c in candidates]
 
-    # an error verdict keeps the finding, never drops it on a failed judge call, invariant 3
-    kept = [c for verdict, c, _r in results if verdict in ("keep", "error")]
+    # an error verdict keeps the finding, never drops it on a failed judge call, invariant 3, but
+    # it is kept apart from a genuine keep so the caller does not freeze the failure as confirmed
+    kept = [c for verdict, c, _r in results if verdict == "keep"]
     dropped = [(c, r) for verdict, c, r in results if verdict == "drop"]
-    errors = sum(1 for verdict, _c, _r in results if verdict == "error")
-    return CrossResult(kept=kept, dropped=dropped, errors=errors)
+    errored = [c for verdict, c, _r in results if verdict == "error"]
+    return CrossResult(kept=kept, dropped=dropped, errors=len(errored), errored=errored)

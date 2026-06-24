@@ -5,9 +5,11 @@ and the engine runs end to end with no provider."""
 import json
 
 from codejury.review.repo.agent import (
+    AgentRefutationChecker,
     AgentReviewer,
     AgentVerifier,
     _compose_claude_args,
+    _default_runner,
     _envelope_error,
     _result_text,
 )
@@ -93,6 +95,35 @@ def test_env_args_are_shlex_parsed_and_cannot_drop_the_read_only_guard(monkeypat
     args = captured["args"]
     assert "Read,Grep,Glob,LS" in args and "Bash" not in args
     assert "be terse" in args
+
+
+def test_agent_refutation_checker_holds_and_keeps_the_finding_on_garbage():
+    # the keyless confirmer: holds only when the agent's audit clearly confirms the refutation,
+    # an unreadable reply cannot confirm a deletion so the finding stays, the red line
+    holds = AgentRefutationChecker(runner=lambda p, **k: _envelope('{"holds": true, "reason": "guard fires"}'))
+    assert holds.holds(Candidate(title="x", file="a.py"), "owner check present", ".") is True
+    garbage = AgentRefutationChecker(runner=lambda p, **k: _envelope("no json"))
+    assert garbage.holds(Candidate(title="x", file="a.py"), "some reason", ".") is False
+
+
+def test_default_runner_scrubs_anthropic_auth_from_the_nested_claude_env(monkeypatch):
+    # the nested claude -p must use the subscription, so a stale ANTHROPIC_API_KEY codejury holds
+    # for its own provider call is scrubbed, the known 401 case, while the rest of the env survives
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "stale-key")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://proxy.invalid")
+    monkeypatch.setenv("PATH_KEEPME", "1")
+    captured = {}
+
+    def fake_run(cmd, **kw):
+        captured["env"] = kw["env"]
+        import subprocess as sp
+        return sp.CompletedProcess(cmd, 0, stdout=_envelope("ok"), stderr="")
+
+    monkeypatch.setattr("codejury.review.repo.agent.subprocess.run", fake_run)
+    _default_runner("prompt", cwd="", claude_bin="claude", args=(), timeout=10)
+    assert "ANTHROPIC_API_KEY" not in captured["env"]
+    assert "ANTHROPIC_BASE_URL" not in captured["env"]
+    assert captured["env"]["PATH_KEEPME"] == "1"
 
 
 def test_run_with_claude_cli_backends_needs_no_provider(custody_repo, tmp_path):

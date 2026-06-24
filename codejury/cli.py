@@ -134,6 +134,43 @@ def _role_provider(args, spec):
                          retries=args.retries, wire_api=spec["wire_api"], timeout=args.timeout)
 
 
+# The env var each vendor SDK reads when no explicit key is passed. litellm has no single name, so
+# it is reachable only with an explicit key, never a subscription seat.
+_SDK_KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
+
+
+def _key_reachable(spec) -> bool:
+    """Whether a seat can authenticate a provider call: it carries a key, or its vendor SDK env var
+    is set so the SDK finds one. A seat with no reachable key is where the subscription fallback or
+    a loud error applies."""
+    if spec["api_key"]:
+        return True
+    env = _SDK_KEY_ENV.get(spec["provider"])
+    return bool(env and os.environ.get(env))
+
+
+def _seat_backend(spec, executor: str) -> str:
+    """How one seat runs, 'agent' or 'api', by one rule for every seat. A key-reachable seat calls
+    the provider. A keyless seat runs on the Claude Code subscription when that is possible, an
+    Anthropic seat under auto or any seat under subscription. Otherwise it is a loud startup error,
+    never a deferred mid-run failure, so api and auto fail at the same point on a missing key."""
+    if executor == "subscription":
+        return "agent"
+    if _key_reachable(spec):
+        return "api"
+    if executor == "auto" and spec["provider"] == "anthropic":
+        return "agent"
+    if executor == "auto":
+        raise SystemExit(
+            f"the {spec['provider']} seat has no reachable API key and no Claude Code subscription "
+            "to fall back to, only an Anthropic seat can. Set its key, or make it an Anthropic seat."
+        )
+    raise SystemExit(
+        f"the {spec['provider']} seat has no reachable API key, and --executor api requires one. "
+        "Set its key, or use --executor auto or subscription to run it on your Claude Code subscription."
+    )
+
+
 def _same_backend(a, b) -> bool:
     """Two role specs name the same model when their vendor and model match."""
     return (a["provider"], a["model"]) == (b["provider"], b["model"])
@@ -170,16 +207,57 @@ def _distinct_backends(args, specs):
     return tuple(out)
 
 
-def _warn_roles_under_agent(args) -> None:
-    """Under --executor claude-cli the finder and skeptic are the Claude Code agent, so the finder
-    and challenger backend flags are ignored. The judge still applies as the confirmer."""
+def _warn_roles_under_agent(args, agent_roles) -> None:
+    """A seat that runs as the Claude Code agent supplies its own review, so its provider backend
+    flags are ignored. Warn when such a seat also carries those flags, so they are not silently
+    dropped. `agent_roles` names the seats resolved to the agent. The judge still applies as the
+    confirmer. Role names map to flag prefixes, the skeptic seat is the challenger."""
     fields = ("provider", "model", "api_key", "api_base", "wire_api")
-    overridden = [r for r in ("finder", "challenger")
-                  if any(getattr(args, f"{r}_{f}") for f in fields)]
+    overridden = [r for r in agent_roles if any(getattr(args, f"{r}_{f}") for f in fields)]
     if overridden:
-        print(f"NOTE: --executor claude-cli ignores the {' and '.join(overridden)} backend flags, "
-              "the agent supplies the finder and skeptic. The judge still applies as the confirmer.",
-              file=sys.stderr)
+        print(f"NOTE: the {' and '.join(overridden)} run as the Claude Code agent, so their backend "
+              "flags are ignored. The judge still applies as the confirmer.", file=sys.stderr)
+
+
+def _note_subscription_fallback(roles) -> None:
+    """Tell the operator when a seat fell back to the subscription for want of a key, so a slow,
+    limit-bound agent run is a visible choice, not a silent one."""
+    if roles:
+        print(f"NOTE: no API key for the {' and '.join(roles)}, running on your Claude Code "
+              "subscription, slower and counted against subscription limits. Pass --executor api "
+              "to require a key instead.", file=sys.stderr)
+
+
+def _build_confirmer(args, judge):
+    """The deletion-confirming judge, resolved per seat like the finder and skeptic. A key-reachable
+    judge is a grounded model call, a keyless Anthropic judge rides the subscription as an agent, a
+    keyless non-Anthropic judge is a loud error. So the confirmer runs keyless wherever the finder
+    and skeptic do, the deletion still needing a read independent of the challenger."""
+    from codejury.review.repo.verifier import ModelRefutationChecker
+    if _seat_backend(judge, args.executor) == "agent":
+        from codejury.review.repo.agent import AgentRefutationChecker
+        if args.executor == "auto":
+            _note_subscription_fallback(("judge",))
+        return AgentRefutationChecker()
+    return ModelRefutationChecker(provider=_role_provider(args, judge), model=judge["model"])
+
+
+def _note_verify_route(args, judge_backends, checker) -> None:
+    """State which verification route a run takes, so the choice is visible rather than inferred. A
+    drop needs two independent reads to agree either way: cross-confirm has a finder model that did
+    not surface a finding adjudicate it, the skeptic and confirmer route has the challenger refute
+    and a distinct judge confirm. With no distinct confirmer nothing is dropped, the recall-safe
+    default."""
+    if not args.verify or args.dry_run:
+        return
+    if len(judge_backends) >= 2:
+        route = ("cross-confirm, a finder model that did not surface a finding adjudicates it, two "
+                 "or more distinct finder models in play")
+    elif checker is not None:
+        route = "skeptic plus confirmer, the challenger refutes and a distinct judge confirms a drop"
+    else:
+        route = "keep-all, no distinct confirmer is set so nothing is dropped, the recall-safe default"
+    print(f"Verify route: {route}.", file=sys.stderr)
 
 
 def _add_backend_args(target) -> None:
@@ -265,11 +343,14 @@ def main(argv: list[str] | None = None) -> int:
     _add_backend_args(repo.add_argument_group("model backend"))
 
     strategy = repo.add_argument_group("review strategy")
-    strategy.add_argument("--executor", choices=("api", "claude-cli"), default="api",
-                          help="how the finder and skeptic run: 'api' calls the provider once per "
-                               "unit, 'claude-cli' runs each unit and its verification as a headless "
-                               "`claude -p` agent that reads files itself, using your Claude Code "
-                               "access, no provider key")
+    strategy.add_argument("--executor", choices=("auto", "api", "subscription"), default="auto",
+                          help="how each seat runs. 'auto', the default, calls the provider when a "
+                               "seat has a reachable key and falls back to your Claude Code "
+                               "subscription for a keyless Anthropic seat, so a keyless run works "
+                               "with no provider key. 'api' always calls the provider and requires a "
+                               "key. 'subscription' always runs the headless `claude -p` agent. A "
+                               "missing key is a loud startup error under auto and api alike, never "
+                               "a deferred mid-run failure")
     strategy.add_argument("--facts", action="store_true", default=False,
                           help="ground review in a tool-extracted call graph, storage layout, and "
                                "read and write sets when the domain binds a facts backend such as "
@@ -282,8 +363,9 @@ def main(argv: list[str] | None = None) -> int:
         "base backend when unset, so override only the seat you change, set a different vendor in any "
         "seat for cross-model review, for example a GPT challenger and a Claude judge. A cross-vendor "
         "seat brings its own api-key. A deletion needs the judge to be a distinct model from "
-        "the challenger, with none distinct no finding is refuted, the recall-safe default. Ignored "
-        "under --executor claude-cli. Usually set through CODEJURY_FINDER_*/CHALLENGER_*/JUDGE_*")
+        "the challenger, with none distinct no finding is refuted, the recall-safe default. A seat "
+        "that runs on the subscription ignores its backend flags. Usually set through "
+        "CODEJURY_FINDER_*/CHALLENGER_*/JUDGE_*")
     for role in ROLES:
         _add_role_backend_args(roles, role)
 
@@ -375,29 +457,34 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo" and args.finalize:
         from codejury.review.repo.engine import finalize_repo_review
-        from codejury.review.repo.verifier import ModelRefutationChecker, ModelVerifier
+        from codejury.review.repo.verifier import ModelVerifier
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
         _warn_secondary_env()
         base = _base_spec(args)
         challenger = _role_spec(args, "challenger", base)
         judge = _role_spec(args, "judge", base)
         provider = None
+        verifier_obj = None
         # challenger backs the skeptic, judge backs the confirmer, a deletion needs the two to be
         # distinct models so a single read cannot drop a real finding
-        if args.executor == "claude-cli":
+        if args.dry_run:
+            provider = MockProvider(default='{"real": true, "reason": "[mock]"}')
+            args.model = "mock"
+        elif _seat_backend(challenger, args.executor) == "agent":
             from codejury.review.repo.agent import AgentVerifier
             verifier_obj = AgentVerifier(content=domain.paths)
-            _warn_roles_under_agent(args)
-        elif args.dry_run:
-            verifier_obj, provider = None, MockProvider(default='{"real": true, "reason": "[mock]"}')
-            args.model = "mock"
+            _warn_roles_under_agent(args, ("challenger",))
+            if args.executor == "auto":
+                _note_subscription_fallback(("skeptic",))
         else:
             verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
                                          model=challenger["model"], content=domain.paths)
         checker_obj = None
         if not args.dry_run and not _same_backend(challenger, judge):
-            checker_obj = ModelRefutationChecker(provider=_role_provider(args, judge), model=judge["model"])
+            checker_obj = _build_confirmer(args, judge)
         _warn_no_judge(args, challenger, judge)
+        # finalize has no cross-confirm set, so the route is skeptic plus confirmer or keep-all
+        _note_verify_route(args, (), checker_obj)
         print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
         fr = finalize_repo_review(
             args.directory, args.workspace, verifier=verifier_obj, checker=checker_obj,
@@ -417,7 +504,7 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo" and args.run:
         from codejury.review.repo.engine import run_repo_review
-        from codejury.review.repo.verifier import ModelRefutationChecker, ModelVerifier
+        from codejury.review.repo.verifier import ModelVerifier
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
         _warn_secondary_env()
         base = _base_spec(args)
@@ -428,33 +515,45 @@ def _dispatch(args, parser) -> int:
         provider = None
         model = args.model
         judge_backends: tuple = ()
-        if args.executor == "claude-cli":
-            from codejury.review.repo.agent import AgentReviewer, AgentVerifier
-            reviewer_obj = AgentReviewer(content=domain.paths)
-            verifier_obj = AgentVerifier(content=domain.paths)
-            _warn_roles_under_agent(args)
-            if not _same_backend(challenger, judge):
-                checker_obj = ModelRefutationChecker(provider=_role_provider(args, judge), model=judge["model"])
-        elif args.dry_run:
+        if args.dry_run:
             provider = MockProvider(default=_REPO_MOCK_REPLY)
             model = "mock"
         else:
-            # finder goes through provider+model so the engine builds the unit reviewer with its
-            # facts wiring, the skeptic and confirmer are injected from the challenger and judge
-            provider = _role_provider(args, finder)
-            model = finder["model"]
-            verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
-                                         model=challenger["model"], content=domain.paths)
+            finder_kind = _seat_backend(finder, args.executor)
+            skeptic_kind = _seat_backend(challenger, args.executor)
+            if finder_kind == "agent":
+                from codejury.review.repo.agent import AgentReviewer
+                reviewer_obj = AgentReviewer(content=domain.paths)
+            else:
+                # finder goes through provider+model so the engine builds the unit reviewer with its
+                # facts wiring, the skeptic and confirmer are injected from the challenger and judge
+                provider = _role_provider(args, finder)
+                model = finder["model"]
+            if skeptic_kind == "agent":
+                from codejury.review.repo.agent import AgentVerifier
+                verifier_obj = AgentVerifier(content=domain.paths)
+            else:
+                verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
+                                             model=challenger["model"], content=domain.paths)
+            agent_roles = [r for r, k in (("finder", finder_kind), ("challenger", skeptic_kind)) if k == "agent"]
+            _warn_roles_under_agent(args, agent_roles)
+            if args.executor == "auto":
+                _note_subscription_fallback([n for n, k in (("finder", finder_kind), ("skeptic", skeptic_kind))
+                                             if k == "agent"])
             if not _same_backend(challenger, judge):
-                checker_obj = ModelRefutationChecker(provider=_role_provider(args, judge), model=judge["model"])
-            # the distinct role models are the cross-confirm judge set, so a singleton is judged
-            # by a model that did not surface it when two or more vendors are in play
-            judge_backends = _distinct_backends(args, (finder, challenger, judge))
+                checker_obj = _build_confirmer(args, judge)
+            # the distinct role models are the cross-confirm judge set, so a singleton is judged by a
+            # model that did not surface it. Only key-reachable seats join, an agent seat is not a
+            # ModelJudge, and cross-confirm needs the finder and skeptic on the API path to compare
+            if finder_kind == "api" and skeptic_kind == "api":
+                reachable = tuple(s for s in (finder, challenger, judge) if _key_reachable(s))
+                judge_backends = _distinct_backends(args, reachable)
 
         def _progress(p, lens, new, total):
             print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
 
         _warn_no_judge(args, challenger, judge)
+        _note_verify_route(args, judge_backends, checker_obj)
         print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
         res = run_repo_review(
             args.directory, args.workspace, provider=provider, model=model,

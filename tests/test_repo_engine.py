@@ -383,6 +383,24 @@ def test_corrupt_verified_on_finalize_raises_loud(tmp_path):
         finalize_repo_review(target, ws, verifier=_V(), concurrency=1)
 
 
+def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_path):
+    # invariant 3 resume integrity: a finding kept only because the skeptic call failed is kept in
+    # this run yet left out of _verified.json, so a resume re-attempts it, never reads it as final
+    from codejury.review.repo.engine import apply_verification
+
+    class _Boom(Verifier):
+        def verify(self, c, root):
+            raise RuntimeError("rate limited")
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    findings = [Candidate(title="boom", endpoint="GET /a", file="a.py", line=1)]
+    confirmed, vr = apply_verification(ws, findings, root=str(tmp_path), verifier=_Boom(),
+                                       provider=None, model="m", votes=1, concurrency=1, fresh=True)
+    assert [c.title for c in confirmed] == ["boom"] and vr.errors >= 1
+    assert json.loads((ws / "_verified.json").read_text()) == {}
+
+
 def test_finalize_drops_issue_with_no_file_location(tmp_path):
     # invariant 2: no file location means not reportable, so the issue is dropped, not
     # carried into the report with an empty location.
