@@ -86,7 +86,10 @@ orchestration and agents or model calls provide per-unit judgment.
 
 ### Providers and Integrations
 
-- Providers live in `codejury/providers/`: Anthropic, OpenAI, LiteLLM, mock, and retry.
+- Providers live in `codejury/providers/`: Anthropic, OpenAI, LiteLLM, mock, retry, and the
+  `claude_agent` subscription transport. `claude_agent` holds the shared `claude -p` runner and
+  `ClaudeAgentProvider`, the keyless backend both review paths use, see invariant 4 and the
+  `--executor` seat resolution in the CLI.
 - JSON extraction lives in `codejury/json_parse.py`.
 - The CLI entry point is `codejury.cli:main`.
 - `install-slash-command` copies the selected domain's `playbook/slash-command.md` into

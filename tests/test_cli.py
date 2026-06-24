@@ -16,6 +16,7 @@ from codejury.providers.mock import MockProvider
 
 _FILE_A = "diff --git a/a.py b/a.py\n@@ -0,0 +1 @@\n+x = 1\n"
 _FILE_B = "diff --git a/b.py b/b.py\n@@ -0,0 +1 @@\n+y = 2\n"
+_DIFF = _FILE_A
 
 
 def test_split_diff_by_file():
@@ -173,9 +174,88 @@ def test_review_diff_empty_stdin_is_clean(monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
     monkeypatch.setattr("codejury.cli.make_provider",
                         lambda *a, **k: MockProvider(default='{"findings": []}'))
-    rc = main(["review", "diff"])
+    # pin the api seat with a key so the keyless auto default does not resolve to the subscription
+    # agent and bypass the make_provider mock, the subject here is the empty-diff clean path
+    rc = main(["review", "diff", "--executor", "api", "--api-key", "x"])
     assert rc == 0
     assert "no findings" in capsys.readouterr().out.lower()
+
+
+def test_diff_executor_subscription_uses_the_agent_provider(monkeypatch, capsys):
+    import io
+    import codejury.cli as climod
+    from codejury.providers.claude_agent import ClaudeAgentProvider
+    captured = {}
+
+    def fake_audit(diff, *, provider, **kw):
+        captured["provider"] = provider
+        return [], [], False
+
+    monkeypatch.setattr(climod, "audit_diff", fake_audit)
+    monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
+    rc = main(["review", "diff", "--executor", "subscription"])
+    assert rc == 0
+    assert isinstance(captured["provider"], ClaudeAgentProvider)
+
+
+def test_diff_executor_api_without_key_errors_loud(monkeypatch):
+    import io
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
+    with pytest.raises(SystemExit, match="--executor api requires one"):
+        main(["review", "diff", "--executor", "api"])
+
+
+def test_diff_executor_auto_keyless_anthropic_falls_back_to_agent(monkeypatch, capsys):
+    import io
+    import codejury.cli as climod
+    from codejury.providers.claude_agent import ClaudeAgentProvider
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
+    captured = {}
+
+    def fake_audit(diff, *, provider, **kw):
+        captured["provider"] = provider
+        return [], [], False
+
+    monkeypatch.setattr(climod, "audit_diff", fake_audit)
+    monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
+    rc = main(["review", "diff"])
+    assert rc == 0
+    assert isinstance(captured["provider"], ClaudeAgentProvider)
+    assert "subscription" in capsys.readouterr().err
+
+
+def test_diff_executor_auto_keyless_non_anthropic_errors_loud(monkeypatch):
+    import io
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
+    with pytest.raises(SystemExit, match="no reachable API key"):
+        main(["review", "diff", "--provider", "openai"])
+
+
+def test_diff_adversarial_resolves_each_seat_independently(monkeypatch, capsys):
+    import io
+    import codejury.cli as climod
+    from codejury.providers.claude_agent import ClaudeAgentProvider
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
+    captured = {}
+
+    def fake_audit(diff, *, finder_provider, challenger_provider, judge_provider, **kw):
+        captured.update(finder=finder_provider, challenger=challenger_provider, judge=judge_provider)
+        return [], [], False
+
+    monkeypatch.setattr(climod, "audit_diff", fake_audit)
+    monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
+    # keyless anthropic finder and judge ride the subscription, the openai challenger uses its key
+    rc = main(["review", "diff", "--mode", "adversarial",
+               "--challenger-provider", "openai", "--challenger-api-key", "k"])
+    assert rc == 0
+    assert isinstance(captured["finder"], ClaudeAgentProvider)
+    assert isinstance(captured["judge"], ClaudeAgentProvider)
+    assert not isinstance(captured["challenger"], ClaudeAgentProvider)
 
 
 def test_repo_mode_flags_are_mutually_exclusive(tmp_path):

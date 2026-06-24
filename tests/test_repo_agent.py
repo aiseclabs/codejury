@@ -119,7 +119,7 @@ def test_default_runner_scrubs_anthropic_auth_from_the_nested_claude_env(monkeyp
         import subprocess as sp
         return sp.CompletedProcess(cmd, 0, stdout=_envelope("ok"), stderr="")
 
-    monkeypatch.setattr("codejury.review.repo.agent.subprocess.run", fake_run)
+    monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)
     _default_runner("prompt", cwd="", claude_bin="claude", args=(), timeout=10)
     assert "ANTHROPIC_API_KEY" not in captured["env"]
     assert "ANTHROPIC_BASE_URL" not in captured["env"]

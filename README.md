@@ -101,7 +101,9 @@ Useful flags:
 The tool sends code-derived content to the model provider you configure, so know what
 leaves the machine before reviewing a proprietary repository:
 
-- Diff Review sends the unified diff under review.
+- Diff Review on the `api` row sends the unified diff under review. On the `subscription`
+  row it sends the diff in the `claude -p` prompt through your Claude Code account, and the
+  diff agent uses no file tools, so only the diff text leaves the machine, not local files.
 - Under the default `--executor auto`, each seat follows the `api` row when it has a key
   and the `subscription` row when it falls back to your Claude Code subscription, so what
   leaves the machine is decided per seat by whether that seat has a key.
@@ -110,9 +112,10 @@ leaves the machine before reviewing a proprietary repository:
 - Verification with `--executor api` sends the cited source file and the finding
   details. On the `subscription` row, Claude Code receives the finding details and reads
   the code itself through its read-only tools.
-- A seat on the `subscription` row does not use the configured provider key. It runs Claude
-  Code with read-only file tools, and Claude Code may send prompts and the code it reads
-  through your Claude Code account, so the code does not stay local.
+- A repo seat on the `subscription` row does not use the configured provider key. It runs
+  Claude Code with read-only file tools, and Claude Code may send prompts and the code it
+  reads through your Claude Code account, so the code does not stay local. The diff agent is
+  narrower, it reads no files and sees only the diff in the prompt.
 
 A custom `--api-base` or a LiteLLM proxy becomes part of the trust boundary, so the data
 above also reaches that gateway. Prefer the `CODEJURY_API_KEY` environment variable over
@@ -140,7 +143,19 @@ codejury review diff --file changes.diff --mode adversarial
 
 # emit SARIF and fail on HIGH or CRITICAL findings
 codejury review diff --file changes.diff --format sarif --fail-on high
+
+# review with no provider key, riding your Claude Code subscription
+codejury review diff --file changes.diff --executor subscription
+
+# adversarial with a keyless Claude finder and judge plus an OpenAI challenger on its own key
+codejury review diff --file changes.diff --mode adversarial \
+  --challenger-provider openai --challenger-api-key "$OPENAI_API_KEY"
 ```
+
+Diff Review takes the same `--executor auto|api|subscription` as Repo Review, see Review
+Strategy. The default `auto` calls the provider when a seat has a key and falls back to your
+Claude Code subscription for a keyless Anthropic seat. Unlike the repo agent, the diff agent
+answers from the diff in the prompt and reads no files.
 
 `codejury review diff --dry-run` uses a mock provider and a built-in demo diff, so it needs
 no API key.

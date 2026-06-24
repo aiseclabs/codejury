@@ -288,6 +288,21 @@ def _add_role_backend_args(target, role: str) -> None:
                         help=f"openai {role} wire API, responses for the gpt-5 reasoning models")
 
 
+_EXECUTOR_HELP = (
+    "how each seat runs. 'auto', the default, calls the provider when a seat has a reachable key and "
+    "falls back to your Claude Code subscription for a keyless Anthropic seat, so a keyless run works "
+    "with no provider key. 'api' always calls the provider and requires a key. 'subscription' always "
+    "runs the headless `claude -p` agent. A missing key is a loud startup error under auto and api "
+    "alike, never a deferred mid-run failure"
+)
+
+
+def _add_executor_arg(target) -> None:
+    """The seat-backend selector, shared by both review paths so they cannot drift on a default."""
+    target.add_argument("--executor", choices=("auto", "api", "subscription"), default="auto",
+                        help=_EXECUTOR_HELP)
+
+
 def _add_audit_args(p) -> None:
     """The diff-audit flags for `review diff`."""
     p.add_argument("--file", default=None, help="unified diff file (default: read stdin)")
@@ -299,6 +314,7 @@ def _add_audit_args(p) -> None:
                    help="drop findings whose file path contains this substring (repeatable)")
     p.add_argument("--mode", choices=("standard", "adversarial"), default="standard")
     p.add_argument("--rounds", type=int, default=3, help="adversarial only: debate rounds")
+    _add_executor_arg(p)
     _add_backend_args(p)
     # adversarial only: finder scans, challenger refutes, judge decides, each defaults to --model
     for role in ROLES:
@@ -343,14 +359,7 @@ def main(argv: list[str] | None = None) -> int:
     _add_backend_args(repo.add_argument_group("model backend"))
 
     strategy = repo.add_argument_group("review strategy")
-    strategy.add_argument("--executor", choices=("auto", "api", "subscription"), default="auto",
-                          help="how each seat runs. 'auto', the default, calls the provider when a "
-                               "seat has a reachable key and falls back to your Claude Code "
-                               "subscription for a keyless Anthropic seat, so a keyless run works "
-                               "with no provider key. 'api' always calls the provider and requires a "
-                               "key. 'subscription' always runs the headless `claude -p` agent. A "
-                               "missing key is a loud startup error under auto and api alike, never "
-                               "a deferred mid-run failure")
+    _add_executor_arg(strategy)
     strategy.add_argument("--facts", action="store_true", default=False,
                           help="ground review in a tool-extracted call graph, storage layout, and "
                                "read and write sets when the domain binds a facts backend such as "
@@ -404,33 +413,58 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
+def _diff_provider(args, spec, kind: str):
+    """A diff seat's provider for its resolved kind. An agent seat runs on the subscription through
+    `ClaudeAgentProvider`, a drop-in for the diff runners that answers from the diff in the prompt
+    with no file tools. An api seat builds the provider as before. Imported lazily so a pure-api run
+    never loads the agent transport."""
+    if kind == "agent":
+        from codejury.providers.claude_agent import ClaudeAgentProvider
+        return ClaudeAgentProvider()
+    return _role_provider(args, spec)
+
+
 def _dispatch(args, parser) -> int:
     scope = getattr(args, "scope", None)
     if args.command == "review" and scope == "diff":
+        finder_provider = challenger_provider = judge_provider = None
+        finder_model = challenger_model = judge_model = None
         if args.dry_run:
             provider = MockProvider(default=_MOCK_REPLY)
             model = "mock"
             diff = _read_diff(args) if (args.file or args.git_range) else _dry_run_diff()
+            domain = resolve_domain(args.domain, _diff_paths(diff))
         else:
-            provider = make_provider(args.provider, api_key=args.api_key, api_base=args.api_base,
-                                     retries=args.retries, timeout=args.timeout)
-            model = args.model
             diff = _read_diff(args)
-        domain = resolve_domain(args.domain, _diff_paths(diff))
-        base = _base_spec(args)
-        finder = _role_spec(args, "finder", base)
-        challenger = _role_spec(args, "challenger", base)
-        judge = _role_spec(args, "judge", base)
-        # role backends only matter in adversarial mode, and not in dry-run where the mock
-        # provider serves every role, so build them only when they will be used
-        build_roles = not args.dry_run and args.mode == "adversarial"
+            domain = resolve_domain(args.domain, _diff_paths(diff))
+            base = _base_spec(args)
+            if args.mode == "adversarial":
+                # each seat resolves on its own key, so a keyless Claude finder and judge ride the
+                # subscription while an OpenAI challenger uses its own key. The finder backs the base
+                # default audit_diff needs, the per-role providers below override it field by field
+                roles = {r: _role_spec(args, r, base) for r in ("finder", "challenger", "judge")}
+                kinds = {r: _seat_backend(s, args.executor) for r, s in roles.items()}
+                agent_roles = [r for r, k in kinds.items() if k == "agent"]
+                _warn_roles_under_agent(args, agent_roles)
+                if args.executor == "auto":
+                    _note_subscription_fallback(agent_roles)
+                finder_provider = _diff_provider(args, roles["finder"], kinds["finder"])
+                challenger_provider = _diff_provider(args, roles["challenger"], kinds["challenger"])
+                judge_provider = _diff_provider(args, roles["judge"], kinds["judge"])
+                finder_model = roles["finder"]["model"]
+                challenger_model = roles["challenger"]["model"]
+                judge_model = roles["judge"]["model"]
+                provider, model = finder_provider, roles["finder"]["model"]
+            else:
+                base_kind = _seat_backend(base, args.executor)
+                if args.executor == "auto" and base_kind == "agent":
+                    _note_subscription_fallback(("audit",))
+                provider, model = _diff_provider(args, base, base_kind), base["model"]
         kept, _, degraded = audit_diff(
             diff, provider=provider, model=model,
             mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
-            finder_model=finder["model"], challenger_model=challenger["model"], judge_model=judge["model"],
-            finder_provider=_role_provider(args, finder) if build_roles else None,
-            challenger_provider=_role_provider(args, challenger) if build_roles else None,
-            judge_provider=_role_provider(args, judge) if build_roles else None,
+            finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
+            finder_provider=finder_provider, challenger_provider=challenger_provider, judge_provider=judge_provider,
             exclude_paths=tuple(args.exclude or ()), domain=domain,
         )
         print(render(args.fmt, kept))
