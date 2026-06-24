@@ -1,6 +1,6 @@
 [project]
 name = "codejury"
-version = "1.1.0"
+version = "1.2.0"
 description = "AI-assisted security review for code diffs and whole repositories."
 readme = "README.md"
 requires-python = ">=3.12"
