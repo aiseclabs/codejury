@@ -1,4 +1,4 @@
-"""Standard diff-audit prompt: the security knowledge lives in data, in a rich
+"""Standard diff audit prompt: the security knowledge lives in data, in a rich
 prompt, not in a rendered schema. The focus and do-not-report blocks are the
 selected domain's, the default domain's when a caller names none, naming the high-value
 classes to hunt and the noise to skip, and the prompt asks for findings as a single JSON object."""
@@ -14,7 +14,7 @@ SYSTEM = (
     "style notes or speculation. Respond with a single JSON object and nothing else."
 )
 
-# the default domain's blocks, what a caller overrides with the selected domain's
+# the default domain's prompt blocks, used when a caller selects no domain
 FOCUS = default_domain().diff_focus
 DO_NOT_REPORT = default_domain().diff_do_not_report
 

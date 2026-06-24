@@ -1,4 +1,4 @@
-"""Standard diff audit: one model call over a diff, parsed into Findings. The single-call
+"""Standard diff audit: one model call over a diff, parsed into Findings. The single call
 unit the orchestrator in engine.py drives.
 
 The cheap, balanced default. The adversarial Finder/Challenger/Judge runner

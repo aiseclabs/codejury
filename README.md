@@ -73,10 +73,10 @@ example a Claude base finder challenged by GPT and confirmed by Claude:
 
 ```bash
 export CODEJURY_CHALLENGER_PROVIDER=openai
-export CODEJURY_CHALLENGER_MODEL=...         # a GPT model, the skeptic
+export CODEJURY_CHALLENGER_MODEL=...             # a GPT model, the skeptic
 export CODEJURY_CHALLENGER_API_KEY=...
-export CODEJURY_CHALLENGER_WIRE_API=responses   # the gpt-5 reasoning models speak Responses
-export CODEJURY_JUDGE_MODEL=...              # a Claude model, the confirmer, distinct from the challenger
+export CODEJURY_CHALLENGER_WIRE_API=responses    # the gpt-5 reasoning models speak Responses
+export CODEJURY_JUDGE_MODEL=...                  # a Claude model, the confirmer, distinct from the challenger
 ```
 
 The same `CODEJURY_FINDER_*` / `CODEJURY_CHALLENGER_*` / `CODEJURY_JUDGE_*` and the matching

@@ -135,7 +135,7 @@ def _dicts(items: object) -> list[dict]:
 
 def _key(f: Finding) -> tuple:
     # file, line, class, no description: two phrasings of one finding at a location collapse
-    # across rounds, unlike the diff-engine dedup which keeps the description to separate them
+    # across rounds, unlike the diff engine dedup which keeps the description to separate them
     return (f.file, f.line, f.category)
 
 

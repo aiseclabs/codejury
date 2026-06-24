@@ -1,4 +1,4 @@
-"""The claude-cli backends: per-unit review and per-candidate verification run as a
+"""The agent backends: per-unit review and per-candidate verification run as a
 headless `claude -p` agent. Tested with a fake runner, so no real claude is needed,
 and the engine runs end to end with no provider."""
 
@@ -126,7 +126,7 @@ def test_default_runner_scrubs_anthropic_auth_from_the_nested_claude_env(monkeyp
     assert captured["env"]["PATH_KEEPME"] == "1"
 
 
-def test_run_with_claude_cli_backends_needs_no_provider(custody_repo, tmp_path):
+def test_run_with_agent_backends_needs_no_provider(custody_repo, tmp_path):
     finding = _envelope('{"findings": [{"title": "wallet idor", "category": "idor", '
                         '"endpoint": "GET /wallets/<id>", "file": "app/services/wallet.py", '
                         '"severity": "HIGH", "status": "confirmed"}]}')

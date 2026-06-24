@@ -61,7 +61,6 @@ def allowed_categories(directory: str | Path = VULNERABILITIES_DIR) -> list[str]
 
 
 def _slug(category: str) -> str:
-    """Lowercase and hyphenate a model-emitted category to the id shape."""
     return category.strip().lower().replace("_", "-").replace(" ", "-")
 
 

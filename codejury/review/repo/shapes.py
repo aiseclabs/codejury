@@ -1,5 +1,5 @@
 """Shared shapes and contracts for both Repo Review backends, the model reviewer in
-`reviewer.py` and the claude-cli agent reviewer in `agent.py`.
+`reviewer.py` and the agent reviewer in `agent.py`.
 
 `Unit` is the worklist item both backends review. `gather` reads a unit's code into one
 bounded block. `JSON_SHAPE` and `lens_line` are the output contract both backends emit and

@@ -1,4 +1,4 @@
-"""The standard diff-audit engine, the Finding domain, and the
+"""The standard diff audit engine, the Finding domain, and the
 false-positive filter. Deterministic with a MockProvider, no key."""
 
 import json

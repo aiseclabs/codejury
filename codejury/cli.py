@@ -291,7 +291,7 @@ def _add_executor_arg(target) -> None:
 
 
 def _add_audit_args(p) -> None:
-    """The diff-audit flags for `review diff`."""
+    """The diff audit flags for `review diff`."""
     p.add_argument("--file", default=None, help="unified diff file (default: read stdin)")
     p.add_argument("--repo", default=None, help="repo path for --git-range")
     p.add_argument("--git-range", default=None, help="git range to diff, e.g. origin/main...HEAD")
