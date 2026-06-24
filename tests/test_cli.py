@@ -316,10 +316,21 @@ def test_role_spec_same_vendor_override_keeps_base_key():
     assert (s["provider"], s["model"], s["api_key"]) == ("anthropic", "claude-other", "basekey")
 
 
-def test_same_backend():
-    from codejury.cli import _same_backend
-    assert _same_backend({"provider": "a", "model": "m"}, {"provider": "a", "model": "m"})
-    assert not _same_backend({"provider": "a", "model": "m"}, {"provider": "a", "model": "n"})
+def test_confirmers_exclude_the_skeptic_and_dedupe(monkeypatch):
+    from argparse import Namespace
+    from codejury.cli import _confirmers
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    a = Namespace(executor="api", retries=0, timeout=10)
+    chal = {"provider": "anthropic", "model": "skep", "api_key": "k", "api_base": None, "wire_api": "chat"}
+    jud = {"provider": "anthropic", "model": "judge", "api_key": "k", "api_base": None, "wire_api": "chat"}
+    fnd = {"provider": "anthropic", "model": "judge", "api_key": "k", "api_base": None, "wire_api": "chat"}
+    # the challenger is the skeptic and is not a confirmer, the judge and finder share a model so the
+    # confirmer set is deduped to one labeled by that model
+    confirmers = _confirmers(a, challenger=chal, judge=jud, finder=fnd)
+    assert [label for label, _ in confirmers] == ["judge"]
+    # a single-model run, finder == challenger == judge, has no independent confirmer
+    same = {"provider": "anthropic", "model": "skep", "api_key": "k", "api_base": None, "wire_api": "chat"}
+    assert _confirmers(a, challenger=chal, judge=same, finder=same) == []
 
 
 def test_key_reachable_by_explicit_key_or_vendor_env(monkeypatch):
@@ -361,14 +372,15 @@ def test_note_verify_route_states_the_active_route(capsys):
     from argparse import Namespace
     from codejury.cli import _note_verify_route
     args = Namespace(verify=True, dry_run=False)
-    _note_verify_route(args, judge_backends=(("p", "m1"), ("p", "m2")), checker=None)
-    assert "cross-confirm" in capsys.readouterr().err
-    _note_verify_route(args, judge_backends=(), checker=object())
-    assert "skeptic plus confirmer" in capsys.readouterr().err
-    _note_verify_route(args, judge_backends=(), checker=None)
+    _note_verify_route(args, [("m1", object()), ("m2", object())])
+    out = capsys.readouterr().err
+    assert "skeptic plus 2 confirmers" in out
+    _note_verify_route(args, [("m1", object())])
+    assert "skeptic plus 1 confirmer," in capsys.readouterr().err
+    _note_verify_route(args, [])
     assert "keep-all" in capsys.readouterr().err
     # silent on a dry run, there is no real verification to describe
-    _note_verify_route(Namespace(verify=True, dry_run=True), judge_backends=(), checker=None)
+    _note_verify_route(Namespace(verify=True, dry_run=True), [])
     assert "Verify route" not in capsys.readouterr().err
 
 
@@ -393,7 +405,7 @@ def test_run_auto_falls_back_to_agent_finder_and_skeptic_without_a_key(monkeypat
 
 
 def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_path):
-    # the challenger backs the skeptic, the judge backs the confirmer, two distinct vendors
+    # the challenger backs the skeptic, the judge is the independent confirmer, two distinct vendors
     import codejury.review.repo.engine as eng
     from codejury.review.repo.verifier import ModelRefutationChecker, ModelVerifier
     captured = {}
@@ -404,8 +416,8 @@ def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_
         workspace = str(tmp_path)
         verify = None
 
-    def fake_finalize(target, workspace, *, verifier, checker, **kw):
-        captured["verifier"], captured["checker"] = verifier, checker
+    def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
+        captured["verifier"], captured["confirmers"] = verifier, confirmers
         return _FR()
 
     monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
@@ -415,11 +427,13 @@ def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_
                "--judge-provider", "anthropic", "--judge-model", "claude-x", "--judge-api-key", "k2"])
     assert rc == 0
     assert isinstance(captured["verifier"], ModelVerifier) and captured["verifier"]._model == "gpt-x"
-    assert isinstance(captured["checker"], ModelRefutationChecker) and captured["checker"]._model == "claude-x"
+    (label, checker), = captured["confirmers"]
+    assert label == "claude-x"
+    assert isinstance(checker, ModelRefutationChecker) and checker._model == "claude-x"
 
 
-def test_finalize_default_has_no_confirmer_and_warns(monkeypatch, tmp_path, capsys):
-    # nothing overridden, so judge == challenger, no distinct confirmer, keep everything and warn
+def test_finalize_default_has_no_confirmer_and_notes_keep_all(monkeypatch, tmp_path, capsys):
+    # nothing overridden, so judge == challenger, no independent confirmer, keep everything and note it
     import codejury.review.repo.engine as eng
 
     class _FR:
@@ -428,18 +442,19 @@ def test_finalize_default_has_no_confirmer_and_warns(monkeypatch, tmp_path, caps
         workspace = str(tmp_path)
         verify = None
 
-    def fake_finalize(target, workspace, *, verifier, checker, **kw):
-        fake_finalize.checker = checker
+    def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
+        fake_finalize.confirmers = confirmers
         return _FR()
 
     monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
     rc = main(["review", "repo", str(tmp_path), "--finalize"])
     assert rc == 0
-    assert fake_finalize.checker is None
-    assert "refutes nothing" in capsys.readouterr().err
+    assert fake_finalize.confirmers == []
+    assert "keep-all" in capsys.readouterr().err
 
 
-def test_run_passes_judge_backends_and_no_extra_finders(monkeypatch, tmp_path):
+def test_run_passes_confirmers_and_no_extra_finders(monkeypatch, tmp_path):
     import codejury.review.repo.engine as eng
     captured = {}
 
@@ -449,12 +464,14 @@ def test_run_passes_judge_backends_and_no_extra_finders(monkeypatch, tmp_path):
 
     monkeypatch.setattr(eng, "run_repo_review", fake_run)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    # the base key keeps the anthropic finder and judge on the API path so the cross-confirm set is
-    # built, the openai challenger brings its own key
+    # the base key keeps the anthropic finder and judge on the API path so a confirmer is built, the
+    # openai challenger is the skeptic and brings its own key
     main(["review", "repo", str(tmp_path), "--run", "--no-verify", "--api-key", "basekey",
           "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k"])
     assert "extra_finder_backends" not in captured
-    assert "judge_backends" in captured
+    # one confirmer, the anthropic judge and finder share the base model, the openai skeptic excluded
+    labels = [label for label, _ in captured["confirmers"]]
+    assert len(labels) == 1 and labels[0] != "gpt-x"
 
 
 def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monkeypatch, tmp_path):
@@ -471,8 +488,8 @@ def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monk
         workspace = str(tmp_path)
         verify = None
 
-    def fake_finalize(target, workspace, *, verifier, checker, **kw):
-        captured["verifier"], captured["checker"] = verifier, checker
+    def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
+        captured["verifier"], captured["confirmers"] = verifier, confirmers
         return _FR()
 
     monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
@@ -482,7 +499,8 @@ def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monk
                "--judge-provider", "anthropic", "--judge-model", "claude-x"])
     assert rc == 0
     assert isinstance(captured["verifier"], ModelVerifier) and captured["verifier"]._model == "gpt-x"
-    assert isinstance(captured["checker"], AgentRefutationChecker)
+    (_label, checker), = captured["confirmers"]
+    assert isinstance(checker, AgentRefutationChecker)
 
 
 def test_executor_subscription_wires_the_agent_verifier(monkeypatch, tmp_path):
@@ -497,7 +515,7 @@ def test_executor_subscription_wires_the_agent_verifier(monkeypatch, tmp_path):
         workspace = str(tmp_path)
         verify = None
 
-    def fake_finalize(target, workspace, *, verifier, checker, **kw):
+    def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
         captured["verifier"] = verifier
         return _FR()
 

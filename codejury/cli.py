@@ -171,40 +171,12 @@ def _seat_backend(spec, executor: str) -> str:
     )
 
 
-def _same_backend(a, b) -> bool:
-    """Two role specs name the same model when their vendor and model match."""
-    return (a["provider"], a["model"]) == (b["provider"], b["model"])
-
-
-def _warn_no_judge(args, challenger, judge) -> None:
-    """A verify run whose judge is not a distinct model from the challenger refutes nothing, since
-    a deletion needs two different reads to agree. Tell the operator so they wire a distinct judge
-    instead of reading a keep-everything report as filtered."""
-    if args.verify and not args.dry_run and _same_backend(challenger, judge):
-        print("NOTE: the judge model is the same as the challenger, so the verify stage refutes "
-              "nothing and keeps every candidate. Set a distinct --judge-model or CODEJURY_JUDGE_MODEL "
-              "so a deletion is confirmed by a second model.", file=sys.stderr)
-
-
 def _warn_secondary_env() -> None:
     """The CODEJURY_SECONDARY_* names were replaced by the per-role CODEJURY_CHALLENGER_* and
     CODEJURY_JUDGE_* names. Warn when the old names are still set so they are not silently ignored."""
     if any(k.startswith("CODEJURY_SECONDARY_") for k in os.environ):
         print("NOTE: CODEJURY_SECONDARY_* is no longer read. Use CODEJURY_CHALLENGER_* for the "
               "skeptic and CODEJURY_JUDGE_* for the confirmer.", file=sys.stderr)
-
-
-def _distinct_backends(args, specs):
-    """The distinct (provider object, model) backends among role specs, for the cross-confirm
-    judge set on a coded run. Deduped by vendor and model so the same model is not a judge twice."""
-    out = []
-    seen = set()
-    for spec in specs:
-        key = (spec["provider"], spec["model"])
-        if key not in seen:
-            seen.add(key)
-            out.append((_role_provider(args, spec), spec["model"]))
-    return tuple(out)
 
 
 def _warn_roles_under_agent(args, agent_roles) -> None:
@@ -228,35 +200,50 @@ def _note_subscription_fallback(roles) -> None:
               "to require a key instead.", file=sys.stderr)
 
 
-def _build_confirmer(args, judge):
-    """The deletion-confirming judge, resolved per seat like the finder and skeptic. A key-reachable
-    judge is a grounded model call, a keyless Anthropic judge rides the subscription as an agent, a
-    keyless non-Anthropic judge is a loud error. So the confirmer runs keyless wherever the finder
-    and skeptic do, the deletion still needing a read independent of the challenger."""
+def _confirmer_for(args, spec):
+    """One confirmer's `RefutationChecker`, resolved per seat like the finder and skeptic. A
+    key-reachable seat is a grounded model call, a keyless Anthropic seat rides the subscription as
+    an agent, a keyless non-Anthropic seat is a loud error."""
     from codejury.review.repo.verifier import ModelRefutationChecker
-    if _seat_backend(judge, args.executor) == "agent":
+    if _seat_backend(spec, args.executor) == "agent":
         from codejury.review.repo.agent import AgentRefutationChecker
-        if args.executor == "auto":
-            _note_subscription_fallback(("judge",))
         return AgentRefutationChecker()
-    return ModelRefutationChecker(provider=_role_provider(args, judge), model=judge["model"])
+    return ModelRefutationChecker(provider=_role_provider(args, spec), model=spec["model"])
 
 
-def _note_verify_route(args, judge_backends, checker) -> None:
-    """State which verification route a run takes, so the choice is visible rather than inferred. A
-    drop needs two independent reads to agree either way: cross-confirm has a finder model that did
-    not surface a finding adjudicate it, the skeptic and confirmer route has the challenger refute
-    and a distinct judge confirm. With no distinct confirmer nothing is dropped, the recall-safe
-    default."""
+def _confirmers(args, *, challenger, judge, finder=None):
+    """The independent confirmers a drop needs, each `(label, RefutationChecker)`. A refuted finding
+    is dropped only when every applicable confirmer upholds the refutation. The challenger is the
+    skeptic, so it is never a confirmer, a read cannot confirm its own refutation. The judge and the
+    finder are confirmers, deduped by model, each labeled by its model so the route skips it for a
+    finding that model itself surfaced. With no distinct confirmer the list is empty and nothing is
+    dropped, the recall-safe default."""
+    out = []
+    seen = {(challenger["provider"], challenger["model"])}
+    for spec in (judge, finder):
+        if spec is None:
+            continue
+        key = (spec["provider"], spec["model"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((spec["model"], _confirmer_for(args, spec)))
+    return out
+
+
+def _note_verify_route(args, confirmers) -> None:
+    """State the verification route so the choice is visible rather than inferred. There is one
+    route: the skeptic refutes and every independent confirmer must uphold the refutation before a
+    drop. With no confirmer nothing is dropped, the recall-safe default."""
     if not args.verify or args.dry_run:
         return
-    if len(judge_backends) >= 2:
-        route = ("cross-confirm, a finder model that did not surface a finding adjudicates it, two "
-                 "or more distinct finder models in play")
-    elif checker is not None:
-        route = "skeptic plus confirmer, the challenger refutes and a distinct judge confirms a drop"
+    n = len(confirmers)
+    if n == 0:
+        route = "keep-all, no independent confirmer is set so nothing is dropped, the recall-safe default"
     else:
-        route = "keep-all, no distinct confirmer is set so nothing is dropped, the recall-safe default"
+        plural = "s" if n != 1 else ""
+        route = (f"skeptic plus {n} confirmer{plural}, a drop needs the skeptic to refute and every "
+                 "independent confirmer to uphold it")
     print(f"Verify route: {route}.", file=sys.stderr)
 
 
@@ -499,7 +486,8 @@ def _dispatch(args, parser) -> int:
         judge = _role_spec(args, "judge", base)
         provider = None
         verifier_obj = None
-        # challenger backs the skeptic, judge backs the confirmer, a deletion needs the two to be
+        confirmers: list = []
+        # the challenger backs the skeptic, the judge backs the confirmer, a drop needs the two to be
         # distinct models so a single read cannot drop a real finding
         if args.dry_run:
             provider = MockProvider(default='{"real": true, "reason": "[mock]"}')
@@ -513,15 +501,12 @@ def _dispatch(args, parser) -> int:
         else:
             verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
                                          model=challenger["model"], content=domain.paths)
-        checker_obj = None
-        if not args.dry_run and not _same_backend(challenger, judge):
-            checker_obj = _build_confirmer(args, judge)
-        _warn_no_judge(args, challenger, judge)
-        # finalize has no cross-confirm set, so the route is skeptic plus confirmer or keep-all
-        _note_verify_route(args, (), checker_obj)
+        if not args.dry_run:
+            confirmers = _confirmers(args, challenger=challenger, judge=judge)
+        _note_verify_route(args, confirmers)
         print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
         fr = finalize_repo_review(
-            args.directory, args.workspace, verifier=verifier_obj, checker=checker_obj,
+            args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
             provider=provider, model=args.model, verify=args.verify, votes=args.votes,
             concurrency=args.concurrency, domain=domain,
         )
@@ -545,10 +530,10 @@ def _dispatch(args, parser) -> int:
         finder = _role_spec(args, "finder", base)
         challenger = _role_spec(args, "challenger", base)
         judge = _role_spec(args, "judge", base)
-        reviewer_obj = verifier_obj = checker_obj = None
+        reviewer_obj = verifier_obj = None
         provider = None
         model = args.model
-        judge_backends: tuple = ()
+        confirmers: list = []
         if args.dry_run:
             provider = MockProvider(default=_REPO_MOCK_REPLY)
             model = "mock"
@@ -560,7 +545,7 @@ def _dispatch(args, parser) -> int:
                 reviewer_obj = AgentReviewer(content=domain.paths)
             else:
                 # finder goes through provider+model so the engine builds the unit reviewer with its
-                # facts wiring, the skeptic and confirmer are injected from the challenger and judge
+                # facts wiring, the skeptic and confirmers are injected from the challenger and judge
                 provider = _role_provider(args, finder)
                 model = finder["model"]
             if skeptic_kind == "agent":
@@ -574,25 +559,18 @@ def _dispatch(args, parser) -> int:
             if args.executor == "auto":
                 _note_subscription_fallback([n for n, k in (("finder", finder_kind), ("skeptic", skeptic_kind))
                                              if k == "agent"])
-            if not _same_backend(challenger, judge):
-                checker_obj = _build_confirmer(args, judge)
-            # the distinct role models are the cross-confirm judge set, so a singleton is judged by a
-            # model that did not surface it. Only key-reachable seats join, an agent seat is not a
-            # ModelJudge, and cross-confirm needs the finder and skeptic on the API path to compare
-            if finder_kind == "api" and skeptic_kind == "api":
-                reachable = tuple(s for s in (finder, challenger, judge) if _key_reachable(s))
-                judge_backends = _distinct_backends(args, reachable)
+            # the judge and finder are the independent confirmers, the skeptic is the challenger and
+            # confirms nothing, a drop needs every applicable confirmer to uphold the refutation
+            confirmers = _confirmers(args, challenger=challenger, judge=judge, finder=finder)
 
         def _progress(p, lens, new, total):
             print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
 
-        _warn_no_judge(args, challenger, judge)
-        _note_verify_route(args, judge_backends, checker_obj)
+        _note_verify_route(args, confirmers)
         print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
         res = run_repo_review(
             args.directory, args.workspace, provider=provider, model=model,
-            reviewer=reviewer_obj, verifier=verifier_obj, checker=checker_obj,
-            judge_backends=(judge_backends or None),
+            reviewer=reviewer_obj, verifier=verifier_obj, confirmers=confirmers,
             verify=args.verify, votes=args.votes,
             max_passes=args.max_passes, converge_after=args.converge_after,
             min_lens_shots=args.min_lens_shots,

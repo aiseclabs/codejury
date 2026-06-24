@@ -293,7 +293,7 @@ def test_finalize_dedups_verifies_and_reports(tmp_path):
         def holds(self, c, reason, root):
             return "/r" in c.endpoint
 
-    fr = finalize_repo_review(target, ws, verifier=_V(), checker=_C(), concurrency=1)
+    fr = finalize_repo_review(target, ws, verifier=_V(), confirmers=[("", _C())], concurrency=1)
     assert fr.parsed == 4
     assert len(fr.verify.confirmed) == 2
     assert len(fr.verify.refuted) == 1

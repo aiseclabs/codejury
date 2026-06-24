@@ -11,10 +11,11 @@ sink. A candidate that survives is confirmed.
 
 A refutation alone is an opinion, not a deletion, and a single skeptic that misreads
 drops a real finding, the worst outcome for recall. So a refuted candidate is dropped
-only when a second independent read, the `RefutationChecker`, confirms the controlling
-fact genuinely neutralizes the finding on its real path, the rate==0 reason rejected for
-a bug that bites at rate>0. With no checker, no confirmation, or any keep vote, the
-finding stays. Every drop is recorded, so it is auditable.
+only when every independent confirmer, a `RefutationChecker` for the judge and for each
+peer model that did not itself surface the finding, upholds that the controlling fact
+genuinely neutralizes the finding on its real path, the rate==0 reason rejected for a
+bug that bites at rate>0. With no applicable confirmer, one confirmer that does not
+uphold it, or any keep vote, the finding stays. Every drop is recorded, so it is auditable.
 
 The skeptic sees only the finding's own file, so a refutation that rests on a control
 in another file it was not shown is an assumption, not a refutation, the failure that
@@ -31,7 +32,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 
 from codejury.domains.base import ContentPaths
 from codejury.json_parse import optional_json_object
@@ -203,21 +204,35 @@ class ModelRefutationChecker(RefutationChecker):
         return bool(obj.get("holds"))
 
 
+Confirmer = tuple[str, RefutationChecker]
+
+
+def _applicable(confirmers: list[Confirmer], found_by: tuple) -> list[RefutationChecker]:
+    """The confirmers that can independently audit this finding's refutation. A confirmer labeled
+    with a model that surfaced the finding is excluded, it cannot give a read independent of its own,
+    the cross-model independence the deletion rests on. The dedicated judge has an empty label and
+    always applies."""
+    seen = set(found_by)
+    return [chk for label, chk in confirmers if not label or label not in seen]
+
+
 def verify_findings(
     candidates: list[Candidate],
     verifier: Verifier,
     root: str,
     *,
-    checker: RefutationChecker | None = None,
+    confirmers: list[Confirmer] | None = None,
     votes: int = 1,
     concurrency: int = 6,
 ) -> VerifyResult:
-    """Verify every candidate. A finding is dropped only when every completed skeptic vote
-    refutes it AND an independent `checker` confirms the refutation's controlling fact truly
-    neutralizes it. Any keep vote saves it, asymmetric since dropping a real finding is the
-    worst outcome for recall. With no completed vote, a failed check, or no checker at all the
-    finding is kept, so a single opinion or a shared blind spot can never drop it. The error is
-    counted, never read as a refutation. Candidates are verified concurrently."""
+    """Verify every candidate through one route. A finding is dropped only when every completed
+    skeptic vote refutes it AND every applicable confirmer independently agrees the refutation holds.
+    Any keep vote saves it, asymmetric since dropping a real finding is the worst outcome for recall.
+    With no completed vote, no applicable confirmer, a single confirmer that does not uphold the
+    refutation, or a failed confirmer, the finding is kept, so one opinion or a shared blind spot can
+    never drop it. A confirmer labeled with a model that found the finding is skipped, it is not an
+    independent read. Errors are counted, never read as a refutation. Candidates run concurrently."""
+    confirmers = confirmers or []
 
     def verify_one(candidate: Candidate):
         # `incomplete` marks a keep forced by a failed call, not a genuine keep vote, so the caller
@@ -235,17 +250,18 @@ def verify_findings(
             return candidate, True, "", errors, True
         if any(v.real for v in verdicts):
             return candidate, True, "", errors, False
-        # every completed vote refuted it, still only an opinion. A deletion needs an independent
-        # checker to confirm the controlling fact genuinely neutralizes the finding, invariant 3.
+        # every completed vote refuted it, still only an opinion. A deletion needs every independent
+        # confirmer to uphold the refutation before the finding is dropped, invariant 3.
         reason = next((v.reason for v in verdicts if not v.real), "")
-        if checker is None:
+        applicable = _applicable(confirmers, candidate.found_by)
+        if not applicable:
             return candidate, True, "", errors, False
         try:
-            confirmed_safe = checker.holds(candidate, reason, root)
+            upheld = all(chk.holds(candidate, reason, root) for chk in applicable)
         except Exception:
-            # the checker could not complete, so the deletion is unconfirmed: keep but stay unfrozen
+            # a confirmer could not complete, so the deletion is unconfirmed: keep but stay unfrozen
             return candidate, True, "", errors + 1, True
-        if confirmed_safe:
+        if upheld:
             return candidate, False, reason, errors, False
         return candidate, True, "", errors, False
 
@@ -260,111 +276,3 @@ def verify_findings(
     errors = sum(e for _c, _real, _r, e, _i in results)
     incomplete = [c for c, real, _r, _e, inc in results if real and inc]
     return VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors, incomplete=incomplete)
-
-
-@dataclass(frozen=True, kw_only=True)
-class Assessment:
-    stance: str   # "confirm" | "dispute" | "unsure"
-    reason: str = ""
-
-
-class Judge(ABC):
-    @abstractmethod
-    def assess(self, candidate: Candidate, root: str) -> Assessment:
-        """Independently judge a finding another model surfaced: confirm, dispute, or unsure."""
-
-
-_JUDGE_SYSTEM = (
-    "You are a security reviewer giving an INDEPENDENT second opinion on a finding another "
-    "reviewer reported. Read the code at the finding's file and judge on production semantics: "
-    "confirm if you agree it is a real, exploitable issue, dispute if you can show it is safe and "
-    "name the exact controlling fact and where it lives, unsure if you genuinely cannot tell. Do "
-    "not confirm just to agree, nor dispute just to seem rigorous, judge the code. Dispute only "
-    "when the controlling fact clearly neutralizes the finding on its real path, any doubt is "
-    "unsure not dispute, since dropping a real finding is the worst outcome. Respond with a single "
-    "JSON object and nothing else."
-)
-
-_JUDGE_SHAPE = ('{"stance": "confirm|dispute|unsure", "reason": "the controlling fact at file:line, '
-                'or why it is real"}')
-
-
-class ModelJudge(Judge):
-    """A second opinion from one model: confirm, dispute, or unsure on another model's finding."""
-
-    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 2048) -> None:
-        self._provider = provider
-        self._model = model
-        self._max_tokens = max_tokens
-
-    def assess(self, candidate: Candidate, root: str) -> Assessment:
-        code = _read_file(root, candidate.file)
-        prompt = (
-            "Give an independent second opinion on this finding. Read the code and decide: "
-            "confirm, dispute, or unsure.\n\n"
-            f"Finding:\n- {candidate.title}\n- category: {candidate.category}\n"
-            f"- location: {candidate.file}:{candidate.line}\n- claimed evidence: {candidate.evidence}\n\n"
-            f"Code at {candidate.file}:\n```\n{code}\n```\n\n"
-            f"Respond with a single JSON object exactly like:\n{_JUDGE_SHAPE}"
-        )
-        result = self._provider.complete(
-            system=_JUDGE_SYSTEM,
-            messages=[Message(role="user", content=prompt)],
-            model=self._model,
-            max_tokens=self._max_tokens,
-            cache=True,
-        )
-        obj, ok = optional_json_object(result.text, required_key="stance")
-        if not ok:
-            return Assessment(stance="unsure", reason="unparseable assessment, kept")
-        stance = str(obj.get("stance", "")).strip().lower()
-        if stance not in ("confirm", "dispute", "unsure"):
-            stance = "unsure"
-        return Assessment(stance=stance, reason=str(obj.get("reason", "")))
-
-
-@dataclass(frozen=True, kw_only=True)
-class CrossResult:
-    kept: list = field(default_factory=list)
-    dropped: list = field(default_factory=list)   # (candidate, reason)
-    errors: int = 0
-    # candidates kept only because their judge call failed, not a confirm or an unsure. Kept for
-    # this run but left unfrozen so a resume re-adjudicates them rather than freezing the failure.
-    errored: list = field(default_factory=list)
-
-
-def cross_confirm(candidates: list[Candidate], judges: list, root: str, *,
-                  concurrency: int = 6) -> CrossResult:
-    """Adjudicate each finding with a model that did NOT surface it, the most independent second
-    read. Confirm promotes it to a cross-model consensus, recorded on `found_by`. A clear dispute,
-    a different model naming a controlling fact, drops it. Anything else, unsure, an error, or no
-    available judge, keeps it, since dropping a real finding is the worst outcome for recall.
-    `judges` is a list of (label, Judge), the label matching a model name on `found_by`."""
-
-    def one(c: Candidate):
-        others = [(lbl, j) for lbl, j in judges if lbl not in set(c.found_by)]
-        if not others:
-            return "keep", c, ""   # every configured model already found it, already a consensus
-        lbl, judge = others[0]
-        try:
-            a = judge.assess(c, root)
-        except Exception:
-            return "error", c, ""
-        if a.stance == "dispute":
-            return "drop", c, a.reason
-        if a.stance == "confirm":
-            return "keep", replace(c, found_by=tuple(sorted(set(c.found_by) | {lbl}))), ""
-        return "keep", c, ""   # unsure
-
-    if concurrency > 1 and len(candidates) > 1:
-        with ThreadPoolExecutor(max_workers=concurrency) as pool:
-            results = list(pool.map(one, candidates))
-    else:
-        results = [one(c) for c in candidates]
-
-    # an error verdict keeps the finding, never drops it on a failed judge call, invariant 3, but
-    # it is kept apart from a genuine keep so the caller does not freeze the failure as confirmed
-    kept = [c for verdict, c, _r in results if verdict == "keep"]
-    dropped = [(c, r) for verdict, c, r in results if verdict == "drop"]
-    errored = [c for verdict, c, _r in results if verdict == "error"]
-    return CrossResult(kept=kept, dropped=dropped, errors=len(errored), errored=errored)
