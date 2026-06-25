@@ -492,6 +492,34 @@ def test_write_findings_keeps_two_findings_that_share_an_endpoint(tmp_path):
     assert len(json.loads((ws / "findings.json").read_text())["findings"]) == 2
 
 
+def test_git_blame_owner_annotates_a_committed_line_and_is_fail_soft(tmp_path):
+    import subprocess
+
+    from codejury.review.repo.engine import _git_blame_owner
+
+    repo = tmp_path / "r"
+    repo.mkdir()
+
+    def git(*args):
+        subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+    git("init", "-q")
+    git("config", "user.email", "dev@example.com")
+    git("config", "user.name", "Dev One")
+    git("config", "commit.gpgsign", "false")
+    (repo / "a.py").write_text("line1\nline2\n", encoding="utf-8")
+    git("add", "a.py")
+    git("commit", "-q", "-m", "init")
+
+    owner = _git_blame_owner(str(repo), "a.py", 1)
+    assert "Dev One" in owner and "dev@example.com" in owner
+    # fail-soft: a missing line, no root, a traversal path, and a non-git dir never raise
+    assert _git_blame_owner(str(repo), "a.py", None) == ""
+    assert _git_blame_owner("", "a.py", 1) == ""
+    assert _git_blame_owner(str(repo), "../escape.py", 1) == ""
+    assert _git_blame_owner(str(tmp_path / "not-a-repo"), "x.py", 1) == ""
+
+
 def test_finalize_links_pocs_and_reconciles(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
@@ -147,13 +148,15 @@ def _call_path_units(root: str, facts_units) -> list[Unit]:
     return units
 
 
-def _finding_md(c: Candidate) -> str:
+def _finding_md(c: Candidate, owner: str = "") -> str:
     src = c.endpoint or c.file or "(no location)"
     head = (f"# {c.title}\n\n"
             f"- Risk: {c.severity}\n"
             f"- Type: {c.category or 'other'}\n"
             f"- Source: `{src}`\n"
-            f"- Status: {c.status}\n\n")
+            f"- Status: {c.status}\n"
+            + (f"- Owner: {owner}\n" if owner else "")
+            + "\n")
     body = c.evidence.strip()
     # the agent body already carries its own ## Analysis and later sections, so emit it
     # whole, the coded run carries only a short fact, so wrap it under Analysis
@@ -193,20 +196,54 @@ def _confidence(c: Candidate) -> int:
     return len(set(c.found_by))
 
 
-def _finding_entry(ws: Path, c: Candidate) -> dict:
+def _git_blame_owner(root: str, file: str, line: int | None) -> str:
+    """The last author to touch a finding's line, by git blame, so a report names an owner.
+    Best-effort and fail-soft: empty on a non-git target, an uncommitted or moved file, a
+    missing line, or no root. Blame is an annotation, never a gate, so a failure here never
+    fails the review, invariant 3 lives on the review steps not on this."""
+    if not root or not file or not line or line < 1:
+        return ""
+    if safe_repo_path(root, file) is None:
+        return ""
+    try:
+        out = subprocess.run(
+            ["git", "-C", root, "blame", "-L", f"{line},{line}", "--porcelain", "--", file],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if out.returncode != 0:
+        return ""
+    name = ""
+    email = ""
+    for ln in out.stdout.splitlines():
+        if ln.startswith("author ") and not name:
+            name = ln[len("author "):].strip()
+        elif ln.startswith("author-mail "):
+            email = ln[len("author-mail "):].strip().strip("<>")
+        if name and email:
+            break
+    if name and email:
+        return f"{name} <{email}>"
+    return name
+
+
+def _finding_entry(ws: Path, c: Candidate, owner: str = "") -> dict:
     candidate = f"candidates/{c.source}" if c.source.endswith(".md") else ""
     return {"title": c.title, "category": c.category, "entry": c.endpoint,
             "file": c.file, "line": c.line, "severity": c.severity, "status": c.status,
-            "found_by": list(c.found_by), "models": _confidence(c),
+            "owner": owner, "found_by": list(c.found_by), "models": _confidence(c),
             "candidate": candidate, "poc": _poc_for(ws, _finding_name(c))}
 
 
-def _write_findings(ws: Path, findings: list[Candidate]) -> None:
+def _write_findings(ws: Path, findings: list[Candidate], root: str = "") -> None:
     """Write the confirmed findings, the code-owned output. Ranked by how many models agreed
     then severity, so a cross-model consensus surfaces above a lone model's finding. findings/
     is cleared and rewritten in full, so a shrunk or refuted set leaves no stale file behind,
-    and the agent's candidates/ and pocs/ are never touched."""
+    and the agent's candidates/ and pocs/ are never touched. When a target root is given, each
+    finding is annotated with the git-blame owner of its line, computed once per finding."""
     findings = sorted(findings, key=lambda c: (-_confidence(c), _SEV_RANK.get(c.severity, 4)))
+    owners = {id(c): _git_blame_owner(root, c.file, c.line) for c in findings}
     findings_dir = ws / "findings"
     findings_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     for p in findings_dir.glob("*.md"):
@@ -222,9 +259,9 @@ def _write_findings(ws: Path, findings: list[Candidate]) -> None:
             name = f"{base}-{n}"
             n += 1
         used.add(name)
-        (findings_dir / f"{name}.md").write_text(_finding_md(c), encoding="utf-8")
+        (findings_dir / f"{name}.md").write_text(_finding_md(c, owners[id(c)]), encoding="utf-8")
     (ws / "findings.json").write_text(json.dumps(
-        {"findings": [_finding_entry(ws, c) for c in findings]}, indent=2, ensure_ascii=False),
+        {"findings": [_finding_entry(ws, c, owners[id(c)]) for c in findings]}, indent=2, ensure_ascii=False),
         encoding="utf-8")
 
 
@@ -556,7 +593,7 @@ def finalize_repo_review(
             votes=votes, concurrency=concurrency, fresh=False, content=paths, by_file=by_file,
         )
 
-    _write_findings(ws, deduped)
+    _write_findings(ws, deduped, root)
     _write_pocs_report(ws, deduped)
     return FinalizeResult(workspace=ws, parsed=len(cands), deduped=len(deduped), verify=vr)
 
@@ -727,6 +764,6 @@ def run_repo_review(
         )
 
     _write_surface(ws, units, acc.failed_units)
-    _write_findings(ws, findings)
+    _write_findings(ws, findings, root)
     _write_pocs_report(ws, findings)
     return RunResult(scaffold=res, accumulator=acc, units=len(units), verify=vr)
