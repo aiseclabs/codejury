@@ -14,8 +14,9 @@ for the recurring ways a static read misjudges them.
 
 Hunt the high-impact classes: reentrancy, missing or broken access control, oracle and
 price manipulation, accounting and precision errors, proxy, delegatecall, and initializer
-flaws, signature replay, unchecked low-level calls, and denial of service. Money is the
-asset, grade every finding by funds moved, locked, or stolen.
+flaws, signature replay, unchecked low-level calls, weird ERC20 behavior such as
+fee-on-transfer and rebasing tokens, and denial of service. Money is the asset, grade
+every finding by funds moved, locked, or stolen.
 
 For every control on the path, decide on the code you actually read, never on the presence
 of a named guard:

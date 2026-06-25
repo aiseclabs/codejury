@@ -314,3 +314,46 @@ cases:
       +        (bool ok, ) = to.call{value: amount}("");
       +        require(ok, "transfer failed");
       +    }
+
+  - name: evm-weird-erc20
+    domain: evm
+    category: weird-erc20
+    knowledge:
+      vulnerabilities: [weird-erc20]
+      guides: [languages/solidity]
+    tags: [evm, solidity, fee-on-transfer]
+    diff: |
+      diff --git a/Vault.sol b/Vault.sol
+      --- a/Vault.sol
+      +++ b/Vault.sol
+      @@ -25,3 +25,6 @@ contract Vault {
+      -    function deposit(uint256 amount) external {
+      -        require(amount > 0, "zero");
+      -    }
+      +    function deposit(uint256 amount) external {
+      +        require(amount > 0, "zero");
+      +        token.transferFrom(msg.sender, address(this), amount);
+      +        shares[msg.sender] += amount;
+      +    }
+
+  - name: safe-evm-weird-erc20
+    domain: evm
+    knowledge:
+      vulnerabilities: [weird-erc20]
+      guides: [languages/solidity]
+    tags: [evm, solidity, fee-on-transfer, safe]
+    diff: |
+      diff --git a/Vault.sol b/Vault.sol
+      --- a/Vault.sol
+      +++ b/Vault.sol
+      @@ -25,3 +25,8 @@ contract Vault {
+      -    function deposit(uint256 amount) external {
+      -        require(amount > 0, "zero");
+      -    }
+      +    function deposit(uint256 amount) external {
+      +        require(amount > 0, "zero");
+      +        uint256 balanceBefore = token.balanceOf(address(this));
+      +        token.transferFrom(msg.sender, address(this), amount);
+      +        uint256 received = token.balanceOf(address(this)) - balanceBefore;
+      +        shares[msg.sender] += received;
+      +    }
