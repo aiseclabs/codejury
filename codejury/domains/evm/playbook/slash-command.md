@@ -30,13 +30,16 @@ happens inside each sub-review, never in this main context.
    - `units/`, one unit per candidate contract carrying its deep-review mandate and `- Status: open`
    - `inventory/_surface.md`, the coverage denominator
    - `inventory/_auth_model.md`, for the role and ownership model
+   - `inventory/_invariants.md`, the operator-seeded intent invariants, optional
    - `inventory/_severity.md`, the fund-loss grading rubric
 
    Read `METHODOLOGY.md` once for the full process.
 
 2. MAP. Make the worklist complete. Enumerate every external and public function, plus
    `fallback` and `receive`, into `inventory/_surface.md`, and fill `inventory/_auth_model.md`
-   with the role and ownership model and the value map. For anything the seeded units miss,
+   with the role and ownership model and the value map. If the operator seeded
+   `inventory/_invariants.md` with intent invariants, leave it for the units to check, and
+   if it is blank do not invent rows, an unseeded invariants file changes nothing. For anything the seeded units miss,
    add a unit file by copying the mandate from a seeded one: contracts no glob flagged, and
    sequence units for a multi-step or multi-contract flow whose invariant spans several
    calls. Every entrypoint in the surface must be owned by some unit.
@@ -44,8 +47,8 @@ happens inside each sub-review, never in this main context.
 3. FAN OUT. This step is mechanical, not a matter of judgment. For every unit in `units/`
    with `- Status: open`, launch one sub-review per unit as a separate subagent, in
    parallel. One per unit, no unit skipped. Give each only its unit file plus the shared
-   `_stack.md`, `inventory/_auth_model.md`, `inventory/_severity.md`, and
-   `_vulnerabilities.md`. Each sub-review reads its files, traces into inherited base
+   `_stack.md`, `inventory/_auth_model.md`, `inventory/_invariants.md`,
+   `inventory/_severity.md`, and `_vulnerabilities.md`. Each sub-review reads its files, traces into inherited base
    contracts, libraries, and called contracts, hunts the high-impact classes, reentrancy,
    access control, oracle manipulation, accounting, proxy and initializer flaws, signature
    replay, unchecked calls, DoS, verifies each control on the code it reads, refutes its own

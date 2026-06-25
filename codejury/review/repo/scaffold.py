@@ -227,6 +227,40 @@ distrust which. Once adopted, grade every finding on the same boundary the same 
 data-exposure class has no attacker entrypoint and an entrypoint read misses it. -->
 """
 
+_INVARIANTS_TEMPLATE = """\
+# Intent Invariants, Seeded by the Operator
+
+Built once in Phase 1, every unit refers to this instead of guessing intent. The
+operator who knows the business fills it. Each row a unit's code touches becomes a
+property the unit must trace and try to break. See "Phase 1: Map the Attack Surface"
+in METHODOLOGY.md. An invariant left blank seeds nothing, the unit reviews as before.
+
+## Core Assets
+<!-- What is valuable here and worth an attacker's effort: funds, balances, credits,
+shares, votes, allowances, reputation, quota, a privileged seat. A static read sees
+controls but not which state is the prize, so the operator names it. -->
+
+## Who May Move Each Asset
+<!-- For each asset, the only principals allowed to move or change it, and under what
+condition. A reviewer can read who the code lets act, only the operator knows who
+should be allowed, so the gap between them is where the finding lives. -->
+
+## Invariants That Must Always Hold
+<!-- The properties the operator asserts can never be violated, one row each, named by
+the asset above. Pick the kind that fits. Conservation, total in equals total out and
+nothing is minted from nothing. Single-use, a ticket, nonce, voucher, or vote spends
+once. Monotonic, a balance, counter, or version only moves the allowed direction.
+Ownership, only the owner of a resource mutates it. Ordering, a step happens only
+after its prerequisite, create before approve before execute. State each as a property,
+not a control, so a unit tests the property and does not just look for the named check. -->
+
+| Asset | Invariant kind | The property in one line | Blast radius if it breaks |
+|---|---|---|---|
+<!-- Blast radius is the worst outcome if this property fails: funds drained, a vote
+double-counted, a paid item taken free. It sets the floor severity for a unit that
+finds the property breakable, so a real break is graded by this, never talked down. -->
+"""
+
 
 def _entrypoints_md(candidates: list[str], layers: list[str]) -> str:
     lines = ["# Seeded Entrypoints, a Starting Subset",
@@ -386,7 +420,8 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
 
     # seed the denominator and the auth-model templates the agent fills in Phase 1,
     # never clobber an edited one
-    for name, template in (("_surface.md", _SURFACE_TEMPLATE), ("_auth_model.md", _AUTH_MODEL_TEMPLATE)):
+    for name, template in (("_surface.md", _SURFACE_TEMPLATE), ("_auth_model.md", _AUTH_MODEL_TEMPLATE),
+                           ("_invariants.md", _INVARIANTS_TEMPLATE)):
         p = ws / "inventory" / name
         if not p.exists():
             p.write_text(template, encoding="utf-8")

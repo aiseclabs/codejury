@@ -37,13 +37,16 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    - `units/`, one unit per candidate entrypoint carrying its deep-review mandate and `- Status: open`
    - `inventory/_surface.md`, the coverage denominator
    - `inventory/_auth_model.md`
+   - `inventory/_invariants.md`, the operator-seeded intent invariants, optional
    - `inventory/_severity.md`, the grading rubric
 
    Read `METHODOLOGY.md` once for the full process.
 
 2. MAP. Make the worklist complete. Enumerate every attacker-influenced entrypoint
    into `inventory/_surface.md` and fill `inventory/_auth_model.md` with the access
-   model and trust boundaries. For anything the seeded units miss, add a unit file by
+   model and trust boundaries. If the operator seeded `inventory/_invariants.md` with
+   intent invariants, leave it for the units to check, and if it is blank do not invent
+   rows, an unseeded invariants file changes nothing. For anything the seeded units miss, add a unit file by
    copying the mandate from a seeded one: non-HTTP sources such as deserializers,
    queues, file parsers, or webhooks, entrypoint modules no guide flagged, and sequence units
    for a multi-step flow whose invariant spans several endpoints. Every entrypoint in
@@ -53,8 +56,8 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    `units/` with `- Status: open`, launch one sub-review per unit as a separate
    subagent or task, in parallel. One per unit, no unit skipped, no two merged to save calls.
    Give each only its unit file, which carries the mandate and the files to own, plus
-   the shared `_stack.md`, `inventory/_auth_model.md`, `inventory/_severity.md`, and
-   `_vulnerabilities.md`. Each
+   the shared `_stack.md`, `inventory/_auth_model.md`, `inventory/_invariants.md`,
+   `inventory/_severity.md`, and `_vulnerabilities.md`. Each
    sub-review reads its files, traces into the managers, DAO, controllers, and
    libraries they call, hunts the high-impact classes, verifies each control on the
    code it actually reads, refutes its own candidates, grades every real finding by

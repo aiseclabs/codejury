@@ -44,13 +44,27 @@ def test_scaffold_seeds_the_inventory_templates(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     surface = res.workspace / "inventory" / "_surface.md"
     auth = res.workspace / "inventory" / "_auth_model.md"
+    inv = res.workspace / "inventory" / "_invariants.md"
     sev = res.workspace / "inventory" / "_severity.md"
     assert surface.is_file() and "Attack Surface Inventory" in surface.read_text()
     assert auth.is_file() and "Authorization Model" in auth.read_text()
+    assert inv.is_file() and "Intent Invariants" in inv.read_text()
     rubric = sev.read_text()
     assert sev.is_file() and "Severity Rubric" in rubric
     for level in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
         assert level in rubric
+
+
+def test_scaffold_keeps_an_edited_invariants_file_and_does_not_count_it_as_prior(tmp_path):
+    target = _target(tmp_path)
+    ws = tmp_path / "work"
+    first = scaffold(target, ws)
+    inv = first.workspace / "inventory" / "_invariants.md"
+    inv.write_text("# Intent Invariants\n\nonly the owner moves the balance\n", encoding="utf-8")
+    second = scaffold(target, ws)
+    assert "only the owner moves the balance" in inv.read_text()
+    # an operator-seeded invariants file is not engine output, so editing it alone is not a prior run
+    assert second.had_prior_run is False
 
 
 def test_scaffold_flags_candidate_entrypoint_files(tmp_path):
