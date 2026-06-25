@@ -29,7 +29,14 @@ from codejury.review.diff.vulnerabilities import canonical_category, category_al
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, UnitReviewer
-from codejury.review.repo.scaffold import ScaffoldResult, _unit_md, scaffold, unit_slug
+from codejury.review.repo.scaffold import (
+    _AUTH_MODEL_TEMPLATE,
+    _INVARIANTS_TEMPLATE,
+    ScaffoldResult,
+    _unit_md,
+    scaffold,
+    unit_slug,
+)
 from codejury.review.repo.shapes import Unit
 from codejury.review.repo.severity import median
 from codejury.review.repo.union import Accumulator, Candidate, collapse_colocated, merge
@@ -612,6 +619,33 @@ class RunResult:
 _FACTS_CONTEXT_CAP = 16000
 
 
+def _shared_context(ws: Path) -> str:
+    """The shared review context the coded finder gets, the same Phase-1 inventory the agent
+    path hands each sub-review, so a `--run` review and the slash-command review read with the
+    same knowledge rather than the coded path silently seeing less than its mandate assumes.
+    Operator-seeded inventory still at its pristine template counts as unfilled and is skipped,
+    so a blank auth model or invariants file adds nothing, matching the blank-seeds-nothing rule
+    in the per-unit mandate. Facts are folded by the caller, since they are per-file when a
+    backend emits them."""
+    parts: list[str] = []
+
+    def add(label: str, rel: str, template: str | None = None) -> None:
+        p = ws / rel
+        if not p.is_file():
+            return
+        text = p.read_text(encoding="utf-8").strip()
+        if not text or (template is not None and text == template.strip()):
+            return
+        parts.append(f"## {label}\n{text}")
+
+    add("Stack", "_stack.md")
+    add("Authorization model, trust boundaries, sensitive data", "inventory/_auth_model.md", _AUTH_MODEL_TEMPLATE)
+    add("Operator-seeded intent invariants", "inventory/_invariants.md", _INVARIANTS_TEMPLATE)
+    add("Vulnerability classes", "_vulnerabilities.md")
+    add("False-positive traps", "_false_positive_traps.md")
+    return "\n\n".join(parts)
+
+
 def _with_facts(shared: str, ws: Path) -> str:
     """Fold the persisted contract facts into the shared review context, when scaffold wrote
     them but no per-file map exists. The fallback for a backend that emits only a summary, bounded so a
@@ -721,7 +755,7 @@ def run_repo_review(
                       dedup_by_file=domain.dedup_by_file)
 
     facts_by_file = _load_facts_by_file(ws)
-    shared = (ws / "_stack.md").read_text(encoding="utf-8")
+    shared = _shared_context(ws)
     if not facts_by_file:
         # no per-file facts, fall back to the global fold for a backend that emits only a summary
         shared = _with_facts(shared, ws)

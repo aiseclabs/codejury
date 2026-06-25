@@ -135,7 +135,7 @@ class ModelReviewer(UnitReviewer):
         prompt = (
             f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
             f"{lens_line(lens)}"
-            + (f"Stack and authorization model:\n{shared_context}\n\n" if shared_context else "")
+            + (f"Shared review context:\n{shared_context}\n\n" if shared_context else "")
             + (f"Contract facts for this unit, tool-extracted, the call graph and storage "
                f"the slice below may not show in full:\n{unit_facts}\n\n" if unit_facts else "")
             + f"Unit `{unit.name}`, the code to review:\n```\n{gather(unit)}\n```\n\n"

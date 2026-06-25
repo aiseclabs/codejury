@@ -492,6 +492,31 @@ def test_write_findings_keeps_two_findings_that_share_an_endpoint(tmp_path):
     assert len(json.loads((ws / "findings.json").read_text())["findings"]) == 2
 
 
+def test_shared_context_feeds_the_finder_the_phase1_inventory(tmp_path):
+    # the coded --run finder must read the same Phase-1 inventory the agent path hands each
+    # sub-review, so the two paths review with the same knowledge, not silently less on --run
+    from codejury.review.repo.engine import _shared_context
+    from codejury.review.repo.scaffold import scaffold
+
+    target = tmp_path / "app"
+    target.mkdir()
+    (target / "urls.py").write_text("urlpatterns = []\n", encoding="utf-8")
+    res = scaffold(target, tmp_path / "work")
+    ws = res.workspace
+    ctx = _shared_context(ws)
+    # static seeded knowledge is always present
+    assert "## Stack" in ctx
+    assert "## Vulnerability classes" in ctx
+    assert "## False-positive traps" in ctx
+    # an unfilled auth-model or invariants template is skipped, blank seeds nothing
+    assert "## Operator-seeded intent invariants" not in ctx
+    assert "## Authorization model" not in ctx
+    # once the operator fills the invariants, the finder sees it
+    (ws / "inventory" / "_invariants.md").write_text(
+        "# Intent Invariants\n\nonly the owner moves the balance\n", encoding="utf-8")
+    assert "only the owner moves the balance" in _shared_context(ws)
+
+
 def test_git_blame_owner_annotates_a_committed_line_and_is_fail_soft(tmp_path):
     import subprocess
 
