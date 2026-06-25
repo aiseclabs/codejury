@@ -1,0 +1,81 @@
+# Answer key for the Blinko real-repo target. This is real third-party code at a real
+# vulnerable commit, not authored here, see benchmark.yaml for the clone pointer. The review
+# under test never reads this file.
+#
+# Checked out at commit c488510, the parent of the bef6b77 fix, review scope server. The
+# planted issue was confirmed by reading the real code at this commit, not from the advisory
+# text alone. It is a public advisory, GHSA-4ffv-78qx-9p66, so this target carries a leakage
+# caveat and measures regression more than true recall, the unseen private targets carry the
+# real signal. This is a business-logic recall probe of the hardest kind, the ownership check
+# is present but tests the wrong subject, so a reviewer who stops at "a check exists" misses
+# it. The two correctly guarded siblings are the precision guard. A report that matches
+# neither a planted issue nor a safe sibling is listed as extra, it may be another real bug
+# this one does not cover.
+
+target: blinko
+
+planted:
+  - id: user-detail-wrong-subject-token-disclosure
+    category: business-logic
+    entry: GET /v1/user/detail
+    files:
+      - server/routerTrpc/user.ts
+    symbols:
+      - detail
+    severity: HIGH
+    note: >
+      The detail procedure takes an optional id and returns that account including its
+      apiToken in the token output field. Its guard reads
+      if (Number(user?.id) !== Number(ctx.id) && user?.role !== 'superadmin'), where user is
+      the requested account, so the role test asks whether the target is a superadmin rather
+      than whether the caller is. Requesting the id of any superadmin makes the second
+      condition false, the whole guard passes, and the response returns that superadmin's
+      apiToken to any authenticated caller. With the token the attacker acts as that account,
+      so this is account takeover. The class is broken object-level authorization expressed as
+      a logic flaw, the check is present but tests the wrong subject. Confirmed at commit
+      c488510 by reading the detail procedure in server/routerTrpc/user.ts. The bef6b77 fix
+      tests the caller's role and returns the token only when viewing one's own account.
+    knowledge:
+      vulnerabilities:
+        - business-logic
+      guides:
+        - languages/javascript
+        - frameworks/javascript/express
+
+safe:
+  - id: safe-user-list-superadmin-guarded
+    category: business-logic
+    entry: GET /v1/user/list
+    files:
+      - server/routerTrpc/user.ts
+    symbols:
+      - list
+    note: >
+      The list procedure is authProcedure.use(superAdminAuthMiddleware), so the middleware
+      enforces that only a superadmin can list users before the handler runs, the
+      authorization is not left to a hand-written check. Reporting it as broken access
+      control is a false positive.
+    knowledge:
+      vulnerabilities:
+        - business-logic
+      guides:
+        - languages/javascript
+        - frameworks/javascript/express
+
+  - id: safe-gen-token-by-userid-superadmin-guarded
+    category: business-logic
+    entry: POST /v1/user/gen-token-by-user-id
+    files:
+      - server/routerTrpc/user.ts
+    symbols:
+      - genTokenByUserId
+    note: >
+      The gen token by user id procedure also runs behind superAdminAuthMiddleware, so even
+      though it mints a token for an arbitrary user id, only a superadmin can call it.
+      Flagging it for cross-user token access is a false positive on this class.
+    knowledge:
+      vulnerabilities:
+        - business-logic
+      guides:
+        - languages/javascript
+        - frameworks/javascript/express

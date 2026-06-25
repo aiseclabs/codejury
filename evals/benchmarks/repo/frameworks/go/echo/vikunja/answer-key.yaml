@@ -2,15 +2,17 @@
 # vulnerable release, not authored here, see benchmark.yaml for the clone pointer. The review
 # under test never reads this file.
 #
-# Checked out at v2.2.0, commit b365be1, the last release before the 2.2.1 fixes. Both planted
-# issues were confirmed by reading the real code at this commit, not from the advisory text
-# alone. It is a public GHSA chain, so this target carries a leakage caveat and measures
-# regression more than true recall, the unseen private targets carry the real signal. This is
-# a two-finding chain probe, GHSA-2pv8-4c52-mf8j, can the review catch both halves, the link
-# share ReadAll that leaks other shares' hashes and the attachment ReadOne that fetches by id
-# without binding to the task. The owner-gated ReadOne path is the precision guard. A report
-# that matches neither a planted issue nor a safe sibling is listed as extra, it may be another
-# real bug this one does not cover.
+# Checked out at v2.2.0, commit b365be1, the last release before the 2.2.1 fixes. Each planted
+# issue was confirmed by reading the real code at this commit, not from the advisory text
+# alone. These are public GHSA entries, so this target carries a leakage caveat and measures
+# regression more than true recall, the unseen private targets carry the real signal. The
+# target carries two probes. First a two-finding authorization chain, GHSA-2pv8-4c52-mf8j, the
+# link share ReadAll that leaks other shares' hashes and the attachment ReadOne that fetches by
+# id without binding to the task, with the owner-gated ReadOne path as the precision guard.
+# Second, two SSRF sinks fixed in the same 2.2.1 release, the migration attachment download and
+# the OpenID Connect avatar download, both bare HTTP clients with no destination filtering. A
+# report that matches neither a planted issue nor a safe sibling is listed as extra, it may be
+# another real bug this one does not cover.
 
 target: vikunja
 
@@ -53,6 +55,55 @@ planted:
     knowledge:
       vulnerabilities:
         - insecure-direct-object-reference
+      guides:
+        - languages/go
+        - frameworks/go/echo
+
+  - id: migration-attachment-download-ssrf
+    category: server-side-request-forgery
+    files:
+      - pkg/modules/migration/helpers.go
+    symbols:
+      - DownloadFile
+      - DownloadFileWithHeaders
+    severity: HIGH
+    note: >
+      CVE-2026-33675, GHSA-g66v-54v9-52pr. DownloadFile and DownloadFileWithHeaders build the
+      request with http.NewRequestWithContext and run it on a bare http.Client{} with no check
+      on the host or the resolved address, nothing rejects loopback, the private ranges, or the
+      cloud metadata address. When a user triggers a Todoist or Trello migration, attachment
+      URLs taken from the third-party API response flow straight into DownloadFile, so the
+      attacker forces the server to fetch internal network resources and the body is returned as
+      a downloadable task attachment, a full-read SSRF. Confirmed at v2.2.0 by reading
+      pkg/modules/migration/helpers.go. The 2.2.1 fix routes these through the shared
+      SSRF-safe client in pkg/utils/httpclient.go.
+    knowledge:
+      vulnerabilities:
+        - server-side-request-forgery
+      guides:
+        - languages/go
+        - frameworks/go/echo
+
+  - id: oidc-avatar-download-ssrf
+    category: server-side-request-forgery
+    files:
+      - pkg/utils/avatar.go
+      - pkg/modules/auth/openid/openid.go
+    symbols:
+      - DownloadImage
+    severity: HIGH
+    note: >
+      CVE-2026-33679, GHSA-g9xj-752q-xh63. DownloadImage issues an http.NewRequestWithContext
+      GET on a bare http.Client{} with no destination validation. The OpenID Connect login flow
+      passes the picture claim URL from the user's own identity provider profile into
+      DownloadImage to fetch the avatar, so an attacker who controls that picture URL forces the
+      server to make GET requests to arbitrary internal or cloud metadata endpoints. Confirmed
+      at v2.2.0 by reading pkg/utils/avatar.go DownloadImage and its call from
+      pkg/modules/auth/openid/openid.go. The 2.2.1 fix moves the download to the shared
+      SSRF-safe client.
+    knowledge:
+      vulnerabilities:
+        - server-side-request-forgery
       guides:
         - languages/go
         - frameworks/go/echo

@@ -15,7 +15,8 @@ target:
   # review scope: the whole service. The chain spans two models, the link share ReadAll in
   # pkg/models/link_sharing.go and the task attachment ReadOne in pkg/models/task_attachment.go,
   # and contrasts with the owner-gated CanRead in pkg/models/link_sharing_permissions.go, so a
-  # narrow subtree would hide the correlation a review must make.
+  # narrow subtree would hide the correlation a review must make. The two SSRF sinks live in
+  # pkg/modules/migration/helpers.go and pkg/utils/avatar.go, also in scope.
   path: .
 
 stack:
@@ -29,6 +30,7 @@ knowledge:
   vulnerabilities:
     - missing-authorization
     - insecure-direct-object-reference
+    - server-side-request-forgery
   guides:
     - languages/go
     - frameworks/go/echo
@@ -37,4 +39,5 @@ tags:
   - public
   - authz
   - idor
+  - ssrf
   - echo
