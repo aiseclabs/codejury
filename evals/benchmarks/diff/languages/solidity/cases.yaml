@@ -50,7 +50,7 @@ cases:
     category: oracle-price-manipulation
     knowledge:
       vulnerabilities: [oracle-price-manipulation]
-      guides: [languages/solidity]
+      guides: [languages/solidity, protocols/defi-primitives]
     tags: [evm, solidity, oracle]
     diff: |
       diff --git a/Lending.sol b/Lending.sol
@@ -148,7 +148,7 @@ cases:
     category: accounting-precision
     knowledge:
       vulnerabilities: [accounting-precision]
-      guides: [languages/solidity]
+      guides: [languages/solidity, protocols/defi-primitives]
     tags: [evm, solidity, accounting]
     diff: |
       diff --git a/Pool.sol b/Pool.sol
@@ -320,7 +320,7 @@ cases:
     category: weird-erc20
     knowledge:
       vulnerabilities: [weird-erc20]
-      guides: [languages/solidity]
+      guides: [languages/solidity, protocols/erc-standards]
     tags: [evm, solidity, fee-on-transfer]
     diff: |
       diff --git a/Vault.sol b/Vault.sol
@@ -340,7 +340,7 @@ cases:
     domain: evm
     knowledge:
       vulnerabilities: [weird-erc20]
-      guides: [languages/solidity]
+      guides: [languages/solidity, protocols/erc-standards]
     tags: [evm, solidity, fee-on-transfer, safe]
     diff: |
       diff --git a/Vault.sol b/Vault.sol
