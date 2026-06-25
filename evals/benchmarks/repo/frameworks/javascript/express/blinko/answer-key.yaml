@@ -2,15 +2,16 @@
 # vulnerable commit, not authored here, see benchmark.yaml for the clone pointer. The review
 # under test never reads this file.
 #
-# Checked out at commit c488510, the parent of the bef6b77 fix, review scope server. The
+# Checked out at commit c488510, the parent of the bef6b77 fix, review scope server. Each
 # planted issue was confirmed by reading the real code at this commit, not from the advisory
 # text alone. It is a public advisory, GHSA-4ffv-78qx-9p66, so this target carries a leakage
 # caveat and measures regression more than true recall, the unseen private targets carry the
-# real signal. This is a business-logic recall probe of the hardest kind, the ownership check
-# is present but tests the wrong subject, so a reviewer who stops at "a check exists" misses
-# it. The two correctly guarded siblings are the precision guard. A report that matches
-# neither a planted issue nor a safe sibling is listed as extra, it may be another real bug
-# this one does not cover.
+# real signal. It plants two business-logic flaws of the hardest kind, an ownership check that
+# is present but tests the wrong subject on the detail read, and a write that takes the account
+# id from the body with no caller binding on the upsert. A reviewer who stops at "a check
+# exists" misses both. The correctly guarded siblings, the superadmin-gated list, token mint,
+# and admin upsert, are the precision guard. A report that matches neither a planted issue nor
+# a safe sibling is listed as extra, it may be another real bug this one does not cover.
 
 target: blinko
 
@@ -35,6 +36,33 @@ planted:
       a logic flaw, the check is present but tests the wrong subject. Confirmed at commit
       c488510 by reading the detail procedure in server/routerTrpc/user.ts. The bef6b77 fix
       tests the caller's role and returns the token only when viewing one's own account.
+    knowledge:
+      vulnerabilities:
+        - business-logic
+      guides:
+        - languages/javascript
+        - frameworks/javascript/express
+
+  - id: user-upsert-cross-account-takeover
+    category: business-logic
+    entry: POST /v1/user/upsert
+    files:
+      - server/routerTrpc/user.ts
+    symbols:
+      - upsertUser
+    severity: CRITICAL
+    note: >
+      The upsert procedure is authProcedure.use(demoAuthMiddleware), which blocks demo mode
+      but enforces no ownership. It reads id from the request body and runs
+      prisma.accounts.update({ where: { id }, data: update }) over name, password, nickname,
+      and image, with no check that id is the caller's own and no superadmin requirement. The
+      only credential gate is conditional, originalPassword is verified only inside
+      if (originalPassword), so omitting that field skips verification entirely. Any
+      authenticated user submits the id of a victim and a new password with no originalPassword,
+      overwrites the victim's password hash, then logs in as them, account takeover including
+      a superadmin. Confirmed at commit c488510 by reading the upsertUser procedure in
+      server/routerTrpc/user.ts. The contrast is upsertUserByAdmin, the same write gated by
+      superAdminAuthMiddleware.
     knowledge:
       vulnerabilities:
         - business-logic
@@ -73,6 +101,24 @@ safe:
       The gen token by user id procedure also runs behind superAdminAuthMiddleware, so even
       though it mints a token for an arbitrary user id, only a superadmin can call it.
       Flagging it for cross-user token access is a false positive on this class.
+    knowledge:
+      vulnerabilities:
+        - business-logic
+      guides:
+        - languages/javascript
+        - frameworks/javascript/express
+
+  - id: safe-user-upsert-by-admin-guarded
+    category: business-logic
+    entry: POST /v1/user/upsert-by-admin
+    files:
+      - server/routerTrpc/user.ts
+    symbols:
+      - upsertUserByAdmin
+    note: >
+      The upsert by admin procedure runs behind superAdminAuthMiddleware, so the same
+      cross-account create or update is reachable only by a superadmin. It is the direct
+      contrast to the ungated upsert, flagging it for missing ownership is a false positive.
     knowledge:
       vulnerabilities:
         - business-logic
