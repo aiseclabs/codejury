@@ -1471,3 +1471,41 @@ cases:
       +    if urlparse(url).hostname not in {"hooks.example.com"}:
       +        return None
       +    return requests.get(url).text
+
+  - name: unrestricted-file-upload-py
+    category: unrestricted-file-upload
+    knowledge:
+      vulnerabilities: [unrestricted-file-upload]
+      guides: [frameworks/python/flask]
+    tags: [upload, python]
+    diff: |
+      diff --git a/upload.py b/upload.py
+      --- a/upload.py
+      +++ b/upload.py
+      @@ -5,2 +5,4 @@ @app.post("/upload")
+      -def upload():
+      -    return "ok"
+      +def upload():
+      +    f = request.files["file"]
+      +    f.save(os.path.join(UPLOAD_DIR, f.filename))
+      +    return "ok"
+
+  - name: safe-unrestricted-file-upload-py
+    knowledge:
+      vulnerabilities: [unrestricted-file-upload]
+      guides: [frameworks/python/flask]
+    tags: [upload, python, safe]
+    diff: |
+      diff --git a/upload.py b/upload.py
+      --- a/upload.py
+      +++ b/upload.py
+      @@ -5,2 +5,7 @@ @app.post("/upload")
+      -def upload():
+      -    return "ok"
+      +def upload():
+      +    f = request.files["file"]
+      +    ext = f.filename.rsplit(".", 1)[-1].lower()
+      +    if ext not in {"png", "jpg", "pdf"}:
+      +        abort(400)
+      +    f.save(os.path.join(UPLOAD_DIR, f"{uuid4()}.{ext}"))
+      +    return "ok"

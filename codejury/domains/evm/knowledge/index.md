@@ -20,9 +20,14 @@ the target. A finding's `category` is one of these ids.
 ### Economic and Accounting
 - `oracle-price-manipulation` spot price or balance as price, flash-loan assisted
 - `accounting-precision` rounding, division before multiplication, ERC-4626 first-depositor inflation
+- `weird-erc20` fee-on-transfer, rebasing, ERC777 callback, received below the requested amount
+- `unsafe-math` unchecked-block overflow, narrowing downcast truncation
 
 ### Signatures
 - `signature-replay` missing nonce, chainid, or domain separator, ecrecover malleability
+
+### Randomness
+- `bad-randomness` block.timestamp, blockhash, or prevrandao as a randomness source
 
 Report only real, exploitable, high-confidence issues with a concrete exploit path and a
 fund or control impact. Do not report gas-optimization or style notes, floating-pragma or

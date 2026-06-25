@@ -30,12 +30,17 @@ of these ids.
 - `xml-external-entity` CWE-611
 - `server-side-template-injection` CWE-1336
 - `http-response-splitting` CWE-113
+- `nosql-injection` CWE-943
 
 ### A04 Insecure Design / Business Logic
 - `business-logic` CWE-840
 - `replay-attack` CWE-294
 - `race-condition` CWE-362
 - `mass-assignment` CWE-915
+- `unrestricted-file-upload` CWE-434
+
+### A05 Security Misconfiguration
+- `cors-misconfiguration` CWE-942
 
 ### A07 Identification and Authentication
 - `improper-authentication` CWE-287
@@ -44,6 +49,7 @@ of these ids.
 
 ### A08 Software and Data Integrity
 - `insecure-deserialization` CWE-502
+- `prototype-pollution` CWE-1321
 
 ### A10 Server-Side Request Forgery
 - `server-side-request-forgery` CWE-918

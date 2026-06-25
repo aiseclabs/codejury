@@ -357,3 +357,75 @@ cases:
       +        uint256 received = token.balanceOf(address(this)) - balanceBefore;
       +        shares[msg.sender] += received;
       +    }
+
+  - name: evm-unsafe-math
+    domain: evm
+    category: unsafe-math
+    knowledge:
+      vulnerabilities: [unsafe-math]
+      guides: [languages/solidity]
+    tags: [evm, solidity, overflow, downcast]
+    diff: |
+      diff --git a/Vault.sol b/Vault.sol
+      --- a/Vault.sol
+      +++ b/Vault.sol
+      @@ -30,2 +30,4 @@ contract Vault {
+      -    function record(uint256 amount) external {
+      -    }
+      +    function record(uint256 amount) external {
+      +        totalShares += uint128(amount);
+      +    }
+
+  - name: safe-evm-unsafe-math
+    domain: evm
+    knowledge:
+      vulnerabilities: [unsafe-math]
+      guides: [languages/solidity]
+    tags: [evm, solidity, downcast, safe]
+    diff: |
+      diff --git a/Vault.sol b/Vault.sol
+      --- a/Vault.sol
+      +++ b/Vault.sol
+      @@ -30,2 +30,4 @@ contract Vault {
+      -    function record(uint256 amount) external {
+      -    }
+      +    function record(uint256 amount) external {
+      +        totalShares += SafeCast.toUint128(amount);
+      +    }
+
+  - name: evm-bad-randomness
+    domain: evm
+    category: bad-randomness
+    knowledge:
+      vulnerabilities: [bad-randomness]
+      guides: [languages/solidity]
+    tags: [evm, solidity, randomness]
+    diff: |
+      diff --git a/Lottery.sol b/Lottery.sol
+      --- a/Lottery.sol
+      +++ b/Lottery.sol
+      @@ -22,2 +22,5 @@ contract Lottery {
+      -    function drawWinner() external {
+      -    }
+      +    function drawWinner() external {
+      +        uint256 i = uint256(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % players.length;
+      +        _payout(players[i]);
+      +    }
+
+  - name: safe-evm-bad-randomness
+    domain: evm
+    knowledge:
+      vulnerabilities: [bad-randomness]
+      guides: [languages/solidity]
+    tags: [evm, solidity, randomness, safe]
+    diff: |
+      diff --git a/Lottery.sol b/Lottery.sol
+      --- a/Lottery.sol
+      +++ b/Lottery.sol
+      @@ -22,2 +22,5 @@ contract Lottery {
+      -    function drawWinner(uint256 requestId) external {
+      -    }
+      +    function drawWinner(uint256 requestId) external {
+      +        uint256 i = vrf.randomness(requestId) % players.length;
+      +        _payout(players[i]);
+      +    }

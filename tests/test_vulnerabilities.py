@@ -23,7 +23,8 @@ _EXPECTED_IDS = {
     "server-side-template-injection", "http-response-splitting", "business-logic",
     "replay-attack", "race-condition", "mass-assignment", "improper-authentication",
     "jwt-validation", "insecure-session-management", "insecure-deserialization",
-    "server-side-request-forgery",
+    "server-side-request-forgery", "cors-misconfiguration", "prototype-pollution",
+    "unrestricted-file-upload", "nosql-injection",
 }
 
 _VULNS = load_vulnerabilities()
