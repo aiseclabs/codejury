@@ -43,6 +43,12 @@ presence of a named control:
   `select_for_update` whose result is discarded still holds the row lock on a
   production RDBMS inside a transaction, so judge against production semantics, not a
   SQLite or in-memory test where locking is a no-op.
+- **Failure mode**: when a control errors, times out, or falls back, does the path
+  fail closed or fail open? An auth, signature, or ownership check whose error or
+  fallback branch logs and continues, returns a permissive default, or skips the
+  guard rather than denying is bypassable by forcing that error, for example by
+  timing out the service it calls or sending input that throws. Read the error and
+  fallback branches, not only the success path.
 - **Trusted-source**: a value is not safe because a caller you treat as trusted set
   it, if that caller is a distinct tenant or service.
 - **Seeded invariant**: `inventory/_invariants.md` may name a property the operator

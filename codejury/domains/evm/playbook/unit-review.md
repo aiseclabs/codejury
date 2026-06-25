@@ -64,6 +64,11 @@ of a named guard:
   moves more of the holder's balance than was approved.
 - **Signatures**: is a signed privileged message bound to a nonce, a chainid, and a domain
   separator, the signer checked nonzero? A signature alone is replayable.
+- **Failure mode**: when a call or a guard fails, does the path fail closed or fail open? A
+  low-level `call`, `delegatecall`, `send`, or `transfer` whose returned success value is not
+  checked lets execution continue as if it succeeded, and a `try/catch` whose catch branch
+  proceeds rather than reverting leaves the contract in a partly updated state. Confirm a
+  failed external call or a failed check reverts the transaction, not silently continues.
 - **Trusted-source**: a value is not safe because a caller you treat as trusted set it, if
   that caller is an arbitrary external account or contract.
 - **Seeded invariant**: `inventory/_invariants.md` may name a property the operator asserts
