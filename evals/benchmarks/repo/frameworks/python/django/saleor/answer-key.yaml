@@ -1,0 +1,33 @@
+# Answer key for the Saleor file-upload target. Real third-party code at a real vulnerable
+# commit, not authored here, see benchmark.yaml for the clone pointer. The review under test never
+# reads this file.
+#
+# Checked out at b67a0b9, the parent of the b3cb27b fix, review scope saleor/graphql/core.
+# Confirmed by reading mutations.py at this commit, validate_upload_file does not exist yet.
+# Public advisory CVE-2026-23499, GHSA-666h-2p49-pg95, so this target measures regression more
+# than true recall. It plants one unrestricted file upload, a generic upload mutation that writes
+# any file with no type validation.
+
+target: saleor
+
+planted:
+  - id: file-upload-no-type-validation
+    category: unrestricted-file-upload
+    file: saleor/graphql/core/mutations.py
+    severity: HIGH
+    symbols:
+      - FileUpload
+      - perform_mutation
+    note: >-
+      CVE-2026-23499. The FileUpload GraphQL mutation accepts any multipart file from a staff user
+      or App, does only an emptiness check, then writes it with path =
+      default_storage.save(new_name, file_data.file) and returns its served URL. There is no MIME
+      or extension validation, so an attacker uploads HTML or SVG that is served same-origin from
+      media storage with no Content-Disposition attachment, a stored XSS in the dashboard context.
+      The fix adds validate_upload_file with magic-byte MIME detection against an allowlist.
+    knowledge:
+      vulnerabilities:
+        - unrestricted-file-upload
+      guides:
+        - languages/python
+        - frameworks/python/django

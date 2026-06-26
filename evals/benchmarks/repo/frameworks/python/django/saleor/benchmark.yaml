@@ -1,0 +1,34 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores only
+# the pointer plus the stack and knowledge this benchmark exercises. Saleor is a real, widely used
+# open-source headless e-commerce platform on Django and GraphQL, this is its real code at a real
+# vulnerable commit, not authored here. Real third-party code is never copied in, this repo ships
+# to GitHub and PyPI.
+id: saleor
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/saleor/saleor
+  # the vulnerable commit, the parent of fix b3cb27b which added MIME validation on upload
+  ref: b67a0b9d9f243e5d6c2f9c7643d42a54c24c90ee
+  # review scope: the GraphQL core, where the generic file upload mutation lives
+  path: saleor/graphql/core
+
+stack:
+  languages:
+    - python
+  frameworks:
+    - django
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - unrestricted-file-upload
+  guides:
+    - languages/python
+    - frameworks/python/django
+
+tags:
+  - public
+  - file-upload
+  - django
