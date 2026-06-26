@@ -1,0 +1,35 @@
+# Answer key for the gunicorn request-smuggling target. Real third-party code at a real
+# vulnerable commit, not authored here, see benchmark.yaml for the clone pointer. The review
+# under test never reads this file.
+#
+# Checked out at 0b10cbab, the parent of the ac29c9b fix, review scope gunicorn/http. Confirmed
+# by reading set_body_reader in gunicorn/http/message.py at this commit. Public advisory
+# CVE-2024-1135, so this target measures regression more than true recall. It plants one CL.TE
+# desync, Transfer-Encoding is honored only when the value is exactly chunked, with no rejection
+# when Content-Length and Transfer-Encoding coexist. The correctly handled sibling lives inside
+# the same function, the duplicate Content-Length rejection, so it is described in the planted
+# note rather than scored as a separate safe entry, the two cannot be told apart by symbol.
+
+target: gunicorn
+
+planted:
+  - id: transfer-encoding-permissive-cl-te-desync
+    category: http-request-smuggling
+    file: gunicorn/http/message.py
+    severity: HIGH
+    symbols:
+      - set_body_reader
+    note: >-
+      CVE-2024-1135. set_body_reader treats Transfer-Encoding as chunked only when the value is
+      exactly chunked and never rejects a message that carries both Content-Length and
+      Transfer-Encoding. A value such as "chunked, identity", an "xchunked" token, or a stacked
+      Transfer-Encoding header falls through, so gunicorn frames the body by Content-Length while
+      a front-end proxy that honors the chunked coding frames it differently, the classic CL.TE
+      desync that smuggles a second request onto the reused upstream connection. The duplicate
+      Content-Length rejection and the numeric and non-negative checks in the same function are
+      the correctly guarded sibling, a report against the Content-Length path is a false positive.
+    knowledge:
+      vulnerabilities:
+        - http-request-smuggling
+      guides:
+        - languages/python

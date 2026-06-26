@@ -1,0 +1,38 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores
+# only the pointer plus the stack and knowledge this benchmark exercises. Paperless-ngx is a
+# real, widely deployed Django and DRF document management system, this is its real code at a
+# real vulnerable version, not authored here. Real third-party code is never copied in, this
+# repo ships to GitHub and PyPI. This is a second pin of the same repo, an earlier release that
+# still carries the ReDoS the paperless-ngx target's pin has already fixed.
+id: paperless-ngx-redos
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/paperless-ngx/paperless-ngx
+  # v2.20.1 is the last release before the 2.20.2 ReDoS fix. The fix adds
+  # src/documents/regex.py with a per-call timeout, which does not exist at this tag.
+  ref: v2.20.1
+  # review scope: the documents app, which owns the matching engine and the serializer that
+  # accepts the user-supplied regex
+  path: src/documents
+
+stack:
+  languages:
+    - python
+  frameworks:
+    - django
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - resource-exhaustion
+  guides:
+    - languages/python
+    - frameworks/python/django
+
+tags:
+  - public
+  - dos
+  - redos
+  - django

@@ -25,6 +25,7 @@ knowledge:
     - denial-of-service
     - unchecked-low-level-call
     - accounting-precision
+    - front-running
   guides:
     - languages/solidity
 
