@@ -1,0 +1,30 @@
+# Answer key for the ZITADEL replay target. Real third-party code at a real vulnerable commit,
+# not authored here, see benchmark.yaml for the clone pointer. The review under test never reads
+# this file.
+#
+# Checked out at bb56b36, the parent of the b1e60e7 fix, review scope internal/command. Confirmed
+# by reading session.go at this commit. Public advisory CVE-2025-46815, GHSA-g4r8-mp7g-85fq, so
+# this target measures regression more than true recall. It plants one replay flaw, an IdP intent
+# token with no single-use or expiry check.
+
+target: zitadel
+
+planted:
+  - id: check-intent-token-replay
+    category: replay-attack
+    file: internal/command/session.go
+    severity: HIGH
+    symbols:
+      - CheckIntent
+    note: >-
+      CVE-2025-46815. CheckIntent only verifies the intent write model state is
+      IDPIntentStateSucceeded, then calls IntentChecked, which appends a NewIntentCheckedEvent. It
+      never marks the intent consumed and performs no expiry check, and the write model has no
+      consumed state. So a captured IdP intent id and token from the callback are replayable to
+      authenticate as the victim repeatedly through the Session API. The fix adds an expiry check
+      and emits a consumed event so the intent is single-use.
+    knowledge:
+      vulnerabilities:
+        - replay-attack
+      guides:
+        - languages/go

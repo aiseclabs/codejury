@@ -1,0 +1,31 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores only
+# the pointer plus the stack and knowledge this benchmark exercises. Homarr is a real, popular
+# open-source self-hosted dashboard, this is its real code at a real vulnerable commit, not
+# authored here. Real third-party code is never copied in, this repo ships to GitHub and PyPI.
+id: homarr
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/homarr-labs/homarr
+  # the vulnerable commit, the parent of fix 1938798 which wrapped the redeem in a transaction
+  ref: 4fb48c23a2ccb1c047bab0d354933561e81cc3ed
+  # review scope: the api router package, where the registration mutation redeems the invite
+  path: packages/api/src/router
+
+stack:
+  languages:
+    - typescript
+  frameworks: []
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - race-condition
+  guides:
+    - languages/typescript
+
+tags:
+  - public
+  - race-condition
+  - typescript

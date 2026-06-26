@@ -1,0 +1,33 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores only
+# the pointer plus the stack and knowledge this benchmark exercises. Glances is a real, widely
+# used open-source system-monitoring tool with a network XML-RPC server, this is its real code at
+# a real vulnerable commit, not authored here. Real third-party code is never copied in, this
+# repo ships to GitHub and PyPI. It is grouped under languages, the XML-RPC server uses the
+# standard library, not a web framework we carry a guide for.
+id: glances
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/nicolargo/glances
+  # the vulnerable commit, the parent of fix 9d6051b which monkey-patches defusedxml
+  ref: 5daa2a8282add9bbc397d95cd4e5dcdf5fad85b8
+  # review scope: the server module and the compat layer that import the XML-RPC parser
+  path: glances
+
+stack:
+  languages:
+    - python
+  frameworks: []
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - xml-external-entity
+  guides:
+    - languages/python
+
+tags:
+  - public
+  - xxe
+  - python

@@ -1,0 +1,33 @@
+# Answer key for the Glances XXE target. Real third-party code at a real vulnerable commit, not
+# authored here, see benchmark.yaml for the clone pointer. The review under test never reads this
+# file.
+#
+# Checked out at 5daa2a8, the parent of the 9d6051b fix, review scope glances. Confirmed by
+# reading server.py and compat.py at this commit, no defusedxml monkey-patch is present. Public
+# advisory CVE-2021-23418, GHSA-r2mj-8wgq-73m6, so this target measures regression more than true
+# recall. It plants one XXE, an XML-RPC server that parses request bodies with the entity-resolving
+# standard-library parser.
+
+target: glances
+
+planted:
+  - id: xmlrpc-server-xxe
+    category: xml-external-entity
+    entry: POST /RPC2
+    file: glances/server.py
+    severity: HIGH
+    symbols:
+      - GlancesXMLRPCServer
+      - GlancesXMLRPCHandler
+    note: >-
+      CVE-2021-23418. In server mode glances binds GlancesXMLRPCServer, a stdlib SimpleXMLRPCServer
+      subclass serving /RPC2, which deserializes the POST body with xmlrpc.client through an
+      expat parser that processes DTD and external entities. The XML imports come from compat.py
+      and no defusedxml hardening is applied, so an attacker POSTs an XML-RPC body with a SYSTEM
+      entity and reads arbitrary local files, auth in server mode being optional and parsed before
+      the check. The fix adds defusedxml.xmlrpc.monkey_patch in compat.py.
+    knowledge:
+      vulnerabilities:
+        - xml-external-entity
+      guides:
+        - languages/python
