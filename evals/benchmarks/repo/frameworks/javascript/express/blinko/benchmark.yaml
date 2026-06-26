@@ -10,10 +10,11 @@ kind: repo
 target:
   type: git
   url: https://github.com/blinkospace/blinko
-  # the vulnerable commit, the parent of fix bef6b77 which corrected the user detail
-  # ownership check. Clone, then git checkout this commit.
-  ref: c48851090767
-  # review scope: the server, where the tRPC routers and their authorization logic live
+  # the vulnerable commit, the parent of fix c4885109 which corrected the file-API path
+  # traversal. The business-logic and path-traversal flaws both exist here, the detail and
+  # upsert ownership checks are fixed later in bef6b77. Clone, then git checkout this commit.
+  ref: 31bd9c21cb4cc331433003522d4c25e196414248
+  # review scope: the server, where the tRPC routers and the Express file route live
   path: server
 
 stack:
@@ -26,6 +27,7 @@ stack:
 knowledge:
   vulnerabilities:
     - business-logic
+    - path-traversal
   guides:
     - languages/javascript
     - frameworks/javascript/express
@@ -33,5 +35,6 @@ knowledge:
 tags:
   - public
   - business-logic
+  - path-traversal
   - authz
   - express

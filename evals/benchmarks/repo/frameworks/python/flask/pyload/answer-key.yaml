@@ -2,14 +2,14 @@
 # vulnerable commit, not authored here, see benchmark.yaml for the clone pointer. The review
 # under test never reads this file.
 #
-# Checked out at commit 57d8193, the parent of the fix, review scope src/pyload/webui/app,
-# the Flask web UI route surface. The planted issue was confirmed by reading the real code
-# at this commit, not from the advisory text alone. It is a public CVE, so this target
-# carries a leakage caveat and measures regression more than true recall, the unseen private
-# targets carry the real signal. This is a single-finding recall probe, can the review pick
-# the one unauthenticated route out of a blueprint where every sibling is authenticated, so
-# the safe siblings are the precision guard. A report that matches neither a planted issue
-# nor a safe sibling is listed as extra, it may be another real bug this one does not cover.
+# Checked out at commit 3eeecf5, the parent of the stored-XSS fix and earlier than the
+# access-control and open-redirect fixes, review scope src/pyload/webui/app, the Flask web UI
+# route surface and its shipped JS templates. Each planted issue was confirmed by reading the
+# real code at this commit, not from the advisory text alone. These are public CVEs, so this
+# target carries a leakage caveat and measures regression more than true recall, the unseen
+# private targets carry the real signal. The safe siblings, the authenticated routes and the
+# .text() renderer, are the precision guard. A report that matches neither a planted issue nor
+# a safe sibling is listed as extra, it may be another real bug these do not cover.
 
 target: pyload
 
@@ -24,7 +24,7 @@ planted:
           user renders any internal template. Flask injects the application config into every
           template context, so rendering info.html outside its authenticated /info view
           exposes the config including SECRET_KEY, which enables session forgery. Confirmed at
-          commit 57d8193, the route has no auth. The upstream fix renamed the colliding
+          commit 3eeecf5, the route has no auth. The upstream fix renamed the colliding
           template variable rather than adding auth, but the root access-control weakness is
           the unauthenticated render route, which a review should flag.
     knowledge:
@@ -49,13 +49,31 @@ planted:
       value, bypassable through a urlparse-versus-browser normalization gap such as
       next=https:///evil.com, so there is no effective same-origin enforcement on the redirect.
       The fix abandons is_safe_url for flask.url_for endpoint resolution. Confirmed at commit
-      57d8193, helpers.py still carries the bypassable check.
+      3eeecf5, helpers.py still carries the bypassable check.
     knowledge:
       vulnerabilities:
         - open-redirect
       guides:
         - languages/python
         - frameworks/python/flask
+
+  - id: packages-html-stored-xss
+    category: cross-site-scripting
+    file: src/pyload/webui/app/themes/modern/templates/js/packages.js
+    severity: MEDIUM
+    note: >-
+      CVE-2023-0488. The package render loop builds an HTML string by concatenating link.url and
+      link.name raw, "<a href='" + link.url + "'>" + link.name + "</a>", then injects it with
+      $(div).html(html). The link name and url come from a stored package created through the
+      add_package and the unauthenticated CNL addcrypted2 handlers, so a package named like
+      <img src=x onerror=alert(document.cookie)> executes when any operator views the collector.
+      The fix only makes the link unclickable, the correct remediation is .text() or HTML
+      encoding.
+    knowledge:
+      vulnerabilities:
+        - cross-site-scripting
+      guides:
+        - languages/javascript
 
 safe:
   - id: safe-login-required-internal-redirect
@@ -101,3 +119,16 @@ safe:
       guides:
         - languages/python
         - frameworks/python/flask
+
+  - id: safe-dashboard-text-render
+    category: cross-site-scripting
+    file: src/pyload/webui/app/themes/modern/templates/js/dashboard.js
+    note: >-
+      The dashboard renderer writes the same untrusted fields with jQuery .text(), for example
+      $(this.elements.name).text(item.name), which escapes the content. It is the safely rendered
+      sibling of the packages loop, a report of XSS here is a false positive.
+    knowledge:
+      vulnerabilities:
+        - cross-site-scripting
+      guides:
+        - languages/javascript

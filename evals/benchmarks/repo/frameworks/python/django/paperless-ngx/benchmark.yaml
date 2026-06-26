@@ -9,11 +9,12 @@ kind: repo
 target:
   type: git
   url: https://github.com/paperless-ngx/paperless-ngx
-  # v2.20.6 is the last release that carries both planted issues. The storage path test
-  # endpoint is fixed in 2.20.7, the global search mail leak in 2.20.12.
-  ref: v2.20.6
-  # review scope: the documents app, which owns the views, serializers, permissions, and the
-  # filename templating that the access-control flaws span
+  # v2.20.1 is the last release before the 2.20.2 ReDoS fix, and it still carries the two
+  # access-control flaws, which are fixed later, the storage path test in 2.20.7 and the global
+  # search mail leak in 2.20.12. So this one pin carries all three.
+  ref: v2.20.1
+  # review scope: the documents app, which owns the views, serializers, permissions, the
+  # filename templating, and the matching engine that the planted flaws span
   path: src/documents
 
 stack:
@@ -28,6 +29,7 @@ knowledge:
     - insecure-direct-object-reference
     - missing-authorization
     - server-side-template-injection
+    - resource-exhaustion
   guides:
     - languages/python
     - frameworks/python/django
@@ -35,4 +37,5 @@ knowledge:
 tags:
   - public
   - authz
+  - dos
   - django

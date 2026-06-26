@@ -10,15 +10,18 @@ kind: repo
 target:
   type: git
   url: https://github.com/pyload/pyload
-  # no tag exists at the affected dev version, so pin the exact vulnerable commit, the parent
-  # of fix bb22063. Clone, then git checkout this commit.
-  ref: 57d81930edb59177c60830ad8ac36a91d0ec4c4e
-  # review scope: the Flask web UI, its blueprints own the route access control
+  # no tag exists at the affected dev versions, so pin the exact vulnerable commit. 3eeecf5 is
+  # the parent of the stored-XSS fix 46d75a3 and predates the access-control fix bb22063 and the
+  # open-redirect fix fe94451, so this one pin carries all three. Clone, then git checkout it.
+  ref: 3eeecf549ad09493ed311f16338eca9aed581494
+  # review scope: the Flask web UI, its blueprints own the route access control and the shipped
+  # JS templates render the stored package data
   path: src/pyload/webui/app
 
 stack:
   languages:
     - python
+    - javascript
   frameworks:
     - flask
   protocols: []
@@ -27,12 +30,15 @@ knowledge:
   vulnerabilities:
     - missing-authorization
     - open-redirect
+    - cross-site-scripting
   guides:
     - languages/python
+    - languages/javascript
     - frameworks/python/flask
 
 tags:
   - public
   - authz
   - open-redirect
+  - xss
   - flask

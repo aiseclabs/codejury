@@ -9,7 +9,7 @@
 # recall. It plants one XXE, the XML import processors build a StAX factory with no entity or DTD
 # hardening and parse the uploaded import file. The fix adds a secure factory that disables both.
 
-target: tolgee
+target: tolgee-platform
 
 planted:
   - id: xml-import-stax-xxe

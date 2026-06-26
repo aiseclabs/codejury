@@ -3,7 +3,7 @@
 # open-source localization platform, this is its real backend code at a real vulnerable commit,
 # not authored here. Real third-party code is never copied in, this repo ships to GitHub and
 # PyPI.
-id: tolgee
+id: tolgee-platform
 kind: repo
 
 target:

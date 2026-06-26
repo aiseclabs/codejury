@@ -2,16 +2,17 @@
 # vulnerable version, not authored here, see benchmark.yaml for the clone pointer. The review
 # under test never reads this file.
 #
-# Cloned at v2.20.6, review scope src/documents, the DRF access-control surface. Both planted
-# issues were confirmed by reading the real code at this tag, not from the advisory text
-# alone. Each is a public GitHub advisory, so this target carries a leakage caveat and
-# measures regression more than true recall, the unseen private targets carry the real
-# signal. A report that matches neither a planted issue nor a safe sibling is listed as extra,
-# it may be another real bug these few do not cover. The same GlobalSearchView also queries
-# workflows and custom fields with a plain objects.filter, which the upstream fix left
-# untouched, so those are intentionally on neither list, a report against them is extra rather
-# than a false positive. Each entry names the knowledge it exercises so the coverage matrix
-# can attribute it.
+# Cloned at v2.20.1, review scope src/documents, the DRF access-control surface plus the
+# matching engine. All planted issues were confirmed by reading the real code at this tag, not
+# from the advisory text alone. v2.20.1 is before the 2.20.2 ReDoS fix and before the 2.20.7
+# and 2.20.12 access-control fixes, so it carries all three. Each is a public GitHub advisory,
+# so this target carries a leakage caveat and measures regression more than true recall, the
+# unseen private targets carry the real signal. A report that matches neither a planted issue
+# nor a safe sibling is listed as extra, it may be another real bug these few do not cover. The
+# same GlobalSearchView also queries workflows and custom fields with a plain objects.filter,
+# which the upstream fix left untouched, so those are intentionally on neither list, a report
+# against them is extra rather than a false positive. Each entry names the knowledge it
+# exercises so the coverage matrix can attribute it.
 
 target: paperless-ngx
 
@@ -63,6 +64,27 @@ planted:
         - languages/python
         - frameworks/python/django
 
+  - id: regex-match-unbounded-backtracking
+    category: resource-exhaustion
+    file: src/documents/matching.py
+    severity: HIGH
+    symbols:
+      - matches
+    note: >-
+      GHSA-24x5-wp64-9fcc. In the MATCH_REGEX branch, matches compiles and runs
+      matching_model.match, a user-controlled pattern settable through the Tag, Correspondent,
+      DocumentType, and WorkflowTrigger API, against the full document content with no timeout
+      and no safe-regex engine. The serializer validate_match only checks re.compile for syntax,
+      so a low-privilege user stores a catastrophic pattern such as (a+)+$ and every matched
+      document pins a CPU core, starving the Celery workers. The except clause catches only
+      re.error, not runaway backtracking.
+    knowledge:
+      vulnerabilities:
+        - resource-exhaustion
+      guides:
+        - languages/python
+        - frameworks/python/django
+
 safe:
   - id: safe-search-objects-owner-scoped
     category: insecure-direct-object-reference
@@ -93,6 +115,23 @@ safe:
       vulnerabilities:
         - insecure-direct-object-reference
         - missing-authorization
+      guides:
+        - languages/python
+        - frameworks/python/django
+
+  - id: safe-workflow-fnmatch-filename
+    category: resource-exhaustion
+    file: src/documents/matching.py
+    symbols:
+      - consumable_document_matches_workflow
+    note: >-
+      consumable_document_matches_workflow matches filename and path filters with fnmatch, a
+      linear-time glob translation, not an arbitrary user regex against full content. It is the
+      bounded sibling of the regex matcher, a report of resource exhaustion here is a false
+      positive.
+    knowledge:
+      vulnerabilities:
+        - resource-exhaustion
       guides:
         - languages/python
         - frameworks/python/django
