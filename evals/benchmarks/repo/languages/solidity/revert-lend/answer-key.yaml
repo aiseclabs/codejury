@@ -91,6 +91,24 @@ planted:
       guides:
         - languages/solidity
 
+  - id: send-position-value-uint128-truncation
+    category: unsafe-math
+    file: src/V3Vault.sol
+    severity: LOW
+    symbols:
+      - _sendPositionValue
+    note: >-
+      Bot report L-12. In _sendPositionValue the liquidation fee and liquidity math casts the
+      full-width products uint128(liquidationValue * fees0 / feeValue) and
+      uint128((liquidationValue - feeValue) * liquidity / (fullValue - feeValue)) down to uint128
+      without SafeCast, so a high-value position truncates the product mod 2^128 with no revert
+      and corrupts the fee and liquidity amounts during liquidation.
+    knowledge:
+      vulnerabilities:
+        - unsafe-math
+      guides:
+        - languages/solidity
+
 safe:
   - id: leverageup-bounded-slippage-deadline
     category: front-running

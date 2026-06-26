@@ -1,0 +1,36 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores only
+# the pointer plus the stack and knowledge this benchmark exercises. Blinko is a real
+# open-source self-hosted note app with an Express server, this is its real code at a real
+# vulnerable commit, not authored here. Real third-party code is never copied in, this repo
+# ships to GitHub and PyPI. This is a second pin of the same repo, the parent of the path
+# traversal fix, earlier than the paperless-style business-logic pin.
+id: blinko-path-traversal
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/blinkospace/blinko
+  # the vulnerable commit, the parent of fix c4885109 which added path-is-inside and
+  # sanitize-filename to the file API. CVE-2026-23482, GHSA-hrwx-rhrx-f9mm.
+  ref: 31bd9c21cb4cc331433003522d4c25e196414248
+  # review scope: the server, where the Express file route lives
+  path: server
+
+stack:
+  languages:
+    - javascript
+  frameworks:
+    - express
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - path-traversal
+  guides:
+    - languages/javascript
+    - frameworks/javascript/express
+
+tags:
+  - public
+  - path-traversal
+  - express

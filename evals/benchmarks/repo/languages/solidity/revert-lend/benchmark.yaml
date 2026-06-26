@@ -26,6 +26,7 @@ knowledge:
     - unchecked-low-level-call
     - accounting-precision
     - front-running
+    - unsafe-math
   guides:
     - languages/solidity
 

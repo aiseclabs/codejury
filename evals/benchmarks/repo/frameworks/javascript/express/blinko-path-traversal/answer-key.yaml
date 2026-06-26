@@ -1,0 +1,52 @@
+# Answer key for the Blinko path-traversal target. Real third-party code at a real vulnerable
+# commit, not authored here, see benchmark.yaml for the clone pointer. The review under test
+# never reads this file.
+#
+# Checked out at 31bd9c2, the parent of the c4885109 fix, review scope server. Confirmed by
+# reading server/routerExpress/file/file.ts at this commit, the fix dependencies path-is-inside
+# and sanitize-filename are absent from server/package.json here. Public advisory
+# CVE-2026-23482, GHSA-hrwx-rhrx-f9mm, so this target measures regression more than true recall.
+# It plants one path traversal, the file route serves a path built from the request URL with
+# only a leading-char strip. The correctly guarded sibling, the upload write that sanitizes the
+# name, is the precision guard. This earlier pin also still carries the two business-logic flaws
+# the blinko target covers, this key does not score those.
+
+target: blinko-path-traversal
+
+planted:
+  - id: file-route-leading-strip-traversal
+    category: path-traversal
+    entry: GET /api/file/*
+    file: server/routerExpress/file/file.ts
+    severity: HIGH
+    note: >-
+      CVE-2026-23482. The catch-all file route builds the served path from the request URL,
+      fullPath = decodeURIComponent(req.path.substring(1)), then strips only with
+      fullPath.replace(/^[./\\]+/, ''), an anchored leading-char strip that leaves embedded ../
+      segments intact. path.join(UPLOAD_FILE_PATH, sanitizedPath) then resolves outside the
+      upload directory, and readFile or createReadStream serves the file, so a request such as
+      GET /api/file/temp/../../../../etc/passwd reads arbitrary files, including .bko backups.
+    knowledge:
+      vulnerabilities:
+        - path-traversal
+      guides:
+        - languages/javascript
+        - frameworks/javascript/express
+
+safe:
+  - id: safe-upload-write-sanitized-name
+    category: path-traversal
+    file: server/lib/files.ts
+    symbols:
+      - writeFileSafe
+    note: >-
+      FileService.writeFileSafe runs the name through sanitizeFileName, which replaces path
+      separators and other dangerous characters with underscore before path.join, so the upload
+      write cannot introduce traversal segments. It resembles the file route but is correctly
+      guarded, a report of path traversal here is a false positive.
+    knowledge:
+      vulnerabilities:
+        - path-traversal
+      guides:
+        - languages/javascript
+        - frameworks/javascript/express
