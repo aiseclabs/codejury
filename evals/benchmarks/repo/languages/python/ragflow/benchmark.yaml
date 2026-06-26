@@ -10,8 +10,9 @@ target:
   url: https://github.com/infiniflow/ragflow
   # the vulnerable commit, the parent of fix a3bb4aa which switched to secrets.token_urlsafe
   ref: 40b2c48957dd06a661d3772ab5474f98c46a7d31
-  # review scope: the api utils, where the confirmation token is generated
-  path: api/utils
+  # review scope: the api layer, whose entrypoints in api/apps call the confirmation-token util
+  # in api/utils, so the scope must span both for the cross-file flow to be reviewable
+  path: api
 
 stack:
   languages:
