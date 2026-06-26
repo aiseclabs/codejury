@@ -429,3 +429,42 @@ cases:
       +        uint256 i = vrf.randomness(requestId) % players.length;
       +        _payout(players[i]);
       +    }
+
+  - name: evm-front-running
+    domain: evm
+    category: front-running
+    knowledge:
+      vulnerabilities: [front-running]
+      guides: [languages/solidity, protocols/defi-primitives]
+    tags: [evm, solidity, front-running]
+    diff: |
+      diff --git a/Zap.sol b/Zap.sol
+      --- a/Zap.sol
+      +++ b/Zap.sol
+      @@ -18,2 +18,6 @@ contract Zap {
+      -    function zapIn(uint256 amountIn) external {
+      -    }
+      +    function zapIn(uint256 amountIn) external {
+      +        uint256[] memory out =
+      +            router.swapExactTokensForTokens(amountIn, 0, path, address(this), block.timestamp);
+      +        _deposit(out[out.length - 1]);
+      +    }
+
+  - name: safe-evm-front-running
+    domain: evm
+    knowledge:
+      vulnerabilities: [front-running]
+      guides: [languages/solidity, protocols/defi-primitives]
+    tags: [evm, solidity, front-running, safe]
+    diff: |
+      diff --git a/Zap.sol b/Zap.sol
+      --- a/Zap.sol
+      +++ b/Zap.sol
+      @@ -18,2 +18,6 @@ contract Zap {
+      -    function zapIn(uint256 amountIn, uint256 minOut, uint256 deadline) external {
+      -    }
+      +    function zapIn(uint256 amountIn, uint256 minOut, uint256 deadline) external {
+      +        uint256[] memory out =
+      +            router.swapExactTokensForTokens(amountIn, minOut, path, address(this), deadline);
+      +        _deposit(out[out.length - 1]);
+      +    }

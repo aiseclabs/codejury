@@ -312,3 +312,33 @@ cases:
       -  res.end()
       +  db.users.findOne({ user: String(req.body.user), pass: String(req.body.pass) })
       +    .then(u => res.json({ ok: !!u }))
+
+  - name: http-request-smuggling-js
+    category: http-request-smuggling
+    knowledge:
+      vulnerabilities: [http-request-smuggling]
+    tags: [smuggling, javascript]
+    diff: |
+      diff --git a/proxy.js b/proxy.js
+      --- a/proxy.js
+      +++ b/proxy.js
+      @@ -6,2 +6,4 @@ server.on('connection', (socket) => {
+      -  socket.end()
+      +  const len = Number(req.headers['content-length'])
+      +  const body = await readExactly(socket, len)
+      +  forwardToUpstream(req, body)
+
+  - name: safe-http-request-smuggling-js
+    knowledge:
+      vulnerabilities: [http-request-smuggling]
+    tags: [smuggling, javascript, safe]
+    diff: |
+      diff --git a/proxy.js b/proxy.js
+      --- a/proxy.js
+      +++ b/proxy.js
+      @@ -6,2 +6,5 @@ server.on('connection', (socket) => {
+      -  socket.end()
+      +  if ('content-length' in req.headers && 'transfer-encoding' in req.headers) {
+      +    socket.destroy()
+      +    return
+      +  }

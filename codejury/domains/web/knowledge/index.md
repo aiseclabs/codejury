@@ -30,6 +30,7 @@ of these ids.
 - `xml-external-entity` CWE-611
 - `server-side-template-injection` CWE-1336
 - `http-response-splitting` CWE-113
+- `http-request-smuggling` CWE-444
 - `nosql-injection` CWE-943
 
 ### A04 Insecure Design / Business Logic
