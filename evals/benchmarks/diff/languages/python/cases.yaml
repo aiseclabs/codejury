@@ -1509,3 +1509,38 @@ cases:
       +        abort(400)
       +    f.save(os.path.join(UPLOAD_DIR, f"{uuid4()}.{ext}"))
       +    return "ok"
+
+  - name: redos-py
+    category: resource-exhaustion
+    knowledge:
+      vulnerabilities: [resource-exhaustion]
+      guides: [frameworks/python/flask]
+    tags: [dos, python]
+    diff: |
+      diff --git a/validate.py b/validate.py
+      --- a/validate.py
+      +++ b/validate.py
+      @@ -3,2 +3,4 @@ @app.get("/check")
+      -def check():
+      -    return "ok"
+      +def check():
+      +    pattern = re.compile(r"^(a+)+$")
+      +    return "match" if pattern.match(request.args["q"]) else "no"
+
+  - name: safe-redos-py
+    knowledge:
+      vulnerabilities: [resource-exhaustion]
+      guides: [frameworks/python/flask]
+    tags: [dos, python, safe]
+    diff: |
+      diff --git a/validate.py b/validate.py
+      --- a/validate.py
+      +++ b/validate.py
+      @@ -3,2 +3,5 @@ @app.get("/check")
+      -def check():
+      -    return "ok"
+      +def check():
+      +    q = request.args["q"]
+      +    if len(q) > 64:
+      +        abort(400)
+      +    return "match" if re.fullmatch(r"a+", q) else "no"

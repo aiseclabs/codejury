@@ -39,6 +39,7 @@ of these ids.
 - `race-condition` CWE-362
 - `mass-assignment` CWE-915
 - `unrestricted-file-upload` CWE-434
+- `resource-exhaustion` CWE-400/1333/770
 
 ### A05 Security Misconfiguration
 - `cors-misconfiguration` CWE-942

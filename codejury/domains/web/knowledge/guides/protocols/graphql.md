@@ -42,7 +42,8 @@ the actual schema and resolvers.
   operations in one request amplify backend work. Confirm a depth limit, a complexity or
   cost limit, and a cap on batching or aliasing bound the work. A missing limit that lets
   one request force heavy, repeated backend work is a denial-of-service finding, not a
-  bare best-practice note. See the methodology for the impact bar.
+  bare best-practice note. See the resource-exhaustion vulnerability class and the
+  methodology for the impact bar.
 
 ## Batching and Aliasing as a Control Bypass
 - Query batching and field aliasing pack many operations into one HTTP request, so a
