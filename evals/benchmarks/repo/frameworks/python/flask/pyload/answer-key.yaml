@@ -34,7 +34,47 @@ planted:
         - languages/python
         - frameworks/python/flask
 
+  - id: login-next-open-redirect
+    category: open-redirect
+    entry: GET /login
+    file: src/pyload/webui/app/helpers.py
+    severity: MEDIUM
+    symbols:
+      - get_redirect_url
+      - is_safe_url
+    note: >-
+      CVE-2024-24808, GHSA-g3cm-qg2v-2hj5. get_redirect_url takes the destination straight from
+      flask.request.values.get("next") and the login route redirects to it after auth. The only
+      guard is is_safe_url, which compares ref_url.netloc == test_url.netloc on a urljoin-parsed
+      value, bypassable through a urlparse-versus-browser normalization gap such as
+      next=https:///evil.com, so there is no effective same-origin enforcement on the redirect.
+      The fix abandons is_safe_url for flask.url_for endpoint resolution. Confirmed at commit
+      57d8193, helpers.py still carries the bypassable check.
+    knowledge:
+      vulnerabilities:
+        - open-redirect
+      guides:
+        - languages/python
+        - frameworks/python/flask
+
 safe:
+  - id: safe-login-required-internal-redirect
+    category: open-redirect
+    file: src/pyload/webui/app/helpers.py
+    symbols:
+      - login_required
+    note: >-
+      The login_required wrapper redirects to flask.url_for("app.login", next=flask.request.url),
+      a server-built internal endpoint, embedding the user-controlled next only as a query
+      parameter, not as the redirect destination. It is the correctly built sibling of the login
+      open redirect, a report of open redirect here is a false positive.
+    knowledge:
+      vulnerabilities:
+        - open-redirect
+      guides:
+        - languages/python
+        - frameworks/python/flask
+
   - id: safe-settings-authed
     category: missing-authorization
     entry: GET /settings

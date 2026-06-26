@@ -1,0 +1,33 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores only
+# the pointer plus the stack and knowledge this benchmark exercises. pyLoad is a real open-source
+# download manager with a Flask web UI, this is its real code at a real vulnerable commit, not
+# authored here. Real third-party code is never copied in, this repo ships to GitHub and PyPI.
+# This is a second pin of the same repo, the parent of the stored-XSS fix, distinct from the
+# pyload pin used for the access-control findings.
+id: pyload-xss
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/pyload/pyload
+  # the vulnerable commit, the parent of fix 46d75a3. CVE-2023-0488, GHSA-wcm6-wv95-7jw6.
+  ref: 3eeecf549ad09493ed311f16338eca9aed581494
+  # review scope: the Flask web UI, the stored links render in its shipped JS templates
+  path: src/pyload/webui/app
+
+stack:
+  languages:
+    - javascript
+  frameworks: []
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - cross-site-scripting
+  guides:
+    - languages/javascript
+
+tags:
+  - public
+  - xss
+  - flask

@@ -1,0 +1,33 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores only
+# the pointer plus the stack and knowledge this benchmark exercises. Ray is a real, widely used
+# Python distributed-compute framework, this is its real code at a real vulnerable commit, not
+# authored here. Real third-party code is never copied in, this repo ships to GitHub and PyPI.
+# It is grouped under languages, not a framework, because the dashboard uses aiohttp, not a
+# framework we carry a guide for.
+id: ray
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/ray-project/ray
+  # the vulnerable commit, the parent of fix 193ff8c which added an allowlist and argv exec
+  ref: 79a5643238f890f0b163c3a886aa51d1abc6e4f7
+  # review scope: the dashboard reporter module, where the profiling route and the shell call live
+  path: python/ray/dashboard/modules/reporter
+
+stack:
+  languages:
+    - python
+  frameworks: []
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - command-injection
+  guides:
+    - languages/python
+
+tags:
+  - public
+  - command-injection
+  - python

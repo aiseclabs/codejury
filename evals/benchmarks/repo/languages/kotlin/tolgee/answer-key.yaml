@@ -1,0 +1,31 @@
+# Answer key for the Tolgee XXE target. Real third-party code at a real vulnerable commit, not
+# authored here, see benchmark.yaml for the clone pointer. The review under test never reads this
+# file.
+#
+# Checked out at 89813a6, the parent of the 7c71d5a fix, review scope
+# backend/data/src/main/kotlin/io/tolgee/formats. Confirmed by reading XmlResourcesProcessor.kt at
+# this commit, the secure factory util/xmlSecurity.kt the fix adds does not exist yet. Public
+# advisory CVE-2026-32251, GHSA-rcvv-64pq-vxfx, so this target measures regression more than true
+# recall. It plants one XXE, the XML import processors build a StAX factory with no entity or DTD
+# hardening and parse the uploaded import file. The fix adds a secure factory that disables both.
+
+target: tolgee
+
+planted:
+  - id: xml-import-stax-xxe
+    category: xml-external-entity
+    file: backend/data/src/main/kotlin/io/tolgee/formats/xmlResources/in/XmlResourcesProcessor.kt
+    severity: HIGH
+    symbols:
+      - xmlEventReader
+    note: >-
+      CVE-2026-32251. The Android-resources import processor builds its reader with
+      XMLInputFactory.newInstance() and createXMLEventReader(context.file.data.inputStream()),
+      never setting IS_SUPPORTING_EXTERNAL_ENTITIES or SUPPORT_DTD to false, so an authenticated
+      user importing a crafted XML translation file reads arbitrary files and reaches internal
+      hosts, XXE plus SSRF. The .resx and .stringsdict processors and util/domBuilder.kt share the
+      unconfigured factory. The fix routes all of them through a secure factory in
+      util/xmlSecurity.kt.
+    knowledge:
+      vulnerabilities:
+        - xml-external-entity

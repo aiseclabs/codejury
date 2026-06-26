@@ -1,0 +1,30 @@
+# A real-world repo target, not vendored. The review runs against a clone, so this stores only
+# the pointer plus the stack and knowledge this benchmark exercises. Tolgee is a real
+# open-source localization platform, this is its real backend code at a real vulnerable commit,
+# not authored here. Real third-party code is never copied in, this repo ships to GitHub and
+# PyPI.
+id: tolgee
+kind: repo
+
+target:
+  type: git
+  url: https://github.com/tolgee/tolgee-platform
+  # the vulnerable commit, the parent of fix 7c71d5a which added a secure XML factory
+  ref: 89813a68a041ddacbf1816541c9baff4c7af107f
+  # review scope: the import format processors, where the XML parsers read uploaded files
+  path: backend/data/src/main/kotlin/io/tolgee/formats
+
+stack:
+  languages:
+    - kotlin
+  frameworks: []
+  protocols: []
+
+knowledge:
+  vulnerabilities:
+    - xml-external-entity
+
+tags:
+  - public
+  - xxe
+  - kotlin

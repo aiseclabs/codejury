@@ -26,6 +26,7 @@ stack:
 knowledge:
   vulnerabilities:
     - missing-authorization
+    - open-redirect
   guides:
     - languages/python
     - frameworks/python/flask
@@ -33,4 +34,5 @@ knowledge:
 tags:
   - public
   - authz
+  - open-redirect
   - flask
