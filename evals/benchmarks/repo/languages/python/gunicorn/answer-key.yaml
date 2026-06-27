@@ -1,0 +1,32 @@
+# Answer key for the Gunicorn request-smuggling target. Real third-party code at a real vulnerable
+# commit, not authored here, see benchmark.yaml for the clone pointer. The review under test never
+# reads this file.
+#
+# Checked out at 0b10cba, the parent of the fix ac29c9b, review scope gunicorn/http. Confirmed by
+# reading gunicorn/http/message.py at this commit. Public advisory CVE-2024-1135,
+# GHSA-w3h3-4rj7-4ph4, so this target measures regression more than true recall. It plants one HTTP
+# request-smuggling flaw, Transfer-Encoding accepted without strict framing validation.
+
+target: gunicorn
+
+planted:
+  - id: transfer-encoding-loose-framing-smuggling
+    category: http-request-smuggling
+    file: gunicorn/http/message.py
+    severity: HIGH
+    symbols:
+      - set_body_reader
+    note: >-
+      CVE-2024-1135. set_body_reader decides the body framing by scanning headers and treating the
+      request as chunked only when a Transfer-Encoding value equals exactly "chunked" with
+      value.lower() == "chunked". It never rejects the unsafe cases RFC 7230 forbids, Transfer
+      Encoding together with Content-Length, chunked that is not the final coding, a repeated or
+      unknown coding, so a value such as "chunked, chunked" falls through to Content-Length here
+      while a front-end proxy honors the chunked framing. The two disagree on request boundaries and
+      an attacker smuggles a second request past front-end access control. The fix refuses any
+      unsupported framing instead of falling back.
+    knowledge:
+      vulnerabilities:
+        - http-request-smuggling
+      guides:
+        - languages/python
