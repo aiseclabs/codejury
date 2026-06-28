@@ -19,17 +19,26 @@ _CATEGORY_HINTS = {
     "replay-attack": ("replay",),
     "mass-assignment": ("mass assignment", "mass-assignment"),
     "auth-bypass": ("auth bypass", "authentication bypass"),
+    # pure abbreviations of one class, a report names the short form and a key the long one
+    "xml-external-entity": ("xxe", "xml external entity"),
+    "cross-site-request-forgery": ("csrf", "cross-site request forgery", "cross site request forgery"),
 }
 
 _METHODS = {"get", "post", "put", "patch", "delete", "head", "options"}
 
 
 def normalize_endpoint(text: str) -> str:
-    """Normalize an endpoint so GET /wallets/<wallet_id> and get /wallets/{id} match."""
-    text = text.strip().strip("`").lower()
+    """Normalize an endpoint so GET /wallets/<wallet_id> and get /wallets/{id} match. All
+    backticks are dropped, not only the outer ones, since a report often fences the method
+    and the path separately, as in `GET` `/x`. A trailing parenthetical annotation such as
+    `(tRPC user.upsertUser)` is removed, so a Source line that names the handler after the
+    endpoint still matches the bare endpoint a key entry cites. Free-text non-HTTP sources
+    carry no parentheses, so they are left intact."""
+    text = text.strip().lower().replace("`", "")
+    text = re.sub(r"\([^)]*\)", " ", text)
     text = re.sub(r"[<{][^>}]*[>}]", "*", text)
     text = re.sub(r"\s+", " ", text)
-    return text
+    return text.strip()
 
 
 def _split_endpoint(text: str) -> tuple[str, list[str]]:

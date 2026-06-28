@@ -24,15 +24,19 @@ def _matches(report: Report, entry: KeyEntry) -> bool:
     # class such as code injection an endpoint does not anchor
     report_names = {Path(f).name for f in report.files}
     file_hit = any(Path(kf).name in report_names for kf in entry.files)
-    if not (file_hit and category_match(report.category, entry.category)):
+    if not file_hit:
         return False
     # symbols narrow a file anchor to the bug's real framing, so a report of the same class on
-    # a sibling function in the same file no longer credits it. An entry without symbols keeps
-    # the coarse match by class and file, the behavior every web key relies on
+    # a sibling function in the same file no longer credits it.
     if entry.symbols:
         hay = f"{report.text} {report.endpoint}"
+        # the file plus the bug's own function is a precise anchor, so the class label is then
+        # redundant: a report that traces the same function at the same file is the same defect
+        # even when it names the class idor where the key names it access-control. A symbol miss
+        # still rejects, since that is a different function in the file, not this bug.
         return any(s in hay for s in entry.symbols)
-    return True
+    # no symbols, so the class is the only thing that narrows a whole-file anchor to the bug
+    return category_match(report.category, entry.category)
 
 
 def score(key: AnswerKey, reports: list[Report]) -> Result:

@@ -33,6 +33,26 @@ def test_endpoint_match_does_not_conflate_item_with_collection():
     assert endpoint_match("GET /wallets", "GET /wallets") is True
 
 
+def test_endpoint_match_ignores_a_trailing_handler_annotation():
+    # a Source line that names the handler after the endpoint, with stray backticks, still
+    # matches the bare endpoint a key entry cites, the brittleness that scored a real
+    # account-takeover report as a miss
+    assert endpoint_match("POST /v1/user/upsert` (tRPC `user.upsertUser`)`", "POST /v1/user/upsert") is True
+    assert endpoint_match("`GET` `/v1/user/detail`", "GET /v1/user/detail") is True
+    # a non-HTTP free-text source carries no parenthetical, so it is left intact, not truncated
+    assert endpoint_match("translate batch handler", "translate batch handler") is True
+
+
+def test_category_of_folds_an_abbreviation_onto_its_class():
+    # category_of normalizes at load, so a report tagged xxe and a key tagged
+    # xml-external-entity reach the scorer as one form and match
+    from evals.scorers.match import category_of
+    assert category_of("xxe") == category_of("xml-external-entity")
+    assert category_of("csrf") == category_of("cross-site-request-forgery")
+    # a different class is left on its own form, not folded together
+    assert category_of("xxe") != category_of("ssrf")
+
+
 def _key(tmp_path, body: str) -> Path:
     p = tmp_path / "k.yaml"
     p.write_text(body, encoding="utf-8")
