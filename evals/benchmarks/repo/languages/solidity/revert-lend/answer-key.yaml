@@ -41,6 +41,7 @@ planted:
         - oracle-price-manipulation
       guides:
         - languages/solidity
+        - protocols/defi-primitives
 
   - id: v3utils-missing-caller-check
     category: access-control

@@ -31,3 +31,22 @@ planted:
       guides:
         - languages/python
         - frameworks/python/fastapi
+
+safe:
+  - id: status-endpoint-version-only
+    category: information-exposure
+    entry: GET /api/v4/status
+    file: glances/outputs/glances_restful_api.py
+    symbols:
+      - _api_status
+    note: >-
+      _api_status is the health-check endpoint and returns only {'version': __version__}. It is an
+      unauthenticated REST handler in the same file as the leaking args endpoint, so it reads like a
+      disclosure surface, but the version string is not sensitive, so an information-exposure report
+      on this endpoint is a false positive.
+    knowledge:
+      vulnerabilities:
+        - information-exposure
+      guides:
+        - languages/python
+        - frameworks/python/fastapi

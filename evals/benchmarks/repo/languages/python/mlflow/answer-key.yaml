@@ -31,3 +31,22 @@ planted:
         - unrestricted-file-upload
       guides:
         - languages/python
+
+safe:
+  - id: huggingface-source-managed-cache
+    category: unrestricted-file-upload
+    file: mlflow/data/huggingface_dataset_source.py
+    symbols:
+      - load
+      - HuggingFaceDatasetSource
+    note: >-
+      HuggingFaceDatasetSource.load resolves the dataset through datasets.load_dataset, which writes
+      only into the datasets library's own managed cache. It never derives a destination path from a
+      server-controlled header or filename, so there is no path to traverse. It is a sibling
+      DatasetSource.load in the same package as the vulnerable HTTP source, so it reads relevant, but
+      a file-write report here is a false positive.
+    knowledge:
+      vulnerabilities:
+        - unrestricted-file-upload
+      guides:
+        - languages/python

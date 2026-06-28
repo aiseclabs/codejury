@@ -31,3 +31,22 @@ planted:
       guides:
         - languages/javascript
         - frameworks/javascript/express
+
+safe:
+  - id: branches-constant-git-command
+    category: command-injection
+    file: server/routes/git.js
+    symbols:
+      - git branch -a
+      - branches
+    note: >-
+      The GET /branches handler runs execAsync('git branch -a') with a constant command string
+      and no request value interpolated, so there is nothing for an attacker to inject. It sits in
+      the same file as the real shell-injection sinks and runs through the same execAsync, so it
+      reads risky, but a command-injection report on this constant command is a false positive.
+    knowledge:
+      vulnerabilities:
+        - command-injection
+      guides:
+        - languages/javascript
+        - frameworks/javascript/express

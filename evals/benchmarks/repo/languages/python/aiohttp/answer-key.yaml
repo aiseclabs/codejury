@@ -30,3 +30,22 @@ planted:
         - http-response-splitting
       guides:
         - languages/python
+
+safe:
+  - id: header-serializer-rejects-crlf
+    category: http-response-splitting
+    file: aiohttp/http_writer.py
+    symbols:
+      - _safe_header
+    note: >-
+      _safe_header runs over every header name and value in _py_serialize_headers and raises
+      ValueError when a carriage return, line feed, or null byte is present, so an attacker cannot
+      split the response through a header value. It is the header-writing path that a splitting
+      review naturally inspects, but it is correctly guarded, so a response-splitting report on the
+      header path is a false positive. The real gap is the status-line reason, which this function
+      does not cover at this commit.
+    knowledge:
+      vulnerabilities:
+        - http-response-splitting
+      guides:
+        - languages/python

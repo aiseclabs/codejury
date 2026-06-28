@@ -30,3 +30,4 @@ planted:
         - weird-erc20
       guides:
         - languages/solidity
+        - protocols/erc-standards
