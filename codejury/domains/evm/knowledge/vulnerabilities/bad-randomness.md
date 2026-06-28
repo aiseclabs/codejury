@@ -16,6 +16,12 @@ a validator can influence or withhold it, so the result is gamed and the payout 
 Use a verifiable randomness source such as a VRF, or a commit-reveal scheme where the seed
 is fixed before it can be known.
 
+The timestamp-dependence variant is the same root cause applied to time, not selection: a
+proposer can nudge `block.timestamp` by a few seconds, so logic that gates an auction close,
+a vesting unlock, a deadline, or a reward rate on an exact `block.timestamp` comparison is
+manipulable at the margin. Use a tolerance band, a block-number gate, or an oracle time
+rather than trusting `block.timestamp` to the second.
+
 ### Vulnerable
 ```solidity
 function drawWinner(address[] calldata players) external {
