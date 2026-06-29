@@ -13,15 +13,22 @@ from pathlib import Path
 from codejury.domains.base import Domain
 from codejury.domains.evm.facts.slither import SlitherFacts
 
-# the repo-review pass lenses for contracts: each pass leads with one, the empty lens
-# reviews every class
+# the repo-review pass lenses for contracts: each pass leads with one class, the empty lens
+# reviews every class. A named lens is a reliable focused pass and the empty catch-all is not,
+# so every shipped contract class gets its own lens rather than relying on the catch-all.
 EVM_LENSES = (
     "access-control",
     "reentrancy",
-    "oracle-manipulation",
+    "oracle-manipulation",        # oracle-price-manipulation
     "accounting-precision",
     "signature-replay",
     "denial-of-service",
+    "bad-randomness",
+    "front-running",
+    "proxy-delegatecall",
+    "unchecked-low-level-call",
+    "unsafe-math",
+    "weird-erc20",
     "",
 )
 

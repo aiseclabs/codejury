@@ -12,14 +12,31 @@ from pathlib import Path
 
 from codejury.domains.base import Domain
 
-# the repo-review pass lenses: each pass leads with one, the empty lens reviews every class
+# the repo-review pass lenses: each pass leads with one class, the empty lens reviews every
+# class. A named lens is a reliable focused pass, the empty catch-all is not, so every shipped
+# high-impact class gets its own lens rather than relying on the catch-all to happen to surface
+# it. Classes hunted by the identical activity share one lens, sql, nosql, command, and code all
+# trace input into an interpreter under `injection`, the rest stay distinct by their sink.
 WEB_LENSES = (
-    "authorization",
-    "replay",
-    "concurrency",
-    "data-exposure",
-    "injection",
-    "business-logic",
+    "authorization",        # missing-authorization, IDOR
+    "authentication",       # auth bypass, jwt-validation, insecure-session-management
+    "replay",               # replay-attack
+    "concurrency",          # race-condition
+    "injection",            # sql, nosql, command, code
+    "ssrf",                 # server-side-request-forgery
+    "path-traversal",       # path-traversal, unrestricted-file-upload
+    "deserialization",      # insecure-deserialization, prototype-pollution
+    "xss",                  # cross-site-scripting
+    "template-injection",   # server-side-template-injection
+    "xxe",                  # xml-external-entity
+    "csrf",                 # cross-site-request-forgery, cors-misconfiguration
+    "open-redirect",        # open-redirect
+    "smuggling",            # http-request-smuggling, http-response-splitting
+    "cryptography",         # insecure-cryptography, hardcoded-secrets, insecure-transport
+    "data-exposure",        # information-exposure
+    "mass-assignment",      # mass-assignment
+    "business-logic",       # business-logic
+    "resource-exhaustion",  # resource-exhaustion
     "",
 )
 
