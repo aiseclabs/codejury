@@ -74,12 +74,15 @@ def endpoint_match(report_ep: str, key_entry: str) -> bool:
 
 def category_of(text: str) -> str:
     """The canonical class a free-text category maps to by a soft hint match, else the text
-    lowercased, so a report and a key entry naming the same class are compared on one form."""
-    low = text.lower()
+    lowercased with its separators unified, so a report and a key entry naming the same class
+    are compared on one form. Spaces and underscores fold to the hyphen the keys use, so a
+    report tagged `server-side request forgery` and a key tagged `server-side-request-forgery`
+    are one form rather than two."""
+    low = text.lower().strip()
     for cat, hints in _CATEGORY_HINTS.items():
         if any(h in low for h in hints):
             return cat
-    return low.strip()
+    return re.sub(r"[\s_]+", "-", low).strip("-")
 
 
 def category_match(report_cat: str, key_cat: str) -> bool:

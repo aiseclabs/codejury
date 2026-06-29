@@ -43,6 +43,16 @@ def test_endpoint_match_ignores_a_trailing_handler_annotation():
     assert endpoint_match("translate batch handler", "translate batch handler") is True
 
 
+def test_category_of_unifies_spaces_and_hyphens():
+    # a report writing the class with spaces and a key writing it with hyphens reach the
+    # scorer on one form, since the pipeline runs category_of on both before matching, so a
+    # real server-side request forgery finding is not scored a miss on the separator alone
+    from evals.scorers.match import category_match, category_of
+    assert category_of("server-side request forgery") == category_of("server-side-request-forgery")
+    assert category_match(category_of("server-side request forgery"), category_of("server-side-request-forgery"))
+    assert not category_match(category_of("server-side request forgery"), category_of("cross-site-request-forgery"))
+
+
 def test_category_of_folds_an_abbreviation_onto_its_class():
     # category_of normalizes at load, so a report tagged xxe and a key tagged
     # xml-external-entity reach the scorer as one form and match
