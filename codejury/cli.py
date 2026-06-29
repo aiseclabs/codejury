@@ -411,6 +411,49 @@ def _diff_provider(args, spec, kind: str):
     return _role_provider(args, spec)
 
 
+def build_diff_providers(args):
+    """Resolve the diff seats into providers exactly as `review diff` does, so a non-CLI caller
+    such as the eval runs a case through the same wiring a user gets. Returns the base provider
+    and model the audit needs plus the per-role finder, challenger, and judge providers and
+    models, the role fields None in standard mode. The single source the CLI and the eval share,
+    so the probe cannot drift from the product on which model or seat reviews a diff."""
+    base = _base_spec(args)
+    if args.mode == "adversarial":
+        roles = {r: _role_spec(args, r, base) for r in ("finder", "challenger", "judge")}
+        kinds = {r: _seat_backend(s, args.executor) for r, s in roles.items()}
+        agent_roles = [r for r, k in kinds.items() if k == "agent"]
+        _warn_roles_under_agent(args, agent_roles)
+        if args.executor == "auto":
+            _note_subscription_fallback(agent_roles)
+        fp = _diff_provider(args, roles["finder"], kinds["finder"])
+        cp = _diff_provider(args, roles["challenger"], kinds["challenger"])
+        jp = _diff_provider(args, roles["judge"], kinds["judge"])
+        return (fp, roles["finder"]["model"], fp, roles["finder"]["model"],
+                cp, roles["challenger"]["model"], jp, roles["judge"]["model"])
+    base_kind = _seat_backend(base, args.executor)
+    if args.executor == "auto" and base_kind == "agent":
+        _note_subscription_fallback(("audit",))
+    return (_diff_provider(args, base, base_kind), base["model"], None, None, None, None, None, None)
+
+
+def diff_args_from_env(mode: str, *, executor: str = "auto", rounds: int = 3):
+    """A diff args namespace from the environment defaults, the same values `review diff` reads
+    when no flag is passed, so `build_diff_providers` builds the user's real wiring. Lets the eval
+    drive the audit through the product path rather than a hardcoded provider."""
+    from types import SimpleNamespace
+    ns = dict(provider=DEFAULT_PROVIDER, model=DEFAULT_MODEL, api_key=DEFAULT_API_KEY,
+              api_base=DEFAULT_API_BASE, retries=DEFAULT_RETRIES, timeout=DEFAULT_TIMEOUT,
+              executor=executor, mode=mode, rounds=rounds)
+    for role in ROLES:
+        d = DEFAULT_ROLE_BACKENDS[role]
+        ns[f"{role}_provider"] = d["provider"]
+        ns[f"{role}_model"] = d["model"]
+        ns[f"{role}_api_key"] = d["api_key"]
+        ns[f"{role}_api_base"] = d["api_base"]
+        ns[f"{role}_wire_api"] = d["wire_api"]
+    return SimpleNamespace(**ns)
+
+
 def _dispatch(args, parser) -> int:
     scope = getattr(args, "scope", None)
     if args.command == "review" and scope == "diff":
@@ -424,29 +467,8 @@ def _dispatch(args, parser) -> int:
         else:
             diff = _read_diff(args)
             domain = resolve_domain(args.domain, _diff_paths(diff))
-            base = _base_spec(args)
-            if args.mode == "adversarial":
-                # each seat resolves on its own key, so a keyless Claude finder and judge ride the
-                # subscription while an OpenAI challenger uses its own key. The finder backs the base
-                # default audit_diff needs, the per-role providers below override it field by field
-                roles = {r: _role_spec(args, r, base) for r in ("finder", "challenger", "judge")}
-                kinds = {r: _seat_backend(s, args.executor) for r, s in roles.items()}
-                agent_roles = [r for r, k in kinds.items() if k == "agent"]
-                _warn_roles_under_agent(args, agent_roles)
-                if args.executor == "auto":
-                    _note_subscription_fallback(agent_roles)
-                finder_provider = _diff_provider(args, roles["finder"], kinds["finder"])
-                challenger_provider = _diff_provider(args, roles["challenger"], kinds["challenger"])
-                judge_provider = _diff_provider(args, roles["judge"], kinds["judge"])
-                finder_model = roles["finder"]["model"]
-                challenger_model = roles["challenger"]["model"]
-                judge_model = roles["judge"]["model"]
-                provider, model = finder_provider, roles["finder"]["model"]
-            else:
-                base_kind = _seat_backend(base, args.executor)
-                if args.executor == "auto" and base_kind == "agent":
-                    _note_subscription_fallback(("audit",))
-                provider, model = _diff_provider(args, base, base_kind), base["model"]
+            (provider, model, finder_provider, finder_model,
+             challenger_provider, challenger_model, judge_provider, judge_model) = build_diff_providers(args)
         kept, _, degraded = audit_diff(
             diff, provider=provider, model=model,
             mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,

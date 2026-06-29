@@ -329,7 +329,7 @@ def test_run_diff_cases_handles_the_audit_three_tuple_and_degraded(monkeypatch):
     from evals.diff_cases import DiffCase
     from evals.runners import diff as diffmod
 
-    def fake_audit(d, *, provider, model, mode="standard", max_rounds=1, domain=None):
+    def fake_audit(d, *, provider, model, mode="standard", max_rounds=1, domain=None, **kwargs):
         if "POSITIVE" in d:
             return (["a-finding"], [], False)
         if "DEGRADED" in d:
@@ -501,7 +501,7 @@ def test_run_diff_cases_routes_each_case_to_its_domain(monkeypatch):
 
     seen: dict[str, str] = {}
 
-    def fake_audit(d, *, provider, model, mode="standard", max_rounds=1, domain=None):
+    def fake_audit(d, *, provider, model, mode="standard", max_rounds=1, domain=None, **kwargs):
         seen[d] = domain.name
         return ([], [], False)
 

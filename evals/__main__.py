@@ -72,15 +72,22 @@ def _run_diff(cases, args, target: str = "diff"):
     """Run the cases through the probe args.runs times. One run returns a Result, repeated
     runs fold into a SuiteResult by frequency, the anti-noise verdict, invariant 3 errors
     summed across runs."""
-    from codejury.providers.factory import DEFAULT_API_BASE, DEFAULT_API_KEY, DEFAULT_MODEL, make_provider
+    from codejury.cli import build_diff_providers, diff_args_from_env
     from evals.runners.diff import run_diff_cases
 
-    provider = make_provider("litellm", api_key=DEFAULT_API_KEY, api_base=DEFAULT_API_BASE, retries=2)
-    model = args.model or DEFAULT_MODEL
+    # build the seats the same way `review diff` does, so the probe is not a separate provider
+    # path that could pass or fail differently from the product, see build_diff_providers
+    dargs = diff_args_from_env(args.mode)
+    if args.model:
+        dargs.model = args.model
+    provider, model, fp, fm, cp, cm, jp, jm = build_diff_providers(dargs)
     n = max(1, args.runs)
     runs = []
     for _ in range(n):
-        r = run_diff_cases(cases, provider=provider, model=model, mode=args.mode)
+        r = run_diff_cases(cases, provider=provider, model=model, mode=args.mode, rounds=dargs.rounds,
+                           finder_provider=fp, finder_model=fm,
+                           challenger_provider=cp, challenger_model=cm,
+                           judge_provider=jp, judge_model=jm)
         r.target = target
         runs.append(r)
     return SuiteResult.from_runs(target, runs) if n > 1 else runs[0]
