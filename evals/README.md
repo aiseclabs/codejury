@@ -116,8 +116,17 @@ output it wrote.
 ```bash
 # 1. review a cloned target, see its benchmark.yaml for the pointer
 git clone --depth 1 --branch v0.3.8 https://github.com/open-webui/open-webui /tmp/owui
-codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
-#    an agent then follows METHODOLOGY.md, then finalize writes findings/
+#    the coded engine, deterministic and reproducible, the path to prefer for a regression.
+#    --run scaffolds, fans out one sub-review per unit over diverse passes, verifies, and
+#    writes findings.json, all in one command, no separate finalize:
+codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui --run --executor api
+#    or scaffold only and let an agent follow METHODOLOGY.md, the /codejury-review-repo slash
+#    command, then finalize, the same methodology run by an agent instead of code:
+# codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
+#    Both are product paths and should agree, score whichever wrote findings. Do not invent a
+#    third orchestration, a custom harness drifts from the product and the score stops meaning
+#    anything. --run needs detectable entrypoints, a no-entrypoint scope such as a plain library
+#    or a frontend-template-only directory must take the agent path, which enumerates them by reading.
 
 # 2. score it, prefer --findings-json, findings/ collapses findings on one endpoint of
 #    different classes into a single file, so --findings-dir can undercount the reports
