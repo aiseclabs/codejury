@@ -239,8 +239,8 @@ def _finding_entry(ws: Path, c: Candidate, owner: str = "") -> dict:
     candidate = f"candidates/{c.source}" if c.source.endswith(".md") else ""
     return {"title": c.title, "category": c.category, "entry": c.endpoint,
             "file": c.file, "line": c.line, "severity": c.severity, "status": c.status,
-            "owner": owner, "found_by": list(c.found_by), "models": _confidence(c),
-            "candidate": candidate, "poc": _poc_for(ws, _finding_name(c))}
+            "analysis": c.evidence, "owner": owner, "found_by": list(c.found_by),
+            "models": _confidence(c), "candidate": candidate, "poc": _poc_for(ws, _finding_name(c))}
 
 
 def _write_findings(ws: Path, findings: list[Candidate], root: str = "") -> None:
