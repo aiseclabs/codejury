@@ -30,6 +30,14 @@ cases:
       guides: [protocols/graphql, frameworks/javascript/nestjs]
     tags: [graphql, typescript, nestjs]
     diff: |
+      diff --git a/src/users/dto/update-user.input.ts b/src/users/dto/update-user.input.ts
+      --- a/src/users/dto/update-user.input.ts
+      +++ b/src/users/dto/update-user.input.ts
+      @@ -2,3 +2,4 @@ export class UpdateUserInput {
+         @Field() name: string
+         @Field() email: string
+      +  @Field() role: string
+       }
       diff --git a/src/users/users.resolver.ts b/src/users/users.resolver.ts
       --- a/src/users/users.resolver.ts
       +++ b/src/users/users.resolver.ts
@@ -62,6 +70,14 @@ cases:
       guides: [protocols/graphql, frameworks/javascript/nestjs]
     tags: [graphql, typescript, nestjs, safe]
     diff: |
+      diff --git a/src/users/dto/update-user.input.ts b/src/users/dto/update-user.input.ts
+      --- a/src/users/dto/update-user.input.ts
+      +++ b/src/users/dto/update-user.input.ts
+      @@ -2,3 +2,4 @@ export class UpdateUserInput {
+         @Field() name: string
+         @Field() email: string
+      +  @Field() role: string
+       }
       diff --git a/src/users/users.resolver.ts b/src/users/users.resolver.ts
       --- a/src/users/users.resolver.ts
       +++ b/src/users/users.resolver.ts
