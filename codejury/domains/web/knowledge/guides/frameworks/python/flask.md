@@ -6,7 +6,7 @@ language: python
 detect:
   manifest: ["flask"]
   imports: ["from flask", "import flask"]
-entrypoint_files: ["*app.py", "*views.py", "*routes.py", "*/views/*.py", "*/blueprints/*.py", "*api.py", "*templates/*.html", "*templates/*.js"]
+entrypoint_files: ["*app.py", "*views.py", "*routes.py", "*/views/*.py", "*/blueprints/*.py", "*api.py", "*templates/*.js"]
 entrypoint_markers: ["@app.route", ".route(", "Blueprint(", "add_url_rule(", "MethodView", "@app.before_request"]
 logic_layers: ["*/services/*.py", "*services.py", "*/models/*.py", "*models.py", "*/repositories/*.py", "*/dao/*.py"]
 ---
@@ -35,8 +35,8 @@ logic_layers: ["*/services/*.py", "*services.py", "*/models/*.py", "*models.py",
   sink.
 - A hardcoded `SECRET_KEY`, `debug=True` in production, and an open redirect via
   `redirect(request.args[...])`.
-- XSS in a rendered template under `templates/`, reviewed as its own unit. Jinja
-  `{% autoescape %}` covers only server-side `{{ }}`, not a client-side script in a
-  `.js` template that builds an HTML string from AJAX data and injects it with
-  `.html(...)` or `innerHTML`, nor an `.html` template that applies `|safe` to a value
-  that traces back to stored user input.
+- XSS in a `.js` template under `templates/`, reviewed as its own unit. Jinja
+  `{% autoescape %}` covers only server-side `{{ }}`, not a client-side script that
+  builds an HTML string from AJAX data and injects it with `.html(...)` or `innerHTML`.
+  A `.html` template that applies `|safe` to stored user input is the same class, trace
+  it from the route that renders it.
