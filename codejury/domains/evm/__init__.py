@@ -19,7 +19,7 @@ from codejury.domains.evm.facts.slither import SlitherFacts
 EVM_LENSES = (
     "access-control",
     "reentrancy",
-    "oracle-manipulation",        # oracle-price-manipulation
+    "oracle-manipulation",
     "accounting-precision",
     "signature-replay",
     "denial-of-service",

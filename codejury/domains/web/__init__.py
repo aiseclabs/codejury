@@ -13,30 +13,32 @@ from pathlib import Path
 from codejury.domains.base import Domain
 
 # the repo-review pass lenses: each pass leads with one class, the empty lens reviews every
-# class. A named lens is a reliable focused pass, the empty catch-all is not, so every shipped
-# high-impact class gets its own lens rather than relying on the catch-all to happen to surface
-# it. Classes hunted by the identical activity share one lens, sql, nosql, command, and code all
-# trace input into an interpreter under `injection`, the rest stay distinct by their sink.
+# class. A named lens is a reliable focused pass and the empty catch-all is not, so every shipped
+# class gets its own lens rather than relying on the catch-all to surface it. A few lenses cover
+# several classes hunted the same way: injection covers sql, nosql, command, and code,
+# authentication covers auth bypass, jwt, and session, path-traversal covers file upload,
+# deserialization covers prototype pollution, csrf covers cors, smuggling covers response
+# splitting, and cryptography covers secrets and transport. The rest map one to one.
 WEB_LENSES = (
-    "authorization",        # missing-authorization, IDOR
-    "authentication",       # auth bypass, jwt-validation, insecure-session-management
-    "replay",               # replay-attack
-    "concurrency",          # race-condition
-    "injection",            # sql, nosql, command, code
-    "ssrf",                 # server-side-request-forgery
-    "path-traversal",       # path-traversal, unrestricted-file-upload
-    "deserialization",      # insecure-deserialization, prototype-pollution
-    "xss",                  # cross-site-scripting
-    "template-injection",   # server-side-template-injection
-    "xxe",                  # xml-external-entity
-    "csrf",                 # cross-site-request-forgery, cors-misconfiguration
-    "open-redirect",        # open-redirect
-    "smuggling",            # http-request-smuggling, http-response-splitting
-    "cryptography",         # insecure-cryptography, hardcoded-secrets, insecure-transport
-    "data-exposure",        # information-exposure
-    "mass-assignment",      # mass-assignment
-    "business-logic",       # business-logic
-    "resource-exhaustion",  # resource-exhaustion
+    "authorization",
+    "authentication",
+    "replay",
+    "concurrency",
+    "injection",
+    "ssrf",
+    "path-traversal",
+    "deserialization",
+    "xss",
+    "template-injection",
+    "xxe",
+    "csrf",
+    "open-redirect",
+    "smuggling",
+    "cryptography",
+    "data-exposure",
+    "mass-assignment",
+    "business-logic",
+    "resource-exhaustion",
     "",
 )
 
