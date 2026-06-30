@@ -1,6 +1,7 @@
 ---
 id: hardcoded-secrets
 title: Hardcoded Secrets
+lens: cryptography
 impact: HIGH
 tags: [cwe-798, cwe-259, owasp-a02]
 triggers: ["api_key =", "API_KEY =", "password =", "secret =", "token =", "sk_live", "ghp_", "aws_secret"]

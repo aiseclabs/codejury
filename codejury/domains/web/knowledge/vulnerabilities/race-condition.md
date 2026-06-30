@@ -1,6 +1,7 @@
 ---
 id: race-condition
 title: Race Condition / TOCTOU
+lens: concurrency
 impact: HIGH
 tags: [cwe-362, cwe-367, owasp-a04]
 triggers: ["if balance", "balance -=", "select_for_update", "get(...).save", "check", "transaction", "lock", "atomic"]

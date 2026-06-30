@@ -1,6 +1,7 @@
 ---
 id: unchecked-low-level-call
 title: Unchecked Low-Level Call
+lens: unchecked-low-level-call
 impact: HIGH
 tags: [swc-104, low-level-call, return-value, fund-loss]
 aliases: [unchecked-call, unchecked-return]

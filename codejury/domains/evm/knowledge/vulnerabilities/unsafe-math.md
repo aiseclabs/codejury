@@ -1,6 +1,7 @@
 ---
 id: unsafe-math
 title: Unchecked Math and Unsafe Cast
+lens: unsafe-math
 impact: HIGH
 tags: [swc-101, overflow, downcast, fund-loss]
 aliases: [unchecked-math, unsafe-cast, downcast-truncation]

@@ -1,6 +1,7 @@
 ---
 id: nosql-injection
 title: NoSQL Injection
+lens: injection
 impact: HIGH
 tags: [cwe-943, owasp-a03]
 triggers: ["find(", "findOne(", "$where", "$ne", "$gt", "req.body", "req.query", "collection.", "mongo"]

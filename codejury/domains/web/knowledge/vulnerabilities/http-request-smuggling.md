@@ -1,6 +1,7 @@
 ---
 id: http-request-smuggling
 title: HTTP Request Smuggling
+lens: smuggling
 impact: HIGH
 tags: [cwe-444, owasp-a03]
 triggers: ["Content-Length", "Transfer-Encoding", "chunked", "rawHeaders", "proxy_pass", "createServer", "socket.on", "readSocket", "upstream", "keep-alive", "HTTP/1.1", "parseHeaders"]

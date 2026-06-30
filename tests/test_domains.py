@@ -7,6 +7,7 @@ from codejury.domains.base import Domain, content_paths
 from codejury.domains.evm import EVM
 from codejury.domains.registry import detect_domain, get_domain, resolve_domain
 from codejury.domains.web import WEB
+from codejury.markdown_docs import iter_md_docs
 
 
 def test_web_domain_resolves_shipped_content():
@@ -60,6 +61,21 @@ def test_evm_domain_resolves_shipped_content_and_strategy():
     # the evm endpoint is a function sharing helpers, so it dedups by file, web by endpoint
     assert EVM.dedup_by_file is True
     assert WEB.dedup_by_file is False
+
+
+@pytest.mark.parametrize("domain", [WEB, EVM])
+def test_every_class_declares_a_domain_lens_and_every_lens_is_claimed(domain):
+    """Each shipped class declares a `lens:` that the domain rotates, so a class never silently
+    falls to the catch-all and a renamed lens cannot drift from its class. Every named lens is
+    claimed by at least one class, so the rotation carries no dead pass."""
+    named = {lens for lens in domain.lenses if lens}
+    claimed = set()
+    for path, meta, _body in iter_md_docs(domain.paths.vulnerabilities_dir):
+        lens = meta.get("lens")
+        assert lens, f"{path.name} declares no lens"
+        assert lens in named, f"{path.name} lens {lens!r} is not a {domain.name} lens"
+        claimed.add(lens)
+    assert claimed == named, f"{domain.name} lenses with no class: {named - claimed}"
 
 
 def test_evm_facts_backend_fails_loud_without_slither(monkeypatch):

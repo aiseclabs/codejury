@@ -1,6 +1,7 @@
 ---
 id: front-running
 title: Front-Running and Slippage
+lens: front-running
 impact: HIGH
 tags: [front-running, mev, sandwich, slippage, fund-loss]
 aliases: [mev, sandwich, slippage, frontrunning, front-run]

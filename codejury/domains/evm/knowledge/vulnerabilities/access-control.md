@@ -1,6 +1,7 @@
 ---
 id: access-control
 title: Missing or Broken Access Control
+lens: access-control
 impact: CRITICAL
 tags: [swc-105, swc-115, access-control, fund-loss]
 aliases: [missing-access-control, broken-access-control]

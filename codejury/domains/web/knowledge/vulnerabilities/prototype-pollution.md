@@ -1,6 +1,7 @@
 ---
 id: prototype-pollution
 title: Prototype Pollution
+lens: deserialization
 impact: HIGH
 tags: [cwe-1321]
 triggers: ["__proto__", "constructor", "prototype", "merge", "Object.assign", "deepMerge", "[key]", "extend("]

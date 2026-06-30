@@ -1,6 +1,7 @@
 ---
 id: open-redirect
 title: Open Redirect
+lens: open-redirect
 impact: MEDIUM
 tags: [cwe-601, owasp-a01]
 triggers: ["redirect(", "Location", "next=", "return_url", "redirect_uri", "sendRedirect", "res.redirect"]

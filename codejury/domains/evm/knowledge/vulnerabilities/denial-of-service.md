@@ -1,6 +1,7 @@
 ---
 id: denial-of-service
 title: Denial of Service
+lens: denial-of-service
 impact: HIGH
 tags: [swc-113, swc-128, dos, griefing, gas]
 aliases: [dos]

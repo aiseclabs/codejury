@@ -1,6 +1,7 @@
 ---
 id: unrestricted-file-upload
 title: Unrestricted File Upload
+lens: path-traversal
 impact: HIGH
 tags: [cwe-434, owasp-a04]
 triggers: ["upload", "filename", ".save(", "multipart", "content-type", "secure_filename", "os.path.join", "MimeType"]

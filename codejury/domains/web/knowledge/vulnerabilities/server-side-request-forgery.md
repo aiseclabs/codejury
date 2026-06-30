@@ -1,6 +1,7 @@
 ---
 id: server-side-request-forgery
 title: Server-Side Request Forgery
+lens: ssrf
 impact: HIGH
 tags: [cwe-918, owasp-a10]
 triggers: ["requests.get", "requests.post", "urlopen", "httpx", "fetch(", "url =", "request.args", "webhook", "callback"]

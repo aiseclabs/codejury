@@ -1,6 +1,7 @@
 ---
 id: accounting-precision
 title: Accounting and Precision Error
+lens: accounting-precision
 impact: HIGH
 tags: [accounting, rounding, precision, erc4626, fund-loss]
 aliases: [accounting, precision]
