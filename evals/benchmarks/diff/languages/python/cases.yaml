@@ -1544,3 +1544,34 @@ cases:
       +    if len(q) > 64:
       +        abort(400)
       +    return "match" if re.fullmatch(r"a+", q) else "no"
+
+  - name: security-misconfiguration-py
+    category: security-misconfiguration
+    knowledge:
+      vulnerabilities: [security-misconfiguration]
+      guides: [frameworks/python/flask]
+    tags: [misconfig, python]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -10,2 +10,3 @@ app = Flask(__name__)
+      -if __name__ == "__main__":
+      -    app.run(host="0.0.0.0")
+      +if __name__ == "__main__":
+      +    app.run(host="0.0.0.0", debug=True)
+
+  - name: safe-security-misconfiguration-py
+    knowledge:
+      vulnerabilities: [security-misconfiguration]
+      guides: [frameworks/python/flask]
+    tags: [misconfig, python, safe]
+    diff: |
+      diff --git a/app.py b/app.py
+      --- a/app.py
+      +++ b/app.py
+      @@ -10,2 +10,3 @@ app = Flask(__name__)
+      -if __name__ == "__main__":
+      -    app.run(host="0.0.0.0")
+      +if __name__ == "__main__":
+      +    app.run(host="0.0.0.0", debug=os.environ.get("FLASK_DEBUG") == "1")

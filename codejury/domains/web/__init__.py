@@ -36,6 +36,7 @@ WEB_LENSES = (
     "smuggling",
     "cryptography",
     "data-exposure",
+    "security-misconfiguration",
     "mass-assignment",
     "business-logic",
     "resource-exhaustion",

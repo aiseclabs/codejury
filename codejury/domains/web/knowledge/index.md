@@ -43,6 +43,7 @@ of these ids.
 
 ### A05 Security Misconfiguration
 - `cors-misconfiguration` CWE-942
+- `security-misconfiguration` CWE-16
 
 ### A07 Identification and Authentication
 - `improper-authentication` CWE-287
