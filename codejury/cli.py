@@ -382,12 +382,12 @@ def main(argv: list[str] | None = None) -> int:
     _add_domain_arg(repo)
 
     inst = sub.add_parser("install-slash-command",
-                          help="install the /codejury-review-repo slash command for an agent")
+                          help="install the /codejury-review slash command for an agent")
     inst.add_argument("--agent", choices=("claude", "codex"), default="claude",
                       help="which agent's command directory to install into")
     inst.add_argument("--dir", default=None, help="explicit target directory, overrides --agent")
     inst.add_argument("--force", action="store_true",
-                      help="overwrite an existing codejury-review-repo.md at the destination")
+                      help="overwrite an existing codejury-review.md at the destination")
     inst.add_argument("--domain", default="web", metavar="DOMAIN",
                       help="which domain's slash command to install, one of: " + ", ".join(available_domains()))
 
@@ -655,7 +655,7 @@ def _dispatch(args, parser) -> int:
         print(
             "This command sets up the review, it does not find anything itself. Next, have an "
             f"interactive agent follow {res.workspace}/METHODOLOGY.md to run the review, or use the "
-            "/codejury-review-repo command in Claude Code or Codex. The agent proposes findings in "
+            "/codejury-review command in Claude Code or Codex. The agent proposes findings in "
             f"{res.workspace}/candidates/, finalize confirms them into {res.workspace}/findings/."
         )
         return 0
@@ -667,14 +667,14 @@ def _dispatch(args, parser) -> int:
             "codex": Path.home() / ".codex" / "prompts",
         }
         target_dir = Path(args.dir) if args.dir else agent_dirs[args.agent]
-        dst = target_dir / "codejury-review-repo.md"
+        dst = target_dir / "codejury-review.md"
         if dst.exists() and not args.force:
             print(f"{dst} already exists. Re-run with --force to overwrite it.", file=sys.stderr)
             return 1
         target_dir.mkdir(parents=True, exist_ok=True)
         dst.write_text(slash_command_file.read_text(encoding="utf-8"), encoding="utf-8")
         print(f"Installed slash command to {dst}")
-        print("Run it in the agent with: /codejury-review-repo <repository>")
+        print("Run it in the agent with: /codejury-review <repository or diff>")
         return 0
 
     if args.command == "review":

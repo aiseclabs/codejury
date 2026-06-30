@@ -111,12 +111,15 @@ def test_python_dash_m_codejury_runs():
 def test_install_slash_command_writes_the_file(tmp_path):
     rc = main(["install-slash-command", "--dir", str(tmp_path)])
     assert rc == 0
-    f = tmp_path / "codejury-review-repo.md"
-    assert f.is_file() and "codejury review repo" in f.read_text()
+    f = tmp_path / "codejury-review.md"
+    text = f.read_text()
+    assert f.is_file() and "codejury review repo" in text
+    # the dispatcher carries both paths, repo fan-out and the coded diff command
+    assert "codejury review diff" in text
 
 
 def test_install_slash_command_refuses_to_clobber_without_force(tmp_path, capsys):
-    target = tmp_path / "codejury-review-repo.md"
+    target = tmp_path / "codejury-review.md"
     target.write_text("my own prompt")
     assert main(["install-slash-command", "--dir", str(tmp_path)]) == 1
     assert target.read_text() == "my own prompt"

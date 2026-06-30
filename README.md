@@ -42,8 +42,10 @@ codejury install-slash-command                  # Claude Code
 codejury install-slash-command --agent codex    # Codex
 ```
 
-`install-slash-command` copies `/codejury-review-repo` into the selected agent's command
-directory. Pass `--dir` to install it somewhere else.
+`install-slash-command` copies `/codejury-review` into the selected agent's command
+directory. The one command dispatches by argument: a directory runs the Repo Review
+fan-out, a diff file or git range runs the coded Diff Review. Pass `--dir` to install it
+somewhere else.
 
 ## Configure a Model Backend
 
@@ -190,7 +192,7 @@ _pocs.md        PoC reconciliation, planned versus delivered
 Then run the interactive slash command in Claude Code or Codex:
 
 ```text
-/codejury-review-repo /path/to/repo
+/codejury-review /path/to/repo
 ```
 
 The agent maps the attack surface, fills the authorization model, runs one focused

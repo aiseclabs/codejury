@@ -1,7 +1,41 @@
 ---
-description: Run a codejury whole-repo security review, interactively, by fanning out per unit
+description: Run a codejury security review of a repository or a diff, interactively, by fanning out per unit
 ---
-Run a codejury whole-repo security review of: $ARGUMENTS
+Run a codejury security review of: $ARGUMENTS
+
+First decide which path $ARGUMENTS names, the two are different tools, do not mix them.
+
+- DIFF REVIEW when $ARGUMENTS is a unified diff file such as a `.diff` or `.patch`, a single
+  file of diff text, or a git range such as `origin/main...HEAD`. This path is fully coded,
+  you run one command and relay its report, there is no fan-out and no workspace.
+- REPO REVIEW when $ARGUMENTS is a directory, a whole repository to audit. This path is the
+  fan-out you orchestrate, follow the numbered steps under Repo Review.
+
+## Diff Review
+
+Run the coded engine and relay its report. There is nothing for you to judge, the engine
+chunks the diff, runs its passes, filters, and prints the findings.
+
+```
+codejury review diff --file <the diff file>
+```
+
+For a git range instead of a file, drop `--file` and pass the range, with `--repo` if the
+repository is not the current directory:
+
+```
+codejury review diff --repo <repo dir> --git-range origin/main...HEAD
+```
+
+If `codejury` is not on PATH it is a pip-installed console script, so activate the project
+venv first, for example `. .venv/bin/activate`, or run `python -m codejury`.
+
+Relay the report as it prints. A failed, rate-limited, blank, or error-exited run is a
+failed review, not a clean pass, surface the error and never report zero findings from a
+broken run. A non-zero exit means a finding hit the severity gate or the audit degraded, say
+which. Then stop, Diff Review does not use the units, the workspace, or the gate below.
+
+## Repo Review
 
 You are the orchestrator, not the reviewer. Recall comes from fanning out: the tool
 gives you a deterministic unit worklist, you run one focused sub-review per unit in

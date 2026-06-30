@@ -120,7 +120,7 @@ git clone --depth 1 --branch v0.3.8 https://github.com/open-webui/open-webui /tm
 #    --run scaffolds, fans out one sub-review per unit over diverse passes, verifies, and
 #    writes findings.json, all in one command, no separate finalize:
 codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui --run --executor api
-#    or scaffold only and let an agent follow METHODOLOGY.md, the /codejury-review-repo slash
+#    or scaffold only and let an agent follow METHODOLOGY.md, the /codejury-review slash
 #    command, then finalize, the same methodology run by an agent instead of code:
 # codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
 #    Both are product paths and should agree, score whichever wrote findings. Do not invent a
