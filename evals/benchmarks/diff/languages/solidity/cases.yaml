@@ -422,12 +422,16 @@ cases:
       diff --git a/Lottery.sol b/Lottery.sol
       --- a/Lottery.sol
       +++ b/Lottery.sol
-      @@ -22,2 +22,5 @@ contract Lottery {
-      -    function drawWinner(uint256 requestId) external {
+      @@ -22,2 +22,8 @@ contract Lottery {
+      -    function drawWinner() external {
       -    }
-      +    function drawWinner(uint256 requestId) external {
-      +        uint256 i = vrf.randomness(requestId) % players.length;
-      +        _payout(players[i]);
+      +    function drawWinner() external onlyOwner {
+      +        pendingRequestId = vrf.requestRandomness();
+      +    }
+      +    function fulfillRandomness(uint256 requestId, uint256 randomness) external {
+      +        require(msg.sender == address(vrf), "only the VRF coordinator");
+      +        require(requestId == pendingRequestId, "unexpected request");
+      +        _payout(players[randomness % players.length]);
       +    }
 
   - name: evm-front-running
