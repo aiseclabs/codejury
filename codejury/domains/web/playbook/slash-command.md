@@ -1,5 +1,5 @@
 ---
-description: Run a codejury security review of a repository or a diff, interactively, by fanning out per unit
+description: Run a codejury security review of a diff or a whole repository, the diff in one coded pass and the repo by fanning out per unit
 ---
 Run a codejury security review of: $ARGUMENTS
 

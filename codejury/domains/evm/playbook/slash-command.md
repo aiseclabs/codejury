@@ -1,5 +1,5 @@
 ---
-description: Run a codejury smart contract security review of a protocol or a diff, interactively, by fanning out per contract
+description: Run a codejury smart contract security review of a diff or a whole protocol, the diff in one coded pass and the protocol by fanning out per contract
 ---
 Run a codejury smart contract security review of: $ARGUMENTS
 
