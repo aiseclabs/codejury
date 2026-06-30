@@ -38,3 +38,9 @@ tags:
   - defi
   - reentrancy
   - oracle-price-manipulation
+  - access-control
+  - accounting-precision
+  - denial-of-service
+  - front-running
+  - unchecked-low-level-call
+  - unsafe-math

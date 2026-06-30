@@ -36,6 +36,6 @@ knowledge:
 
 tags:
   - public
-  - authz
-  - dos
+  - insecure-direct-object-reference
+  - resource-exhaustion
   - django
