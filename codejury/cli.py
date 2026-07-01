@@ -366,8 +366,10 @@ def main(argv: list[str] | None = None) -> int:
         _add_role_backend_args(roles, role)
 
     tuning = repo.add_argument_group("run tuning (advanced)", "only affect --run, sane defaults otherwise")
-    tuning.add_argument("--max-passes", type=int, default=24, dest="max_passes",
-                        help="cap on diverse passes before stopping")
+    tuning.add_argument("--max-passes", type=int, default=None, dest="max_passes",
+                        help="cap on diverse passes before stopping, default scales to the domain: "
+                             "(min-lens-shots + 1) * number of lenses, so every lens meets its shot "
+                             "floor with a cycle of headroom for convergence")
     tuning.add_argument("--converge-after", type=int, default=2, dest="converge_after",
                         help="stop once this many consecutive passes add no new finding")
     tuning.add_argument("--min-lens-shots", type=int, default=2, dest="min_lens_shots",
@@ -547,6 +549,10 @@ def _dispatch(args, parser) -> int:
         from codejury.review.repo.engine import run_repo_review
         from codejury.review.repo.verifier import ModelVerifier
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+        # scale the pass cap to the domain, so the min-lens-shots floor is always meetable and the
+        # convergence early-stop can fire, with one lens cycle of headroom above the floor
+        if args.max_passes is None:
+            args.max_passes = (args.min_lens_shots + 1) * len(domain.lenses)
         _warn_secondary_env()
         base = _base_spec(args)
         finder = _role_spec(args, "finder", base)
