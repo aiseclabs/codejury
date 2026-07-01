@@ -190,7 +190,7 @@ cases:
       -  res.end()
       +  const u = new URL(req.query.url)
       +  if (u.hostname !== 'images.example.com') return res.sendStatus(400)
-      +  axios.get(u.href).then(r => res.send(r.data))
+      +  axios.get(u.href, { maxRedirects: 0 }).then(r => res.send(r.data))
 
   - name: safe-express-mass-assignment
     knowledge:
