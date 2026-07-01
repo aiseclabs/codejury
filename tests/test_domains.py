@@ -78,6 +78,56 @@ def test_every_class_declares_a_domain_lens_and_every_lens_is_claimed(domain):
     assert claimed == named, f"{domain.name} lenses with no class: {named - claimed}"
 
 
+# The post-SWC DeFi classes the frozen SWC Registry never covered, so they anchor on ERC and
+# mechanism tags instead of an swc id. A class added here must genuinely have no swc entry.
+_EVM_NO_SWC = {"accounting-precision", "oracle-price-manipulation", "weird-erc20"}
+
+
+def _class_tags(domain):
+    for path, meta, _body in iter_md_docs(domain.paths.vulnerabilities_dir):
+        yield path.name[:-3], [str(t) for t in (meta.get("tags") or [])]
+
+
+@pytest.mark.parametrize("domain", [WEB, EVM])
+def test_tags_lead_with_registry_codes(domain):
+    """A class lists every registry code, swc/cwe/owasp, before any descriptive keyword, so the
+    standard anchors read first and the order does not drift from one class to the next."""
+    for cid, tags in _class_tags(domain):
+        seen_keyword = False
+        for t in tags:
+            if not t.startswith(("swc-", "cwe-", "owasp-")):
+                seen_keyword = True
+            elif seen_keyword:
+                pytest.fail(f"{domain.name}/{cid}: code {t!r} after a keyword, tags={tags}")
+
+
+def test_every_web_class_tags_a_cwe_and_an_owasp():
+    """Web knowledge anchors on the CWE and OWASP taxonomies, so every class carries both."""
+    for cid, tags in _class_tags(WEB):
+        assert any(t.startswith("cwe-") for t in tags), f"web/{cid} has no cwe tag: {tags}"
+        assert any(t.startswith("owasp-") for t in tags), f"web/{cid} has no owasp tag: {tags}"
+
+
+def test_every_evm_class_tags_swc_unless_post_swc_defi():
+    """Every EVM class carries its SWC id, except the post-SWC DeFi classes SWC never covered,
+    which are pinned in the allowlist and must carry other tags instead."""
+    for cid, tags in _class_tags(EVM):
+        has_swc = any(t.startswith("swc-") for t in tags)
+        if cid in _EVM_NO_SWC:
+            assert not has_swc, f"evm/{cid} now has an swc id, drop it from the no-swc allowlist"
+            assert tags, f"evm/{cid} has no tags at all"
+        else:
+            assert has_swc, f"evm/{cid} has no swc tag and is not an allowed exception: {tags}"
+
+
+@pytest.mark.parametrize("domain", [WEB, EVM])
+def test_every_class_carries_a_code_example(domain):
+    """Every class ships at least one fenced code example, the vulnerable or secure snippet the
+    class is built around. The heading form varies by class, so this checks the fence, not it."""
+    for path, _meta, body in iter_md_docs(domain.paths.vulnerabilities_dir):
+        assert "```" in body, f"{domain.name}/{path.name[:-3]} has no fenced code example"
+
+
 def test_evm_facts_backend_fails_loud_without_slither(monkeypatch):
     from codejury.domains.base import BackendUnavailable, FactsBackend
     from codejury.domains.evm.facts.slither import SlitherFacts
