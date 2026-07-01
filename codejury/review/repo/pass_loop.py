@@ -64,8 +64,12 @@ def run_passes(
     reviewers = list(reviewer) if isinstance(reviewer, (list, tuple)) else [reviewer]
     labels = [getattr(rv, "label", "") or f"model-{k}" for k, rv in enumerate(reviewers)]
     # each model must get at least one full lens cycle before the run may stop, so a second
-    # model is never skipped by an early saturation, the recall ceiling it exists to lift
-    floor = max(min_lens_shots, len(reviewers))
+    # model is never skipped by an early saturation, the recall ceiling it exists to lift. Cap the
+    # floor by what the pass budget can spread over the lenses, since demanding more shots than
+    # `max_passes` can deliver leaves the coverage gate permanently unmet, which silently disables
+    # the convergence early-stop and burns every pass. Raise `max_passes` to `shots * lenses` to
+    # actually get more shots per lens.
+    floor = max(1, min(max(min_lens_shots, len(reviewers)), max_passes // len(lenses)))
     reviewed_ok: set[str] = set()
     lens_shots: dict[str, int] = {}
 
