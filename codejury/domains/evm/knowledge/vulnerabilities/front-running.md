@@ -3,7 +3,7 @@ id: front-running
 title: Front-Running and Slippage
 lens: front-running
 impact: HIGH
-tags: [front-running, mev, sandwich, slippage, fund-loss]
+tags: [swc-114, front-running, mev, sandwich, slippage, fund-loss]
 aliases: [mev, sandwich, slippage, frontrunning, front-run]
 triggers: ["swap", "minOut", "amountOutMin", "minAmountOut", "amountOutMinimum", "deadline", "getAmountOut", "addLiquidity", "removeLiquidity", "swapExactTokensForTokens", "0, path", "claim", "harvest"]
 ---
