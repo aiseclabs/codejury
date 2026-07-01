@@ -11,7 +11,7 @@ target: mlflow
 
 planted:
   - id: dataset-content-disposition-path-write
-    category: unrestricted-file-upload
+    category: path-traversal
     file: mlflow/data/http_dataset_source.py
     severity: HIGH
     symbols:
@@ -28,13 +28,13 @@ planted:
       Content-Disposition filename to its basename before joining.
     knowledge:
       vulnerabilities:
-        - unrestricted-file-upload
+        - path-traversal
       guides:
         - languages/python
 
 safe:
   - id: huggingface-source-managed-cache
-    category: unrestricted-file-upload
+    category: path-traversal
     file: mlflow/data/huggingface_dataset_source.py
     symbols:
       - load
@@ -47,6 +47,6 @@ safe:
       a file-write report here is a false positive.
     knowledge:
       vulnerabilities:
-        - unrestricted-file-upload
+        - path-traversal
       guides:
         - languages/python

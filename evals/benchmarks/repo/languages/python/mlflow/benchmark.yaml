@@ -23,11 +23,11 @@ stack:
 
 knowledge:
   vulnerabilities:
-    - unrestricted-file-upload
+    - path-traversal
   guides:
     - languages/python
 
 tags:
   - public
-  - unrestricted-file-upload
+  - path-traversal
   - python
