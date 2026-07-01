@@ -3,7 +3,7 @@ id: denial-of-service
 title: Denial of Service
 lens: denial-of-service
 impact: HIGH
-tags: [swc-113, swc-128, dos, griefing, gas]
+tags: [swc-113, swc-128, dos, griefing, gas, fund-loss]
 aliases: [dos]
 triggers: ["for (", "while (", ".length", "push(", "transfer(", "revert", "external call", "unbounded", "for(uint", "selfdestruct"]
 ---
