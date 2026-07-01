@@ -558,9 +558,15 @@ cases:
       diff --git a/views.py b/views.py
       --- a/views.py
       +++ b/views.py
-      @@ -3,2 +3,3 @@ def transfer(request):
+      @@ -1,2 +1,7 @@
+      -def transfer(request):
       -    pass
-      +    move_funds(request.user, request.POST["to"], request.POST["amount"])
+      +@csrf_protect
+      +def transfer(request):
+      +    amount = Decimal(request.POST["amount"])
+      +    if amount <= 0 or amount > request.user.balance:
+      +        return HttpResponseBadRequest()
+      +    move_funds(request.user, request.POST["to"], amount)
       +    return redirect("/account")
 
   - name: safe-ownership-idor
@@ -676,7 +682,7 @@ cases:
       @@ -6,2 +6,5 @@ def refund(req):
       -    return 400
       +    order = Order.objects.get(id=req.get_json()["order_id"], user_id=req.user.id)
-      +    if order.refunded:
+      +    if not Order.objects.filter(id=order.id, refunded=False).update(refunded=True):
       +        return 409
       +    account.balance += order.amount
       +    return 200
@@ -1271,12 +1277,14 @@ cases:
       diff --git a/app.py b/app.py
       --- a/app.py
       +++ b/app.py
-      @@ -9,2 +9,4 @@ @app.route("/go")
+      @@ -9,2 +9,5 @@ @app.route("/go")
       -def go():
       -    return ""
       +def go():
       +    nxt = request.args.get("next", "/")
-      +    return redirect(nxt if urlparse(nxt).netloc == "" else "/")
+      +    if not nxt.startswith("/") or nxt.startswith("//") or "\\" in nxt:
+      +        nxt = "/"
+      +    return redirect(nxt)
 
   - name: safe-flask-path-traversal
     knowledge:

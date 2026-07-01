@@ -87,11 +87,12 @@ cases:
       diff --git a/auth.py b/auth.py
       --- a/auth.py
       +++ b/auth.py
-      @@ -12,2 +12,6 @@ @app.route("/oauth/callback")
+      @@ -12,2 +12,7 @@ @app.route("/oauth/callback")
       -def callback():
       -    return ""
       +def callback():
-      +    if request.args.get("state") != session.pop("oauth_state", None):
+      +    expected = session.pop("oauth_state", None)
+      +    if not expected or request.args.get("state") != expected:
       +        abort(403)
       +    token = exchange_code(request.args["code"])
       +    login(token)
