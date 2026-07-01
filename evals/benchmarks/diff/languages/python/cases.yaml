@@ -369,7 +369,7 @@ cases:
       +++ b/client.py
       @@ -1,2 +1,3 @@
        import stripe
-      +stripe.api_key = "sk_live_EXAMPLE_do_not_use_fake_placeholder_key"
+      +stripe.api_key = "kJ8fN2pQwXvR7mZ4aT9cLdH1eB6sG3uY0iK5oP2"
 
   # Python, safe lookalikes, one per class
   - name: safe-param-sql

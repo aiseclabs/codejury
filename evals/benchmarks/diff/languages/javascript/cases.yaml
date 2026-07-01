@@ -147,7 +147,7 @@ cases:
       @@ -11,2 +11,4 @@ app.get('/login/callback', (req, res) => {
       -  res.end()
       +  const next = req.query.next || '/'
-      +  res.redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/')
+      +  res.redirect(/^\/(?![/\\])/.test(next) ? next : '/')
 
   - name: safe-express-missing-auth
     knowledge:
