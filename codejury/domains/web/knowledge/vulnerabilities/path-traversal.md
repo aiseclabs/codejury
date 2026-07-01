@@ -26,11 +26,16 @@ if not target.is_relative_to(base):
 
 ### Not a Finding
 
-If the input is neutralized before the file operation there is no traversal:
-- `os.path.basename(name)` is applied and strips `../` and any directory parts,
-- the resolved path is confirmed within a base using `is_relative_to` or `realpath` under base,
+There is no traversal when the input is contained before the file operation, whichever way the
+containment is done:
+- only the basename is used, stripping `../` and any directory parts,
+- the resolved path is confirmed to stay within a fixed base, whether by an explicit
+  containment check (`is_relative_to`, `realpath` under base) or by a framework helper that
+  does the same and rejects `..` and absolute paths, such as Flask `send_from_directory` or
+  Werkzeug `safe_join`,
 - the value is from an allowlist, or is a constant / trusted-config path.
 
-`open(os.path.join(BASE, os.path.basename(name)))` is safe: basename removes the
-traversal. Do not report it.
+This holds as long as the base directory itself is not attacker-controlled. For example
+`open(os.path.join(BASE, os.path.basename(name)))` and `send_from_directory(BASE, name)` are
+both safe. Report only when a user-controlled segment can still escape the base.
 

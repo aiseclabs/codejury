@@ -25,3 +25,12 @@ subprocess.run(["ping", "-c", "1", host], shell=False)
 ### Node.js
 Vulnerable: `child_process.exec(`ping ${host}`)`
 Secure: `child_process.execFile("ping", ["-c", "1", host])`
+
+### Not a Finding
+
+Command injection needs a shell to turn metacharacters into commands. An untrusted value
+passed as a discrete argument to a program with no shell in the path is not injection, in any
+language: Python `subprocess.run([...], shell=False)`, Node `execFile` or `spawn` without a
+shell, Go `exec.Command(prog, args...)`. Report only when the input reaches a shell, such as
+`os.system`, `shell=True`, or `child_process.exec`, or when the attacker controls the program
+name or path itself, not just an argument to it.

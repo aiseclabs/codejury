@@ -26,4 +26,8 @@ doc = ET.fromstring(untrusted_xml)
 
 ### Not a Finding
 
-Parsing with defusedxml, or with a parser that disables DTD and external entities such as `etree.XMLParser(resolve_entities=False, no_network=True)`, is not a finding. Plain XML parsing is a finding only when external entity resolution is actually enabled.
+An XML parser configured to disable DTD processing and external entity resolution is not
+vulnerable, in any language or library: for example Python `defusedxml` or
+`etree.XMLParser(resolve_entities=False, no_network=True)`, a Java factory with
+`disallow-doctype-decl` set, or a parser whose defaults already disable both. Report plain
+parsing only when external entity or DTD resolution is actually enabled on untrusted input.
