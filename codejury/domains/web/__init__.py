@@ -14,28 +14,30 @@ from codejury.domains.base import Domain
 
 # the repo-review pass lenses: each pass leads with one class, the empty lens reviews every
 # class. A named lens is a reliable focused pass and the empty catch-all is not, so every shipped
-# class gets its own lens rather than relying on the catch-all to surface it. A few lenses cover
-# several classes hunted the same way: injection covers sql, nosql, command, and code,
-# authentication covers auth bypass, jwt, and session, path-traversal covers file upload,
-# deserialization covers prototype pollution, csrf covers cors, smuggling covers response
-# splitting, and cryptography covers secrets and transport. The rest map one to one.
+# class gets its own lens rather than relying on the catch-all to surface it. Naming rule: a
+# single-class lens is named exactly its class id, the CWE-style full name, so lens and class never
+# drift. A lens that leads a family hunted by one motion keeps the standard family name and covers
+# several classes: injection covers sql, nosql, command, and code, authentication covers auth
+# bypass, jwt, and session, authorization covers IDOR and missing checks, cryptography covers
+# secrets and transport, deserialization covers prototype pollution, smuggling covers response
+# splitting, csrf covers cors, path-traversal covers file upload.
 WEB_LENSES = (
     "authorization",
     "authentication",
-    "replay",
-    "concurrency",
+    "replay-attack",
+    "race-condition",
     "injection",
-    "ssrf",
+    "server-side-request-forgery",
     "path-traversal",
     "deserialization",
-    "xss",
-    "template-injection",
-    "xxe",
+    "cross-site-scripting",
+    "server-side-template-injection",
+    "xml-external-entity",
     "csrf",
     "open-redirect",
     "smuggling",
     "cryptography",
-    "data-exposure",
+    "information-exposure",
     "security-misconfiguration",
     "mass-assignment",
     "business-logic",
