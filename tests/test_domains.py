@@ -78,6 +78,24 @@ def test_every_class_declares_a_domain_lens_and_every_lens_is_claimed(domain):
     assert claimed == named, f"{domain.name} lenses with no class: {named - claimed}"
 
 
+@pytest.mark.parametrize("domain", [WEB, EVM])
+def test_lens_naming_is_uniform(domain):
+    """One naming rule, so a lens name alone tells you class or family. A single-class lens is
+    named exactly its class id, the full CWE-style name. An umbrella lens, claimed by more than
+    one class, takes a neutral family name that equals no class id, so the two kinds never collide
+    and no lens is a class-id abbreviation."""
+    class_ids = set()
+    members: dict[str, list[str]] = {}
+    for _path, meta, _body in iter_md_docs(domain.paths.vulnerabilities_dir):
+        class_ids.add(meta["id"])
+        members.setdefault(meta["lens"], []).append(meta["id"])
+    for lens, claimed in members.items():
+        if len(claimed) == 1:
+            assert lens == claimed[0], f"{domain.name} single-class lens {lens!r} must equal its class id {claimed[0]!r}"
+        else:
+            assert lens not in class_ids, f"{domain.name} umbrella lens {lens!r} collides with a class id"
+
+
 # The post-SWC DeFi classes the frozen SWC Registry never covered, so they anchor on ERC and
 # mechanism tags instead of an swc id. A class added here must genuinely have no swc entry.
 _EVM_NO_SWC = {"accounting-precision", "oracle-price-manipulation", "weird-erc20"}

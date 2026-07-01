@@ -1,7 +1,7 @@
 ---
 id: cors-misconfiguration
 title: CORS Misconfiguration
-lens: csrf
+lens: cross-origin
 impact: MEDIUM
 tags: [cwe-942, owasp-a05]
 triggers: ["Access-Control-Allow-Origin", "Access-Control-Allow-Credentials", "cors(", "origin", "req.headers.origin", "ACAO"]
