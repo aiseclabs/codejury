@@ -236,7 +236,7 @@ def verify_findings(
 
     def verify_one(candidate: Candidate):
         # `incomplete` marks a keep forced by a failed call, not a genuine keep vote, so the caller
-        # can keep it for this run yet leave it unfrozen for a resume to re-attempt, invariant 3.
+        # can keep it for this run yet leave it unfrozen for a resume to re-attempt, invariant 4.
         verdicts: list[Verdict] = []
         errors = 0
         for _ in range(max(1, votes)):
@@ -251,7 +251,7 @@ def verify_findings(
         if any(v.real for v in verdicts):
             return candidate, True, "", errors, False
         # every completed vote refuted it, still only an opinion. A deletion needs every independent
-        # confirmer to uphold the refutation before the finding is dropped, invariant 3.
+        # confirmer to uphold the refutation before the finding is dropped, invariant 4.
         reason = next((v.reason for v in verdicts if not v.real), "")
         applicable = _applicable(confirmers, candidate.found_by)
         if not applicable:

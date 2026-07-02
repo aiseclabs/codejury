@@ -13,23 +13,33 @@ orchestration and agents or model calls provide per-unit judgment.
    domain's `knowledge/` markdown under `codejury/domains/<domain>/` and in prompts that
    reference it. Do not hardcode language, framework, or vulnerability-specific detection
    logic in Python. Adding a stack or vulnerability class should usually be a data change.
-2. **Findings are real, evidenced, and scoped.** Report only exploitable,
+2. **Recall is the first red line.** The priority order is recall, then false-positive
+   rate, then blind-run stability. A missed real, exploitable issue is the worst
+   outcome. A stage after the finder, such as dedup or verification, deletes a candidate
+   only on a controlling fact it can read, never on an assumed off-file control.
+3. **Findings are real, evidenced, and scoped.** Report only exploitable,
    high-confidence issues with a concrete file location and exploit scenario. No
    location means not reportable. Prioritize high-impact classes such as business
    logic, authorization, IDOR, signature flaws, replay, authentication bypass,
    injection, and mass assignment. Do not report dependency CVEs, style notes, generic
    best practices, speculation, or config-leak-only risks.
-3. **Fail loud, never report failure as clean.** A failed, rate-limited, blank,
+4. **Fail loud, never report failure as clean.** A failed, rate-limited, blank,
    malformed, or unparsable model call is a failed review step, not zero findings.
    Diff Review must surface the error. Repo Review must count failed unit reviews,
    preserve candidates when verification cannot complete, and avoid marking incomplete
    work as complete.
-4. **PoC verification is safe and human-in-the-loop.** Repo Review PoCs run only
+5. **Improve the general case, never fit the benchmark.** A change to knowledge,
+   prompts, or code earns its place only if it would be written without having seen the
+   answer key. Do not encode a benchmark's specific findings, sink names, case
+   variables, or fix shapes. Validate a change on a target it was not derived from, the
+   benchmark it came from can only sanity-check, never prove. Never adjust a scorer or
+   an answer key to raise a score.
+6. **PoC verification is safe and human-in-the-loop.** Repo Review PoCs run only
    against sandbox or dev environments. Ask the operator for credentials and test data.
    Never use production systems, real credentials, or destructive actions without
    explicit approval.
-5. **English only.** Repo code, comments, docs, prompts, and data are English only.
-6. **No proprietary content.** The project is public on GitHub and PyPI. Do not add
+7. **English only.** Repo code, comments, docs, prompts, and data are English only.
+8. **No proprietary content.** The project is public on GitHub and PyPI. Do not add
    internal, confidential, or proprietary code or data.
 
 ## Architecture Map
@@ -88,7 +98,7 @@ orchestration and agents or model calls provide per-unit judgment.
 
 - Providers live in `codejury/providers/`: Anthropic, OpenAI, LiteLLM, mock, retry, and the
   `claude_agent` subscription transport. `claude_agent` holds the shared `claude -p` runner and
-  `ClaudeAgentProvider`, the keyless backend both review paths use, see invariant 4 and the
+  `ClaudeAgentProvider`, the keyless backend both review paths use, see invariant 6 and the
   `--executor` seat resolution in the CLI.
 - JSON extraction lives in `codejury/json_parse.py`.
 - The CLI entry point is `codejury.cli:main`.
@@ -154,7 +164,7 @@ Prose, in comments, docstrings, and markdown:
 - Few hyphenated words. Keep the hyphen only where it is part of an identifier, a CLI flag like `--git-range`, a rule id like `sql-injection`, or a file path.
 - No sentence begins with the lowercase brand. Start with "It", "The tool", or a rewording.
 - Title Case headings. Name the two paths "Diff Review" and "Repo Review" in headings, lowercase "diff review" and "whole-repo review" in running text.
-- English only, no CJK, see invariant 5.
+- English only, no CJK, see invariant 7.
 
 Semicolons and parentheses stay where they are code, not prose: code fences, inline code, rule trigger tokens, a method reference like `complete()`, and the prompt strings sent to the model.
 

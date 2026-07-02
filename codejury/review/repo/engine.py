@@ -207,7 +207,7 @@ def _git_blame_owner(root: str, file: str, line: int | None) -> str:
     """The last author to touch a finding's line, by git blame, so a report names an owner.
     Best-effort and fail-soft: empty on a non-git target, an uncommitted or moved file, a
     missing line, or no root. Blame is an annotation, never a gate, so a failure here never
-    fails the review, invariant 3 lives on the review steps not on this."""
+    fails the review, invariant 4 lives on the review steps not on this."""
     if not root or not file or not line or line < 1:
         return ""
     if safe_repo_path(root, file) is None:
@@ -259,7 +259,7 @@ def _write_findings(ws: Path, findings: list[Candidate], root: str = "") -> None
     for c in findings:
         base = _finding_name(c)
         name = base
-        # two distinct findings can still slug to one name, never overwrite, invariant 3:
+        # two distinct findings can still slug to one name, never overwrite, invariant 4:
         # disambiguate so no confirmed finding's detail file is silently lost
         n = 2
         while name in used:
@@ -274,7 +274,7 @@ def _write_findings(ws: Path, findings: list[Candidate], root: str = "") -> None
 
 def _write_pocs_report(ws: Path, findings: list[Candidate]) -> None:
     """Reconcile pocs/ against the confirmed findings, recorded not enforced: a finding
-    may need a PoC only an operator can run, invariant 4, and a PoC may outlive a
+    may need a PoC only an operator can run, invariant 6, and a PoC may outlive a
     candidate the verifier later refuted. Surface both so neither is silently lost."""
     pocs = ws / "pocs"
     poc_files = sorted(p for p in pocs.iterdir() if p.is_file()) if pocs.is_dir() else []
@@ -383,7 +383,7 @@ def _save_union(ws: Path, cands: list[Candidate]) -> None:
 def _resume_corrupt(p: Path, exc: Exception) -> ValueError:
     # a present-but-corrupt checkpoint must fail loud, never fall back to an empty pool:
     # on a resume the units are already reviewed, so an empty pool would write a zero
-    # finding report and exit clean, hiding the lost progress. Invariant 3.
+    # finding report and exit clean, hiding the lost progress. Invariant 4.
     return ValueError(
         f"resume checkpoint {p} is unreadable or corrupt: {exc}. "
         "Re-run with --fresh to discard prior state and start over."
@@ -444,7 +444,7 @@ def apply_verification(
     surfaced independently is kept on that consensus and skips the route. Otherwise the skeptic tries
     to refute it, and a refuted finding is dropped only when every independent confirmer, a model
     that did not itself surface it, upholds the refutation. A failed call keeps the finding and is
-    counted, never silently dropped, invariant 3."""
+    counted, never silently dropped, invariant 4."""
     if verifier is None:
         if provider is None:
             raise ValueError("verification needs a provider, or an injected verifier")
@@ -459,7 +459,7 @@ def apply_verification(
     singletons = [c for c in pending if len(set(c.found_by)) < 2]
     # a finding kept only because a verify call could not complete is kept for this run but never
     # written to _verified.json, so a resume re-attempts it rather than freezing the failure as
-    # confirmed, the resume-integrity rule of invariant 3
+    # confirmed, the resume-integrity rule of invariant 4
     vr = verify_findings(singletons, verifier, root, confirmers=confirmers, votes=votes, concurrency=concurrency)
     incomplete = {_keystr(c, by_file) for c in vr.incomplete}
     for c in vr.confirmed:
@@ -528,7 +528,7 @@ def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None
     severity = next((s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if s in sev_raw), "MEDIUM")
     fm = _location_re(source_extensions).search(text)
     if fm is None or is_unsafe_rel(fm.group(1)):
-        # invariant 2: with no file location the issue is not reportable. An absolute or
+        # invariant 3: with no file location the issue is not reportable. An absolute or
         # parent-traversing path is not a location inside the repo, a tampered or
         # hallucinated issue file, so it is dropped, not read.
         return None
@@ -619,7 +619,7 @@ class RunResult:
 
 
 # a cap on the facts text folded into every unit prompt, so a large repo's facts cannot
-# crowd out the unit under review. Truncation is marked, never silent, invariant 3. Only the
+# crowd out the unit under review. Truncation is marked, never silent, invariant 4. Only the
 # fallback global fold uses it, per-file facts are scoped to the unit and need no global cap
 _FACTS_CONTEXT_CAP = 16000
 
@@ -670,7 +670,7 @@ def _with_facts(shared: str, ws: Path) -> str:
 def _corrupt_facts(p: Path, exc: Exception) -> ValueError:
     # a facts artifact that exists but does not parse is corrupt, not absent. Silently treating
     # it as empty makes the review look more grounded than it was, so fail loud and let the
-    # operator regenerate it. Invariant 3. A never-generated facts file is still optional.
+    # operator regenerate it. Invariant 4. A never-generated facts file is still optional.
     return ValueError(
         f"facts artifact {p} is corrupt: {exc}. Delete it or re-run with --fresh to regenerate."
     )
@@ -735,7 +735,7 @@ def run_repo_review(
     units = build_units(root, [*res.candidate_files, *res.logic_units], res.trace_targets, _load_facts_units(ws))
     if not units:
         # zero units means the stack detection flagged no entrypoint, so a run would
-        # review nothing and still look clean. Fail loud, invariant 3: a review that
+        # review nothing and still look clean. Fail loud, invariant 4: a review that
         # covered nothing is not a clean pass. The operator scaffolds and seeds the
         # candidates by hand, or adds a guide for the stack, then re-runs.
         raise ValueError(
@@ -750,7 +750,7 @@ def run_repo_review(
     if reviewed and not (ws / "_union.json").is_file():
         # units are marked reviewed but the union checkpoint is gone, so the prior findings are
         # lost and a run now would re-skip those units and write a zero-finding clean report.
-        # Fail loud rather than report lost progress as clean, invariant 3.
+        # Fail loud rather than report lost progress as clean, invariant 4.
         raise ValueError(
             f"resume found reviewed units under {ws} but no _union.json checkpoint, the prior "
             "findings are lost. Re-run with --fresh to discard the markers and start over."

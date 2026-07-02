@@ -32,7 +32,7 @@ def test_with_facts_folds_persisted_facts_and_marks_truncation(tmp_path):
     folded = _with_facts("STACK", tmp_path)
     assert "STACK" in folded and "Contract facts:" in folded and "withdraw()" in folded
 
-    # oversize facts are folded but the cut is marked, never silently dropped, invariant 3
+    # oversize facts are folded but the cut is marked, never silently dropped, invariant 4
     (tmp_path / "_facts.md").write_text("x" * (_FACTS_CONTEXT_CAP + 500), encoding="utf-8")
     assert "facts truncated" in _with_facts("STACK", tmp_path)
 
@@ -343,7 +343,7 @@ def _two_entrypoint_repo(root):
 
 
 def test_failed_unit_stays_open_and_fails_the_gate(tmp_path):
-    # invariant 3: a unit that raises on every pass is a failed review, not a clean unit.
+    # invariant 4: a unit that raises on every pass is a failed review, not a clean unit.
     # It must stay open, the surface must not claim it reviewed, and the gate must fail.
     repo = _two_entrypoint_repo(tmp_path / "twop")
     ws = tmp_path / "ws"
@@ -366,7 +366,7 @@ def test_failed_unit_stays_open_and_fails_the_gate(tmp_path):
 
 
 def test_corrupt_union_on_resume_raises_loud_and_keeps_report(custody_repo, tmp_path):
-    # invariant 3: a corrupt checkpoint on resume must fail loud, never overwrite the
+    # invariant 4: a corrupt checkpoint on resume must fail loud, never overwrite the
     # prior report with a clean-looking empty run.
     ws = tmp_path / "ws"
     run_repo_review(custody_repo, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
@@ -399,7 +399,7 @@ def test_corrupt_verified_on_finalize_raises_loud(tmp_path):
 
 
 def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_path):
-    # invariant 3 resume integrity: a finding kept only because the skeptic call failed is kept in
+    # invariant 4 resume integrity: a finding kept only because the skeptic call failed is kept in
     # this run yet left out of _verified.json, so a resume re-attempts it, never reads it as final
     from codejury.review.repo.engine import apply_verification
 
@@ -417,7 +417,7 @@ def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_p
 
 
 def test_finalize_drops_issue_with_no_file_location(tmp_path):
-    # invariant 2: no file location means not reportable, so the issue is dropped, not
+    # invariant 3: no file location means not reportable, so the issue is dropped, not
     # carried into the report with an empty location.
     target = tmp_path / "proj"
     target.mkdir()
@@ -464,7 +464,7 @@ def test_parse_candidate_accepts_data_driven_extensions(tmp_path):
 
 def test_run_fails_loud_on_zero_units(tmp_path):
     # a target with no detectable entrypoint reviews nothing, so a run must fail loud
-    # rather than report a clean pass, invariant 3
+    # rather than report a clean pass, invariant 4
     repo = tmp_path / "empty"
     repo.mkdir()
     (repo / "README.md").write_text("nothing to review here\n")

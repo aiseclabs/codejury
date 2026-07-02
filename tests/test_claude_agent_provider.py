@@ -46,7 +46,7 @@ def test_is_a_drop_in_provider_for_the_audit_runner():
 
 def test_complete_fails_loud_on_an_error_envelope_via_the_default_runner(monkeypatch):
     # a rate-limited 0-exit reply is a failed call. The default runner detects the error envelope
-    # and raises, so a blank result cannot pass as clean, invariant 3. retries off so it does not sleep
+    # and raises, so a blank result cannot pass as clean, invariant 4. retries off so it does not sleep
     import subprocess
 
     def fake_run(cmd, **kw):

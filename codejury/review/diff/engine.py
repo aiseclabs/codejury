@@ -71,7 +71,7 @@ def audit_diff(
     overflow the context. Finding categories are normalized to the rule-id set.
     ``exclude_paths`` are operator-supplied path substrings to drop. ``degraded`` is
     True when adversarial mode fell back on an unusable judge, so the caller can
-    surface a degraded audit as a failure rather than a clean pass, invariant 3."""
+    surface a degraded audit as a failure rather than a clean pass, invariant 4."""
     degraded = False
     domain = domain or default_domain()
     content = domain.paths

@@ -20,7 +20,7 @@ def gate(after: dict, baseline: dict | None = None, *, precision_floor: float = 
     fails: list[str] = []
 
     if after.get("errors", 0):
-        fails.append(f"{after['errors']} failed review steps, a failed step is not a clean pass, invariant 3")
+        fails.append(f"{after['errors']} failed review steps, a failed step is not a clean pass, invariant 4")
 
     if precision_floor and after.get("precision_known", 1.0) < precision_floor:
         fails.append(f"precision {after.get('precision_known', 0.0):.0%} is below the floor {precision_floor:.0%}")

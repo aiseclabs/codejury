@@ -21,7 +21,7 @@ class Result:
     extra: list[str] = field(default_factory=list)
     n_planted: int = 0
     n_reports: int = 0
-    errors: int = 0   # review or engine calls that failed, counted not hidden, invariant 3
+    errors: int = 0   # review or engine calls that failed, counted not hidden, invariant 4
 
     @property
     def recall(self) -> float:
@@ -65,7 +65,7 @@ class SuiteResult:
     found_freq: dict[str, int]      # planted id to the count of runs that found it
     fp_freq: dict[str, int]         # safe id to the count of runs that flagged it
     n_planted: int = 0
-    errors: int = 0                 # failed case runs summed across all runs, invariant 3
+    errors: int = 0                 # failed case runs summed across all runs, invariant 4
     reports_total: int = 0
 
     @classmethod

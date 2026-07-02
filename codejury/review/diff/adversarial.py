@@ -240,7 +240,7 @@ class AdversarialAuditRunner:
                 finder, finder_ok = self._ask(FINDER_SYSTEM, fp, self._finder)
             if not finder_ok:
                 # a finder reply that does not parse even on a retry is a failed step, not a clean
-                # empty result, so surface it as degraded rather than report no findings, invariant 3
+                # empty result, so surface it as degraded rather than report no findings, invariant 4
                 degraded = True
                 break
             finder_findings = _dicts(finder.get("findings"))

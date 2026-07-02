@@ -136,7 +136,7 @@ def test_unusable_judge_includes_challenger_independent_findings():
 
 def test_audit_diff_surfaces_degraded_on_unusable_judge():
     # the runner degrades to keep recall, but audit_diff must surface that so the CLI
-    # never reports a degraded adversarial audit as a clean pass, invariant 3
+    # never reports a degraded adversarial audit as a clean pass, invariant 4
     provider = MockProvider(responses=[_finder([_VULN]), _challenger(), "not json", "not json"], default="{}")
     kept, _, degraded = audit_diff(_DIFF, provider=provider, model="m", mode="adversarial", max_rounds=1)
     assert degraded is True

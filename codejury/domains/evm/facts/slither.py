@@ -4,7 +4,7 @@ Solidity compiler, availability is lazy-checked so importing the domain never ne
 heavy dependency, and slither itself is imported only inside extract.
 
 A backend that cannot run fails loud rather than returning empty facts that would read as a
-clean review, invariant 3. A missing toolchain raises BackendUnavailable, a compile error
+clean review, invariant 4. A missing toolchain raises BackendUnavailable, a compile error
 in the target propagates as the native slither error.
 """
 

@@ -70,7 +70,7 @@ def _cmd_repo(args) -> int:
 
 def _run_diff(cases, args, target: str = "diff"):
     """Run the cases through the probe args.runs times. One run returns a Result, repeated
-    runs fold into a SuiteResult by frequency, the anti-noise verdict, invariant 3 errors
+    runs fold into a SuiteResult by frequency, the anti-noise verdict, invariant 4 errors
     summed across runs."""
     from codejury.cli import build_diff_providers, diff_args_from_env
     from evals.runners.diff import run_diff_cases

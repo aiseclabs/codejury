@@ -97,7 +97,7 @@ class Domain:
 class BackendUnavailable(RuntimeError):
     """A tool-backed seam was asked to work but its external tool is not installed. Raised,
     never swallowed into an empty result, so a missing toolchain is a loud failure and not a
-    silently clean review, invariant 3."""
+    silently clean review, invariant 4."""
 
 
 @dataclass(frozen=True, kw_only=True)

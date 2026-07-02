@@ -344,7 +344,7 @@ def _clear_prior_run(ws: Path) -> list[str]:
 def _refuse_legacy_layout(ws: Path) -> None:
     """A pre-split workspace kept proposals in issues/. Reading that as the new
     candidates/ would surface nothing, so refuse loud rather than report an empty
-    review on stale state. Invariant 3."""
+    review on stale state. Invariant 4."""
     issues = ws / "issues"
     candidates = ws / "candidates"
     legacy = issues.is_dir() and any(issues.iterdir())

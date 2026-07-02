@@ -481,7 +481,7 @@ def _dispatch(args, parser) -> int:
         print(render(args.fmt, kept))
         if degraded:
             # the adversarial judge was unusable and the result fell back to the
-            # unjudged set, so this is a failed audit, not a clean pass, invariant 3
+            # unjudged set, so this is a failed audit, not a clean pass, invariant 4
             print("error: the adversarial audit degraded on an unusable judge reply, "
                   "the result is incomplete and not a clean pass", file=sys.stderr)
         return 1 if degraded or gate(kept, args.fail_on) else 0
@@ -542,7 +542,7 @@ def _dispatch(args, parser) -> int:
               f"PoC reconciliation in {fr.workspace}/_pocs.md")
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
-            return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 3
+            return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 4
         return 0
 
     if args.command == "review" and scope == "repo" and args.run:
@@ -628,7 +628,7 @@ def _dispatch(args, parser) -> int:
                   file=sys.stderr)
         print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
         # fail loud: a partial run or a run still finding issues at the cap must not exit clean,
-        # invariant 3 and the stability red line, so a non-converged run is not reported as done
+        # invariant 4 and the stability red line, so a non-converged run is not reported as done
         return 1 if failures or not acc.converged else 0
 
     if args.command == "review" and scope == "repo":

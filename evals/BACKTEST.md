@@ -69,7 +69,7 @@ detectable entrypoints. Score whichever path wrote the findings.
 
 ## Rules
 
-These are the failure and resume rules, they carry the honesty of the score, see invariant 3.
+These are the failure and resume rules, they carry the honesty of the score, see invariant 4.
 
 - Never wipe a workspace and never pass `--fresh`. Resume rides on it, the reviewed units and
   verified findings live there. A scaffold over an existing workspace warns and continues.

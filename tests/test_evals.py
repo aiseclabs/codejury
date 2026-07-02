@@ -307,7 +307,7 @@ def test_gate_passes_clean_and_fails_on_regression():
 
 def test_gate_fails_on_errors_but_not_on_extra_alone():
     from evals.gate import gate
-    # a failed review step is not a clean pass, invariant 3
+    # a failed review step is not a clean pass, invariant 4
     assert gate({"target": "t", "errors": 2}, structural=False)
     # an extra unkeyed report alone is not a failure, the key cannot grade it
     assert gate({"target": "t", "found": ["a"], "false_positives": [], "errors": 0, "extra": ["x", "y"]},
@@ -325,7 +325,7 @@ def test_suite_result_to_markdown_shows_runs_and_flaky():
 
 def test_run_diff_cases_handles_the_audit_three_tuple_and_degraded(monkeypatch):
     # audit_diff returns (kept, dropped, degraded), guard the unpacking and that a degraded
-    # audit counts as a failed step, not a clean zero, invariant 3
+    # audit counts as a failed step, not a clean zero, invariant 4
     from evals.diff_cases import DiffCase
     from evals.runners import diff as diffmod
 
@@ -415,7 +415,7 @@ def test_suite_result_folds_runs_by_strict_majority():
     assert sr.found == ["a", "b"]
     assert sr.missed == ["c"]
     assert sr.false_positives == []        # safe-x flagged once of three, not a majority
-    assert sr.errors == 1                  # summed across runs, not hidden, invariant 3
+    assert sr.errors == 1                  # summed across runs, not hidden, invariant 4
     assert sr.n_reports == 7
     assert sr.found_freq == {"a": 3, "b": 2, "c": 1}
     d = sr.to_dict()

@@ -4,13 +4,13 @@ compile and run it, turning a model claim into a reproduced fact. Behind the cod
 extra and a Foundry toolchain, availability is lazy-checked so importing the domain never
 needs forge.
 
-Safety is the hard contract, invariant 4. A PoC runs only against a local fork or a dev
+Safety is the hard contract, invariant 6. A PoC runs only against a local fork or a dev
 node, never a production system. It never holds a real private key, never broadcasts a
 transaction, and takes no destructive action without explicit operator approval.
 
 The generation and run logic lands once Foundry is validated on a real target. Until then
 this is the wired seam: it reports availability honestly and fails loud when asked to
-verify without the tool, never silently confirming or refuting a finding, invariant 3.
+verify without the tool, never silently confirming or refuting a finding, invariant 4.
 """
 
 from __future__ import annotations

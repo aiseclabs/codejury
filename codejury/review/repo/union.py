@@ -135,7 +135,7 @@ class Accumulator:
     converge_after: int = 2
     pool: dict[tuple, Candidate] = field(default_factory=dict)
     new_per_pass: list[int] = field(default_factory=list)
-    errors: int = 0   # unit reviews that raised, counted not dropped, invariant 3
+    errors: int = 0   # unit reviews that raised, counted not dropped, invariant 4
     failed_units: set[str] = field(default_factory=set)   # never reviewed cleanly, left open so the gate catches them
     sev_votes: dict[tuple, list[str]] = field(default_factory=dict)
     dedup_by_file: bool = False   # the domain's dedup granularity, endpoint-aware when False

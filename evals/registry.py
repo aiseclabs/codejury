@@ -141,7 +141,7 @@ def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
 def all_benchmarks() -> dict[str, Benchmark]:
     """Every benchmark across the public root and the configured private sources, merged.
     A name in two non-override roots fails loud, so a private benchmark cannot silently
-    shadow a public one, invariant 3 applied to discovery."""
+    shadow a public one, invariant 4 applied to discovery."""
     merged: dict[str, Benchmark] = {}
     for root, provenance, override in _sources():
         for name, bench in _discover(root, provenance).items():

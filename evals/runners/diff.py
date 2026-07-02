@@ -26,7 +26,7 @@ def run_diff_cases(cases: list[DiffCase], *, provider, model: str, mode: str = "
     runs under its own domain, so a Solidity case scores against the evm knowledge and
     prompt rather than the web default. The seats and rounds come from the same wiring the
     `review diff` CLI builds, so the probe reviews a diff the way the product does. An unusable
-    model reply is counted as an error, not silently a clean pass, invariant 3."""
+    model reply is counted as an error, not silently a clean pass, invariant 4."""
     res = Result(target="diff", n_planted=sum(1 for c in cases if c.is_positive))
     for c in cases:
         try:
@@ -39,12 +39,12 @@ def run_diff_cases(cases: list[DiffCase], *, provider, model: str, mode: str = "
             )
         except Exception:
             # a failed or unparsable model call is a failed case, counted not hidden,
-            # so a provider outage cannot read as a clean probe, invariant 3
+            # so a provider outage cannot read as a clean probe, invariant 4
             res.errors += 1
             continue
         if degraded:
             # a degraded audit, such as adversarial mode falling back on an unusable judge,
-            # is a failed step too, not a clean zero-finding result, invariant 3
+            # is a failed step too, not a clean zero-finding result, invariant 4
             res.errors += 1
             continue
         res.n_reports += len(kept)
