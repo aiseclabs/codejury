@@ -111,7 +111,9 @@ names resolve across the public root and every source.
 ## Run
 
 The repo path does not run the review, the agent or a coded run does that, this scores the
-output it wrote.
+output it wrote. To score the whole public suite in one sweep rather than one target, see
+`BACKTEST.md`, the batch runbook that derives the targets and order from the committed
+benchmarks and drives the agent path end to end.
 
 ```bash
 # 1. review a cloned target, see its benchmark.yaml for the pointer
