@@ -533,6 +533,11 @@ def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None
         # hallucinated issue file, so it is dropped, not read.
         return None
     status_raw = _md_field(text, "status").lower()
+    if status_raw.startswith(("refuted", "clear")):
+        # A reviewer sometimes records a cleared or refuted control as a candidate so a
+        # wrong clear stays visible, but that is a determination of no finding, not a
+        # proposed one. Counting it as confirmed inflated findings.json, so drop it here.
+        return None
     return Candidate(
         title=title or path.stem,
         category=_md_field(text, "type"),

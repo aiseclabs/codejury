@@ -272,6 +272,21 @@ def test_parse_candidate_drops_an_out_of_root_cited_path(tmp_path):
     assert _parse_candidate(absolute) is None
 
 
+def test_parse_candidate_drops_a_cleared_or_refuted_record(tmp_path):
+    refuted = tmp_path / "r.md"
+    refuted.write_text("# Attachment IDOR, refuted\n- Status: refuted (no finding)\n- Type: idor\n"
+                       "## Why\n`pkg/models/task_attachment.go:111` xorm scopes the fetch.\n")
+    assert _parse_candidate(refuted) is None
+    cleared = tmp_path / "c.md"
+    cleared.write_text("# Permission methods cleared\n- Status: cleared\n- Type: idor\n"
+                       "## Scope\n`pkg/models/task_attachment_permissions.go:25` holds.\n")
+    assert _parse_candidate(cleared) is None
+    confirmed = tmp_path / "k.md"
+    confirmed.write_text("# real leak\n- Status: confirmed\n- Type: idor\n"
+                         "## Analysis\n`pkg/models/link_sharing.go:272` leaks hashes.\n")
+    assert _parse_candidate(confirmed) is not None
+
+
 def test_finalize_dedups_verifies_and_reports(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()
