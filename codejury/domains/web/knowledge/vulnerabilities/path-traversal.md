@@ -30,7 +30,7 @@ There is no traversal when the input is contained before the file operation, whi
 containment is done:
 - only the basename is used, stripping `../` and any directory parts,
 - the resolved path is confirmed to stay within a fixed base, whether by an explicit
-  containment check (`is_relative_to`, `realpath` under base) or by a framework helper that
+  containment check such as `is_relative_to` or `realpath` under base, or by a framework helper that
   does the same and rejects `..` and absolute paths, such as Flask `send_from_directory` or
   Werkzeug `safe_join`,
 - the value is from an allowlist, or is a constant / trusted-config path.

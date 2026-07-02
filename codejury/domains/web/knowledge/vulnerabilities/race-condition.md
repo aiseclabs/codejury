@@ -31,8 +31,8 @@ with transaction.atomic():
 ### Not a Finding
 
 A check and the write it guards performed atomically is not a race, whatever the mechanism: the
-row locked inside one transaction, a single conditional update that both tests and writes (a
-compare-and-set, a conditional `UPDATE ... WHERE`, an atomic increment), or a unique constraint
+row locked inside one transaction, a single conditional update that both tests and writes such as
+a compare-and-set, a conditional `UPDATE ... WHERE`, or an atomic increment, or a unique constraint
 or other database invariant that rejects the second writer. The Django form above,
 `transaction.atomic()` with `select_for_update()` or an `F()` update, is one example. Report only
 when the check and its dependent write are separate, non-atomic steps on shared state.
