@@ -34,7 +34,6 @@ class Guide:
     entrypoint_files: tuple[str, ...]
     entrypoint_markers: tuple[str, ...]
     logic_layers: tuple[str, ...]
-    logic_unit_markers: tuple[str, ...]
     body: str
 
 
@@ -52,7 +51,6 @@ def _guide(path, meta: dict, body: str) -> Guide:
         entrypoint_files=tuple(str(g) for g in meta.get("entrypoint_files", [])),
         entrypoint_markers=tuple(str(m) for m in meta.get("entrypoint_markers", [])),
         logic_layers=tuple(str(g) for g in meta.get("logic_layers", [])),
-        logic_unit_markers=tuple(str(m) for m in meta.get("logic_unit_markers", [])),
         body=body,
     )
 
@@ -83,22 +81,6 @@ def logic_layer_globs(guides: list[Guide]) -> tuple[str, ...]:
     for g in guides:
         for pat in g.logic_layers:
             seen.setdefault(pat, None)
-    return tuple(seen)
-
-
-def logic_unit_markers(guides: list[Guide]) -> tuple[str, ...]:
-    """The resource-interface method markers whose co-occurrence in a logic-layer
-    file promotes it to its own review unit, deduplicated. A logic-layer file is
-    normally only a trace target, but one that implements a CRUD-resource or rights
-    interface, a cluster of these methods rather than any single one, is a security
-    boundary a generic handler dispatches HTTP to, so it is a real entrypoint that must
-    be owned by a unit or its authorization and data-exposure go unreviewed. The engine
-    requires a cluster, not any one name, so a lone common method such as `ReadAll` does
-    not over-promote unrelated files."""
-    seen: dict[str, None] = {}
-    for g in guides:
-        for m in g.logic_unit_markers:
-            seen.setdefault(m, None)
     return tuple(seen)
 
 

@@ -654,8 +654,7 @@ def _dispatch(args, parser) -> int:
         print(f"Workspace ready: {res.workspace}", file=sys.stderr)
         if res.guides:
             print(f"Detected stack: {', '.join(res.guides)}, notes in {res.workspace}/_stack.md", file=sys.stderr)
-        print(f"Seeded {len(res.candidate_files)} candidate entrypoint files, "
-              f"{len(res.logic_units)} promoted logic-layer units, and "
+        print(f"Seeded {len(res.candidate_files)} candidate entrypoint files and "
               f"{len(res.trace_targets)} logic-layer trace targets into "
               f"{res.workspace}/inventory/_entrypoints.md", file=sys.stderr)
         print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
