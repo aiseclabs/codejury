@@ -727,7 +727,7 @@ def run_repo_review(
     root = str(Path(target).resolve())
     res = scaffold(target, workspace, fresh=fresh, domain=domain, facts=facts)
     ws = res.workspace
-    units = build_units(root, res.candidate_files, res.trace_targets, _load_facts_units(ws))
+    units = build_units(root, [*res.candidate_files, *res.logic_units], res.trace_targets, _load_facts_units(ws))
     if not units:
         # zero units means the stack detection flagged no entrypoint, so a run would
         # review nothing and still look clean. Fail loud, invariant 3: a review that

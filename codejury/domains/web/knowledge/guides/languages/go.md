@@ -7,6 +7,7 @@ detect:
 entrypoint_files: ["*main.go", "*/handlers/*.go", "*/handler/*.go", "*/api/*.go", "*/routes/*.go"]
 entrypoint_markers: ["http.HandleFunc", "http.ListenAndServe", "ServeMux", "http.Handler", "func(w http.ResponseWriter"]
 logic_layers: ["*/service/*.go", "*/services/*.go", "*/usecase/*.go", "*/repository/*.go", "*/repo/*.go", "*/store/*.go", "*/dao/*.go", "*/model/*.go", "*/models/*.go"]
+logic_unit_markers: [") Create(", ") ReadOne(", ") ReadAll(", ") Update(", ") Delete(", ") CanRead(", ") CanWrite(", ") CanCreate(", ") CanUpdate(", ") CanDelete("]
 ---
 # Go Review Notes
 
@@ -28,6 +29,13 @@ or a `ServeMux`. Read the request through `r.URL.Query`, `r.FormValue`, `r.PathV
   and `html/template` used with the wrong escaping context.
 
 ## Gotchas
+- A generic CRUD handler dispatches to a model's `ReadAll`, `ReadOne`, `Create`,
+  `Update`, `Delete`, and to its `CanRead`, `CanWrite`, `CanCreate`, `CanUpdate`,
+  `CanDelete` rights methods, so the authorization decision and the response shape
+  live in the model, not the route. Audit each model method as an entrypoint: does
+  the query scope to the caller's permission, and does the returned struct omit a
+  secret field such as a token, a hash, or a password that an unprivileged reader
+  must not see?
 - Errors ignored with `_` can skip a security check whose failure is never seen.
 - A type assertion or `interface{}` body decoded with `json.Unmarshal` into a
   wide struct is mass assignment if privileged fields are bound.

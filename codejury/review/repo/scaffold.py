@@ -26,10 +26,16 @@ from codejury.guides import (
     entrypoint_markers,
     load_guides,
     logic_layer_globs,
+    logic_unit_markers,
     select_guides,
 )
 from codejury.markdown_docs import iter_md_docs
-from codejury.review.repo.model import build_repo_model_from_dir, candidate_entrypoint_files, logic_layer_files
+from codejury.review.repo.model import (
+    build_repo_model_from_dir,
+    candidate_entrypoint_files,
+    logic_layer_files,
+    promoted_logic_units,
+)
 
 _DETECT_PER_FILE = 16_000
 _DETECT_TOTAL = 8_000_000
@@ -46,6 +52,7 @@ class ScaffoldResult:
     workspace: Path
     methodology: str
     candidate_files: tuple[str, ...] = ()
+    logic_units: tuple[str, ...] = ()
     trace_targets: tuple[str, ...] = ()
     guides: tuple[str, ...] = ()
     created: list[str] = field(default_factory=list)
@@ -404,6 +411,16 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         globs=entrypoint_globs(guides), markers=entrypoint_markers(guides), detection=detection,
     )
     layers = logic_layer_files(model.files, globs=logic_layer_globs(guides), detection=detection)
+    # a logic-layer file that itself defines a security boundary is promoted to its own
+    # unit, so its authorization check is reviewed by a dedicated sub-review rather than
+    # only traced into from a route, where a generic-CRUD framework hides the decision.
+    promoted = promoted_logic_units(
+        model.files, root=target,
+        layer_globs=logic_layer_globs(guides), markers=logic_unit_markers(guides), detection=detection,
+    )
+    promoted_set = set(promoted)
+    layers = [f for f in layers if f not in promoted_set]
+    unit_files = sorted(dict.fromkeys([*candidates, *promoted]))
     (ws / "inventory" / "_entrypoints.md").write_text(_entrypoints_md(candidates, layers), encoding="utf-8")
 
     # generate the deterministic unit worklist: one unit per candidate entrypoint,
@@ -412,7 +429,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
     # decide the units, whether to fan out, or how deep to go. Never clobber a unit
     # an earlier run already wrote.
     mandate = paths.unit_review_file.read_text(encoding="utf-8")
-    for cand in candidates:
+    for cand in unit_files:
         up = ws / "units" / f"{unit_slug(cand)}.md"
         if not up.exists():
             up.write_text(_unit_md(cand, mandate), encoding="utf-8")
@@ -442,6 +459,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         workspace=ws,
         methodology=paths.methodology_file.read_text(encoding="utf-8"),
         candidate_files=tuple(candidates),
+        logic_units=tuple(promoted),
         trace_targets=tuple(layers),
         guides=tuple(g.id for g in guides),
         created=created,

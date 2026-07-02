@@ -47,6 +47,6 @@ def test_no_signal_no_match():
 def test_select_respects_injected_pool():
     only = [Guide(id="x", kind="framework", language="", title="X", detect_files=("*.xyz",),
                   detect_manifest=(), detect_imports=(), detect_content=(), entrypoint_files=(),
-                  entrypoint_markers=(), logic_layers=(), body="b")]
+                  entrypoint_markers=(), logic_layers=(), logic_unit_markers=(), body="b")]
     assert [g.id for g in select_guides(["a.xyz"], guides=only)] == ["x"]
     assert select_guides(["a.py"], guides=only) == []
