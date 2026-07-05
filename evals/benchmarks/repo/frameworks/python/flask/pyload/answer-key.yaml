@@ -120,14 +120,6 @@ safe:
         - languages/python
         - frameworks/python/flask
 
-# Removed the safe anchor safe-dashboard-text-render on 2026-07-05. It claimed dashboard.js
-# renders the untrusted fields safely with jQuery .text(), but that is only the update() path.
-# The insert() renderer, reached from the /json/links loop at dashboard.js:97-98, writes the same
-# attacker-controlled item.name, item.plugin, item.statusmsg, item.info through jQuery .html() at
-# dashboard.js:148-155, a real reachable DOM XSS confirmed by reading the code. So an XSS report
-# on dashboard.js is a true positive, and this file is not a safe lookalike. Replaced with the
-# server-side escaped render below, which keeps a valid XSS precision guard for this target.
-
   - id: safe-packages-html-server-escaped
     category: cross-site-scripting
     file: src/pyload/webui/app/themes/modern/templates/packages.html
