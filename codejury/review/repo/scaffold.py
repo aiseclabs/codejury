@@ -32,7 +32,9 @@ from codejury.markdown_docs import iter_md_docs
 from codejury.review.repo.model import (
     build_repo_model_from_dir,
     candidate_entrypoint_files,
+    char_spans,
     logic_layer_files,
+    span_line_range,
 )
 
 _DETECT_PER_FILE = 16_000
@@ -289,14 +291,24 @@ def unit_slug(path: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in s).strip("-").lower() or "unit"
 
 
-def _unit_md(owned: str, mandate: str) -> str:
-    """A seeded unit: the code path it owns plus the fixed deep-review mandate, the
-    same mandate for every unit so per-unit depth does not vary with the agent's
-    mood. The orchestrator spawns one sub-review per unit file, it does not decide
-    the units or the depth."""
-    return (f"# Unit: {owned}\n\n"
+def _unit_md(name: str, mandate: str, *, owned_path: str | None = None,
+             line_range: tuple[int, int] | None = None) -> str:
+    """A seeded unit: the code it owns plus the fixed deep-review mandate, the same
+    mandate for every unit so per-unit depth does not vary with the agent's mood. The
+    orchestrator spawns one sub-review per unit file, it does not decide the units or the
+    depth. A large entrypoint file is seeded as several slice units, each owning one line
+    range of the file, so a sub-review concentrates on a handful of handlers instead of
+    diluting across the whole file. `owned_path` is the real file a slice belongs to, since
+    `name` carries a `#n` suffix, and `line_range` names the slice by line."""
+    path = owned_path or name
+    if line_range is not None:
+        owns = (f"`{path}` lines {line_range[0]} to {line_range[1]}, deep-review this slice, "
+                f"the file is split so each slice gets full attention")
+    else:
+        owns = f"`{path}`"
+    return (f"# Unit: {name}\n\n"
             f"- Status: open\n"
-            f"- Owns: `{owned}`\n"
+            f"- Owns: {owns}\n"
             f"- Trace into: the managers, controllers, dao, and libraries this file "
             f"calls, see `inventory/_entrypoints.md`\n\n---\n\n{mandate}")
 
@@ -410,16 +422,34 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
     layers = logic_layer_files(model.files, globs=logic_layer_globs(guides), detection=detection)
     (ws / "inventory" / "_entrypoints.md").write_text(_entrypoints_md(candidates, layers), encoding="utf-8")
 
-    # generate the deterministic unit worklist: one unit per candidate entrypoint,
-    # each carrying the same fixed deep-review mandate. Code owns the worklist and
-    # the depth mandate. The agent fans out one sub-review per unit, it does not
-    # decide the units, whether to fan out, or how deep to go. Never clobber a unit
-    # an earlier run already wrote.
+    # generate the deterministic unit worklist, each unit carrying the same fixed
+    # deep-review mandate. Code owns the worklist and the depth mandate. The agent fans
+    # out one sub-review per unit, it does not decide the units, whether to fan out, or
+    # how deep to go. A candidate small enough for one window is one unit, a large file
+    # is split into slice units at construct boundaries, the same split the coded run
+    # uses, so a sub-review focuses on a few handlers instead of the whole file. Never
+    # clobber a unit an earlier run already wrote.
     mandate = paths.unit_review_file.read_text(encoding="utf-8")
     for cand in candidates:
-        up = ws / "units" / f"{unit_slug(cand)}.md"
-        if not up.exists():
-            up.write_text(_unit_md(cand, mandate), encoding="utf-8")
+        try:
+            text = (target / cand).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            text = ""
+        spans = char_spans(text)
+        if len(spans) == 1:
+            seeds = [(cand, None)]
+        else:
+            seeds = [(f"{cand}#{i + 1}", span) for i, span in enumerate(spans)]
+        for name, span in seeds:
+            up = ws / "units" / f"{unit_slug(name)}.md"
+            if up.exists():
+                continue
+            if span is None:
+                body = _unit_md(name, mandate)
+            else:
+                body = _unit_md(name, mandate, owned_path=cand,
+                                line_range=span_line_range(text, span))
+            up.write_text(body, encoding="utf-8")
             created.append(str(up))
 
     # seed the denominator and the auth-model templates the agent fills in Phase 1,

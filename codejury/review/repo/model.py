@@ -91,6 +91,65 @@ def candidate_entrypoint_files(files, *, root=None, globs=(), markers=(), detect
     return sorted(dict.fromkeys(out))
 
 
+# a file longer than this many chars is reviewed in overlapping windows, not one unit
+CHUNK_CHARS = 24_000
+CHUNK_OVERLAP = 2_000
+
+
+def construct_boundaries(text: str) -> list[int]:
+    """Char indices where a line begins with a non-space character, the start of a
+    top-level construct in an indented language such as Python, Go, or JavaScript. Window
+    edges snap to these so a class or function is reviewed whole, not split across units."""
+    starts: list[int] = []
+    at_line_start = True
+    for i, ch in enumerate(text):
+        if at_line_start and not ch.isspace():
+            starts.append(i)
+        at_line_start = ch == "\n"
+    return starts
+
+
+def char_spans(text: str) -> list[tuple[int, int] | None]:
+    """The char windows that cover `text`. Text that fits one window is reviewed whole, span
+    None. Larger text is split at top-level construct boundaries so each class or function
+    lands whole in one window. A single construct longer than a window is hard split with an
+    overlap, so even then no boundary silently drops a construct's tail. Shared by the coded
+    run's unit builder and the scaffold's agent-unit seeding, so both paths split a large
+    entrypoint file the same way instead of the agent path reviewing it whole and diluting."""
+    size = len(text)
+    if size <= CHUNK_CHARS:
+        return [None]
+    boundaries = construct_boundaries(text)
+    spans: list[tuple[int, int] | None] = []
+    start = 0
+    while True:
+        target = start + CHUNK_CHARS
+        if target >= size:
+            spans.append((start, size))
+            return spans
+        within = [b for b in boundaries if start < b <= target]
+        if within:
+            # end at the furthest construct boundary in the window, so it splits cleanly
+            end = within[-1]
+            next_start = end
+        else:
+            # one construct is longer than a window, hard split it with an overlap
+            end = target
+            next_start = end - CHUNK_OVERLAP
+        spans.append((start, end))
+        start = next_start
+
+
+def span_line_range(text: str, span: tuple[int, int]) -> tuple[int, int]:
+    """The 1-based inclusive line range a char span covers, so a seeded unit points a
+    sub-review at the slice it owns by line number rather than an opaque char offset."""
+    start, end = span
+    first = text.count("\n", 0, start) + 1
+    # end sits at the next construct's first char, so step back one to stay in this slice
+    last = text.count("\n", 0, max(start, end - 1)) + 1
+    return first, last
+
+
 def logic_layer_files(files, *, globs=(), detection: Detection | None = None) -> list[str]:
     """Non-test files whose path matches one of the downstream logic-layer globs,
     for example managers, controllers, dao, or services. These are not entrypoints

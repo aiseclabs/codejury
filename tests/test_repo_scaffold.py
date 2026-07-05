@@ -106,6 +106,25 @@ def test_scaffold_seeds_a_unit_per_candidate(tmp_path):
     assert "trace" in body.lower() and "_severity.md" in body
 
 
+def test_scaffold_splits_a_large_candidate_into_slice_units(tmp_path):
+    # a large entrypoint file is seeded as several slice units at construct boundaries, so a
+    # sub-review focuses on a few handlers instead of diluting across the whole file
+    d = tmp_path / "big"
+    d.mkdir()
+    header = "from flask import Flask\napp = Flask(__name__)\n\n"
+    block = '@app.route("/r%d")\ndef h%d():\n    x = "%s"\n    return x\n\n'
+    body = "".join(block % (i, i, "p" * 200) for i in range(200))
+    (d / "views.py").write_text(header + body)
+    (d / "requirements.txt").write_text("Flask==3.0\n")
+    res = scaffold(d, tmp_path / "work")
+    slugs = sorted(p.stem for p in (res.workspace / "units").glob("*.md"))
+    # the file split, so the whole-file unit is gone and slice units cover it
+    assert "views" not in slugs
+    assert "views-py-1" in slugs and "views-py-2" in slugs
+    first = (res.workspace / "units" / "views-py-1.md").read_text()
+    assert "views.py" in first and "lines 1 to " in first
+
+
 def test_methodology_is_a_fan_out(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert "Agent Methodology" in res.methodology
