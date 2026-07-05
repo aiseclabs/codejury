@@ -38,27 +38,6 @@ planted:
         - languages/go
         - frameworks/go/echo
 
-  - id: attachment-readone-cross-task-idor
-    category: insecure-direct-object-reference
-    entry: GET /tasks/{task}/attachments/{attachment}
-    file: pkg/models/task_attachment.go
-    severity: HIGH
-    note: CVE-2026-33678, GHSA-jfmm-mjcp-8wq2, the IDOR half of chain GHSA-2pv8-4c52-mf8j. The
-          handler authorizes the caller against the task id in the URL, but TaskAttachment.ReadOne
-          fetches the attachment with s.Where("id = ?", ta.ID) alone, it never binds the
-          attachment to that task. So a caller with access to any one task supplies that task id
-          for authorization and any other attachment id in the same request, and reads or deletes
-          an attachment from a task in a project they cannot access. The delete path goes through
-          the same ReadOne, so it leaks and destroys attachments across all projects. Confirmed at
-          v2.2.0, ReadOne queries by id only. The fix b8edc8f17 adds an And("task_id = ?", ta.TaskID)
-          when the task id is present.
-    knowledge:
-      vulnerabilities:
-        - insecure-direct-object-reference
-      guides:
-        - languages/go
-        - frameworks/go/echo
-
   - id: migration-attachment-download-ssrf
     category: server-side-request-forgery
     files:
@@ -120,6 +99,28 @@ safe:
     knowledge:
       vulnerabilities:
         - missing-authorization
+      guides:
+        - languages/go
+        - frameworks/go/echo
+
+  - id: safe-attachment-readone-orm-scoped
+    category: insecure-direct-object-reference
+    entry: GET /tasks/{task}/attachments/{attachment}
+    file: pkg/models/task_attachment.go
+    note: TaskAttachment.ReadOne runs s.Where("id = ?", ta.ID).Get(ta) with ta.TaskID already
+          bound from the mandatory :task URL segment, which both callers set and CanRead requires,
+          so xorm autocondition ANDs the non-zero task_id into the query. A Go probe against v2.2.0
+          shows the generated SQL is WHERE (id = ?) AND id = ? AND task_id = ?, so a cross-task
+          read returns not-found while a same-task read still resolves, and the fetch-by-id is
+          owner scoped by the ORM on every reachable path. The /tasks/0 trick is rejected by
+          CanRead before ReadOne, and the delete path adds an explicit And on task_id. Reporting
+          this as an IDOR is a false positive. This was a planted issue until a rigorous re-read
+          and the probe disproved it. It carries CVE-2026-33678, whose 2.2.1 change of
+          NoAutoCondition plus an explicit And on task_id is a hardening refactor of an
+          already-effective implicit scope, not a fix for a reproducible hole at this commit.
+    knowledge:
+      vulnerabilities:
+        - insecure-direct-object-reference
       guides:
         - languages/go
         - frameworks/go/echo
