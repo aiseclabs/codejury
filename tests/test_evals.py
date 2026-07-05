@@ -167,6 +167,23 @@ def test_safe_anchor_on_an_endpoint_requires_the_class_it_certifies(tmp_path):
     assert res2.false_positives == ["r-fp"]
 
 
+def test_planted_with_endpoint_is_credited_by_its_exact_file_and_symbol_anchor(tmp_path):
+    # a planted that also pins a file and a symbol is credited by a report that traces that exact
+    # sink, even when the report writes the endpoint a little differently, a version prefix or an
+    # extra path segment. A report on a sibling function in the same file still does not credit it.
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: sink\n    category: prototype-pollution\n    entry: POST /api/v2/x/test\n"
+        "    files: [utils/dataUtils.ts]\n    symbols: [deepMerge]\n"))
+    hit = Report.make("r-hit", "POST /api/v1/db/x/test", "prototype pollution",
+                      ["utils/dataUtils.ts"], text="deepMerge writes attacker keys")
+    wrong_symbol = Report.make("r-wrong", "POST /api/v1/db/x/test", "prototype pollution",
+                               ["utils/dataUtils.ts"], text="shallowCopy is fine here")
+    assert score(key, [hit]).found == ["sink"]        # exact file+symbol credited despite endpoint diff
+    assert score(key, [wrong_symbol]).found == []     # same file, different function, not the bug
+
+
 def test_file_keyed_planted_credits_a_report_at_any_accepted_anchor(tmp_path):
     # a code injection sink with no endpoint, reported at a call site that feeds it, a real
     # detection the scorer used to miss when it pinned only the single sink file

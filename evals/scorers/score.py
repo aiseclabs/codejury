@@ -24,28 +24,36 @@ def _matches(report: Report, entry: KeyEntry, *, safe: bool = False) -> bool:
     def _class_ok() -> bool:
         return not (safe and entry.category) or category_match(report.category, entry.category)
 
-    # endpoint is the precise signal: when the key entry cites one, the report must match
-    # it exactly, no loose file fallback that would credit a report on a sibling endpoint
+    def _file_symbol_hit() -> bool:
+        # the precise sink anchor: the report cites the entry's file, and when the entry pins a
+        # symbol, that symbol appears in the report. This is the no-endpoint match, and for a
+        # planted it is also an alternative to the endpoint match, since a report that traces the
+        # exact sink file and function is the same defect even when it writes the endpoint string
+        # a little differently, a version prefix or an extra path segment.
+        report_names = {Path(f).name for f in report.files}
+        if not any(Path(kf).name in report_names for kf in entry.files):
+            return False
+        # symbols narrow a file anchor to the bug's real framing, so a report of the same class on
+        # a sibling function in the same file no longer credits it. The class label is then
+        # redundant, a report that traces the same function at the same file is the same defect
+        # even when it names the class idor where the key names it access-control.
+        if entry.symbols:
+            hay = f"{report.text} {report.endpoint}"
+            return any(s in hay for s in entry.symbols)
+        # no symbols, so the class is the only thing that narrows a whole-file anchor to the bug
+        return category_match(report.category, entry.category)
+
+    # endpoint is the precise signal: when the key entry cites one, the report must match it, no
+    # loose file fallback that would credit a report on a sibling endpoint. A safe anchor keeps
+    # this strict plus the class gate. A planted that also pins a file and symbol may be credited
+    # by that exact sink anchor instead, so a correct finding is not lost to an endpoint string
+    # that differs by a version prefix or a path segment.
     if entry.entry:
-        return bool(report.endpoint) and endpoint_match(report.endpoint, entry.entry) and _class_ok()
-    # no endpoint on the key entry, fall back to a matching category at any accepted file
-    # anchor, so a report at the sink or at a call site that feeds it both count, for a
-    # class such as code injection an endpoint does not anchor
-    report_names = {Path(f).name for f in report.files}
-    file_hit = any(Path(kf).name in report_names for kf in entry.files)
-    if not file_hit:
-        return False
-    # symbols narrow a file anchor to the bug's real framing, so a report of the same class on
-    # a sibling function in the same file no longer credits it.
-    if entry.symbols:
-        hay = f"{report.text} {report.endpoint}"
-        # the file plus the bug's own function is a precise anchor, so the class label is then
-        # redundant: a report that traces the same function at the same file is the same defect
-        # even when it names the class idor where the key names it access-control. A symbol miss
-        # still rejects, since that is a different function in the file, not this bug.
-        return any(s in hay for s in entry.symbols) and _class_ok()
-    # no symbols, so the class is the only thing that narrows a whole-file anchor to the bug
-    return category_match(report.category, entry.category)
+        endpoint_hit = bool(report.endpoint) and endpoint_match(report.endpoint, entry.entry)
+        if safe:
+            return endpoint_hit and _class_ok()
+        return endpoint_hit or (bool(entry.symbols and entry.files) and _file_symbol_hit())
+    return _file_symbol_hit()
 
 
 def score(key: AnswerKey, reports: list[Report]) -> Result:
