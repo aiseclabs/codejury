@@ -43,6 +43,13 @@ def test_endpoint_match_ignores_a_trailing_handler_annotation():
     assert endpoint_match("translate batch handler", "translate batch handler") is True
 
 
+def test_endpoint_match_ignores_a_query_string():
+    # a report citing the endpoint with a query string names the same endpoint a key entry cites
+    # bare, the query is not part of the endpoint identity and its ? must not become a path segment
+    assert endpoint_match("GET /api/search/?query=<name>", "GET /api/search/") is True
+    assert endpoint_match("GET /api/search/", "GET /api/search/?query=x") is True
+
+
 def test_category_of_unifies_spaces_and_hyphens():
     # a report writing the class with spaces and a key writing it with hyphens reach the
     # scorer on one form, since the pipeline runs category_of on both before matching, so a

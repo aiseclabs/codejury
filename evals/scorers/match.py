@@ -33,8 +33,10 @@ def normalize_endpoint(text: str) -> str:
     and the path separately, as in `GET` `/x`. A trailing parenthetical annotation such as
     `(tRPC user.upsertUser)` is removed, so a Source line that names the handler after the
     endpoint still matches the bare endpoint a key entry cites. Free-text non-HTTP sources
-    carry no parentheses, so they are left intact."""
+    carry no parentheses, so they are left intact. A query string is not part of the endpoint
+    identity, so `GET /api/search/?query=x` and `GET /api/search/` are one endpoint."""
     text = text.strip().lower().replace("`", "")
+    text = re.sub(r"\?\S*", "", text)
     text = re.sub(r"\([^)]*\)", " ", text)
     text = re.sub(r"[<{][^>}]*[>}]", "*", text)
     text = re.sub(r"\s+", " ", text)
