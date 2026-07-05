@@ -143,6 +143,30 @@ def test_one_report_on_several_safe_anchors_counts_as_one_false_positive(tmp_pat
     assert res.to_dict()["precision_known"] == 0.5     # 1 found / (1 found + 1 fp)
 
 
+def test_safe_anchor_on_an_endpoint_requires_the_class_it_certifies(tmp_path):
+    # a safe anchor certifies one endpoint safe for one class, so a report of a different class on
+    # that endpoint is an adjacent finding, not the false positive the anchor guards. Planted
+    # matching stays class-blind on the endpoint, the finder's label is noisy and the anchor pins
+    # the bug, so a class mismatch there must not drop the recall credit.
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: real\n    category: idor\n    entry: GET /x/<id>\n"
+        "safe:\n"
+        "  - id: authz-ok\n    category: business-logic\n    entry: GET /users/list\n"))
+    reports = [
+        Report.make("r-hit", "GET /x/9", "missing authorization", []),      # class-blind planted match
+        Report.make("r-adjacent", "GET /users/list", "information exposure", []),  # different class, not the FP
+    ]
+    res = score(key, reports)
+    assert res.found == ["real"]
+    assert res.false_positives == []
+    assert "r-adjacent" in res.extra
+    # a same-class report on the safe endpoint is the false positive the anchor guards
+    res2 = score(key, [Report.make("r-fp", "GET /users/list", "business logic", [])])
+    assert res2.false_positives == ["r-fp"]
+
+
 def test_file_keyed_planted_credits_a_report_at_any_accepted_anchor(tmp_path):
     # a code injection sink with no endpoint, reported at a call site that feeds it, a real
     # detection the scorer used to miss when it pinned only the single sink file

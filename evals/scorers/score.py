@@ -14,11 +14,20 @@ from evals.schema import AnswerKey, KeyEntry, Report
 from evals.scorers.match import category_match, endpoint_match
 
 
-def _matches(report: Report, entry: KeyEntry) -> bool:
+def _matches(report: Report, entry: KeyEntry, *, safe: bool = False) -> bool:
+    # A safe anchor certifies one endpoint or function safe for one vulnerability class, so a
+    # report of a different class on that same anchor is not the false positive the anchor
+    # guards, it is an adjacent finding. Require the report's class to agree with a safe anchor's
+    # class before crediting it a false positive. Planted matching stays class-blind on the
+    # endpoint and symbol anchors, since the finder's own class label is noisy and the anchor
+    # already pins the bug, tightening it there would drop real recall.
+    def _class_ok() -> bool:
+        return not (safe and entry.category) or category_match(report.category, entry.category)
+
     # endpoint is the precise signal: when the key entry cites one, the report must match
     # it exactly, no loose file fallback that would credit a report on a sibling endpoint
     if entry.entry:
-        return bool(report.endpoint) and endpoint_match(report.endpoint, entry.entry)
+        return bool(report.endpoint) and endpoint_match(report.endpoint, entry.entry) and _class_ok()
     # no endpoint on the key entry, fall back to a matching category at any accepted file
     # anchor, so a report at the sink or at a call site that feeds it both count, for a
     # class such as code injection an endpoint does not anchor
@@ -34,7 +43,7 @@ def _matches(report: Report, entry: KeyEntry) -> bool:
         # redundant: a report that traces the same function at the same file is the same defect
         # even when it names the class idor where the key names it access-control. A symbol miss
         # still rejects, since that is a different function in the file, not this bug.
-        return any(s in hay for s in entry.symbols)
+        return any(s in hay for s in entry.symbols) and _class_ok()
     # no symbols, so the class is the only thing that narrows a whole-file anchor to the bug
     return category_match(report.category, entry.category)
 
@@ -58,7 +67,7 @@ def score(key: AnswerKey, reports: list[Report]) -> Result:
             # positive, not several, which would understate precision
             if r.name in matched_reports:
                 continue
-            if _matches(r, s):
+            if _matches(r, s, safe=True):
                 res.false_positives.append(r.name)
                 matched_reports.add(r.name)
     res.extra = [r.name for r in reports if r.name not in matched_reports]
