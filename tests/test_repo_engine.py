@@ -281,6 +281,12 @@ def test_parse_candidate_drops_a_cleared_or_refuted_record(tmp_path):
     cleared.write_text("# Permission methods cleared\n- Status: cleared\n- Type: idor\n"
                        "## Scope\n`pkg/models/task_attachment_permissions.go:25` holds.\n")
     assert _parse_candidate(cleared) is None
+    # a reviewer records a Cleared controls list with no explicit status, the title marks it a
+    # clearing record so it is not counted as a confirmed finding
+    titled = tmp_path / "t.md"
+    titled.write_text("# Cleared controls and paths checked\n- Type:\n"
+                      "## Blacklist gate\n`contracts/Token.sol:82` adminSanity enforces it.\n")
+    assert _parse_candidate(titled) is None
     confirmed = tmp_path / "k.md"
     confirmed.write_text("# real leak\n- Status: confirmed\n- Type: idor\n"
                          "## Analysis\n`pkg/models/link_sharing.go:272` leaks hashes.\n")
