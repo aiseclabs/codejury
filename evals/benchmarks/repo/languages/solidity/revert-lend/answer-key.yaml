@@ -92,25 +92,32 @@ planted:
       guides:
         - languages/solidity
 
-  - id: send-position-value-uint128-truncation
+safe:
+  - id: safe-sendpositionvalue-bounded-uint128-cast
     category: unsafe-math
     file: src/V3Vault.sol
-    severity: LOW
     symbols:
       - _sendPositionValue
     note: >-
-      Bot report L-12. In _sendPositionValue the liquidation fee and liquidity math casts the
-      full-width products uint128(liquidationValue * fees0 / feeValue) and
-      uint128((liquidationValue - feeValue) * liquidity / (fullValue - feeValue)) down to uint128
-      without SafeCast, so a high-value position truncates the product mod 2^128 with no revert
-      and corrupts the fee and liquidity amounts during liquidation.
+      Bot report L-12 flags the uint128 casts in _sendPositionValue,
+      uint128(liquidationValue * fees0 / feeValue) and
+      uint128((liquidationValue - feeValue) * liquidity / (fullValue - feeValue)), as a possible
+      truncation, but each is a bounded fraction that cannot exceed the uint128 max, so the cast
+      never truncates. fees0, fees1, and liquidity are uint128 from getPositionBreakdown. In the
+      first cast the branch requires liquidationValue below feeValue, so the result is below fees0.
+      In the second, liquidationValue is at most fullValue, since _calculateLiquidation caps it at
+      debt times one plus the ten percent max penalty, which that branch requires to be at most
+      fullValue, so the fraction is at most one and the result is at most liquidity. Any uint256
+      product overflow reverts under 0.8 rather than truncating. A report of an unsafe cast here is
+      a false positive, the correctly bounded sibling of a real downcast truncation. Reclassified
+      from planted after a proof the truncation is unreachable, a bot false positive the finder
+      correctly refutes.
     knowledge:
       vulnerabilities:
         - unsafe-math
       guides:
         - languages/solidity
 
-safe:
   - id: leverageup-bounded-slippage-deadline
     category: front-running
     file: src/transformers/LeverageTransformer.sol
