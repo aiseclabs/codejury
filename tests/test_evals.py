@@ -226,6 +226,30 @@ def test_symbol_anchor_credits_a_report_that_pins_the_line_without_naming_the_sy
     assert score(key, [sibling], source_root=str(tmp_path)).found == []       # line in a sibling function
 
 
+def test_symbol_anchor_matches_a_whole_word_not_a_substring(tmp_path):
+    # a symbol like approve must match the function approve, not the word approved in an unrelated
+    # allowance finding on the same file, so two distinct bugs are not conflated by a shared prefix
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: approve-skips\n    category: access-control\n"
+        "    files: [Token.sol]\n    symbols: [approve]\n"))
+    fee = Report.make("r-fee", "", "accounting-precision", ["Token.sol"],
+                      text="the fee is charged beyond the approved allowance")
+    real = Report.make("r-real", "", "access control", ["Token.sol"],
+                       text="approve skips the blacklist sanity check")
+    assert score(key, [fee]).found == []                     # approved is not the symbol approve
+    assert score(key, [real]).found == ["approve-skips"]     # the whole word approve is the anchor
+
+
+def test_accounting_shape_folds_to_the_accounting_class():
+    # a finding names a specific accounting shape where the key names the class, they must reach
+    # the scorer as one form so an unbounded-amount report credits an accounting-precision key
+    from evals.scorers.match import category_match, category_of
+    assert category_match(category_of("accounting flaw, one-sided numeric bound"),
+                          category_of("accounting-precision"))
+
+
 def test_file_keyed_planted_credits_a_report_at_any_accepted_anchor(tmp_path):
     # a code injection sink with no endpoint, reported at a call site that feeds it, a real
     # detection the scorer used to miss when it pinned only the single sink file

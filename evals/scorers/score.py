@@ -7,12 +7,21 @@ a human since it may be a real bug the key misses.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from evals.results import Result
 from evals.schema import AnswerKey, KeyEntry, Report
 from evals.scorers.match import category_match, endpoint_match
 from evals.scorers.parse import symbol_line_span
+
+
+def _symbol_present(hay: str, symbols) -> bool:
+    """Whether any anchor symbol appears in the report body as a whole token, not a substring,
+    so a symbol like `approve` does not match the word `approved` in an unrelated allowance
+    finding. The token bound is a non-word character on each side, which also holds for a symbol
+    that itself begins or ends with a non-word character such as `$queryRawUnsafe` or `_mint`."""
+    return any(re.search(rf"(?<!\w){re.escape(s)}(?!\w)", hay) for s in symbols)
 
 
 def _matches(report: Report, entry: KeyEntry, *, safe: bool = False, source_root: str | None = None) -> bool:
@@ -40,7 +49,7 @@ def _matches(report: Report, entry: KeyEntry, *, safe: bool = False, source_root
         # even when it names the class idor where the key names it access-control.
         if entry.symbols:
             hay = f"{report.text} {report.endpoint}"
-            if any(s in hay for s in entry.symbols):
+            if _symbol_present(hay, entry.symbols):
                 return True
             # the report may have located the same function by line without naming it, so when the
             # source is available credit a report whose cited line falls in the symbol's real span

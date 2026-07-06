@@ -19,6 +19,9 @@ _CATEGORY_HINTS = {
     "replay-attack": ("replay",),
     "mass-assignment": ("mass assignment", "mass-assignment"),
     "auth-bypass": ("auth bypass", "authentication bypass"),
+    # the accounting and math class, a finding names a specific shape such as an unbounded
+    # amount or a rounding error where the key names the class, so fold the shape to the class
+    "accounting-precision": ("accounting", "rounding", "share inflation", "first depositor"),
     # pure abbreviations of one class, a report names the short form and a key the long one
     "xml-external-entity": ("xxe", "xml external entity"),
     "cross-site-request-forgery": ("csrf", "cross-site request forgery", "cross site request forgery"),
