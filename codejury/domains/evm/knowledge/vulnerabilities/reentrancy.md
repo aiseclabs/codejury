@@ -5,7 +5,7 @@ lens: reentrancy
 impact: CRITICAL
 tags: [swc-107, reentrancy, fund-loss]
 aliases: [read-only-reentrancy]
-triggers: [".call{value", ".call(", "transfer(", "send(", "external call", "balances[", "withdraw", "nonReentrant", "safeTransfer", "onERC721Received", "before state", "get_virtual_price", "getReserves", "getRate", "sharePrice", "view returns", "balanceOf(address(this))"]
+triggers: [".call{value", ".call(", "transfer(", "send(", "external call", "balances[", "withdraw", "nonReentrant", "safeTransfer", "onERC721Received", "tokensToSend", "tokensReceived", "ERC777", "buyout", "before state", "get_virtual_price", "getReserves", "getRate", "sharePrice", "view returns", "balanceOf(address(this))"]
 ---
 
 ## Reentrancy
@@ -22,6 +22,23 @@ its reserves, and a consumer that prices collateral off that view is fooled. Wri
 before the external call, or guard with `nonReentrant`, and remember a guard on the mutating
 function does not stop the cross-contract read-only form, the view must be consistent at the
 moment of the external call.
+
+A token transfer is an external call too. An ERC777 token runs a `tokensToSend` hook on
+the sender and a `tokensReceived` hook on the recipient, and other tokens add their own
+transfer callback, so a plain `transfer` or `safeTransfer` of an ERC20 can hand control to
+an attacker exactly like a raw `call`. Treat any token whose address is not a fixed trusted
+constant as possibly hook bearing and check every token-move path for reentrancy, not only
+the `call{value}` paths. Clearing a path because the token is assumed to be a normal ERC20
+with no hook is an assumed off-file control unless the token set is pinned to a known
+allowlist, so keep the finding, see the recall red line.
+
+Ordering effects before interactions in the one function under review is not enough on its
+own. A transfer hook can reenter a different function that reads or writes the same position,
+loan, or reserve while this flow is only half finished, the cross-function form, so trace
+where control can go during every transfer and check the whole flow's invariants, not just
+the local ones. In a lending, auction, or buyout flow that pays the current holder before it
+finalizes the position's terms, that payout is the callback window, so audit the order of
+the payout against the state writes.
 
 ### Vulnerable
 ```solidity
