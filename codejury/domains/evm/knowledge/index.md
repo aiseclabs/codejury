@@ -34,5 +34,5 @@ Report only real, exploitable, high-confidence issues with a concrete exploit pa
 fund or control impact. Do not report gas-optimization or style notes, floating-pragma or
 compiler advisories, dependency CVEs, or 0.8 checked-arithmetic overflow outside an
 `unchecked` block. The set is data: add a class by dropping a new
-`vulnerabilities/<id>.md` with the same frontmatter of id, title, impact, tags, and
-triggers, plus vulnerable and secure examples.
+`vulnerabilities/<id>.md` with the same frontmatter of id, title, impact, tags,
+triggers, and lens, plus vulnerable and secure examples.

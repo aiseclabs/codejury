@@ -107,8 +107,8 @@ def _matches(guide: Guide, files: list[str], manifest_text: str, source_text: st
 
 
 def select_guides(files, *, manifest_text: str = "", source_text: str = "", guides: list[Guide] | None = None) -> list[Guide]:
-    """The guides whose detect signals fire on the target, languages first then
-    frameworks. `files` are the target's file paths. `manifest_text` is the
+    """The guides whose detect signals fire on the target, languages first, then
+    frameworks, then protocols. `files` are the target's file paths. `manifest_text` is the
     dependency-manifest content, scanned only for dependency-name substrings, so a
     name like a framework's does not false-match a word in source. `source_text`
     is a source sample or a diff body, scanned for import markers and for

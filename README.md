@@ -254,7 +254,7 @@ Current guide coverage in the web domain includes:
 - Python: Django, Flask, FastAPI, Celery
 - Go: Gin, Echo
 - JavaScript and TypeScript: Express, NestJS
-- Protocols: OAuth and OIDC
+- Protocols: OAuth, OIDC, and GraphQL
 
 The evm domain ships a Solidity guide and the smart contract vulnerability classes above.
 Unguided stacks still work, but the agent relies more on general methodology and model

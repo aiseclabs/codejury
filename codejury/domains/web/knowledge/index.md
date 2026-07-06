@@ -60,4 +60,4 @@ of these ids.
 Report only real, exploitable, high-confidence issues with a concrete exploit
 path. Do not report dependency CVEs, style, speculation, or config-leak-only
 risks. The set is data: add a class by dropping a new `vulnerabilities/<id>.md`
-with the same frontmatter of id, title, impact, tags, and triggers, plus examples.
+with the same frontmatter of id, title, impact, tags, triggers, and lens, plus examples.
