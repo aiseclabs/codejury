@@ -16,11 +16,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
-
-import re
 
 from codejury import __version__
 from codejury.domains.registry import available_domains, get_domain, resolve_domain
