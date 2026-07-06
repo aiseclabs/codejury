@@ -1,10 +1,10 @@
 [project]
 name = "codejury"
-version = "1.4.1"
+version = "1.4.2"
 description = "AI-assisted security review for code diffs and whole repositories."
 readme = "README.md"
 requires-python = ">=3.12"
-license = "MIT"
+license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "AISecLabs" }]
 keywords = ["security", "appsec", "static analysis", "llm", "owasp", "asvs", "code review"]
