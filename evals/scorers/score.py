@@ -91,12 +91,18 @@ def score(key: AnswerKey, reports: list[Report], *, source_root: str | None = No
             matched_reports.add(hit.name)
         else:
             res.missed.append(p.id)
+    # a report that matches any planted entry found a real bug, so it is never a false positive on
+    # a safe anchor, not even the duplicate the planted credit did not take. A bug spanning two
+    # functions is often written as two findings, one credits the planted and the other must not be
+    # scored a false positive because it also matches the safe sibling on a loose file and symbol.
+    finds_planted = {r.name for r in reports
+                     if any(_matches(r, p, source_root=source_root) for p in key.planted)}
     for s in key.safe:
         for r in reports:
             # count a report once: skip one already credited to a planted finding or to an
             # earlier safe anchor, so a report matching several safe entries is one false
             # positive, not several, which would understate precision
-            if r.name in matched_reports:
+            if r.name in matched_reports or r.name in finds_planted:
                 continue
             if _matches(r, s, safe=True, source_root=source_root):
                 res.false_positives.append(r.name)

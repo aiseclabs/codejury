@@ -242,6 +242,28 @@ def test_symbol_anchor_matches_a_whole_word_not_a_substring(tmp_path):
     assert score(key, [real]).found == ["approve-skips"]     # the whole word approve is the anchor
 
 
+def test_a_duplicate_report_of_a_planted_bug_is_not_a_false_positive(tmp_path):
+    # a bug spanning two functions is planted with both symbols and written by the finder as two
+    # findings. One credits the planted, the other also matches the planted and must not be scored
+    # a false positive just because it also matches the safe sibling on the same file
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: proxy-takeover\n    category: proxy-delegatecall\n"
+        "    file: VaultProxy.sol\n    symbols: [initialise, fallback]\n"
+        "safe:\n"
+        "  - id: safe-guarded-update\n    category: proxy-delegatecall\n"
+        "    file: VaultProxy.sol\n    symbols: [updateConfig]\n"))
+    init = Report.make("r-init", "", "proxy-delegatecall", ["VaultProxy.sol"],
+                       text="initialise is unprotected and installs a malicious updateConfig target")
+    fb = Report.make("r-fb", "", "proxy-delegatecall", ["VaultProxy.sol"],
+                     text="fallback delegatecalls to the config-derived implementation")
+    res = score(key, [init, fb])
+    assert res.found == ["proxy-takeover"]         # the real bug is credited
+    assert res.false_positives == []               # the duplicate finding is not a false positive
+    assert len(res.extra) == 1                      # the uncredited duplicate lands as extra, not a FP
+
+
 def test_accounting_shape_folds_to_the_accounting_class():
     # a finding names a specific accounting shape where the key names the class, they must reach
     # the scorer as one form so an unbounded-amount report credits an accounting-precision key
