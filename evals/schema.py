@@ -20,17 +20,22 @@ from evals.scorers.match import category_of, normalize_endpoint
 @dataclass(frozen=True, kw_only=True)
 class Report:
     """One reported issue, however a path produced it. Endpoint is stored normalized, text
-    is the lowercased finding body a symbol-anchored key entry searches for its framing."""
+    is the lowercased finding body a symbol-anchored key entry searches for its framing.
+    `lines` are the source lines the report pins in its cited files, so a symbol anchor can
+    credit a report that located the bug by line inside the symbol's body without typing the
+    symbol's name."""
     name: str
     endpoint: str = ""
     category: str = ""
     files: tuple[str, ...] = ()
     text: str = ""
+    lines: tuple[int, ...] = ()
 
     @classmethod
-    def make(cls, name: str, endpoint: str, category: str, files, text: str = "") -> "Report":
+    def make(cls, name: str, endpoint: str, category: str, files, text: str = "", lines=()) -> "Report":
         return cls(name=name, endpoint=normalize_endpoint(endpoint),
-                   category=category_of(category), files=tuple(files), text=text.lower())
+                   category=category_of(category), files=tuple(files), text=text.lower(),
+                   lines=tuple(sorted({int(n) for n in lines})))
 
 
 def knowledge_refs(block) -> tuple[str, ...]:

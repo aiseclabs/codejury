@@ -53,14 +53,28 @@ def _split_endpoint(text: str) -> tuple[str, list[str]]:
     return method, [s for s in path.strip("/").split("/") if s]
 
 
-def endpoint_match(report_ep: str, key_entry: str) -> bool:
-    """Match by method and path, where either path may carry a leading mount prefix the
-    other omits, so a real repo's /api/v1/memories/*/update matches a key entry of
-    /memories/*/update. Methods must agree when both are present. The shorter path aligns
-    as a suffix of the longer, and the overlap is anchored by its first segment matching as
-    a literal or both wildcards, so a deeper item path like /wallets/<id> is not conflated
-    with the collection /wallets, the looseness that credited an IDOR report to a safe list
-    endpoint. Inside the anchored overlap a path param matches any concrete segment."""
+def _report_endpoints(report_ep: str) -> list[str]:
+    """Split a report's Source line into the individual routes it names. One defect often
+    hits several sibling routes, so a finding lists them together, GET /files/<id>/content,
+    GET /files/<id>/content/<file_name>, GET /files/<id>, and a comma or a fresh method token
+    starts the next route. A free-text non-HTTP source carries neither, so it stays one
+    string. The key entry is always a single endpoint, only the report side lists several."""
+    norm = normalize_endpoint(report_ep)
+    routes: list[str] = []
+    for part in re.split(r"\s*,\s*", norm):
+        if not part:
+            continue
+        # a method token that starts a route, "get /a get /b", begins a new one. It must be
+        # followed by whitespace, so a path segment that spells a method, /api/options/x, does
+        # not split
+        for piece in re.split(r"(?=\b(?:%s)\b\s)" % "|".join(_METHODS), part):
+            piece = piece.strip()
+            if piece:
+                routes.append(piece)
+    return routes or [norm]
+
+
+def _match_one(report_ep: str, key_entry: str) -> bool:
     rm, rseg = _split_endpoint(report_ep)
     km, kseg = _split_endpoint(key_entry)
     if rm and km and rm != km:
@@ -72,6 +86,19 @@ def endpoint_match(report_ep: str, key_entry: str) -> bool:
     if not (short[0] == tail[0] or (short[0] == "*" and tail[0] == "*")):
         return False
     return all(a == b or a == "*" or b == "*" for a, b in zip(short, tail))
+
+
+def endpoint_match(report_ep: str, key_entry: str) -> bool:
+    """Match by method and path, where either path may carry a leading mount prefix the
+    other omits, so a real repo's /api/v1/memories/*/update matches a key entry of
+    /memories/*/update. Methods must agree when both are present. The shorter path aligns
+    as a suffix of the longer, and the overlap is anchored by its first segment matching as
+    a literal or both wildcards, so a deeper item path like /wallets/<id> is not conflated
+    with the collection /wallets, the looseness that credited an IDOR report to a safe list
+    endpoint. Inside the anchored overlap a path param matches any concrete segment. When the
+    report names several routes for one defect, a match on any one of them credits it, since
+    they are one finding."""
+    return any(_match_one(r, key_entry) for r in _report_endpoints(report_ep))
 
 
 def category_of(text: str) -> str:

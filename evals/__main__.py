@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from evals import registry
@@ -65,7 +66,22 @@ def _cmd_repo(args) -> int:
         reports = reports_from_findings_dir(args.findings_dir)
     else:
         reports = reports_from_findings_dir(Path(args.workspace) / args.name / "findings")
-    return _emit(score_repo(key, reports), args.json)
+    return _emit(score_repo(key, reports, source_root=_resolve_source(args)), args.json)
+
+
+def _resolve_source(args) -> str | None:
+    """The repo source root a symbol span reads from, when available. Explicit `--source` wins,
+    else a local clone under `<CODEJURY_BACKTEST_DIR>/repositories/<name>` is used when present,
+    so the backtest scores by symbol span without a flag. Absent both, the scoring reads no source
+    and a symbol anchor matches by name only, the committed suite behavior."""
+    if args.source:
+        return args.source
+    root = os.environ.get("CODEJURY_BACKTEST_DIR")
+    if root:
+        clone = Path(root).expanduser() / "repositories" / args.name
+        if clone.is_dir():
+            return str(clone)
+    return None
 
 
 def _run_diff(cases, args, target: str = "diff"):
@@ -168,6 +184,10 @@ def main(argv=None) -> int:
     r.add_argument("--workspace", default=None, help="review workspace root, reads <workspace>/<name>/findings")
     r.add_argument("--findings-dir", default=None, help="a findings/ directory directly")
     r.add_argument("--findings-json", default=None, help="a findings.json or a json list of reports")
+    r.add_argument("--source", default=None,
+                   help="repo source root, lets a symbol anchor credit a report that pins the bug "
+                        "by line inside the symbol without naming it, auto-discovered from a "
+                        "CODEJURY_BACKTEST_DIR clone when unset")
     r.add_argument("--json", default=None, help="write the structured result here for compare")
     r.set_defaults(func=_cmd_repo)
 

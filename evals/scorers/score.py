@@ -12,9 +12,10 @@ from pathlib import Path
 from evals.results import Result
 from evals.schema import AnswerKey, KeyEntry, Report
 from evals.scorers.match import category_match, endpoint_match
+from evals.scorers.parse import symbol_line_span
 
 
-def _matches(report: Report, entry: KeyEntry, *, safe: bool = False) -> bool:
+def _matches(report: Report, entry: KeyEntry, *, safe: bool = False, source_root: str | None = None) -> bool:
     # A safe anchor certifies one endpoint or function safe for one vulnerability class, so a
     # report of a different class on that same anchor is not the false positive the anchor
     # guards, it is an adjacent finding. Require the report's class to agree with a safe anchor's
@@ -39,7 +40,19 @@ def _matches(report: Report, entry: KeyEntry, *, safe: bool = False) -> bool:
         # even when it names the class idor where the key names it access-control.
         if entry.symbols:
             hay = f"{report.text} {report.endpoint}"
-            return any(s in hay for s in entry.symbols)
+            if any(s in hay for s in entry.symbols):
+                return True
+            # the report may have located the same function by line without naming it, so when the
+            # source is available credit a report whose cited line falls in the symbol's real span
+            if source_root and report.lines:
+                for kf in entry.files:
+                    if Path(kf).name not in report_names:
+                        continue
+                    for s in entry.symbols:
+                        span = symbol_line_span(source_root, kf, s)
+                        if span and any(span[0] <= ln <= span[1] for ln in report.lines):
+                            return True
+            return False
         # no symbols, so the class is the only thing that narrows a whole-file anchor to the bug
         return category_match(report.category, entry.category)
 
@@ -56,13 +69,14 @@ def _matches(report: Report, entry: KeyEntry, *, safe: bool = False) -> bool:
     return _file_symbol_hit()
 
 
-def score(key: AnswerKey, reports: list[Report]) -> Result:
+def score(key: AnswerKey, reports: list[Report], *, source_root: str | None = None) -> Result:
     res = Result(target=key.target, n_planted=len(key.planted), n_reports=len(reports))
     matched_reports: set[str] = set()
     for p in key.planted:
         # credit a report to one planted entry only, so a single report cannot satisfy two
         # planted entries that share a loose file and class anchor and inflate recall
-        hit = next((r for r in reports if r.name not in matched_reports and _matches(r, p)), None)
+        hit = next((r for r in reports
+                    if r.name not in matched_reports and _matches(r, p, source_root=source_root)), None)
         if hit is not None:
             res.found.append(p.id)
             matched_reports.add(hit.name)
@@ -75,7 +89,7 @@ def score(key: AnswerKey, reports: list[Report]) -> Result:
             # positive, not several, which would understate precision
             if r.name in matched_reports:
                 continue
-            if _matches(r, s, safe=True):
+            if _matches(r, s, safe=True, source_root=source_root):
                 res.false_positives.append(r.name)
                 matched_reports.add(r.name)
     res.extra = [r.name for r in reports if r.name not in matched_reports]

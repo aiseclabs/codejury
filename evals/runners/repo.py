@@ -16,5 +16,5 @@ from evals.scorers.score import score
 __all__ = ["reports_from_findings_dir", "reports_from_json", "score_repo"]
 
 
-def score_repo(key: AnswerKey, reports: list[Report]) -> Result:
-    return score(key, reports)
+def score_repo(key: AnswerKey, reports: list[Report], *, source_root: str | None = None) -> Result:
+    return score(key, reports, source_root=source_root)

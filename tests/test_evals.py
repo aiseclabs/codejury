@@ -50,6 +50,17 @@ def test_endpoint_match_ignores_a_query_string():
     assert endpoint_match("GET /api/search/", "GET /api/search/?query=x") is True
 
 
+def test_endpoint_match_credits_a_report_that_lists_several_routes():
+    # one defect hits several sibling routes, so a finding lists them in one Source line. A
+    # match on any one credits it, and the last route in the list not matching does not veto it
+    blob = "GET /files/<id>/content, GET /files/<id>/content/<name>, GET /files/<id>"
+    assert endpoint_match(blob, "GET /files/<id>/content") is True
+    # a method that disagrees with every listed route is still a miss, the delete is a different bug
+    assert endpoint_match(blob, "DELETE /files/<id>") is False
+    # routes run together without a comma also split on the fresh method token
+    assert endpoint_match("GET /a/content POST /a/write", "POST /a/write") is True
+
+
 def test_category_of_unifies_spaces_and_hyphens():
     # a report writing the class with spaces and a key writing it with hyphens reach the
     # scorer on one form, since the pipeline runs category_of on both before matching, so a
@@ -182,6 +193,37 @@ def test_planted_with_endpoint_is_credited_by_its_exact_file_and_symbol_anchor(t
                                ["utils/dataUtils.ts"], text="shallowCopy is fine here")
     assert score(key, [hit]).found == ["sink"]        # exact file+symbol credited despite endpoint diff
     assert score(key, [wrong_symbol]).found == []     # same file, different function, not the bug
+
+
+def test_symbol_anchor_credits_a_report_that_pins_the_line_without_naming_the_symbol(tmp_path):
+    # a report can locate the bug inside the right function by line yet never type the function's
+    # name. With the source available the symbol anchor reads the function's real span and credits
+    # a cited line that falls in it, while a line in a sibling function is still not the bug, and
+    # without source the anchor falls back to matching the name only.
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "mod.ts").write_text(
+        "export function createGen(a, b) {\n"       # line 1
+        "    const x = 1;\n"                          # line 2
+        "    const service = new ItemsService(c);\n"  # line 3, the sink, inside createGen
+        "    return x;\n"                             # line 4
+        "}\n"                                          # line 5
+        "function other() {\n"                        # line 6
+        "    return 2;\n"                             # line 7
+        "}\n",                                         # line 8
+        encoding="utf-8")
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: gen\n    category: missing-authorization\n"
+        "    files: [src/mod.ts]\n    symbols: [createGen]\n"))
+    inside = Report.make("r-in", "", "missing authorization", ["src/mod.ts"],
+                         text="new ItemsService built with no accountability", lines=[3])
+    sibling = Report.make("r-sib", "", "missing authorization", ["src/mod.ts"],
+                          text="something in the other function", lines=[7])
+    assert score(key, [inside], source_root=str(tmp_path)).found == ["gen"]   # line in createGen span
+    assert score(key, [inside]).found == []                                   # no source, name not typed
+    assert score(key, [sibling], source_root=str(tmp_path)).found == []       # line in a sibling function
 
 
 def test_file_keyed_planted_credits_a_report_at_any_accepted_anchor(tmp_path):
