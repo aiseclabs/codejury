@@ -98,6 +98,18 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _diff_source_meta(args):
+    """The optional report provenance for a diff review. A flag that names a
+    missing file fails loud, invariant 4, since the operator asked for it."""
+    if not getattr(args, "source_meta", None):
+        return None
+    from codejury.sources.metadata import SourceError, read_source_meta_file
+    path = Path(args.source_meta)
+    if not path.exists():
+        raise SourceError(f"source metadata file not found: {path}")
+    return read_source_meta_file(path)
+
+
 _MOCK_REPLY = (
     '{"findings": [{"file": "app.py", "line": 1, "severity": "HIGH", '
     '"category": "sql_injection", "description": "[mock] no backend called", '
@@ -304,6 +316,8 @@ def _add_audit_args(p) -> None:
                    help="run the engine with a mock provider and no key (a built-in demo diff if none is given)")
     p.add_argument("--exclude", action="append", default=None, metavar="PATH",
                    help="drop findings whose file path contains this substring (repeatable)")
+    p.add_argument("--source-meta", default=None, dest="source_meta", metavar="FILE",
+                   help="a codejury-source.json to show as report provenance, from codejury fetch source")
     p.add_argument("--mode", choices=("standard", "adversarial"), default="standard")
     p.add_argument("--rounds", type=int, default=3, help="adversarial only: debate rounds")
     _add_executor_arg(p)
@@ -495,7 +509,7 @@ def _dispatch(args, parser) -> int:
             finder_provider=finder_provider, challenger_provider=challenger_provider, judge_provider=judge_provider,
             exclude_paths=tuple(args.exclude or ()), domain=domain,
         )
-        print(render(args.fmt, kept))
+        print(render(args.fmt, kept, _diff_source_meta(args)))
         if degraded:
             # the adversarial judge was unusable and the result fell back to the
             # unjudged set, so this is a failed audit, not a clean pass, invariant 4

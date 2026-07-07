@@ -8,10 +8,19 @@ import json
 
 from codejury.finding import Finding
 from codejury.severity import SARIF_LEVEL, SEVERITIES, index
+from codejury.sources.metadata import SourceMeta
 
 
 def _loc(f: Finding) -> str:
     return f"{f.file}:{f.line}" if f.line else f.file
+
+
+def _target_lines(target: SourceMeta | None) -> list[str]:
+    """The Target block for a text or markdown report, empty when no provenance
+    was supplied, so a plain diff review renders exactly as before."""
+    if target is None:
+        return []
+    return [f"- {label}: {value}" for label, value in target.display_rows()]
 
 
 def _sorted(findings: list[Finding]) -> list[Finding]:
@@ -25,10 +34,13 @@ def severity_breakdown(findings: list[Finding]) -> dict[str, int]:
     return out
 
 
-def to_text(findings: list[Finding]) -> str:
+def to_text(findings: list[Finding], target: SourceMeta | None = None) -> str:
+    head = _target_lines(target)
+    if head:
+        head = ["Target:", *head, ""]
     if not findings:
-        return "no findings"
-    lines = []
+        return "\n".join([*head, "no findings"]) if head else "no findings"
+    lines = list(head)
     for f in _sorted(findings):
         cat = f" {f.category}" if f.category else ""
         lines.append(f"[{f.severity}]{cat} {_loc(f)}  (confidence {f.confidence:.2f})")
@@ -39,11 +51,13 @@ def to_text(findings: list[Finding]) -> str:
     return "\n".join(lines)
 
 
-def to_markdown(findings: list[Finding]) -> str:
+def to_markdown(findings: list[Finding], target: SourceMeta | None = None) -> str:
+    head = _target_lines(target)
+    preamble = ["## Target", "", *head, ""] if head else []
     if not findings:
-        return "## Security review\n\nNo findings.\n"
+        return "\n".join([*preamble, "## Security review", "", "No findings.", ""])
     b = severity_breakdown(findings)
-    out = ["## Security review", "",
+    out = [*preamble, "## Security review", "",
            f"{b['CRITICAL']} critical, {b['HIGH']} high, {b['MEDIUM']} medium, {b['LOW']} low.", ""]
     for f in _sorted(findings):
         cat = f" {f.category}" if f.category else ""
@@ -58,14 +72,14 @@ def to_markdown(findings: list[Finding]) -> str:
     return "\n".join(out)
 
 
-def to_json(findings: list[Finding]) -> str:
-    return json.dumps(
-        {"findings": [f.to_dict() for f in _sorted(findings)], "summary": severity_breakdown(findings)},
-        indent=2, ensure_ascii=False,
-    )
+def to_json(findings: list[Finding], target: SourceMeta | None = None) -> str:
+    report: dict = {"findings": [f.to_dict() for f in _sorted(findings)], "summary": severity_breakdown(findings)}
+    if target is not None:
+        report["target"] = target.to_dict()
+    return json.dumps(report, indent=2, ensure_ascii=False)
 
 
-def to_sarif(findings: list[Finding]) -> str:
+def to_sarif(findings: list[Finding], target: SourceMeta | None = None) -> str:
     rules: list[dict] = []
     rule_index: dict[str, int] = {}
     results = []
@@ -92,19 +106,23 @@ def to_sarif(findings: list[Finding]) -> str:
             "properties": {"severity": f.severity, "category": f.category,
                            "confidence": f.confidence, "exploitScenario": f.exploit_scenario},
         })
+    run: dict = {"tool": {"driver": {"name": "codejury",
+                                     "informationUri": "https://github.com/aiseclabs/codejury",
+                                     "rules": rules}},
+                 "results": results}
+    if target is not None:
+        # provenance rides in run properties, a schema-valid place for tool context
+        run["properties"] = {"target": target.to_dict()}
     log = {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "version": "2.1.0",
-        "runs": [{"tool": {"driver": {"name": "codejury",
-                                      "informationUri": "https://github.com/aiseclabs/codejury",
-                                      "rules": rules}},
-                  "results": results}],
+        "runs": [run],
     }
     return json.dumps(log, indent=2, ensure_ascii=False)
 
 
-def render(fmt: str, findings: list[Finding]) -> str:
-    return {"text": to_text, "markdown": to_markdown, "json": to_json, "sarif": to_sarif}[fmt](findings)
+def render(fmt: str, findings: list[Finding], target: SourceMeta | None = None) -> str:
+    return {"text": to_text, "markdown": to_markdown, "json": to_json, "sarif": to_sarif}[fmt](findings, target)
 
 
 def gate(findings: list[Finding], fail_on: str | None) -> bool:

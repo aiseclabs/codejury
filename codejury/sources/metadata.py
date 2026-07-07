@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 
@@ -45,6 +46,19 @@ class SourceMeta:
         """No provenance was recorded, so a report shows no Target section."""
         return all(value in ("", None) for value in asdict(self).values())
 
+    def display_rows(self) -> list[tuple[str, str]]:
+        """The present provenance fields as label and value pairs for a report, in
+        a stable order, skipping the empty ones so a report prints only what it has."""
+        rows = [
+            ("Chain", self.chain),
+            ("Chain ID", str(self.chain_id) if self.chain_id is not None else ""),
+            ("Address", self.address),
+            ("Source", self.source_url),
+            ("Contract", self.contract_name),
+            ("Compiler", self.compiler_version),
+        ]
+        return [(label, value) for label, value in rows if value]
+
 
 def _to_int(value: object) -> int | None:
     # bool is an int subclass, so reject it or True would read as 1
@@ -71,6 +85,20 @@ def _to_bool(value: object) -> bool | None:
 
 def _to_str(value: object) -> str:
     return value.strip() if isinstance(value, str) else ""
+
+
+def read_source_meta_file(path: Path) -> SourceMeta | None:
+    """Read a codejury-source.json into a SourceMeta. Absent returns None, so a
+    normal review with no provenance is unaffected. Present but malformed fails
+    loud, invariant 4. Empty provenance reads as None, so a report adds no Target."""
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise SourceError(f"{path.name} is malformed: {error}") from error
+    meta = source_meta_from_dict(data)
+    return None if meta.is_empty() else meta
 
 
 def source_meta_from_dict(data: object) -> SourceMeta:

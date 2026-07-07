@@ -10,9 +10,15 @@ from codejury.report import (
     render,
     severity_breakdown,
     to_json,
+    to_markdown,
     to_sarif,
+    to_text,
 )
 from codejury.finding import Finding
+from codejury.sources.metadata import SourceMeta
+
+_TARGET = SourceMeta(chain="bsc", chain_id=56, address="0x" + "ab" * 20,
+                     source_url="https://bscscan.com/address/x#code", contract_name="Token")
 
 _SCHEMA = json.loads((Path(__file__).parent / "data" / "sarif-schema-2.1.0.json").read_text())
 
@@ -64,3 +70,37 @@ def test_gate():
     assert gate(_FINDINGS, "critical") is True
     assert gate([_FINDINGS[1]], "high") is False
     assert gate(_FINDINGS, None) is False
+
+
+def test_target_absent_leaves_every_format_unchanged():
+    assert to_text(_FINDINGS) == to_text(_FINDINGS, None)
+    assert to_markdown(_FINDINGS) == to_markdown(_FINDINGS, None)
+    assert to_json(_FINDINGS) == to_json(_FINDINGS, None)
+    assert to_sarif(_FINDINGS) == to_sarif(_FINDINGS, None)
+    assert "target" not in json.loads(to_json(_FINDINGS))
+
+
+def test_target_shows_in_text_and_markdown():
+    text = render("text", _FINDINGS, _TARGET)
+    assert text.startswith("Target:")
+    assert "Chain: bsc" in text
+    md = render("markdown", _FINDINGS, _TARGET)
+    assert "## Target" in md
+    assert md.index("## Target") < md.index("## Security review")
+    assert "- Address: 0x" in md
+
+
+def test_target_shows_in_json_and_sarif():
+    doc = json.loads(render("json", _FINDINGS, _TARGET))
+    assert doc["target"]["chain"] == "bsc"
+    assert doc["target"]["chain_id"] == 56
+    sarif = json.loads(render("sarif", _FINDINGS, _TARGET))
+    jsonschema.validate(sarif, _SCHEMA)
+    assert sarif["runs"][0]["properties"]["target"]["address"].startswith("0x")
+
+
+def test_target_renders_with_no_findings():
+    md = to_markdown([], _TARGET)
+    assert "## Target" in md
+    assert "No findings." in md
+    assert to_text([], _TARGET).startswith("Target:")

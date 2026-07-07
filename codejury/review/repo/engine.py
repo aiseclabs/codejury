@@ -30,7 +30,7 @@ from codejury.review.repo.model import char_spans
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, UnitReviewer
-from codejury.sources.metadata import SourceError, SourceMeta, source_meta_from_dict
+from codejury.sources.metadata import SourceMeta, read_source_meta_file
 from codejury.review.repo.scaffold import (
     _AUTH_MODEL_TEMPLATE,
     _INVARIANTS_TEMPLATE,
@@ -208,34 +208,17 @@ def _finding_entry(ws: Path, c: Candidate, owner: str = "") -> dict:
 
 def _load_source_meta(root: str) -> SourceMeta | None:
     """Optional provenance for a fetched target, read at report time from the
-    target root. Absent means a normal local review, so return None. Present but
-    malformed fails loud, invariant 4. It never reaches a finding decision,
-    invariants 2 and 3, it only annotates the report."""
+    target root. It never reaches a finding decision, invariants 2 and 3, it only
+    annotates the report."""
     if not root:
         return None
-    path = Path(root) / "codejury-source.json"
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise SourceError(f"codejury-source.json is malformed: {error}") from error
-    meta = source_meta_from_dict(data)
-    return None if meta.is_empty() else meta
+    return read_source_meta_file(Path(root) / "codejury-source.json")
 
 
 def _target_md(meta: SourceMeta) -> str:
     """A Target section for the report, printing only the fields that are present."""
-    rows = (
-        ("Chain", meta.chain),
-        ("Chain ID", str(meta.chain_id) if meta.chain_id is not None else ""),
-        ("Address", meta.address),
-        ("Source", meta.source_url),
-        ("Contract", meta.contract_name),
-        ("Compiler", meta.compiler_version),
-    )
     lines = ["## Target", ""]
-    lines += [f"- {label}: {value}" for label, value in rows if value]
+    lines += [f"- {label}: {value}" for label, value in meta.display_rows()]
     lines.append("")
     return "\n".join(lines)
 
