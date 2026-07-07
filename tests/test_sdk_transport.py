@@ -231,7 +231,7 @@ def test_missing_sdk_package_fails_loud(monkeypatch):
 
 
 def test_sdk_options_carry_the_allowlist_and_scrub_auth(monkeypatch):
-    sdk = pytest.importorskip("claude_agent_sdk")
+    import claude_agent_sdk as sdk
     monkeypatch.setenv("ANTHROPIC_API_KEY", "stale")
     monkeypatch.setenv("PATH_KEEPME", "1")
     env = claude_agent._subscription_env()
