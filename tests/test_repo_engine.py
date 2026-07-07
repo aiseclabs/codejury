@@ -325,6 +325,26 @@ def test_finalize_dedups_verifies_and_reports(tmp_path):
     assert not any("/r" in e for e in entries)
 
 
+def test_finalize_falls_back_to_the_union_when_no_agent_candidates(tmp_path):
+    # a coded --run leaves its candidates in _union.json with an empty candidates/, so
+    # finalizing that workspace must verify the union, never write an empty report over
+    # the run's real findings, invariant 4
+    from codejury.review.repo.engine import _save_union
+
+    target = tmp_path / "proj"
+    target.mkdir()
+    ws = tmp_path / "work"
+    project = ws / "proj"
+    (project / "candidates").mkdir(parents=True)
+    _save_union(project, [Candidate(title="idor read", category="idor", file="app/v.py", line=10)])
+
+    fr = finalize_repo_review(target, ws, verifier=_AllReal(), confirmers=[], concurrency=1)
+    assert fr.parsed == 1
+    assert len(fr.verify.confirmed) == 1
+    data = json.loads((fr.workspace / "findings.json").read_text())
+    assert len(data["findings"]) == 1
+
+
 class _AllReal(Verifier):
     def verify(self, c, root):
         return Verdict(real=True, reason="")

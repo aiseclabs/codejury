@@ -561,12 +561,13 @@ def finalize_repo_review(
     concurrency: int = 6,
     domain: Domain | None = None,
 ) -> FinalizeResult:
-    """The coded post-fan-out pipeline: dedup, verify, report over the agent's candidates.
+    """The coded post-fan-out pipeline: dedup, verify, report over the candidates.
 
-    These steps are mechanical, so they are code, not agent prose: it reads
-    `candidates/*.md`, dedups by location and class, adversarially verifies each survivor,
-    resumable and skipping any already in `_verified.json`, drops the refuted into
-    `_refuted.md`, and writes the confirmed `findings/*.md` and the ranked `findings.json`."""
+    These steps are mechanical, so they are code, not agent prose: it reads the agent's
+    `candidates/*.md`, or the coded run's `_union.json` when no agent candidates exist,
+    dedups by location and class, adversarially verifies each survivor, resumable and
+    skipping any already in `_verified.json`, drops the refuted into `_refuted.md`, and
+    writes the confirmed `findings/*.md` and the ranked `findings.json`."""
     domain = domain or default_domain()
     paths = domain.paths
     source_extensions = load_detection(paths.detection_file).source_extensions
@@ -575,6 +576,12 @@ def finalize_repo_review(
 
     by_file = domain.dedup_by_file
     cands = [c for c in (_parse_candidate(p, source_extensions) for p in sorted((ws / "candidates").glob("*.md"))) if c]
+    if not cands and (ws / "_union.json").is_file():
+        # a coded --run leaves its candidates in _union.json, not candidates/*.md, so finalizing
+        # from the empty candidates/ would write an empty report over the run's real findings.
+        # Fall back to the run's union so --finalize verifies it again idempotently, never
+        # silently erases a completed run. Invariant 4.
+        cands = list(_load_union(ws, by_file).values())
     cands = _canonicalize_categories(cands, paths.vulnerabilities_dir)
     sev_votes: dict = {}
     for c in cands:
