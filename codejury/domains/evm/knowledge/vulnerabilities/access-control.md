@@ -5,7 +5,7 @@ lens: access-control
 impact: CRITICAL
 tags: [swc-105, swc-115, access-control, fund-loss]
 aliases: [missing-access-control, broken-access-control]
-triggers: ["onlyOwner", "function mint", "function burn", "function withdraw", "selfdestruct", "tx.origin", "require(msg.sender", "_mint", "setOwner", "transferOwnership", "function approve", "blacklist", "isBlacklisted", "whenNotPaused", "external", "public"]
+triggers: ["onlyOwner", "function mint", "function burn", "function withdraw", "selfdestruct", "tx.origin", "require(msg.sender", "_mint", "setOwner", "transferOwnership", "function approve", "blacklist", "isBlacklisted", "whenNotPaused", "external", "public", "tradingEnabled", "enableTrading", "maxTxAmount", "maxWallet", "setFee", "setTaxFee"]
 ---
 
 ## Missing or Broken Access Control
@@ -24,6 +24,14 @@ blacklist, pause, or sanctions check that runs on `transfer` and `transferFrom` 
 flow, so the control is not the invariant it claims. Enumerate the sibling entrypoints a
 stated invariant should cover and name the one missing the check, do not clear it because a
 later step looks gated.
+
+Owner control that can trap a holder after they commit funds is a concrete harm, not a
+style note. A one-way trading switch the owner flips on but a buyer cannot escape, a sell
+tax or `maxTxAmount` the owner can raise to block or confiscate a sale, or a blacklist the
+owner can add a holder to after that holder buys, all let the owner take or freeze value a
+user already paid for. Report the owner-only setter when a buyer's funds are reachable and
+unrecoverable through it, name the setter and the trapped path, and do not clear it merely
+because the contract has an owner.
 
 ### Vulnerable
 ```solidity

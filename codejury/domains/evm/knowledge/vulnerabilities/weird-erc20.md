@@ -5,7 +5,7 @@ lens: weird-erc20
 impact: HIGH
 tags: [fee-on-transfer, rebasing, erc777, accounting, fund-loss]
 aliases: [fee-on-transfer, deflationary-token, rebasing-token, erc777-hook]
-triggers: ["transferFrom", "transfer(", "balanceOf", "amount", "ERC777", "tokensReceived", "tokensToSend", "rebas", "fee", "safeTransferFrom", "received"]
+triggers: ["transferFrom", "transfer(", "balanceOf", "amount", "ERC777", "tokensReceived", "tokensToSend", "rebas", "fee", "safeTransferFrom", "received", "_rOwned", "_tOwned", "reflectionFromToken", "isExcluded", "_reflectFee"]
 ---
 
 ## Weird ERC20 Behavior
@@ -23,6 +23,14 @@ that the return value here is honored, the bug is that the amount moved is not t
 assumed. For value that must be exact, measure the real balance delta across the transfer
 rather than trusting the requested amount, and treat a token address that is not one
 fixed constant as possibly any of these.
+
+A reflection token, or one with an owner-set transfer fee, breaks the same assumptions from
+the inside. A reflection token holds balances in a scaled space, `_rOwned` against a
+shrinking rate, so `balanceOf`
+drifts between transfers and an account marked excluded is accounted a different way, which
+desynchronizes any integrator that snapshots a balance. An owner-set transfer fee means the
+delivered amount is not fixed and can change under the integrator after the fact. Measure
+the real balance delta and do not assume a token's fee or balance is constant.
 
 ### Vulnerable
 ```solidity

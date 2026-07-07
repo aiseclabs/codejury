@@ -5,7 +5,7 @@ lens: oracle-price-manipulation
 impact: CRITICAL
 tags: [oracle, price-manipulation, flash-loan, fund-loss]
 aliases: [oracle, oracle-manipulation, oracle-validation, price-manipulation]
-triggers: ["getReserves", "slot0", "balanceOf(address(this))", "balanceOf(this)", "totalSupply", "price", "getAmountOut", "spot", "twap", "latestRoundData", "/ reserve"]
+triggers: ["getReserves", "slot0", "balanceOf(address(this))", "balanceOf(this)", "totalSupply", "price", "getAmountOut", "spot", "twap", "latestRoundData", "/ reserve", "sync", "skim"]
 ---
 
 ## Oracle and Price Manipulation
@@ -16,6 +16,12 @@ then acts on it: mints shares, sets collateral value, or computes a swap. A flas
 lets the attacker move that source for free, drain the difference, and repay in the same
 transaction. Price the asset off a manipulation-resistant source, a TWAP or a vetted
 oracle with a staleness and bounds check, never an instantaneous on-chain spot read.
+
+Reserve manipulation is the same bug from the pool side. Anyone can send tokens to a pair
+and call `sync`, or trigger a `skim`, or a token whose `burn` or fee handling moves supply
+into its own liquidity pair and then syncs, so the reserve ratio and any price derived from
+it shift within one transaction. Treat `sync`, `skim`, and a token that moves balance into
+its own pair as price-moving, and price off a manipulation-resistant source.
 
 ### Vulnerable
 ```solidity
