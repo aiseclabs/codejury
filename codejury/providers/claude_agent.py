@@ -24,11 +24,16 @@ on it downward.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import queue
 import shlex
+import shutil
 import subprocess
+import threading
 import time
+from concurrent.futures import Future
 from typing import Callable
 
 from codejury.providers.base import CompletionResult, Message, Provider
@@ -148,6 +153,237 @@ class ProcessClaudeTransport(ClaudeTransport):
         return _default_runner(prompt, cwd=cwd, claude_bin=claude_bin, args=args, timeout=timeout)
 
 
+_SDK_TURNS_ENV = "CODEJURY_CLAUDE_SDK_MAX_TURNS"
+_SDK_POOL_ENV = "CODEJURY_CLAUDE_SDK_POOL_SIZE"
+_SDK = None
+
+
+def _import_sdk():
+    """The Claude Agent SDK module, imported lazily so this leaf stays importable without the
+    optional extra. A missing package fails loud with an install hint rather than at some later
+    call, so the transport never silently degrades, invariant 4."""
+    global _SDK
+    if _SDK is None:
+        try:
+            import claude_agent_sdk as sdk
+        except ImportError as exc:
+            raise RuntimeError(
+                "the SDK transport needs the claude-agent-sdk package, install codejury[claude-sdk]"
+            ) from exc
+        _SDK = sdk
+    return _SDK
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer, got {raw!r}") from exc
+
+
+def _allowed_tools_from_args(args: tuple[str, ...]) -> tuple[str, ...]:
+    """The tool allowlist the SDK options need, read from the already composed and guarded
+    `args`. The `--allowedTools` value there has passed `_compose_claude_args`, so the unsafe
+    gate and the widening drop already apply, and the SDK path inherits the same policy rather
+    than deriving it again. The diff path passes no `--allowedTools`, so it maps to no tools."""
+    it = iter(args)
+    for a in it:
+        if a == "--allowedTools":
+            return tuple(t for t in next(it, "").split(",") if t)
+    return ()
+
+
+def _result_from_messages(messages: list) -> str:
+    """The assistant text from one SDK response, fail-loud on anything that is not a clean
+    success. An error result, an error status, a non-success subtype, a stream that ended with
+    no result message, or an empty reply each raise, so a failed call is never read as clean,
+    invariant 4. The `ResultMessage.result` text is the fallback when no text block was seen."""
+    texts: list[str] = []
+    result_text = ""
+    error = None
+    saw_result = False
+    for msg in messages:
+        content = getattr(msg, "content", None)
+        if isinstance(content, (list, tuple)):
+            texts.extend(b.text for b in content if isinstance(getattr(b, "text", None), str))
+        if hasattr(msg, "subtype") and hasattr(msg, "is_error"):
+            saw_result = True
+            status = getattr(msg, "api_error_status", None)
+            if getattr(msg, "is_error", False) or status or getattr(msg, "subtype", "success") != "success":
+                error = str(status or getattr(msg, "subtype", None) or "error")
+            if isinstance(getattr(msg, "result", None), str):
+                result_text = msg.result
+    if error is not None:
+        raise RuntimeError(f"claude SDK error: {error}")
+    if not saw_result:
+        raise RuntimeError("claude SDK stream ended without a result message")
+    text = "".join(texts).strip() or result_text.strip()
+    if not text:
+        raise RuntimeError("claude SDK returned an empty result")
+    return text
+
+
+async def _collect(client, prompt: str, timeout: int) -> str:
+    """Send one prompt on a connected client and gather the response, bounded by `timeout`."""
+    async def go() -> list:
+        await client.query(prompt)
+        return [m async for m in client.receive_response()]
+
+    return _result_from_messages(await asyncio.wait_for(go(), timeout))
+
+
+def _sdk_options(sdk, *, cwd: str, allowed_tools: tuple[str, ...], cli_path: str, env: dict):
+    """The SDK options for one session. `allowed_tools` is the guarded allowlist, so the SDK
+    session grants exactly the tools the process path would, no more. `env` is the scrubbed
+    environment, so the nested Claude Code authenticates the subscription, not a stale key."""
+    return sdk.ClaudeAgentOptions(
+        allowed_tools=list(allowed_tools),
+        cwd=cwd or None,
+        cli_path=cli_path,
+        env=env,
+    )
+
+
+class _SdkSession:
+    """One thread, kept alive for the run, owning its own event loop and one `ClaudeSDKClient`.
+
+    The client is bound to the loop that created it, so the session drives it only from its own
+    thread and never shares it across threads, the isolation a concurrent run needs. The client
+    is restarted when the working directory or the tool allowlist changes, or after `max_turns`
+    prompts, so context does not accumulate unbounded across independent unit reviews. A failed
+    call closes the client, so a broken session does not poison the next unit."""
+
+    def __init__(self, *, make_client, max_turns: int) -> None:
+        self._make_client = make_client
+        self._max_turns = max_turns
+        self._jobs: queue.Queue = queue.Queue()
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._client = None
+        self._turns = 0
+        self._cwd: str | None = None
+        self._tools: tuple[str, ...] | None = None
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def submit(self, prompt: str, cwd: str, tools: tuple[str, ...], timeout: int) -> Future:
+        fut: Future = Future()
+        self._jobs.put(("ask", prompt, cwd, tools, timeout, fut))
+        return fut
+
+    def shutdown(self) -> None:
+        fut: Future = Future()
+        self._jobs.put(("stop", "", "", (), 0, fut))
+        try:
+            fut.result(timeout=30)
+        except Exception:
+            pass
+        self._thread.join(timeout=5)
+
+    def _run(self) -> None:
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        try:
+            while True:
+                kind, prompt, cwd, tools, timeout, fut = self._jobs.get()
+                if kind == "stop":
+                    self._loop.run_until_complete(self._close())
+                    fut.set_result(None)
+                    return
+                try:
+                    if self._needs_restart(cwd, tools):
+                        self._loop.run_until_complete(self._restart(cwd, tools))
+                    self._turns += 1
+                    fut.set_result(self._loop.run_until_complete(_collect(self._client, prompt, timeout)))
+                except Exception as exc:
+                    self._loop.run_until_complete(self._close())
+                    fut.set_exception(exc)
+        finally:
+            self._loop.close()
+
+    def _needs_restart(self, cwd: str, tools: tuple[str, ...]) -> bool:
+        return (self._client is None or cwd != self._cwd or tools != self._tools
+                or self._turns >= self._max_turns)
+
+    async def _restart(self, cwd: str, tools: tuple[str, ...]) -> None:
+        await self._close()
+        self._client = await self._make_client(cwd=cwd, allowed_tools=tools)
+        self._cwd, self._tools, self._turns = cwd, tools, 0
+
+    async def _close(self) -> None:
+        if self._client is not None:
+            try:
+                await self._client.disconnect()
+            except Exception:
+                pass
+            self._client = None
+
+
+class SdkClaudeTransport(ClaudeTransport):
+    """A persistent Claude Agent SDK transport for the subscription seat.
+
+    It keeps a bounded pool of `_SdkSession` workers alive across passes, so the Claude Code
+    startup cost is paid once per session rather than once per prompt. A caller thread borrows
+    an idle session, runs one prompt, and returns it, so concurrency is capped at the pool size
+    and no session is driven by two threads at once. The tool policy and the scrubbed auth match
+    the process transport. `close` shuts every session down, releasing the managed processes."""
+
+    def __init__(self, *, pool_size: int | None = None, max_turns: int | None = None,
+                 cli_path: str | None = None, env: dict | None = None, make_client=None) -> None:
+        self._cli_path = cli_path or os.environ.get("CODEJURY_CLAUDE_BIN") or shutil.which("claude") or "claude"
+        self._env = env if env is not None else _subscription_env()
+        self._pool_size = pool_size if pool_size is not None else _int_env(_SDK_POOL_ENV, 6)
+        self._max_turns = max_turns if max_turns is not None else _int_env(_SDK_TURNS_ENV, 8)
+        # an injected factory is the test seam, otherwise the real SDK, imported now so a missing
+        # package fails loud at construction rather than mid-run
+        if make_client is None:
+            _import_sdk()
+        self._make_client = make_client or self._make
+        self._idle: queue.Queue = queue.Queue()
+        self._sessions: list[_SdkSession] = []
+        self._created = 0
+        self._lock = threading.Lock()
+
+    async def _make(self, *, cwd: str, allowed_tools: tuple[str, ...]):
+        sdk = _import_sdk()
+        client = sdk.ClaudeSDKClient(options=_sdk_options(
+            sdk, cwd=cwd, allowed_tools=allowed_tools, cli_path=self._cli_path, env=self._env))
+        await client.connect()
+        return client
+
+    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...],
+            timeout: int) -> str:
+        tools = _allowed_tools_from_args(args)
+        session = self._acquire()
+        try:
+            return session.submit(prompt, cwd, tools, timeout).result()
+        finally:
+            self._idle.put(session)
+
+    def _acquire(self) -> _SdkSession:
+        try:
+            return self._idle.get_nowait()
+        except queue.Empty:
+            pass
+        with self._lock:
+            if self._created < self._pool_size:
+                session = _SdkSession(make_client=self._make_client, max_turns=self._max_turns)
+                self._sessions.append(session)
+                self._created += 1
+                return session
+        return self._idle.get()
+
+    def close(self) -> None:
+        with self._lock:
+            sessions = list(self._sessions)
+            self._sessions.clear()
+            self._created = 0
+        for session in sessions:
+            session.shutdown()
+
+
 def _resolve_transport(name: str | None = None) -> ClaudeTransport:
     """The transport named by `CODEJURY_CLAUDE_TRANSPORT`, `process` by default. An unknown
     value fails loud at construction rather than silently falling back to a working default,
@@ -155,7 +391,9 @@ def _resolve_transport(name: str | None = None) -> ClaudeTransport:
     name = name if name is not None else os.environ.get(_TRANSPORT_ENV, "process")
     if name == "process":
         return ProcessClaudeTransport()
-    raise RuntimeError(f"unknown {_TRANSPORT_ENV} {name!r}, expected 'process'")
+    if name == "sdk":
+        return SdkClaudeTransport()
+    raise RuntimeError(f"unknown {_TRANSPORT_ENV} {name!r}, expected 'process' or 'sdk'")
 
 
 class _ClaudeBackend:

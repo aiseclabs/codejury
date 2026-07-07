@@ -30,6 +30,8 @@ litellm = ["litellm>=1.0"]
 all = ["anthropic>=0.40", "openai>=1.0", "litellm>=1.0"]
 # the evm facts and PoC backends, heavy and lazy-imported, so they stay out of a base install
 evm = ["slither-analyzer>=0.10", "web3>=6.0"]
+# the persistent subscription transport, lazy-imported so the base install stays keyless and light
+claude-sdk = ["claude-agent-sdk>=0.2"]
 dev = ["pytest>=8.0", "jsonschema>=4.0"]
 
 [project.scripts]

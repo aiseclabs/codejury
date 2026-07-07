@@ -248,6 +248,19 @@ def _confirmers(args, *, challenger, judge, finder=None):
     return out
 
 
+def _close_backends(*objs) -> None:
+    """Release any subscription backend that holds a persistent session, the SDK transport most of
+    all, so its pooled Claude Code processes are shut down at the end of a run. A backend with no
+    session, a model call or the process transport, has nothing to close and is skipped."""
+    for obj in objs:
+        close = getattr(obj, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:
+                pass
+
+
 def _note_verify_route(args, confirmers) -> None:
     """State the verification route so the choice is visible rather than inferred. There is one
     route: the skeptic refutes and every independent confirmer must uphold the refutation before a
@@ -571,6 +584,7 @@ def _dispatch(args, parser) -> int:
               f"{kept} confirmed, {refuted} refuted, see {fr.workspace}/_refuted.md.")
         print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json, "
               f"PoC reconciliation in {fr.workspace}/_pocs.md")
+        _close_backends(verifier_obj, *(chk for _label, chk in confirmers))
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
             return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 4
@@ -658,6 +672,7 @@ def _dispatch(args, parser) -> int:
                   "recall is not guaranteed. Raise --max-passes or narrow the scope and re-run.",
                   file=sys.stderr)
         print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
+        _close_backends(reviewer_obj, verifier_obj, *(chk for _label, chk in confirmers))
         # fail loud: a partial run or a run still finding issues at the cap must not exit clean,
         # invariant 4 and the stability red line, so a non-converged run is not reported as done
         return 1 if failures or not acc.converged else 0
