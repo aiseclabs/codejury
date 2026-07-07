@@ -27,6 +27,7 @@ _EXPECTED_IDS = {
     "jwt-validation", "insecure-session-management", "insecure-deserialization",
     "server-side-request-forgery", "cors-misconfiguration", "prototype-pollution",
     "unrestricted-file-upload", "nosql-injection", "security-misconfiguration",
+    "prompt-injection",
 }
 
 _VULNS = load_vulnerabilities()

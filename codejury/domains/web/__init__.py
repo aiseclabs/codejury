@@ -31,6 +31,7 @@ WEB_LENSES = (
     "replay-attack",
     "race-condition",
     "injection",
+    "prompt-injection",
     "server-side-request-forgery",
     "path-traversal",
     "unrestricted-file-upload",

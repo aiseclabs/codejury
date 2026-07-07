@@ -32,6 +32,7 @@ of these ids.
 - `http-response-splitting` CWE-113
 - `http-request-smuggling` CWE-444
 - `nosql-injection` CWE-943
+- `prompt-injection` CWE-1427
 
 ### A04 Insecure Design / Business Logic
 - `business-logic` CWE-840

@@ -24,6 +24,11 @@ def test_protocol_guide_selected_by_protocol_token():
     assert "oauth" in matched
 
 
+def test_mcp_guide_selected_by_protocol_token():
+    matched = {g.id for g in select_guides(["server.py"], source_text="from mcp.server import Server\n@mcp.tool\ndef call_tool(): ...\n")}
+    assert "mcp" in matched
+
+
 def test_manifest_name_does_not_match_a_word_in_source():
     assert "flask" not in {g.id for g in select_guides(["app.py"], source_text="x = some_expression_flask_like\n")}
     assert "flask" in {g.id for g in select_guides(["app.py"], manifest_text="Flask==3.0\n")}
