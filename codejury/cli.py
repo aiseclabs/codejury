@@ -23,6 +23,7 @@ from pathlib import Path
 
 from codejury import __version__
 from codejury.domains.registry import available_domains, get_domain, resolve_domain
+from codejury.sources.bscscan import CHAINS
 from codejury.report import gate, render
 from codejury.review.diff.engine import audit_diff
 from codejury.providers.factory import (
@@ -90,6 +91,11 @@ def _read_diff(args) -> str:
 
 def _dry_run_diff() -> str:
     return "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
+
+
+def _utc_now() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 _MOCK_REPLY = (
@@ -381,6 +387,18 @@ def main(argv: list[str] | None = None) -> int:
     tuning.add_argument("--votes", type=int, default=1,
                         help="independent skeptic votes per candidate, refuted only on a majority")
     _add_domain_arg(repo)
+
+    fetch = sub.add_parser("fetch", help="fetch verified source for a contract address")
+    fsub = fetch.add_subparsers(dest="fetch_kind")
+    src = fsub.add_parser("source", help="fetch verified source from a block explorer, no review")
+    src.add_argument("--chain", default="bsc",
+                     help="which chain's explorer to query, one of: " + ", ".join(sorted(CHAINS)))
+    src.add_argument("--address", required=True, help="the contract address, 0x and 40 hex digits")
+    src.add_argument("--out", required=True, help="directory to write the source tree and metadata into")
+    src.add_argument("--api-key", default=None, dest="api_key",
+                     help="explorer API key, defaults to CODEJURY_BSCSCAN_API_KEY")
+    src.add_argument("--overwrite", action="store_true",
+                     help="replace a non-empty output directory instead of refusing")
 
     inst = sub.add_parser("install-slash-command",
                           help="install the /codejury-review slash command for an agent")
@@ -681,6 +699,22 @@ def _dispatch(args, parser) -> int:
         print(f"Installed slash command to {dst}")
         print("Run it in the agent with: /codejury-review <repository or diff>")
         return 0
+
+    if args.command == "fetch" and getattr(args, "fetch_kind", None) == "source":
+        from codejury.sources.fetch import fetch_source
+        api_key = args.api_key or os.environ.get("CODEJURY_BSCSCAN_API_KEY", "")
+        result = fetch_source(
+            chain_key=args.chain, address=args.address, api_key=api_key,
+            out=args.out, fetched_at=_utc_now(), overwrite=args.overwrite,
+        )
+        print(f"Fetched {result.file_count} source file(s) for {result.meta.address} on {result.meta.chain}")
+        print(f"Source tree and metadata written to {result.out_dir}")
+        print(f"Next: codejury review repo {result.out_dir} --domain evm --run --facts", file=sys.stderr)
+        return 0
+
+    if args.command == "fetch":
+        print("usage: codejury fetch source --chain <chain> --address 0x... --out <dir>", file=sys.stderr)
+        return 1
 
     if args.command == "review":
         print("usage: codejury review {diff,repo} ...", file=sys.stderr)
