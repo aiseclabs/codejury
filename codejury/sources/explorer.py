@@ -1,8 +1,10 @@
-"""Verified source fetch for BscScan and the Etherscan family of explorers over stdlib HTTP.
+"""Verified source fetch for the Etherscan family of explorers over stdlib HTTP.
 
-The explorer API is shared across chains, so a small table maps a chain to its
-API base, chain id, and explorer URL. Network code stays here and in the CLI,
-never in the review engine.
+Etherscan API V2 serves every supported chain from one endpoint with a `chainid`
+parameter and one Etherscan key, so the per-chain V1 hosts such as api.bscscan.com
+are gone. The table maps a chain to its id, its explorer web URL for the report's
+Source link, and a provenance label. Network code stays here and in the CLI, never
+in the review engine.
 """
 
 from __future__ import annotations
@@ -15,24 +17,21 @@ from dataclasses import dataclass
 from codejury.sources.metadata import SourceError
 
 _TIMEOUT = 30
+_API_BASE = "https://api.etherscan.io/v2/api"
 
 
 @dataclass(frozen=True)
 class Chain:
     key: str
     chain_id: int
-    api_base: str
     address_url: str
     source: str
 
 
 CHAINS: dict[str, Chain] = {
-    "bsc": Chain("bsc", 56, "https://api.bscscan.com/api",
-                 "https://bscscan.com/address/{address}#code", "bscscan"),
-    "eth": Chain("eth", 1, "https://api.etherscan.io/api",
-                 "https://etherscan.io/address/{address}#code", "etherscan"),
-    "polygon": Chain("polygon", 137, "https://api.polygonscan.com/api",
-                     "https://polygonscan.com/address/{address}#code", "polygonscan"),
+    "bsc": Chain("bsc", 56, "https://bscscan.com/address/{address}#code", "bscscan"),
+    "eth": Chain("eth", 1, "https://etherscan.io/address/{address}#code", "etherscan"),
+    "polygon": Chain("polygon", 137, "https://polygonscan.com/address/{address}#code", "polygonscan"),
 }
 
 
@@ -51,12 +50,13 @@ def fetch_getsourcecode(chain: Chain, address: str, api_key: str, *, opener=None
     if opener is None:
         opener = urllib.request.urlopen
     query = urllib.parse.urlencode({
+        "chainid": chain.chain_id,
         "module": "contract",
         "action": "getsourcecode",
         "address": address,
         "apikey": api_key,
     })
-    url = f"{chain.api_base}?{query}"
+    url = f"{_API_BASE}?{query}"
     try:
         with opener(url, timeout=_TIMEOUT) as response:
             body = response.read().decode("utf-8")

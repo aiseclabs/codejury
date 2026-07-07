@@ -11,7 +11,7 @@ import json
 import pytest
 
 from codejury.cli import main
-from codejury.sources.bscscan import chain_for, fetch_getsourcecode
+from codejury.sources.explorer import chain_for, fetch_getsourcecode
 from codejury.sources.fetch import fetch_source
 from codejury.sources.metadata import SourceError, source_meta_from_dict
 
@@ -72,6 +72,20 @@ def _fetch(tmp_path, payload=None, opener=None, **kwargs):
 def test_chain_for_rejects_unknown_chain():
     with pytest.raises(SourceError):
         chain_for("dogecoin")
+
+
+def test_getsourcecode_uses_etherscan_v2_endpoint_with_chainid():
+    seen = {}
+
+    def opener(url, timeout=None):
+        seen["url"] = url
+        return _FakeResponse(json.dumps(_payload()))
+
+    fetch_getsourcecode(chain_for("bsc"), _ADDR, "KEY", opener=opener)
+    # V2 serves every chain from one host, the chain is a chainid param, not a per-chain host
+    assert seen["url"].startswith("https://api.etherscan.io/v2/api?")
+    assert "chainid=56" in seen["url"]
+    assert "api.bscscan.com" not in seen["url"]
 
 
 def test_fetch_getsourcecode_fails_loud_on_non_json():

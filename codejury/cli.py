@@ -23,7 +23,7 @@ from pathlib import Path
 
 from codejury import __version__
 from codejury.domains.registry import available_domains, get_domain, resolve_domain
-from codejury.sources.bscscan import CHAINS
+from codejury.sources.explorer import CHAINS
 from codejury.report import gate, render
 from codejury.review.diff.engine import audit_diff
 from codejury.providers.factory import (
@@ -410,7 +410,7 @@ def main(argv: list[str] | None = None) -> int:
     src.add_argument("--address", required=True, help="the contract address, 0x and 40 hex digits")
     src.add_argument("--out", required=True, help="directory to write the source tree and metadata into")
     src.add_argument("--api-key", default=None, dest="api_key",
-                     help="explorer API key, defaults to CODEJURY_BSCSCAN_API_KEY")
+                     help="Etherscan API key, defaults to CODEJURY_ETHERSCAN_API_KEY, one key covers every chain")
     src.add_argument("--overwrite", action="store_true",
                      help="replace a non-empty output directory instead of refusing")
 
@@ -716,7 +716,7 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "fetch" and getattr(args, "fetch_kind", None) == "source":
         from codejury.sources.fetch import fetch_source
-        api_key = args.api_key or os.environ.get("CODEJURY_BSCSCAN_API_KEY", "")
+        api_key = args.api_key or os.environ.get("CODEJURY_ETHERSCAN_API_KEY", "")
         result = fetch_source(
             chain_key=args.chain, address=args.address, api_key=api_key,
             out=args.out, fetched_at=_utc_now(), overwrite=args.overwrite,

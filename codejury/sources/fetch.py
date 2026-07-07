@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from codejury.sources.bscscan import chain_for, fetch_getsourcecode
+from codejury.sources.explorer import chain_for, fetch_getsourcecode
 from codejury.sources.metadata import SourceError, SourceMeta
 from codejury.sources.reconstruct import parse_getsourcecode
 
@@ -59,7 +59,7 @@ def fetch_source(
     if not _ADDRESS.match(address):
         raise SourceError(f"not a contract address: {address!r}")
     if not api_key.strip():
-        raise SourceError("no explorer API key, set CODEJURY_BSCSCAN_API_KEY or pass --api-key")
+        raise SourceError("no Etherscan API key, set CODEJURY_ETHERSCAN_API_KEY or pass --api-key")
     chain = chain_for(chain_key)
     out_dir = Path(out)
     if out_dir.exists() and any(out_dir.iterdir()) and not overwrite:
