@@ -175,7 +175,8 @@ Code:
 - A comment earns its place only as the why or an invariant. Delete one that restates the code or narrates history. A docstring states the why in one line, it does not narrate what the next line of code plainly does. A test needs no comment that repeats its own name.
 - Module names are plural for a collection and singular for one concept, a single word where one reads cleanly.
 
-Commit messages are `type: summary` in the present tense, with few parentheses.
+Commit messages are a single `type: summary` line in the present tense, with few
+parentheses. No body and no trailers, so no `Co-Authored-By` or other trailer line.
 
 ## Detection Quality
 
