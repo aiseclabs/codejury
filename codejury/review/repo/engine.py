@@ -30,6 +30,7 @@ from codejury.review.repo.model import char_spans
 from codejury.review.repo.paths import is_unsafe_rel, safe_repo_path
 from codejury.review.repo.pass_loop import run_passes
 from codejury.review.repo.reviewer import ModelReviewer, UnitReviewer
+from codejury.sources.metadata import SourceError, SourceMeta, source_meta_from_dict
 from codejury.review.repo.scaffold import (
     _AUTH_MODEL_TEMPLATE,
     _INVARIANTS_TEMPLATE,
@@ -205,12 +206,50 @@ def _finding_entry(ws: Path, c: Candidate, owner: str = "") -> dict:
             "models": _confidence(c), "candidate": candidate, "poc": _poc_for(ws, _finding_name(c))}
 
 
+def _load_source_meta(root: str) -> SourceMeta | None:
+    """Optional provenance for a fetched target, read at report time from the
+    target root. Absent means a normal local review, so return None. Present but
+    malformed fails loud, invariant 4. It never reaches a finding decision,
+    invariants 2 and 3, it only annotates the report."""
+    if not root:
+        return None
+    path = Path(root) / "codejury-source.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise SourceError(f"codejury-source.json is malformed: {error}") from error
+    meta = source_meta_from_dict(data)
+    return None if meta.is_empty() else meta
+
+
+def _target_md(meta: SourceMeta) -> str:
+    """A Target section for the report, printing only the fields that are present."""
+    rows = (
+        ("Chain", meta.chain),
+        ("Chain ID", str(meta.chain_id) if meta.chain_id is not None else ""),
+        ("Address", meta.address),
+        ("Source", meta.source_url),
+        ("Contract", meta.contract_name),
+        ("Compiler", meta.compiler_version),
+    )
+    lines = ["## Target", ""]
+    lines += [f"- {label}: {value}" for label, value in rows if value]
+    lines.append("")
+    return "\n".join(lines)
+
+
 def _write_findings(ws: Path, findings: list[Candidate], root: str = "") -> None:
     """Write the confirmed findings, the code-owned output. Ranked by how many models agreed
     then severity, so a cross-model consensus surfaces above a lone model's finding. findings/
     is cleared and rewritten in full, so a shrunk or refuted set leaves no stale file behind,
     and the agent's candidates/ and pocs/ are never touched. When a target root is given, each
-    finding is annotated with the git-blame owner of its line, computed once per finding."""
+    finding is annotated with the git-blame owner of its line, computed once per finding, and
+    optional source provenance from codejury-source.json is added to the report."""
+    # load provenance first, so a malformed codejury-source.json fails loud before any
+    # output is written rather than leaving a half-written report, invariant 4
+    meta = _load_source_meta(root)
     findings = sorted(findings, key=lambda c: (-_confidence(c), _SEV_RANK.get(c.severity, 4)))
     owners = {id(c): _git_blame_owner(root, c.file, c.line) for c in findings}
     findings_dir = ws / "findings"
@@ -229,9 +268,11 @@ def _write_findings(ws: Path, findings: list[Candidate], root: str = "") -> None
             n += 1
         used.add(name)
         (findings_dir / f"{name}.md").write_text(_finding_md(c, owners[id(c)]), encoding="utf-8")
-    (ws / "findings.json").write_text(json.dumps(
-        {"findings": [_finding_entry(ws, c, owners[id(c)]) for c in findings]}, indent=2, ensure_ascii=False),
-        encoding="utf-8")
+    report: dict = {"findings": [_finding_entry(ws, c, owners[id(c)]) for c in findings]}
+    if meta is not None:
+        report["target"] = meta.to_dict()
+        (ws / "_target.md").write_text(_target_md(meta), encoding="utf-8")
+    (ws / "findings.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def _write_pocs_report(ws: Path, findings: list[Candidate]) -> None:

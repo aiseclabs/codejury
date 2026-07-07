@@ -14,6 +14,7 @@ from codejury.review.repo.engine import _parse_candidate, _spans, build_units, f
 from codejury.review.repo.scaffold import unit_slug
 from codejury.review.repo.union import Candidate
 from codejury.review.repo.verifier import RefutationChecker, Verdict, Verifier
+from codejury.sources.metadata import SourceError
 
 _REPLY = (
     '{"findings": [{"title": "wallet idor", "category": "insecure-direct-object-reference", '
@@ -322,6 +323,55 @@ def test_finalize_dedups_verifies_and_reports(tmp_path):
     entries = {f["entry"] for f in data["findings"]}
     assert any("/x/" in e for e in entries) and any("/t" in e for e in entries)
     assert not any("/r" in e for e in entries)
+
+
+class _AllReal(Verifier):
+    def verify(self, c, root):
+        return Verdict(real=True, reason="")
+
+
+def _seed_one_candidate(target, ws):
+    candidates = ws / target.name / "candidates"
+    candidates.mkdir(parents=True)
+    (candidates / "a.md").write_text(
+        "# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
+
+
+def test_finalize_adds_target_metadata_without_changing_findings(tmp_path):
+    meta = {"chain": "bsc", "chain_id": 56, "address": "0x" + "ab" * 20,
+            "source_url": "https://bscscan.com/address/x#code", "contract_name": "Token"}
+
+    plain_t = tmp_path / "plain"
+    plain_t.mkdir()
+    plain_ws = tmp_path / "plain_ws"
+    _seed_one_candidate(plain_t, plain_ws)
+    plain = finalize_repo_review(plain_t, plain_ws, verifier=_AllReal(), confirmers=[], concurrency=1)
+    plain_report = json.loads((plain.workspace / "findings.json").read_text())
+
+    meta_t = tmp_path / "meta"
+    meta_t.mkdir()
+    (meta_t / "codejury-source.json").write_text(json.dumps(meta))
+    meta_ws = tmp_path / "meta_ws"
+    _seed_one_candidate(meta_t, meta_ws)
+    withmeta = finalize_repo_review(meta_t, meta_ws, verifier=_AllReal(), confirmers=[], concurrency=1)
+    meta_report = json.loads((withmeta.workspace / "findings.json").read_text())
+
+    # provenance annotates the report, it never changes the finding decisions, invariants 2 and 3
+    assert meta_report["findings"] == plain_report["findings"]
+    assert "target" not in plain_report
+    assert meta_report["target"]["chain"] == "bsc"
+    assert (withmeta.workspace / "_target.md").read_text().startswith("## Target")
+    assert not (plain.workspace / "_target.md").exists()
+
+
+def test_finalize_fails_loud_on_malformed_source_metadata(tmp_path):
+    target = tmp_path / "proj"
+    target.mkdir()
+    (target / "codejury-source.json").write_text("{not valid json")
+    ws = tmp_path / "work"
+    _seed_one_candidate(target, ws)
+    with pytest.raises(SourceError):
+        finalize_repo_review(target, ws, verifier=_AllReal(), confirmers=[], concurrency=1)
 
 
 class _RaisingReviewer(UnitReviewer):
