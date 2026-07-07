@@ -111,7 +111,7 @@ def to_sarif(findings: list[Finding], target: SourceMeta | None = None) -> str:
                                      "rules": rules}},
                  "results": results}
     if target is not None:
-        # provenance rides in run properties, a schema-valid place for tool context
+        # provenance rides in run properties, a valid place for tool context under the SARIF schema
         run["properties"] = {"target": target.to_dict()}
     log = {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",

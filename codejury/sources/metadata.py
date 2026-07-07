@@ -1,8 +1,8 @@
-"""SourceMeta: optional, display-only provenance for a fetched source tree.
+"""SourceMeta: optional provenance for a fetched source tree.
 
 It records where a local source tree came from, such as a chain and a contract
 address, so a review can show that context. It never feeds finding decisions,
-invariants 2 and 3.
+invariants 2 and 3, it only annotates the report.
 """
 
 from __future__ import annotations

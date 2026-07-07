@@ -1,4 +1,4 @@
-"""BscScan and Etherscan-family verified source fetch over stdlib HTTP.
+"""Verified source fetch for BscScan and the Etherscan family of explorers over stdlib HTTP.
 
 The explorer API is shared across chains, so a small table maps a chain to its
 API base, chain id, and explorer URL. Network code stays here and in the CLI,
