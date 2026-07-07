@@ -4,6 +4,8 @@ title: GraphQL
 kind: protocol
 detect:
   content: ["graphql", "GraphQLSchema", "buildSchema", "makeExecutableSchema", "ApolloServer", "typeDefs", "@Resolver", "@Query", "@Mutation", "resolveType", "introspection", "gql`"]
+entrypoint_files: ["*resolvers.py", "*/resolvers/*.py", "*schema.py", "*.resolver.ts", "*.resolver.js", "*/resolvers/*.ts", "*/resolvers/*.js"]
+entrypoint_markers: ["def resolve_", "resolve_reference", "graphene.ObjectType", "@strawberry.field", "strawberry.type", "@Resolver(", "@ResolveField(", "@FieldResolver(", ".set_field("]
 ---
 # GraphQL Review Notes
 
