@@ -5,10 +5,12 @@ big PR does not overflow the model context and silently truncate the reply. The
 per-file findings are then de-duplicated.
 """
 
+import os
 from pathlib import Path
 
 import pytest
 
+import codejury.cli as climod
 from codejury.cli import main
 from codejury.review.diff.engine import audit_diff, dedup_findings, split_diff_by_file
 from codejury.finding import Finding
@@ -17,6 +19,23 @@ from codejury.providers.mock import MockProvider
 _FILE_A = "diff --git a/a.py b/a.py\n@@ -0,0 +1 @@\n+x = 1\n"
 _FILE_B = "diff --git a/b.py b/b.py\n@@ -0,0 +1 @@\n+y = 2\n"
 _DIFF = _FILE_A
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_seat_env(monkeypatch):
+    """Seat resolution reads credentials from the environment and from defaults frozen at import,
+    so a developer shell that sourced a .env would make a keyless seat look key-reachable and flip
+    the executor tests. Every CLI test starts from the clean keyless baseline CI has, and a test
+    that needs a key sets it after this fixture runs. Clearing os.environ is not enough on its own,
+    the defaults were already frozen at import, so they are reset here too."""
+    for name in list(os.environ):
+        if name.startswith(("CODEJURY_", "ANTHROPIC_", "OPENAI_")):
+            monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(climod, "DEFAULT_API_KEY", None)
+    monkeypatch.setattr(climod, "DEFAULT_API_BASE", None)
+    monkeypatch.setattr(climod, "DEFAULT_ROLE_BACKENDS",
+                        {r: dict(provider=None, model=None, api_key=None, api_base=None, wire_api=None)
+                         for r in climod.DEFAULT_ROLE_BACKENDS})
 
 
 def test_split_diff_by_file():
