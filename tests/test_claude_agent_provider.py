@@ -7,7 +7,11 @@ import json
 import pytest
 
 from codejury.providers.base import Message
-from codejury.providers.claude_agent import ClaudeAgentProvider
+from codejury.providers.claude_agent import (
+    ClaudeAgentProvider,
+    ClaudeTransport,
+    ProcessClaudeTransport,
+)
 from codejury.review.diff.audit import AuditRunner
 
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
@@ -119,3 +123,68 @@ def test_retry_then_succeed():
     prov = ClaudeAgentProvider(runner=flaky, retries=2, backoff=0)
     prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
     assert calls["n"] == 2
+
+
+def test_unknown_transport_env_fails_loud(monkeypatch):
+    # a misconfigured transport must not silently fall back to a working default, invariant 4
+    monkeypatch.setenv("CODEJURY_CLAUDE_TRANSPORT", "bogus")
+    with pytest.raises(RuntimeError, match="CODEJURY_CLAUDE_TRANSPORT"):
+        ClaudeAgentProvider()
+
+
+def test_process_is_the_default_transport_and_calls_subprocess(monkeypatch):
+    monkeypatch.delenv("CODEJURY_CLAUDE_TRANSPORT", raising=False)
+    captured = {}
+
+    def fake_run(cmd, **kw):
+        import subprocess as sp
+        captured["cmd"] = cmd
+        return sp.CompletedProcess(cmd, 0, stdout=_envelope('{"findings": []}'), stderr="")
+
+    monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)
+    prov = ClaudeAgentProvider(retries=0, backoff=0)
+    result = prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+    assert result.text == '{"findings": []}'
+    assert "-p" in captured["cmd"]
+
+
+def test_injected_runner_wins_over_the_transport_env(monkeypatch):
+    # a bogus transport env would raise if consulted, so an injected runner must not consult it
+    monkeypatch.setenv("CODEJURY_CLAUDE_TRANSPORT", "bogus")
+    prov = ClaudeAgentProvider(runner=lambda p, **k: _envelope('{"findings": []}'))
+    assert prov._transport is None
+    result = prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+    assert result.text == '{"findings": []}'
+
+
+def test_explicit_transport_is_used_and_closed():
+    calls = {"ask": 0, "close": 0}
+
+    class FakeTransport(ClaudeTransport):
+        def ask(self, prompt, *, cwd, claude_bin, args, timeout):
+            calls["ask"] += 1
+            return _envelope('{"findings": []}')
+
+        def close(self):
+            calls["close"] += 1
+
+    prov = ClaudeAgentProvider(transport=FakeTransport())
+    prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+    prov.close()
+    assert calls == {"ask": 1, "close": 1}
+
+
+def test_process_transport_ask_delegates_to_the_default_runner(monkeypatch):
+    def fake_run(cmd, **kw):
+        import subprocess as sp
+        return sp.CompletedProcess(cmd, 0, stdout=_envelope("hello"), stderr="")
+
+    monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)
+    out = ProcessClaudeTransport().ask("p", cwd="", claude_bin="claude", args=(), timeout=10)
+    assert out == _envelope("hello")
+
+
+def test_close_does_not_dereference_a_none_transport_for_an_injected_runner():
+    # an injected runner holds no transport, so close must skip it rather than fail
+    prov = ClaudeAgentProvider(runner=lambda p, **k: _envelope('{"findings": []}'))
+    prov.close()

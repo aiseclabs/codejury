@@ -12,6 +12,11 @@ configurable, via the constructor or `CODEJURY_CLAUDE_BIN` / `CODEJURY_CLAUDE_AR
 prompt is fed on stdin so a large mandate does not hit the argv limit. The subprocess call
 goes through an injected runner, so the backends are testable with no real `claude`.
 
+The call runs through a `ClaudeTransport`, selected by `CODEJURY_CLAUDE_TRANSPORT`, so a
+future persistent transport can amortize the Claude Code startup cost that today is paid on
+every call, without touching the retry or fail-loud path. The default is `process`, one
+`claude -p` per call. An injected runner still wins, so the tests keep their seam.
+
 This module is a leaf: it imports only the standard library and `providers.base`, never
 `review/` or `domains/`, so the transport sits at the provider layer and both paths depend
 on it downward.
@@ -114,10 +119,50 @@ def _result_text(stdout: str) -> str:
     return s
 
 
+_TRANSPORT_ENV = "CODEJURY_CLAUDE_TRANSPORT"
+
+
+class ClaudeTransport:
+    """One call equivalent to `claude -p`, behind the seam where a runner is injected.
+
+    `ask` mirrors the `Runner` signature, so a transport drops into `_ClaudeBackend._ask`
+    with no change to its retry or fail-loud path, and a test can still inject a plain runner
+    instead. `close` releases any persistent session a transport holds, and does nothing for
+    the stateless process transport. The tool policy travels inside `args`, already composed
+    and guarded by `_compose_claude_args`, so a transport reads it rather than deriving it again.
+    """
+
+    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...],
+            timeout: int) -> str:
+        raise NotImplementedError
+
+    def close(self) -> None:
+        pass
+
+
+class ProcessClaudeTransport(ClaudeTransport):
+    """The default transport, one `claude -p` process per call, the historical behavior."""
+
+    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...],
+            timeout: int) -> str:
+        return _default_runner(prompt, cwd=cwd, claude_bin=claude_bin, args=args, timeout=timeout)
+
+
+def _resolve_transport(name: str | None = None) -> ClaudeTransport:
+    """The transport named by `CODEJURY_CLAUDE_TRANSPORT`, `process` by default. An unknown
+    value fails loud at construction rather than silently falling back to a working default,
+    so a misconfigured transport cannot pass as a clean run, invariant 4."""
+    name = name if name is not None else os.environ.get(_TRANSPORT_ENV, "process")
+    if name == "process":
+        return ProcessClaudeTransport()
+    raise RuntimeError(f"unknown {_TRANSPORT_ENV} {name!r}, expected 'process'")
+
+
 class _ClaudeBackend:
     def __init__(self, *, claude_bin: str | None = None, args: tuple[str, ...] | None = None,
                  timeout: int = 900, retries: int = 2, backoff: float = 10.0,
-                 runner: Runner = _default_runner,
+                 runner: Runner | None = None,
+                 transport: ClaudeTransport | None = None,
                  allowed_tools: tuple[str, ...] = READ_ONLY_TOOLS) -> None:
         self._bin = claude_bin or os.environ.get("CODEJURY_CLAUDE_BIN", "claude")
         env_args = os.environ.get("CODEJURY_CLAUDE_ARGS")
@@ -127,7 +172,11 @@ class _ClaudeBackend:
         self._timeout = timeout
         self._retries = retries
         self._backoff = backoff
-        self._runner = runner
+        # An injected runner wins, the test seam. Otherwise a transport runs the call: the one
+        # passed in, or the one CODEJURY_CLAUDE_TRANSPORT selects, process by default. The
+        # transport is held so a persistent one can be closed at the end of a run.
+        self._transport = None if runner is not None else (transport or _resolve_transport())
+        self._runner = runner if runner is not None else self._transport.ask
 
     def _ask(self, prompt: str, cwd: str) -> str:
         """Run the agent, retrying with backoff, since a rate limit is usually transient.
@@ -142,6 +191,12 @@ class _ClaudeBackend:
                     time.sleep(self._backoff * (attempt + 1))
         assert last is not None
         raise last
+
+    def close(self) -> None:
+        """Release the transport's persistent session, if any. It does nothing when a runner
+        was injected or the transport is stateless, and is safe to call more than once."""
+        if self._transport is not None:
+            self._transport.close()
 
 
 def _fold_prompt(system: str, messages: list[Message]) -> str:
