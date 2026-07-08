@@ -554,289 +554,308 @@ def diff_args_from_env(mode: str, *, executor: str = "auto", rounds: int = 3):
     return SimpleNamespace(**ns)
 
 
-def _dispatch(args, parser) -> int:
-    scope = getattr(args, "scope", None)
-    if args.command == "review" and scope == "diff":
-        finder_provider = challenger_provider = judge_provider = None
-        finder_model = challenger_model = judge_model = None
-        if args.dry_run:
-            provider = MockProvider(default=_MOCK_REPLY)
-            model = "mock"
-            diff = _read_diff(args) if (args.file or args.git_range) else _dry_run_diff()
-            domain = resolve_domain(args.domain, _diff_paths(diff))
+def _cmd_review_diff(args) -> int:
+    finder_provider = challenger_provider = judge_provider = None
+    finder_model = challenger_model = judge_model = None
+    if args.dry_run:
+        provider = MockProvider(default=_MOCK_REPLY)
+        model = "mock"
+        diff = _read_diff(args) if (args.file or args.git_range) else _dry_run_diff()
+        domain = resolve_domain(args.domain, _diff_paths(diff))
+    else:
+        diff = _read_diff(args)
+        domain = resolve_domain(args.domain, _diff_paths(diff))
+        (provider, model, finder_provider, finder_model,
+         challenger_provider, challenger_model, judge_provider, judge_model) = build_diff_providers(args)
+    kept, _, degraded = audit_diff(
+        diff, provider=provider, model=model,
+        mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
+        finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
+        finder_provider=finder_provider, challenger_provider=challenger_provider, judge_provider=judge_provider,
+        exclude_paths=tuple(args.exclude or ()), domain=domain,
+    )
+    print(render(args.fmt, kept, _diff_source_meta(args)))
+    if degraded:
+        # the adversarial judge was unusable and the result fell back to the
+        # unjudged set, so this is a failed audit, not a clean pass, invariant 4
+        print("error: the adversarial audit degraded on an unusable judge reply, "
+              "the result is incomplete and not a clean pass", file=sys.stderr)
+    rc = 1 if degraded or gate(kept, args.fail_on) else 0
+    # a diff seat on the subscription may hold a persistent SDK session, close it like the
+    # repo paths do so its pooled Claude Code processes do not leak past the run
+    _close_backends(provider, finder_provider, challenger_provider, judge_provider)
+    return rc
+
+
+def _cmd_repo_gate(args) -> int:
+    from codejury.review.repo.gate import check_gate
+    domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+    detection = load_detection(domain.paths.detection_file)
+    project_dir = Path(args.workspace) / Path(args.directory).resolve().name
+    result = check_gate(project_dir, root=Path(args.directory).resolve(),
+                        detection=detection, strict_coverage=args.strict_coverage)
+    for note in result.notes:
+        print(f"NOTE: {note}", file=sys.stderr)
+    if result.passed:
+        print(f"Completeness Gate PASSED for {project_dir}")
+        print("Checked: " + ", ".join(result.checked))
+        return 0
+    print(f"Completeness Gate FAILED for {project_dir}, {len(result.failures)} item(s) unmet:", file=sys.stderr)
+    for f in result.failures:
+        print(f"  - {f}", file=sys.stderr)
+    print("Run another round to address these, then re-check. Do not report the review complete yet.", file=sys.stderr)
+    return 1
+
+
+def _cmd_repo_finalize(args) -> int:
+    from codejury.review.repo.engine import finalize_repo_review
+    from codejury.review.repo.verifier import ModelVerifier
+    domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+    args.min_lens_shots, args.votes = _resolve_effort(args.effort, args.min_lens_shots, args.votes)
+    _warn_secondary_env()
+    base = _base_spec(args)
+    challenger = _role_spec(args, "challenger", base)
+    judge = _role_spec(args, "judge", base)
+    provider = None
+    verifier_obj = None
+    confirmers: list = []
+    # the challenger backs the skeptic, the judge backs the confirmer, a drop needs the two to be
+    # distinct models so a single read cannot drop a real finding
+    if args.dry_run:
+        provider = MockProvider(default='{"real": true, "reason": "[mock]"}')
+        args.model = "mock"
+    elif _seat_backend(challenger, args.executor) == "agent":
+        from codejury.review.repo.agent import AgentVerifier
+        verifier_obj = AgentVerifier(content=domain.paths, **_agent_backend_kw(args))
+        _warn_roles_under_agent(args, ("challenger",))
+        if args.executor == "auto":
+            _note_subscription_fallback(("skeptic",))
+    else:
+        verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
+                                     model=challenger["model"], content=domain.paths)
+    if not args.dry_run:
+        confirmers = _confirmers(args, challenger=challenger, judge=judge)
+    _note_verify_route(args, confirmers)
+    args.concurrency = _auto_concurrency(
+        args.concurrency, "" if args.dry_run else _seat_backend(challenger, args.executor))
+    poc_backend_obj = None
+    if args.poc and not args.dry_run:
+        if domain.poc_backend is None:
+            print(f"NOTE: --poc ignored, the {domain.name} domain binds no PoC backend.", file=sys.stderr)
         else:
-            diff = _read_diff(args)
-            domain = resolve_domain(args.domain, _diff_paths(diff))
-            (provider, model, finder_provider, finder_model,
-             challenger_provider, challenger_model, judge_provider, judge_model) = build_diff_providers(args)
-        kept, _, degraded = audit_diff(
-            diff, provider=provider, model=model,
-            mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
-            finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
-            finder_provider=finder_provider, challenger_provider=challenger_provider, judge_provider=judge_provider,
-            exclude_paths=tuple(args.exclude or ()), domain=domain,
-        )
-        print(render(args.fmt, kept, _diff_source_meta(args)))
-        if degraded:
-            # the adversarial judge was unusable and the result fell back to the
-            # unjudged set, so this is a failed audit, not a clean pass, invariant 4
-            print("error: the adversarial audit degraded on an unusable judge reply, "
-                  "the result is incomplete and not a clean pass", file=sys.stderr)
-        rc = 1 if degraded or gate(kept, args.fail_on) else 0
-        # a diff seat on the subscription may hold a persistent SDK session, close it like the
-        # repo paths do so its pooled Claude Code processes do not leak past the run
-        _close_backends(provider, finder_provider, challenger_provider, judge_provider)
-        return rc
+            if _seat_backend(base, args.executor) == "agent":
+                from codejury.providers.claude_agent import ClaudeAgentProvider
+                gen_provider = ClaudeAgentProvider(**_agent_backend_kw(args))
+            else:
+                gen_provider = _role_provider(args, base)
+            poc_backend_obj = domain.poc_backend(provider=gen_provider, model=base["model"])
+    print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
+    fr = finalize_repo_review(
+        args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
+        provider=provider, model=args.model, verify=args.verify, votes=args.votes,
+        concurrency=args.concurrency, domain=domain, poc_backend=poc_backend_obj,
+    )
+    kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
+    refuted = len(fr.verify.refuted) if fr.verify else 0
+    print(f"Finalize done: parsed {fr.parsed} candidates -> {fr.deduped} after dedup -> "
+          f"{kept} confirmed, {refuted} refuted, see {fr.workspace}/_refuted.md.")
+    print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json")
+    if (Path(fr.workspace) / "_pocs.md").exists():
+        print(f"PoC reconciliation in {fr.workspace}/_pocs.md")
+    _close_backends(verifier_obj, *(chk for _label, chk in confirmers))
+    if fr.verify and fr.verify.errors:
+        print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
+        return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 4
+    return 0
 
-    if args.command == "review" and scope == "repo" and args.gate:
-        from codejury.review.repo.gate import check_gate
-        domain = resolve_domain(args.domain, _repo_file_names(args.directory))
-        detection = load_detection(domain.paths.detection_file)
-        project_dir = Path(args.workspace) / Path(args.directory).resolve().name
-        result = check_gate(project_dir, root=Path(args.directory).resolve(),
-                            detection=detection, strict_coverage=args.strict_coverage)
-        for note in result.notes:
-            print(f"NOTE: {note}", file=sys.stderr)
-        if result.passed:
-            print(f"Completeness Gate PASSED for {project_dir}")
-            print("Checked: " + ", ".join(result.checked))
-            return 0
-        print(f"Completeness Gate FAILED for {project_dir}, {len(result.failures)} item(s) unmet:", file=sys.stderr)
-        for f in result.failures:
-            print(f"  - {f}", file=sys.stderr)
-        print("Run another round to address these, then re-check. Do not report the review complete yet.", file=sys.stderr)
-        return 1
 
-    if args.command == "review" and scope == "repo" and args.finalize:
-        from codejury.review.repo.engine import finalize_repo_review
-        from codejury.review.repo.verifier import ModelVerifier
-        domain = resolve_domain(args.domain, _repo_file_names(args.directory))
-        args.min_lens_shots, args.votes = _resolve_effort(args.effort, args.min_lens_shots, args.votes)
-        _warn_secondary_env()
-        base = _base_spec(args)
-        challenger = _role_spec(args, "challenger", base)
-        judge = _role_spec(args, "judge", base)
-        provider = None
-        verifier_obj = None
-        confirmers: list = []
-        # the challenger backs the skeptic, the judge backs the confirmer, a drop needs the two to be
-        # distinct models so a single read cannot drop a real finding
-        if args.dry_run:
-            provider = MockProvider(default='{"real": true, "reason": "[mock]"}')
-            args.model = "mock"
-        elif _seat_backend(challenger, args.executor) == "agent":
+def _cmd_repo_run(args) -> int:
+    from codejury.review.repo.engine import run_repo_review
+    from codejury.review.repo.verifier import ModelVerifier
+    domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+    args.min_lens_shots, args.votes = _resolve_effort(args.effort, args.min_lens_shots, args.votes)
+    # scale the pass cap to the domain, so the min-lens-shots floor is always meetable and the
+    # convergence early-stop can fire, with one lens cycle of headroom above the floor
+    if args.max_passes is None:
+        args.max_passes = (args.min_lens_shots + 1) * len(domain.lenses)
+    _warn_secondary_env()
+    base = _base_spec(args)
+    finder = _role_spec(args, "finder", base)
+    challenger = _role_spec(args, "challenger", base)
+    judge = _role_spec(args, "judge", base)
+    reviewer_obj = verifier_obj = None
+    provider = None
+    model = args.model
+    confirmers: list = []
+    if args.dry_run:
+        provider = MockProvider(default=_REPO_MOCK_REPLY)
+        model = "mock"
+    else:
+        finder_kind = _seat_backend(finder, args.executor)
+        skeptic_kind = _seat_backend(challenger, args.executor)
+        if finder_kind == "agent":
+            from codejury.review.repo.agent import AgentReviewer
+            reviewer_obj = AgentReviewer(content=domain.paths, **_agent_backend_kw(args))
+        else:
+            # finder goes through provider+model so the engine builds the unit reviewer with its
+            # facts wiring, the skeptic and confirmers are injected from the challenger and judge
+            provider = _role_provider(args, finder)
+            model = finder["model"]
+        if skeptic_kind == "agent":
             from codejury.review.repo.agent import AgentVerifier
             verifier_obj = AgentVerifier(content=domain.paths, **_agent_backend_kw(args))
-            _warn_roles_under_agent(args, ("challenger",))
-            if args.executor == "auto":
-                _note_subscription_fallback(("skeptic",))
         else:
             verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
                                          model=challenger["model"], content=domain.paths)
-        if not args.dry_run:
-            confirmers = _confirmers(args, challenger=challenger, judge=judge)
-        _note_verify_route(args, confirmers)
-        args.concurrency = _auto_concurrency(
-            args.concurrency, "" if args.dry_run else _seat_backend(challenger, args.executor))
-        poc_backend_obj = None
-        if args.poc and not args.dry_run:
-            if domain.poc_backend is None:
-                print(f"NOTE: --poc ignored, the {domain.name} domain binds no PoC backend.", file=sys.stderr)
-            else:
-                if _seat_backend(base, args.executor) == "agent":
-                    from codejury.providers.claude_agent import ClaudeAgentProvider
-                    gen_provider = ClaudeAgentProvider(**_agent_backend_kw(args))
-                else:
-                    gen_provider = _role_provider(args, base)
-                poc_backend_obj = domain.poc_backend(provider=gen_provider, model=base["model"])
-        print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
-        fr = finalize_repo_review(
-            args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
-            provider=provider, model=args.model, verify=args.verify, votes=args.votes,
-            concurrency=args.concurrency, domain=domain, poc_backend=poc_backend_obj,
-        )
-        kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
-        refuted = len(fr.verify.refuted) if fr.verify else 0
-        print(f"Finalize done: parsed {fr.parsed} candidates -> {fr.deduped} after dedup -> "
-              f"{kept} confirmed, {refuted} refuted, see {fr.workspace}/_refuted.md.")
-        print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json")
-        if (Path(fr.workspace) / "_pocs.md").exists():
-            print(f"PoC reconciliation in {fr.workspace}/_pocs.md")
-        _close_backends(verifier_obj, *(chk for _label, chk in confirmers))
-        if fr.verify and fr.verify.errors:
-            print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
-            return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 4
-        return 0
+        agent_roles = [r for r, k in (("finder", finder_kind), ("challenger", skeptic_kind)) if k == "agent"]
+        _warn_roles_under_agent(args, agent_roles)
+        if args.executor == "auto":
+            _note_subscription_fallback([n for n, k in (("finder", finder_kind), ("skeptic", skeptic_kind))
+                                         if k == "agent"])
+        # the judge and finder are the independent confirmers, the skeptic is the challenger and
+        # confirms nothing, a drop needs every applicable confirmer to uphold the refutation
+        confirmers = _confirmers(args, challenger=challenger, judge=judge, finder=finder)
 
+    args.concurrency = _auto_concurrency(
+        args.concurrency, "" if args.dry_run else _seat_backend(finder, args.executor))
+
+    def _progress(p, lens, new, total):
+        print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
+
+    _note_verify_route(args, confirmers)
+    print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
+    res = run_repo_review(
+        args.directory, args.workspace, provider=provider, model=model,
+        reviewer=reviewer_obj, verifier=verifier_obj, confirmers=confirmers,
+        verify=args.verify, votes=args.votes,
+        max_passes=args.max_passes, converge_after=args.converge_after,
+        min_lens_shots=args.min_lens_shots,
+        concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
+        domain=domain, facts=args.facts, max_units=args.max_units,
+    )
+    if res.scaffold.fallback_note:
+        print(f"NOTE: {res.scaffold.fallback_note}.", file=sys.stderr)
+    acc = res.accumulator
+    reported = res.verify.confirmed if res.verify else acc.findings
+    by_sev: dict[str, int] = {}
+    for c in reported:
+        by_sev[c.severity] = by_sev.get(c.severity, 0) + 1
+    print(f"Engine done: {res.units} units, {len(acc.new_per_pass)} passes, converged={acc.converged}.")
+    if res.verify is not None:
+        print(f"Union {len(acc.findings)} -> verified {len(reported)} confirmed, "
+              f"{len(res.verify.refuted)} refuted, see {res.scaffold.workspace}/_refuted.md.")
+    print(f"{len(reported)} findings: " + ", ".join(
+        f"{by_sev.get(s, 0)} {s}" for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")))
+    failures = acc.errors + (res.verify.errors if res.verify else 0)
+    if failures:
+        print(f"WARNING: {failures} model calls failed, e.g. provider errors or rate limits. "
+              "Results may be understated. Lower --concurrency or raise --retries and re-run.",
+              file=sys.stderr)
+    if not acc.converged:
+        print(f"WARNING: the union did not converge within {args.max_passes} passes, it was "
+              "still finding new issues when the cap stopped it. Coverage is incomplete and "
+              "recall is not guaranteed. Raise --max-passes or narrow the scope and re-run.",
+              file=sys.stderr)
+    print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
+    _close_backends(reviewer_obj, verifier_obj, *(chk for _label, chk in confirmers))
+    # fail loud: a partial run or a run still finding issues at the cap must not exit clean,
+    # invariant 4 and the stability red line, so a non-converged run is not reported as done
+    return 1 if failures or not acc.converged else 0
+
+
+def _cmd_repo_scaffold(args) -> int:
+    # a bare scaffold consumes none of the run-only options, so flag the common mistake
+    # of setting one without --run rather than silently doing nothing with it
+    ignored = [flag for flag, used in (
+        ("--dry-run", args.dry_run),
+        ("--executor", args.executor != "api"),
+        ("--no-verify", not args.verify),
+    ) if used]
+    if ignored:
+        print(f"NOTE: {', '.join(ignored)} only affect --run, this bare scaffold ignores them. "
+              "Add --run to drive the coded engine.", file=sys.stderr)
+    domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+    res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain,
+                   facts=args.facts, max_units=args.max_units)
+    (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
+    if res.cleared:
+        print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}", file=sys.stderr)
+    elif res.had_prior_run:
+        print(f"A previous review's output is in {res.workspace}. Re-run with --fresh to clear it "
+              "first.", file=sys.stderr)
+    print(f"Workspace ready: {res.workspace}", file=sys.stderr)
+    if res.guides:
+        print(f"Detected stack: {', '.join(res.guides)}, notes in {res.workspace}/_stack.md", file=sys.stderr)
+    print(f"Seeded {len(res.candidate_files)} candidate entrypoint files and "
+          f"{len(res.trace_targets)} logic-layer trace targets into "
+          f"{res.workspace}/inventory/_entrypoints.md", file=sys.stderr)
+    if res.fallback_note:
+        print(f"NOTE: {res.fallback_note}.", file=sys.stderr)
+    print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
+    print(
+        "This command sets up the review, it does not find anything itself. Next, have an "
+        f"interactive agent follow {res.workspace}/METHODOLOGY.md to run the review, or use the "
+        "/codejury-review command in Claude Code or Codex. The agent proposes findings in "
+        f"{res.workspace}/candidates/, finalize confirms them into {res.workspace}/findings/."
+    )
+    return 0
+
+
+def _cmd_install_slash_command(args) -> int:
+    slash_command_file = get_domain(args.domain).paths.slash_command_file
+    agent_dirs = {
+        "claude": Path.home() / ".claude" / "commands",
+        "codex": Path.home() / ".codex" / "prompts",
+    }
+    target_dir = Path(args.dir) if args.dir else agent_dirs[args.agent]
+    dst = target_dir / "codejury-review.md"
+    if dst.exists() and not args.force:
+        print(f"{dst} already exists. Re-run with --force to overwrite it.", file=sys.stderr)
+        return 1
+    target_dir.mkdir(parents=True, exist_ok=True)
+    dst.write_text(slash_command_file.read_text(encoding="utf-8"), encoding="utf-8")
+    print(f"Installed slash command to {dst}")
+    print("Run it in the agent with: /codejury-review <repository or diff>")
+    return 0
+
+
+def _cmd_fetch_source(args) -> int:
+    from codejury.sources.fetch import fetch_source
+    api_key = args.api_key or os.environ.get("CODEJURY_ETHERSCAN_API_KEY", "")
+    result = fetch_source(
+        chain_key=args.chain, address=args.address, api_key=api_key,
+        out=args.out, fetched_at=_utc_now(), overwrite=args.overwrite,
+    )
+    print(f"Fetched {result.file_count} source file(s) for {result.meta.address} on {result.meta.chain}")
+    print(f"Source tree and metadata written to {result.out_dir}")
+    print(f"Next: codejury review repo {result.out_dir} --domain evm --run --facts", file=sys.stderr)
+    return 0
+
+
+def _dispatch(args, parser) -> int:
+    scope = getattr(args, "scope", None)
+    if args.command == "review" and scope == "diff":
+        return _cmd_review_diff(args)
+    if args.command == "review" and scope == "repo" and args.gate:
+        return _cmd_repo_gate(args)
+    if args.command == "review" and scope == "repo" and args.finalize:
+        return _cmd_repo_finalize(args)
     if args.command == "review" and scope == "repo" and args.run:
-        from codejury.review.repo.engine import run_repo_review
-        from codejury.review.repo.verifier import ModelVerifier
-        domain = resolve_domain(args.domain, _repo_file_names(args.directory))
-        args.min_lens_shots, args.votes = _resolve_effort(args.effort, args.min_lens_shots, args.votes)
-        # scale the pass cap to the domain, so the min-lens-shots floor is always meetable and the
-        # convergence early-stop can fire, with one lens cycle of headroom above the floor
-        if args.max_passes is None:
-            args.max_passes = (args.min_lens_shots + 1) * len(domain.lenses)
-        _warn_secondary_env()
-        base = _base_spec(args)
-        finder = _role_spec(args, "finder", base)
-        challenger = _role_spec(args, "challenger", base)
-        judge = _role_spec(args, "judge", base)
-        reviewer_obj = verifier_obj = None
-        provider = None
-        model = args.model
-        confirmers: list = []
-        if args.dry_run:
-            provider = MockProvider(default=_REPO_MOCK_REPLY)
-            model = "mock"
-        else:
-            finder_kind = _seat_backend(finder, args.executor)
-            skeptic_kind = _seat_backend(challenger, args.executor)
-            if finder_kind == "agent":
-                from codejury.review.repo.agent import AgentReviewer
-                reviewer_obj = AgentReviewer(content=domain.paths, **_agent_backend_kw(args))
-            else:
-                # finder goes through provider+model so the engine builds the unit reviewer with its
-                # facts wiring, the skeptic and confirmers are injected from the challenger and judge
-                provider = _role_provider(args, finder)
-                model = finder["model"]
-            if skeptic_kind == "agent":
-                from codejury.review.repo.agent import AgentVerifier
-                verifier_obj = AgentVerifier(content=domain.paths, **_agent_backend_kw(args))
-            else:
-                verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
-                                             model=challenger["model"], content=domain.paths)
-            agent_roles = [r for r, k in (("finder", finder_kind), ("challenger", skeptic_kind)) if k == "agent"]
-            _warn_roles_under_agent(args, agent_roles)
-            if args.executor == "auto":
-                _note_subscription_fallback([n for n, k in (("finder", finder_kind), ("skeptic", skeptic_kind))
-                                             if k == "agent"])
-            # the judge and finder are the independent confirmers, the skeptic is the challenger and
-            # confirms nothing, a drop needs every applicable confirmer to uphold the refutation
-            confirmers = _confirmers(args, challenger=challenger, judge=judge, finder=finder)
-
-        args.concurrency = _auto_concurrency(
-            args.concurrency, "" if args.dry_run else _seat_backend(finder, args.executor))
-
-        def _progress(p, lens, new, total):
-            print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)
-
-        _note_verify_route(args, confirmers)
-        print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
-        res = run_repo_review(
-            args.directory, args.workspace, provider=provider, model=model,
-            reviewer=reviewer_obj, verifier=verifier_obj, confirmers=confirmers,
-            verify=args.verify, votes=args.votes,
-            max_passes=args.max_passes, converge_after=args.converge_after,
-            min_lens_shots=args.min_lens_shots,
-            concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
-            domain=domain, facts=args.facts, max_units=args.max_units,
-        )
-        if res.scaffold.fallback_note:
-            print(f"NOTE: {res.scaffold.fallback_note}.", file=sys.stderr)
-        acc = res.accumulator
-        reported = res.verify.confirmed if res.verify else acc.findings
-        by_sev: dict[str, int] = {}
-        for c in reported:
-            by_sev[c.severity] = by_sev.get(c.severity, 0) + 1
-        print(f"Engine done: {res.units} units, {len(acc.new_per_pass)} passes, converged={acc.converged}.")
-        if res.verify is not None:
-            print(f"Union {len(acc.findings)} -> verified {len(reported)} confirmed, "
-                  f"{len(res.verify.refuted)} refuted, see {res.scaffold.workspace}/_refuted.md.")
-        print(f"{len(reported)} findings: " + ", ".join(
-            f"{by_sev.get(s, 0)} {s}" for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")))
-        failures = acc.errors + (res.verify.errors if res.verify else 0)
-        if failures:
-            print(f"WARNING: {failures} model calls failed, e.g. provider errors or rate limits. "
-                  "Results may be understated. Lower --concurrency or raise --retries and re-run.",
-                  file=sys.stderr)
-        if not acc.converged:
-            print(f"WARNING: the union did not converge within {args.max_passes} passes, it was "
-                  "still finding new issues when the cap stopped it. Coverage is incomplete and "
-                  "recall is not guaranteed. Raise --max-passes or narrow the scope and re-run.",
-                  file=sys.stderr)
-        print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
-        _close_backends(reviewer_obj, verifier_obj, *(chk for _label, chk in confirmers))
-        # fail loud: a partial run or a run still finding issues at the cap must not exit clean,
-        # invariant 4 and the stability red line, so a non-converged run is not reported as done
-        return 1 if failures or not acc.converged else 0
-
+        return _cmd_repo_run(args)
     if args.command == "review" and scope == "repo":
-        # a bare scaffold consumes none of the run-only options, so flag the common mistake
-        # of setting one without --run rather than silently doing nothing with it
-        ignored = [flag for flag, used in (
-            ("--dry-run", args.dry_run),
-            ("--executor", args.executor != "api"),
-            ("--no-verify", not args.verify),
-        ) if used]
-        if ignored:
-            print(f"NOTE: {', '.join(ignored)} only affect --run, this bare scaffold ignores them. "
-                  "Add --run to drive the coded engine.", file=sys.stderr)
-        domain = resolve_domain(args.domain, _repo_file_names(args.directory))
-        res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain,
-                       facts=args.facts, max_units=args.max_units)
-        (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
-        if res.cleared:
-            print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}", file=sys.stderr)
-        elif res.had_prior_run:
-            print(f"A previous review's output is in {res.workspace}. Re-run with --fresh to clear it "
-                  "first.", file=sys.stderr)
-        print(f"Workspace ready: {res.workspace}", file=sys.stderr)
-        if res.guides:
-            print(f"Detected stack: {', '.join(res.guides)}, notes in {res.workspace}/_stack.md", file=sys.stderr)
-        print(f"Seeded {len(res.candidate_files)} candidate entrypoint files and "
-              f"{len(res.trace_targets)} logic-layer trace targets into "
-              f"{res.workspace}/inventory/_entrypoints.md", file=sys.stderr)
-        if res.fallback_note:
-            print(f"NOTE: {res.fallback_note}.", file=sys.stderr)
-        print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
-        print(
-            "This command sets up the review, it does not find anything itself. Next, have an "
-            f"interactive agent follow {res.workspace}/METHODOLOGY.md to run the review, or use the "
-            "/codejury-review command in Claude Code or Codex. The agent proposes findings in "
-            f"{res.workspace}/candidates/, finalize confirms them into {res.workspace}/findings/."
-        )
-        return 0
-
+        return _cmd_repo_scaffold(args)
     if args.command == "install-slash-command":
-        slash_command_file = get_domain(args.domain).paths.slash_command_file
-        agent_dirs = {
-            "claude": Path.home() / ".claude" / "commands",
-            "codex": Path.home() / ".codex" / "prompts",
-        }
-        target_dir = Path(args.dir) if args.dir else agent_dirs[args.agent]
-        dst = target_dir / "codejury-review.md"
-        if dst.exists() and not args.force:
-            print(f"{dst} already exists. Re-run with --force to overwrite it.", file=sys.stderr)
-            return 1
-        target_dir.mkdir(parents=True, exist_ok=True)
-        dst.write_text(slash_command_file.read_text(encoding="utf-8"), encoding="utf-8")
-        print(f"Installed slash command to {dst}")
-        print("Run it in the agent with: /codejury-review <repository or diff>")
-        return 0
-
+        return _cmd_install_slash_command(args)
     if args.command == "fetch" and getattr(args, "fetch_kind", None) == "source":
-        from codejury.sources.fetch import fetch_source
-        api_key = args.api_key or os.environ.get("CODEJURY_ETHERSCAN_API_KEY", "")
-        result = fetch_source(
-            chain_key=args.chain, address=args.address, api_key=api_key,
-            out=args.out, fetched_at=_utc_now(), overwrite=args.overwrite,
-        )
-        print(f"Fetched {result.file_count} source file(s) for {result.meta.address} on {result.meta.chain}")
-        print(f"Source tree and metadata written to {result.out_dir}")
-        print(f"Next: codejury review repo {result.out_dir} --domain evm --run --facts", file=sys.stderr)
-        return 0
-
+        return _cmd_fetch_source(args)
     if args.command == "fetch":
         print("usage: codejury fetch source --chain <chain> --address 0x... --out <dir>", file=sys.stderr)
         return 1
-
     if args.command == "review":
         print("usage: codejury review {diff,repo} ...", file=sys.stderr)
         print("  diff   audit a unified diff for security findings", file=sys.stderr)
         print("  repo   scaffold a whole-repo review for an interactive agent", file=sys.stderr)
         return 1
-
     parser.print_help()
     return 1
 
