@@ -644,6 +644,21 @@ def test_git_blame_owner_annotates_a_committed_line_and_is_fail_soft(tmp_path):
     assert _git_blame_owner(str(tmp_path / "not-a-repo"), "x.py", 1) == ""
 
 
+def test_poc_for_matches_a_multi_suffix_extension(tmp_path):
+    from codejury.review.repo.engine import _poc_for
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    (ws / "pocs" / "oracle-setter.t.sol").write_text("contract T {}")
+    (ws / "pocs" / "idor.py").write_text("x = 1\n")
+    # Path.stem keeps the .t and never matches, the whole extension must link
+    assert _poc_for(ws, "oracle-setter") == "pocs/oracle-setter.t.sol"
+    assert _poc_for(ws, "idor") == "pocs/idor.py"
+    assert _poc_for(ws, "missing") == ""
+    # a shorter finding name does not match a longer poc basename
+    assert _poc_for(ws, "oracle") == ""
+
+
 def test_finalize_links_pocs_and_reconciles(tmp_path):
     target = tmp_path / "proj"
     target.mkdir()

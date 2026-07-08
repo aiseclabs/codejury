@@ -148,12 +148,14 @@ def _finding_name(c: Candidate) -> str:
 
 def _poc_for(ws: Path, name: str) -> str:
     """The poc whose basename matches a finding's name, the link the methodology asks
-    the agent to keep by naming candidates/<name>.md and pocs/<name>.<ext> alike."""
+    the agent to keep by naming candidates/<name>.md and pocs/<name>.<ext> alike. It matches the
+    whole extension, so an extension in several parts such as `.t.sol` links too, where
+    `Path.stem` would keep the `.t` and never match."""
     pocs = ws / "pocs"
     if not pocs.is_dir():
         return ""
     for p in sorted(pocs.iterdir()):
-        if p.is_file() and p.stem == name:
+        if p.is_file() and (p.name == name or p.name.startswith(f"{name}.")):
             return f"pocs/{p.name}"
     return ""
 
@@ -675,15 +677,14 @@ def _execute_present_pocs(ws: Path, findings: list[Candidate], domain, root: str
     runner = domain.poc_backend()
     if not getattr(runner, "executes", True):
         return findings
-    ext = getattr(runner, "ext", "t.sol")
     out: list[Candidate] = []
     for c in findings:
-        poc = ws / "pocs" / f"{_finding_name(c)}.{ext}"
+        rel = _poc_for(ws, _finding_name(c))
         # skip when there is no PoC to run, or the write step already ran this one this call
-        if not poc.is_file() or "[PoC" in c.evidence:
+        if not rel or "[PoC" in c.evidence:
             out.append(c)
             continue
-        res = runner.execute(source=poc.read_text(encoding="utf-8"), root=root)
+        res = runner.execute(source=(ws / rel).read_text(encoding="utf-8"), root=root)
         if res.ok:
             note = f"PoC reproduced: {res.detail}"
         elif res.ran:
