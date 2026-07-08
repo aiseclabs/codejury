@@ -135,25 +135,32 @@ class Accumulator:
     converge_after: int = 2
     pool: dict[tuple, Candidate] = field(default_factory=dict)
     new_per_pass: list[int] = field(default_factory=list)
+    clean_per_pass: list[bool] = field(default_factory=list)   # was the pass fully reviewed, no failed calls, parallel to new_per_pass
     errors: int = 0   # unit reviews that raised, counted not dropped, invariant 4
     failed_units: set[str] = field(default_factory=set)   # never reviewed cleanly, left open so the gate catches them
     sev_votes: dict[tuple, list[str]] = field(default_factory=dict)
     dedup_by_file: bool = False   # the domain's dedup granularity, endpoint-aware when False
 
-    def add_pass(self, candidates: list[Candidate]) -> int:
+    def add_pass(self, candidates: list[Candidate], *, clean: bool = True) -> int:
         for c in candidates:
             self.sev_votes.setdefault(c.key(self.dedup_by_file), []).append(c.severity)
         n = merge(self.pool, candidates, self.dedup_by_file)
         self.new_per_pass.append(n)
+        self.clean_per_pass.append(clean)
         return n
 
     @property
     def converged(self) -> bool:
-        """True once the last `converge_after` passes each added nothing new. Needs at
-        least that many passes, so a single empty pass never converges on its own."""
+        """True once the last `converge_after` passes each added nothing new and were each
+        reviewed cleanly. A pass whose model calls failed adds nothing not because the union
+        saturated but because it never ran, so counting its empty result toward convergence
+        would report a run that hit a rate limit or errored as complete, invariant 4. A failed pass
+        resets the streak, so the run keeps going to max_passes and reports converged False."""
         if len(self.new_per_pass) < self.converge_after:
             return False
-        return all(n == 0 for n in self.new_per_pass[-self.converge_after:])
+        recent_new = self.new_per_pass[-self.converge_after:]
+        recent_clean = self.clean_per_pass[-self.converge_after:]
+        return all(n == 0 for n in recent_new) and all(recent_clean)
 
     @property
     def findings(self) -> list[Candidate]:

@@ -89,9 +89,12 @@ def run_passes(
         # tag each finding with the model that produced it, so two models reaching the same
         # finding fold to a consensus a later stage can trust without re-checking
         candidates = [replace(c, found_by=(labels[mi],)) for cands, _err in per_unit for c in cands]
-        acc.errors += sum(1 for _cands, err in per_unit if err is not None)
+        pass_errors = sum(1 for _cands, err in per_unit if err is not None)
+        acc.errors += pass_errors
         reviewed_ok.update(u.name for u, (_cands, err) in zip(units, per_unit) if err is None)
-        n_new = acc.add_pass(candidates)
+        # a pass with any failed call did not fully run, so its empty result is not evidence
+        # of saturation, keep it from counting toward convergence, invariant 4
+        n_new = acc.add_pass(candidates, clean=pass_errors == 0)
         if persist is not None:
             persist(acc.findings)   # checkpoint the union each pass, so a kill mid-run can resume
         if on_pass is not None:

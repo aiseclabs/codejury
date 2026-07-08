@@ -252,6 +252,20 @@ def test_a_late_new_finding_resets_convergence():
     assert not acc.converged
 
 
+def test_failed_passes_do_not_count_as_convergence():
+    # a pass that hit a rate limit adds nothing because it never ran, not because the union saturated,
+    # so a tail of only failed passes must not read as converged, invariant 4
+    acc = Accumulator(converge_after=2)
+    acc.add_pass([_c("a", endpoint="GET /a")])
+    acc.add_pass([], clean=False)
+    acc.add_pass([], clean=False)
+    assert not acc.converged
+    # once a clean quiet streak follows, convergence holds again
+    acc.add_pass([])
+    acc.add_pass([])
+    assert acc.converged
+
+
 def test_findings_take_the_median_severity_across_passes():
     acc = Accumulator(converge_after=1)
     for sev in ("LOW", "HIGH", "MEDIUM"):
