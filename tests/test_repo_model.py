@@ -5,6 +5,7 @@ from codejury.review.repo.model import (
     build_repo_model,
     build_repo_model_from_dir,
     candidate_entrypoint_files,
+    public_api_files,
 )
 
 
@@ -39,6 +40,23 @@ def test_candidate_entrypoint_files_sorted_and_deduped(tmp_path):
     files = ["b/urls.py", "a/urls.py", "a/urls.py"]
     got = candidate_entrypoint_files(files, root=tmp_path, globs=["*urls.py"], markers=["ViewSet"])
     assert got == ["a/urls.py", "b/urls.py"]
+
+
+def test_public_api_files_selects_exported_and_skips_private_only(tmp_path):
+    (tmp_path / "exported.go").write_text("package p\nfunc Handle(r *R) error {\n return nil\n}\n")
+    (tmp_path / "private.go").write_text("package p\nfunc helper() int {\n return 1\n}\n")
+    files = ["exported.go", "private.go"]
+    got = public_api_files(files, root=tmp_path, patterns=["^func [A-Z]"])
+    assert got == ["exported.go"]
+
+
+def test_public_api_files_skips_tests_and_needs_patterns(tmp_path):
+    (tmp_path / "api.go").write_text("package p\nfunc Do() {}\n")
+    (tmp_path / "api_test.go").write_text("package p\nfunc TestDo() {}\n")
+    files = ["api.go", "api_test.go"]
+    assert public_api_files(files, root=tmp_path, patterns=["^func [A-Z]"]) == ["api.go"]
+    assert public_api_files(files, root=tmp_path, patterns=[]) == []
+    assert public_api_files(files, patterns=["^func [A-Z]"]) == []
 
 
 def test_build_from_dir_walks_tree_and_skips_noise(tmp_path):

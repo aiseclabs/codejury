@@ -11,6 +11,7 @@ language-specific and framework-specific detail in the guides and out of this mo
 from __future__ import annotations
 
 import fnmatch
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -88,6 +89,32 @@ def candidate_entrypoint_files(files, *, root=None, globs=(), markers=(), detect
             text = _read_text(base / f)
             if text and any(m in text for m in markers):
                 out.append(f)
+    return sorted(dict.fromkeys(out))
+
+
+def public_api_files(files, *, root=None, patterns=(), detection: Detection | None = None) -> list[str]:
+    """Non-test source files that define public or exported API. A library has no application
+    entrypoint, so its exported symbols are the attack surface: a consumer passes
+    attacker-influenced data into them. Used as the fallback denominator when no application
+    entrypoint seeds, so a library is reviewed from its public surface inward rather than not
+    at all. `patterns` are per-language export regexes a guide declares, such as a capitalized
+    Go function, which keeps the selection data-driven and the engine generic. A file whose
+    symbols are all private matches nothing and is left out, so unreachable internal code is
+    not seeded. Returns a sorted list with no duplicates."""
+    det = detection or load_detection()
+    if not patterns or root is None:
+        return []
+    compiled = [re.compile(p, re.MULTILINE) for p in patterns]
+    base = Path(root)
+    out: list[str] = []
+    for f in files:
+        if det.is_test_path(f):
+            continue
+        if Path(f).suffix not in det.source_extensions:
+            continue
+        text = _read_text(base / f)
+        if text and any(c.search(text) for c in compiled):
+            out.append(f)
     return sorted(dict.fromkeys(out))
 
 

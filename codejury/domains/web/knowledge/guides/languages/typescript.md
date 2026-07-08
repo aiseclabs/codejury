@@ -7,6 +7,7 @@ detect:
 entrypoint_files: ["*server.ts", "*app.ts", "*index.ts", "*/routes/*.ts", "*/handlers/*.ts", "*/api/*.ts"]
 entrypoint_markers: ["http.createServer", "createServer(", "addEventListener('fetch'", "export const handler", "export async function handler"]
 logic_layers: ["*/services/*.ts", "*/service/*.ts", "*/models/*.ts", "*/repositories/*.ts", "*/dao/*.ts", "*service*.ts", "*model*.ts"]
+api_patterns: ["^export ", "^module\\.exports", "exports\\.[A-Za-z]"]
 ---
 # TypeScript Review Notes
 

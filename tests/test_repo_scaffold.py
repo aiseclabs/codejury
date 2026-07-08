@@ -32,6 +32,42 @@ def _target(tmp_path):
     return d
 
 
+GO_LIB = '''
+package matcher
+
+func Match(a, b string) bool {
+    return a == b
+}
+'''
+
+
+def _go_lib(tmp_path):
+    d = tmp_path / "matcher"
+    d.mkdir(exist_ok=True)
+    (d / "matcher.go").write_text(GO_LIB)
+    return d
+
+
+def test_scaffold_falls_back_to_public_api_for_a_library(tmp_path):
+    # no application entrypoint, so the exported Go function is the entry surface
+    res = scaffold(_go_lib(tmp_path), tmp_path / "work")
+    assert res.candidate_files == ("matcher.go",)
+    assert "public API" in res.fallback_note
+    assert (res.workspace / "units" / "matcher-go.md").exists()
+
+
+def test_scaffold_fallback_fails_loud_over_max_units(tmp_path):
+    d = _go_lib(tmp_path)
+    (d / "other.go").write_text("package matcher\nfunc Other() {}\n")
+    with pytest.raises(ValueError, match="max-units"):
+        scaffold(d, tmp_path / "work", max_units=1)
+
+
+def test_scaffold_no_fallback_when_entrypoints_seed(tmp_path):
+    res = scaffold(_target(tmp_path), tmp_path / "work")
+    assert res.fallback_note == ""
+
+
 def test_scaffold_creates_workspace(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
     assert res.project == "myservice"

@@ -22,6 +22,7 @@ from codejury.domains.base import Domain
 from codejury.domains.registry import default_domain
 from codejury.guides import (
     Guide,
+    api_patterns,
     entrypoint_globs,
     entrypoint_markers,
     load_guides,
@@ -34,6 +35,7 @@ from codejury.review.repo.model import (
     candidate_entrypoint_files,
     char_spans,
     logic_layer_files,
+    public_api_files,
     span_line_range,
 )
 
@@ -57,6 +59,7 @@ class ScaffoldResult:
     created: list[str] = field(default_factory=list)
     had_prior_run: bool = False
     cleared: list[str] = field(default_factory=list)
+    fallback_note: str = ""
 
 
 def _read_manifests(target: Path, detection: Detection) -> str:
@@ -268,14 +271,16 @@ finds the property breakable, so a real break is graded by this, never talked do
 """
 
 
-def _entrypoints_md(candidates: list[str], layers: list[str]) -> str:
+def _entrypoints_md(candidates: list[str], layers: list[str], *, fallback_note: str = "") -> str:
     lines = ["# Seeded Entrypoints, a Starting Subset",
              "",
              "Files the detected stack flags as likely to define entrypoints, and the",
              "downstream logic-layer files to trace into. A starting point for the",
              "Phase 1 surface map and the Phase 2 traces, not the whole surface.",
-             "",
-             "## Candidate entrypoint files", ""]
+             ""]
+    if fallback_note:
+        lines += [f"NOTE: {fallback_note}.", ""]
+    lines += ["## Candidate entrypoint files", ""]
     lines += [f"- {f}" for f in candidates] or ["(none flagged, enumerate by reading the code)"]
     lines += ["", "## Downstream logic layers to trace into", ""]
     lines += [f"- {f}" for f in layers] or ["(none flagged, follow the calls out of each entrypoint)"]
@@ -378,7 +383,8 @@ def _vulnerabilities_md(vulnerabilities_dir: Path) -> str:
 
 
 def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
-             domain: Domain | None = None, facts: bool = False) -> ScaffoldResult:
+             domain: Domain | None = None, facts: bool = False,
+             max_units: int | None = None) -> ScaffoldResult:
     dom = domain or default_domain()
     paths = dom.paths
     detection = load_detection(paths.detection_file)
@@ -420,7 +426,30 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         globs=entrypoint_globs(guides), markers=entrypoint_markers(guides), detection=detection,
     )
     layers = logic_layer_files(model.files, globs=logic_layer_globs(guides), detection=detection)
-    (ws / "inventory" / "_entrypoints.md").write_text(_entrypoints_md(candidates, layers), encoding="utf-8")
+
+    # A library has no application entrypoint, so when none seed, fall back to its public API
+    # as the entry surface, invariant 2: reviewing a library from its exported symbols inward
+    # beats reviewing nothing. Only files that expose public API are seeded, so unreachable
+    # internal code stays out. Over max_units it fails loud rather than silently reviewing too
+    # little or launching an unbounded run, invariant 4, the operator narrows scope or raises the cap.
+    fallback_note = ""
+    if not candidates:
+        api = public_api_files(
+            model.files, root=target, patterns=api_patterns(guides), detection=detection)
+        if api and max_units is not None and len(api) > max_units:
+            raise ValueError(
+                f"no application entrypoints under {target}, and its public API surface of "
+                f"{len(api)} files exceeds --max-units {max_units}. Narrow the scope with a "
+                f"subdirectory target or raise --max-units, then re-run."
+            )
+        if api:
+            candidates = api
+            fallback_note = (
+                f"no application entrypoints matched, seeding {len(api)} public API files as "
+                "the library entry surface, coverage is by public API not by entrypoint"
+            )
+    (ws / "inventory" / "_entrypoints.md").write_text(
+        _entrypoints_md(candidates, layers, fallback_note=fallback_note), encoding="utf-8")
 
     # generate the deterministic unit worklist, each unit carrying the same fixed
     # deep-review mandate. Code owns the worklist and the depth mandate. The agent fans
@@ -481,4 +510,5 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         created=created,
         had_prior_run=had_prior_run,
         cleared=cleared,
+        fallback_note=fallback_note,
     )

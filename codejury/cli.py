@@ -447,6 +447,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="how many unit reviews to run in parallel within a pass, default 2 "
                              "on the subscription backend so a wide fan-out does not trip its rate "
                              "cap, 6 on an API key")
+    tuning.add_argument("--max-units", type=int, default=None,
+                        help="cap on the public API fallback used for a library with no "
+                             "application entrypoint. Over this many files the run fails loud so "
+                             "you narrow the scope or raise it, default unset so nothing is capped")
     tuning.add_argument("--no-verify", dest="verify", action="store_false", default=True,
                         help="skip the adversarial verification stage, keep every candidate")
     tuning.add_argument("--votes", type=int, default=None,
@@ -695,8 +699,10 @@ def _dispatch(args, parser) -> int:
             max_passes=args.max_passes, converge_after=args.converge_after,
             min_lens_shots=args.min_lens_shots,
             concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
-            domain=domain, facts=args.facts,
+            domain=domain, facts=args.facts, max_units=args.max_units,
         )
+        if res.scaffold.fallback_note:
+            print(f"NOTE: {res.scaffold.fallback_note}.", file=sys.stderr)
         acc = res.accumulator
         reported = res.verify.confirmed if res.verify else acc.findings
         by_sev: dict[str, int] = {}
@@ -737,7 +743,7 @@ def _dispatch(args, parser) -> int:
                   "Add --run to drive the coded engine.", file=sys.stderr)
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
         res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain,
-                       facts=args.facts)
+                       facts=args.facts, max_units=args.max_units)
         (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
         if res.cleared:
             print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}", file=sys.stderr)
@@ -750,6 +756,8 @@ def _dispatch(args, parser) -> int:
         print(f"Seeded {len(res.candidate_files)} candidate entrypoint files and "
               f"{len(res.trace_targets)} logic-layer trace targets into "
               f"{res.workspace}/inventory/_entrypoints.md", file=sys.stderr)
+        if res.fallback_note:
+            print(f"NOTE: {res.fallback_note}.", file=sys.stderr)
         print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
         print(
             "This command sets up the review, it does not find anything itself. Next, have an "

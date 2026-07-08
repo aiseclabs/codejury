@@ -34,6 +34,7 @@ class Guide:
     entrypoint_files: tuple[str, ...]
     entrypoint_markers: tuple[str, ...]
     logic_layers: tuple[str, ...]
+    api_patterns: tuple[str, ...]
     body: str
 
 
@@ -51,6 +52,7 @@ def _guide(path, meta: dict, body: str) -> Guide:
         entrypoint_files=tuple(str(g) for g in meta.get("entrypoint_files", [])),
         entrypoint_markers=tuple(str(m) for m in meta.get("entrypoint_markers", [])),
         logic_layers=tuple(str(g) for g in meta.get("logic_layers", [])),
+        api_patterns=tuple(str(p) for p in meta.get("api_patterns", [])),
         body=body,
     )
 
@@ -70,6 +72,18 @@ def entrypoint_markers(guides: list[Guide]) -> tuple[str, ...]:
     for g in guides:
         for m in g.entrypoint_markers:
             seen.setdefault(m, None)
+    return tuple(seen)
+
+
+def api_patterns(guides: list[Guide]) -> tuple[str, ...]:
+    """The public API regexes declared by a set of guides, deduplicated. A library has no
+    application entrypoint, so its exported symbols are the attack surface, since every
+    consumer feeds attacker-influenced data into them. These name how a language marks an
+    export, such as a capitalized Go function, so seeding stays data-driven."""
+    seen: dict[str, None] = {}
+    for g in guides:
+        for p in g.api_patterns:
+            seen.setdefault(p, None)
     return tuple(seen)
 
 
