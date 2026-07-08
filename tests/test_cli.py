@@ -473,7 +473,26 @@ def test_finalize_default_has_no_confirmer_and_notes_keep_all(monkeypatch, tmp_p
     rc = main(["review", "repo", str(tmp_path), "--finalize"])
     assert rc == 0
     assert fake_finalize.confirmers == []
-    assert "keep-all" in capsys.readouterr().err
+    out = capsys.readouterr()
+    assert "keep-all" in out.err
+    # the coded run wrote no _pocs.md, so the summary must not point at a file that is not there, invariant 4
+    assert "PoC reconciliation" not in out.out
+
+
+def test_finalize_mentions_pocs_only_when_the_file_exists(monkeypatch, tmp_path, capsys):
+    import codejury.review.repo.engine as eng
+
+    class _FR:
+        parsed = 0
+        deduped = 0
+        workspace = tmp_path
+        verify = None
+
+    monkeypatch.setattr(eng, "finalize_repo_review", lambda *a, **k: _FR())
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    (tmp_path / "_pocs.md").write_text("# PoC Reconciliation\n", encoding="utf-8")
+    main(["review", "repo", str(tmp_path), "--finalize"])
+    assert f"PoC reconciliation in {tmp_path}/_pocs.md" in capsys.readouterr().out
 
 
 def test_run_passes_confirmers_and_no_extra_finders(monkeypatch, tmp_path):

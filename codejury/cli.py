@@ -624,8 +624,9 @@ def _dispatch(args, parser) -> int:
         refuted = len(fr.verify.refuted) if fr.verify else 0
         print(f"Finalize done: parsed {fr.parsed} candidates -> {fr.deduped} after dedup -> "
               f"{kept} confirmed, {refuted} refuted, see {fr.workspace}/_refuted.md.")
-        print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json, "
-              f"PoC reconciliation in {fr.workspace}/_pocs.md")
+        print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json")
+        if (Path(fr.workspace) / "_pocs.md").exists():
+            print(f"PoC reconciliation in {fr.workspace}/_pocs.md")
         _close_backends(verifier_obj, *(chk for _label, chk in confirmers))
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
