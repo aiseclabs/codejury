@@ -12,6 +12,13 @@ from pathlib import Path
 
 from codejury.domains.base import Domain
 
+
+def _web_poc(**kw):
+    """Build the web PoC writer lazily, so importing the domain never pulls a provider, only
+    building a backend does."""
+    from codejury.domains.web.poc import WebPoC
+    return WebPoC(**kw)
+
 # the repo-review pass lenses: each pass leads with one class, the empty lens reviews every
 # class. A named lens is a reliable focused pass and the empty catch-all is not, so every shipped
 # class gets a named lens rather than relying on the catch-all to surface it. Naming is one unified
@@ -83,4 +90,5 @@ WEB = Domain(
     lenses=WEB_LENSES,
     diff_focus=WEB_DIFF_FOCUS,
     diff_do_not_report=WEB_DIFF_DO_NOT_REPORT,
+    poc_backend=_web_poc,
 )

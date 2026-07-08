@@ -237,6 +237,34 @@ def test_forge_poc_execute_skips_and_notes_when_forge_is_absent(monkeypatch, tmp
     assert "not installed" in res.detail
 
 
+def test_web_domain_binds_a_poc_backend():
+    assert WEB.poc_backend is not None
+
+
+def test_web_poc_writes_a_python_script_and_never_runs_it(tmp_path):
+    from codejury.domains.web.poc import WebPoC
+    from codejury.providers.mock import MockProvider
+
+    poc = WebPoC(provider=MockProvider(default="import requests\nassert True\n"), model="m")
+    art = poc.generate(title="idor", analysis="no owner check", symbol="get_order",
+                       file="views.py", line=3, root=str(tmp_path))
+    assert art.ext == "py"
+    assert "requests" in art.source
+    assert art.run_hint
+    # a web PoC is written but never executed automatically, invariant 6
+    assert poc.available() is False
+    assert poc.executes is False
+    res = poc.execute(source=art.source, root=str(tmp_path))
+    assert res.ran is False
+
+
+def test_web_poc_generate_needs_a_provider(tmp_path):
+    from codejury.domains.web.poc import WebPoC
+
+    with pytest.raises(ValueError, match="needs a provider"):
+        WebPoC().generate(title="t", analysis="a", symbol="s", file="v.py", line=1, root=str(tmp_path))
+
+
 _POC_TEST = """\
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;

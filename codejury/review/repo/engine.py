@@ -626,28 +626,41 @@ def finalize_repo_review(
 
 
 def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[Candidate]:
-    """Attach an executable PoC to each confirmed finding: generate, compile, and run it, then
-    write `pocs/<name>.<ext>` so the existing reconciliation links it. Adds evidence, never
-    drops a finding, invariant 2, so a PoC that fails to reproduce is recorded, not treated as
-    safe. A missing toolchain fails loud up front, invariant 4."""
-    if not backend.available():
+    """Write a PoC for each confirmed finding, and run it where the domain runs its PoC
+    automatically, then write `pocs/<name>.<ext>` so the reconciliation links it. Adds evidence,
+    never drops a finding, invariant 2, so a PoC that fails to reproduce, or one a human must run,
+    is recorded and never treated as safe. A domain that executes but whose toolchain is missing
+    fails loud up front, invariant 4."""
+    executes = getattr(backend, "executes", True)
+    if executes and not backend.available():
         raise BackendUnavailable(
             "the PoC backend was requested but its toolchain is unavailable, re-run without --poc "
             "or install the toolchain")
+    ext = getattr(backend, "ext", "t.sol")
     pocs = ws / "pocs"
     pocs.mkdir(exist_ok=True)
     annotated: list[Candidate] = []
     for c in findings:
         name = _finding_name(c)
         try:
-            res = backend.reproduce(
-                title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root)
-            if res.test_source:
-                (pocs / f"{name}.t.sol").write_text(res.test_source, encoding="utf-8")
-            note = f"PoC reproduced: {res.detail}" if res.reproduced else f"PoC inconclusive: {res.detail}"
+            if executes:
+                res = backend.reproduce(
+                    title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root)
+                source = res.test_source
+                note = f"PoC reproduced: {res.detail}" if res.reproduced else f"PoC inconclusive: {res.detail}"
+            else:
+                art = backend.generate(
+                    title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root)
+                source = art.source
+                note = f"PoC written, run it manually: {art.run_hint}"
+        except BackendUnavailable:
+            raise
         except Exception as exc:
             # a failed PoC call is not a safe verdict, keep the finding and record the failure, invariant 4
+            source = ""
             note = f"PoC failed to run: {exc}"
+        if source:
+            (pocs / f"{name}.{ext}").write_text(source, encoding="utf-8")
         annotated.append(replace(c, evidence=f"{c.evidence}\n\n[{note}]".strip()))
     return annotated
 

@@ -724,6 +724,32 @@ def test_run_pocs_keeps_finding_when_the_poc_fails_or_backend_errors(tmp_path):
         _run_pocs(ws, findings, Unavailable(), root=str(tmp_path))
 
 
+def test_run_pocs_writes_only_for_a_backend_that_does_not_execute(tmp_path):
+    from types import SimpleNamespace
+
+    from codejury.review.repo.engine import _finding_name, _run_pocs
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    findings = [Candidate(title="idor", category="idor", file="views.py", line=3,
+                          symbol="get_order", evidence="no owner check")]
+
+    class WriteOnly:
+        executes = False
+        ext = "py"
+
+        def available(self):
+            return False  # never runs automatically, yet the PoC is still written
+
+        def generate(self, **kw):
+            return SimpleNamespace(source="import requests\n", ext="py", run_hint="python it")
+
+    out = _run_pocs(ws, findings, WriteOnly(), root=str(tmp_path))
+    assert len(out) == 1
+    assert (ws / "pocs" / f"{_finding_name(findings[0])}.py").read_text() == "import requests\n"
+    assert "run it manually" in out[0].evidence
+
+
 def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
     # regression: the finding md must reproduce the agent's analysis prose, not a bare
     # pointer back to candidates/<name>.md, while findings.json still links to that file
