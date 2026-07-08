@@ -226,6 +226,37 @@ def test_symbol_anchor_credits_a_report_that_pins_the_line_without_naming_the_sy
     assert score(key, [sibling], source_root=str(tmp_path)).found == []       # line in a sibling function
 
 
+def test_safe_symbol_anchor_without_endpoint_requires_the_class_it_certifies(tmp_path):
+    # a safe anchor that pins a file and symbol but no endpoint must keep the class gate, the same
+    # as the endpoint branch. A report of a different class whose cited line only happens to fall in
+    # the symbol span is an adjacent finding, not the false positive the anchor guards.
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "body.py").write_text(
+        "class LengthReader:\n"      # line 1
+        "    def read(self, n):\n"   # line 2
+        "        return n\n"         # line 3, end of LengthReader span
+        "class Body:\n"              # line 4
+        "    def readline(self):\n"  # line 5
+        "        return 1\n",        # line 6
+        encoding="utf-8")
+    key = load_answer_key(_key(tmp_path,
+        "target: t\n"
+        "planted:\n"
+        "  - id: real\n    category: idor\n    files: [src/other.py]\n"
+        "safe:\n"
+        "  - id: bounded-reader\n    category: http-request-smuggling\n"
+        "    files: [src/body.py]\n    symbols: [LengthReader]\n"))
+    off_class = Report.make("r-oc", "", "uncontrolled resource consumption", ["src/body.py"],
+                            text="reads too much", lines=[3])
+    same_class = Report.make("r-sc", "", "http request smuggling", ["src/body.py"],
+                             text="framing desync", lines=[3])
+    # a different class only sharing the file and a line in the span is not the guarded decoy
+    assert score(key, [off_class], source_root=str(tmp_path)).false_positives == []
+    # the class the anchor certifies, taken on the same line, is the decoy and does count
+    assert score(key, [same_class], source_root=str(tmp_path)).false_positives == ["r-sc"]
+
+
 def test_symbol_anchor_matches_a_whole_word_not_a_substring(tmp_path):
     # a symbol like approve must match the function approve, not the word approved in an unrelated
     # allowance finding on the same file, so two distinct bugs are not conflated by a shared prefix
