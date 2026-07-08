@@ -237,6 +237,13 @@ A `--run` chooses how each unit is reviewed:
   Claude Code access and no provider key. Use it when you want a tool-using agent rather
   than a single grounded call even where a key is present.
 
+`--effort low|medium|high` is the depth axis, independent of the backend. It sets how hard the
+run looks: low takes one shot per lens for a fast pass, medium the default two, and high three
+shots plus a majority of two skeptics before a candidate is dropped. It fills `--min-lens-shots`
+and `--votes`, and either flag overrides it. On the subscription backend the concurrency within a
+pass defaults to 2 so a wide fan-out does not trip the shared rate cap, and to 6 on an API key,
+override it with `--concurrency`.
+
 Set a distinct `--judge-model`, the confirmer, from the challenger to enable cross-model
 verification. The challenger refutes a finding and the judge must agree before it is dropped,
 so a deletion needs two models. With the judge not distinct from the challenger, the verify
