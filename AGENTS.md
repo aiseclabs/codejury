@@ -133,6 +133,12 @@ orchestration and agents or model calls provide per-unit judgment.
   `codejury review repo <dir> --finalize`
 - Repo Review gate:
   `codejury review repo <dir> --gate`
+- Choose the backend, running it yourself is cheapest on the keyless subscription, which
+  auto lowers concurrency so a wide fan-out does not trip its rate cap:
+  `codejury review repo <dir> --run --executor subscription`
+- Set the review depth, low is one lens shot, medium is the default two, high is three
+  shots plus a stricter majority of two skeptics to drop a candidate:
+  `codejury review repo <dir> --run --effort high`
 - Install slash command:
   `codejury install-slash-command --agent claude|codex`
 - Provider configuration comes from flags or environment, not an auto-loaded `.env`:
