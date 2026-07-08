@@ -171,6 +171,41 @@ def test_evm_poc_backend_fails_loud_without_forge(monkeypatch):
         poc.reproduce(title="x", analysis="", symbol="", file="A.sol", line=1, root=".")
 
 
+def test_forge_poc_repairs_its_test_after_a_failure(monkeypatch, tmp_path):
+    from contextlib import contextmanager
+
+    from codejury.domains.evm.poc import ForgePoC
+    from codejury.providers.base import CompletionResult
+
+    class SeqProvider:
+        def __init__(self, texts):
+            self._it = iter(texts)
+
+        def complete(self, **kw):
+            return CompletionResult(text=next(self._it))
+
+    (tmp_path / "A.sol").write_text("contract A {}")
+    poc = ForgePoC(provider=SeqProvider(["broken source", "good source"]), model="m", attempts=2)
+    monkeypatch.setattr(poc, "available", lambda: True)
+
+    @contextmanager
+    def fake_project(root, sources, foundry):
+        yield tmp_path, "test/PoC.t.sol"
+
+    runs = []
+
+    def fake_run(proj, test_source, test_path):
+        runs.append(test_source)
+        ok = test_source == "good source"
+        return ok, "PoC passed" if ok else "compile failed: bad literal"
+
+    monkeypatch.setattr(poc, "_project", fake_project)
+    monkeypatch.setattr(poc, "_run_test", fake_run)
+    res = poc.reproduce(title="t", analysis="a", symbol="s", file="A.sol", line=1, root=str(tmp_path))
+    assert res.reproduced
+    assert runs == ["broken source", "good source"]  # the failure was fed back and repaired
+
+
 _POC_TEST = """\
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;

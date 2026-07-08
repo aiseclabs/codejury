@@ -19,6 +19,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import which
@@ -64,11 +65,15 @@ class ForgePoC:
     evidence, never refutes, invariant 2."""
 
     def __init__(self, *, provider: Provider, model: str, timeout: int = 180,
-                 max_tokens: int = 4096) -> None:
+                 max_tokens: int = 4096, attempts: int = 2) -> None:
         self._provider = provider
         self._model = model
         self._timeout = timeout
         self._max_tokens = max_tokens
+        # a first shot plus repair rounds: on a compile or run failure the error is fed back so the
+        # model fixes its own test, which recovers the common slips of a single generation such as a
+        # bad literal
+        self._attempts = max(1, attempts)
 
     def available(self) -> bool:
         return which("forge") is not None
@@ -92,51 +97,58 @@ class ForgePoC:
         else:
             import_line = f"../src/{file}" if file else ""
             note = "The contracts are copied under src, import any dependency by its src-relative path."
-        prompt = _prompt(title=title, analysis=analysis, symbol=symbol, file=file, line=line,
-                         target_source=target, import_line=import_line, note=note)
-        reply = self._provider.complete(
-            system=_SYSTEM, messages=[Message(role="user", content=prompt)],
-            model=self._model, max_tokens=self._max_tokens, cache=False)
-        test_source = _extract_solidity(reply.text)
-        if not test_source:
-            return PoCResult(reproduced=False, test_source="", detail="model returned no test source")
-        if foundry:
-            ok, detail = self._build_in_repo(root_p, test_source)
-        else:
-            ok, detail = self._build_flat(root_p, sources, test_source)
-        return PoCResult(reproduced=ok, test_source=test_source, detail=detail)
+        # prepare the project once, then let the model repair its own test across attempts against
+        # the same prepared tree, so a restored dependency set is not rebuilt each round
+        test_source = ""
+        detail = "no attempt ran"
+        with self._project(root_p, sources, foundry) as (proj, test_path):
+            for attempt in range(self._attempts):
+                if attempt == 0:
+                    prompt = _prompt(title=title, analysis=analysis, symbol=symbol, file=file,
+                                     line=line, target_source=target, import_line=import_line, note=note)
+                else:
+                    prompt = _fix_prompt(previous=test_source, error=detail,
+                                         import_line=import_line, note=note)
+                reply = self._provider.complete(
+                    system=_SYSTEM, messages=[Message(role="user", content=prompt)],
+                    model=self._model, max_tokens=self._max_tokens, cache=False)
+                test_source = _extract_solidity(reply.text)
+                if not test_source:
+                    detail = "model returned no test source"
+                    continue
+                ok, detail = self._run_test(proj, test_source, test_path)
+                if ok:
+                    return PoCResult(reproduced=True, test_source=test_source, detail=detail)
+        return PoCResult(reproduced=False, test_source=test_source, detail=detail)
 
-    def _build_in_repo(self, root: Path, test_source: str) -> tuple[bool, str]:
-        """Reproduce inside a copy of the real Foundry project so its own config, remappings, and
-        libraries resolve, the only way a contract with external dependencies compiles. Restores
-        missing submodule libraries first. Never forks or broadcasts, invariant 6."""
+    @contextmanager
+    def _project(self, root: Path, sources: list[Path], foundry: bool):
+        """A prepared Foundry project the test drops into, torn down after. A Foundry repo is copied
+        and its libraries restored, the only way a contract with external dependencies compiles. A
+        repo with no foundry config gets a bare project with its sources copied under src. Never forks, invariant 6."""
         with tempfile.TemporaryDirectory(prefix="codejury-poc-") as tmp:
-            proj = Path(tmp) / "repo"
-            shutil.copytree(root, proj, ignore=shutil.ignore_patterns("out", "cache", "node_modules"))
-            lib = proj / "lib"
-            if (proj / ".gitmodules").is_file() and not (lib.is_dir() and any(lib.iterdir())):
-                self._forge(["install"], proj)  # restore the submodule libraries, needs network
-            (proj / "test").mkdir(exist_ok=True)
-            (proj / "test" / "CodejuryPoC.t.sol").write_text(test_source, encoding="utf-8")
-            return self._compile_and_run(proj, "test/CodejuryPoC.t.sol")
+            if foundry:
+                proj = Path(tmp) / "repo"
+                shutil.copytree(root, proj, ignore=shutil.ignore_patterns("out", "cache", "node_modules"))
+                lib = proj / "lib"
+                if (proj / ".gitmodules").is_file() and not (lib.is_dir() and any(lib.iterdir())):
+                    self._forge(["install"], proj)  # restore the submodule libraries, needs network
+                (proj / "test").mkdir(exist_ok=True)
+                yield proj, "test/CodejuryPoC.t.sol"
+            else:
+                proj = Path(tmp)
+                (proj / "foundry.toml").write_text(
+                    "[profile.default]\nsrc = 'src'\ntest = 'test'\nauto_detect_solc = true\n",
+                    encoding="utf-8")
+                for s in sources:
+                    dest = proj / "src" / s.relative_to(root)
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(s, dest)
+                (proj / "test").mkdir()
+                yield proj, "test/PoC.t.sol"
 
-    def _build_flat(self, root: Path, sources: list[Path], test_source: str) -> tuple[bool, str]:
-        """Reproduce in a throwaway bare project for a repo with no foundry config whose sources
-        need no external library, such as a flat contracts directory. Never forks, invariant 6."""
-        with tempfile.TemporaryDirectory(prefix="codejury-poc-") as tmp:
-            proj = Path(tmp)
-            (proj / "foundry.toml").write_text(
-                "[profile.default]\nsrc = 'src'\ntest = 'test'\nauto_detect_solc = true\n",
-                encoding="utf-8")
-            for s in sources:
-                dest = proj / "src" / s.relative_to(root)
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(s, dest)
-            (proj / "test").mkdir()
-            (proj / "test" / "PoC.t.sol").write_text(test_source, encoding="utf-8")
-            return self._compile_and_run(proj, "test/PoC.t.sol")
-
-    def _compile_and_run(self, proj: Path, test_path: str) -> tuple[bool, str]:
+    def _run_test(self, proj: Path, test_source: str, test_path: str) -> tuple[bool, str]:
+        (proj / test_path).write_text(test_source, encoding="utf-8")
         build = self._forge(["build"], proj)
         if build.returncode != 0:
             return False, f"compile failed: {_tail(build.stdout + build.stderr)}"
@@ -180,4 +192,14 @@ def _prompt(*, title: str, analysis: str, symbol: str, file: str, line: int | No
         f"Source of the file under test ({file}):\n{target_source}\n\n"
         "Write the test that deploys the relevant contract and proves this vulnerability. "
         "The test passes only when the exploit succeeds."
+    )
+
+
+def _fix_prompt(*, previous: str, error: str, import_line: str, note: str) -> str:
+    return (
+        "Your previous test failed. Return the full corrected test that fixes the reported "
+        "problem.\n\n"
+        f"Import the contract under test with exactly:\nimport \"{import_line}\";\n{note}\n\n"
+        f"Failure:\n{error}\n\n"
+        f"Previous test:\n{previous}"
     )
