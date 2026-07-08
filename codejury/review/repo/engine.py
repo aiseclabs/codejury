@@ -619,6 +619,8 @@ def finalize_repo_review(
 
     if poc_backend is not None and deduped:
         deduped = _run_pocs(ws, deduped, poc_backend, root)
+    if deduped and domain.poc_backend is not None:
+        deduped = _execute_present_pocs(ws, deduped, domain, root)
 
     _write_findings(ws, deduped, root)
     _write_pocs_report(ws, deduped)
@@ -663,6 +665,34 @@ def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[C
             (pocs / f"{name}.{ext}").write_text(source, encoding="utf-8")
         annotated.append(replace(c, evidence=f"{c.evidence}\n\n[{note}]".strip()))
     return annotated
+
+
+def _execute_present_pocs(ws: Path, findings: list[Candidate], domain, root: str) -> list[Candidate]:
+    """Run any PoC already present in `pocs/` through the domain's runner and record the result, so
+    a PoC an agent wrote is proven by the same local run as a coded one. A domain that never runs
+    its PoC automatically, such as web, is left to the reconciliation. A PoC that fails to run is
+    recorded, never a safe verdict, so the finding is kept, invariant 2. Local only, invariant 6."""
+    runner = domain.poc_backend()
+    if not getattr(runner, "executes", True):
+        return findings
+    ext = getattr(runner, "ext", "t.sol")
+    out: list[Candidate] = []
+    for c in findings:
+        poc = ws / "pocs" / f"{_finding_name(c)}.{ext}"
+        # skip when there is no PoC to run, or the write step already ran this one this call
+        if not poc.is_file() or "[PoC" in c.evidence:
+            out.append(c)
+            continue
+        res = runner.execute(source=poc.read_text(encoding="utf-8"), root=root)
+        if res.ok:
+            note = f"PoC reproduced: {res.detail}"
+        elif res.ran:
+            note = f"PoC inconclusive: {res.detail}"
+        else:
+            # not run here, such as a missing toolchain, surfaced never hidden, invariant 4
+            note = f"PoC not executed: {res.detail}"
+        out.append(replace(c, evidence=f"{c.evidence}\n\n[{note}]".strip()))
+    return out
 
 
 @dataclass(frozen=True, kw_only=True)

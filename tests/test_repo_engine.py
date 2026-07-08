@@ -750,6 +750,75 @@ def test_run_pocs_writes_only_for_a_backend_that_does_not_execute(tmp_path):
     assert "run it manually" in out[0].evidence
 
 
+def test_execute_present_pocs_runs_an_agent_written_poc(tmp_path):
+    from types import SimpleNamespace
+
+    from codejury.review.repo.engine import _execute_present_pocs, _finding_name
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    c = Candidate(title="oracle", category="access-control", file="O.sol", line=5,
+                  symbol="setX", evidence="unprotected setter")
+    (ws / "pocs" / f"{_finding_name(c)}.t.sol").write_text("contract T {}")
+
+    class Runner:
+        executes = True
+        ext = "t.sol"
+
+        def execute(self, *, source, root):
+            return SimpleNamespace(ran=True, ok=True, detail="passed")
+
+    domain = SimpleNamespace(poc_backend=lambda: Runner())
+    out = _execute_present_pocs(ws, [c], domain, root=str(tmp_path))
+    assert "PoC reproduced" in out[0].evidence
+
+
+def test_execute_present_pocs_leaves_a_web_domain_to_reconciliation(tmp_path):
+    from types import SimpleNamespace
+
+    from codejury.review.repo.engine import _execute_present_pocs, _finding_name
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    c = Candidate(title="idor", category="idor", file="v.py", line=1, symbol="g", evidence="x")
+    (ws / "pocs" / f"{_finding_name(c)}.py").write_text("import requests\n")
+
+    class WebRunner:
+        executes = False
+        ext = "py"
+
+    domain = SimpleNamespace(poc_backend=lambda: WebRunner())
+    out = _execute_present_pocs(ws, [c], domain, root=str(tmp_path))
+    assert out[0].evidence == "x"  # a web PoC runs by hand, finalize does not run it
+
+
+def test_execute_present_pocs_does_not_run_a_finding_the_write_step_already_ran(tmp_path):
+    from types import SimpleNamespace
+
+    from codejury.review.repo.engine import _execute_present_pocs, _finding_name
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    c = Candidate(title="oracle", category="access-control", file="O.sol", line=5,
+                  symbol="setX", evidence="setter\n\n[PoC reproduced: passed]")
+    (ws / "pocs" / f"{_finding_name(c)}.t.sol").write_text("contract T {}")
+
+    ran: list[str] = []
+
+    class Runner:
+        executes = True
+        ext = "t.sol"
+
+        def execute(self, *, source, root):
+            ran.append(source)
+            return SimpleNamespace(ran=True, ok=True, detail="passed")
+
+    domain = SimpleNamespace(poc_backend=lambda: Runner())
+    out = _execute_present_pocs(ws, [c], domain, root=str(tmp_path))
+    assert ran == []  # already annotated by the write step, not run twice
+    assert out[0].evidence.count("[PoC") == 1
+
+
 def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
     # regression: the finding md must reproduce the agent's analysis prose, not a bare
     # pointer back to candidates/<name>.md, while findings.json still links to that file
