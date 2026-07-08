@@ -193,6 +193,14 @@ def test_run_converges_writes_findings_and_marks_units(custody_repo, tmp_path):
     # the coded run has no agent candidates or pocs, so there is nothing to reconcile
     assert not (ws / "_pocs.md").exists()
 
+    # the run's coverage and failure state is persisted, not only left in memory, so a later
+    # finalize or gate can read it
+    status = json.loads((ws / "_run.json").read_text())
+    assert status["converged"] is True
+    assert status["errors"] == 0
+    assert status["units_reviewed"] == status["units_total"] == len(units)
+    assert status["failed_units"] == []
+
 
 class _CountingReviewer(UnitReviewer):
     def __init__(self):

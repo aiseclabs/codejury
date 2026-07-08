@@ -366,6 +366,22 @@ def _save_union(ws: Path, cands: list[Candidate]) -> None:
         encoding="utf-8")
 
 
+def _save_run_status(ws: Path, *, units_total: int, acc, verify) -> None:
+    """Persist the coded run's coverage and failure state, which otherwise lives only in the
+    accumulator in memory and is lost when the process exits. A later finalize or gate can then
+    read whether the run converged and how many reviews failed, so a failed run stays visible
+    across steps and is never resumed as if it were clean, invariant 4."""
+    status = {
+        "units_total": units_total,
+        "units_reviewed": units_total - len(acc.failed_units),
+        "failed_units": sorted(acc.failed_units),
+        "errors": acc.errors,
+        "verify_errors": verify.errors if verify else 0,
+        "converged": acc.converged,
+    }
+    (ws / "_run.json").write_text(json.dumps(status, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
 def _resume_corrupt(p: Path, exc: Exception) -> ValueError:
     # a present-but-corrupt checkpoint must fail loud, never fall back to an empty pool:
     # on a resume the units are already reviewed, so an empty pool would write a zero
@@ -830,6 +846,7 @@ def run_repo_review(
         )
 
     _write_surface(ws, units, acc.failed_units)
+    _save_run_status(ws, units_total=len(units), acc=acc, verify=vr)
     _write_findings(ws, findings, root)
     _write_pocs_report(ws, findings)
     return RunResult(scaffold=res, accumulator=acc, units=len(units), verify=vr)

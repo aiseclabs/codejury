@@ -14,9 +14,11 @@ free-prose claim, so the agent cannot clear it by writing a word.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
 from pathlib import Path
 
+from codejury.detection import Detection, load_detection
 from codejury.markdown_docs import md_field
 from codejury.severity import SEVERITIES
 
@@ -26,6 +28,9 @@ class GateResult:
     passed: bool
     failures: list[str]
     checked: list[str]
+    # soft signals that surface a concern but do not fail the gate, such as a source file owned by
+    # no unit under the default coverage denominator or a recovered review error
+    notes: list[str] = field(default_factory=list)
 
 
 def _table_data_rows(text: str) -> list[list[str]]:
@@ -49,13 +54,19 @@ def _line_value(text: str, key: str) -> str | None:
     return v.lower() if v is not None else None
 
 
-def check_gate(project_dir: Path) -> GateResult:
+def check_gate(project_dir: Path, *, root: Path | None = None,
+               detection: Detection | None = None, strict_coverage: bool = False) -> GateResult:
     """Check the fan-out review workspace `<workspace>/<project>` against the gate.
 
-    Returns a GateResult. The caller decides the exit code. A missing or never
-    scaffolded workspace is itself a failure, since nothing was reviewed."""
+    This is the one enforcement point that holds a coded run and an agent run to the same
+    completeness contract, regardless of which produced the workspace. Returns a
+    GateResult. The caller decides the exit code. A missing or never scaffolded workspace is
+    itself a failure, since nothing was reviewed. When `root` is given the source tree is the
+    coverage denominator, so a source file owned by no unit is reported, soft by default and a
+    failure under `strict_coverage`. It reads the target tree but runs no models."""
     failures: list[str] = []
     checked: list[str] = []
+    notes: list[str] = []
 
     if not project_dir.is_dir():
         return GateResult(False, [f"workspace {project_dir} does not exist, nothing was reviewed"], [])
@@ -93,4 +104,61 @@ def check_gate(project_dir: Path) -> GateResult:
                     f"candidates/{f.name} has no calibrated Risk line, grade it CRITICAL, HIGH, "
                     "MEDIUM, or LOW per inventory/_severity.md")
 
-    return GateResult(not failures, failures, checked)
+    run_status = project_dir / "_run.json"
+    if run_status.is_file():
+        checked.append("coded run converged")
+        try:
+            data = json.loads(run_status.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = {}
+        if not data.get("converged", True):
+            failures.append(
+                "_run.json shows the coded run did not converge, some units still failing, "
+                "run another round, invariant 4")
+        errs = int(data.get("errors", 0)) + int(data.get("verify_errors", 0))
+        if errs:
+            # the run recovered enough to converge, so this is not a hard fail, but a failed call is
+            # surfaced never hidden, invariant 4
+            notes.append(f"_run.json records {errs} failed model call(s) during the run, "
+                         "a failed step is not silently a clean pass")
+
+    if root is not None:
+        checked.append("source inventory covered")
+        det = detection or load_detection()
+        inventory = _source_inventory(Path(root), det)
+        if inventory:
+            unowned = sorted(inventory - _owned_files(project_dir, inventory))
+            if unowned:
+                shown = ", ".join(unowned[:8]) + (" ..." if len(unowned) > 8 else "")
+                msg = (f"{len(unowned)} of {len(inventory)} source file(s) are owned by no unit or "
+                       f"surface row, they sit outside the coverage denominator: {shown}")
+                (failures if strict_coverage else notes).append(msg)
+
+    return GateResult(not failures, failures, checked, notes)
+
+
+def _source_inventory(root: Path, detection: Detection) -> set[str]:
+    """The source files under the target that are not tests, the true coverage denominator, so a
+    file that no unit ever listed is still counted as surface that could have been missed."""
+    from codejury.review.repo.model import build_repo_model_from_dir
+    model = build_repo_model_from_dir(root, detection)
+    return {
+        f for f in model.files
+        if Path(f).suffix in detection.source_extensions and not detection.is_test_path(f)
+    }
+
+
+def _owned_files(project_dir: Path, inventory: set[str]) -> set[str]:
+    """The inventory files a review claimed, a file is owned when its path appears in the surface,
+    a unit, or a candidate, so the definition is generous and the same for a coded and an agent
+    workspace, both of which write these same artifacts."""
+    blobs: list[str] = []
+    surface = project_dir / "inventory" / "_surface.md"
+    if surface.is_file():
+        blobs.append(surface.read_text(encoding="utf-8"))
+    for name in ("units", "candidates"):
+        sub = project_dir / name
+        if sub.is_dir():
+            blobs.extend(f.read_text(encoding="utf-8") for f in sub.glob("*.md"))
+    text = "\n".join(blobs)
+    return {f for f in inventory if f in text}

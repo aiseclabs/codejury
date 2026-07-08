@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 from codejury import __version__
+from codejury.detection import load_detection
 from codejury.domains.registry import available_domains, get_domain, resolve_domain
 from codejury.sources.explorer import CHAINS
 from codejury.report import gate, render
@@ -462,6 +463,10 @@ def main(argv: list[str] | None = None) -> int:
     tuning.add_argument("--votes", type=int, default=None,
                         help="independent skeptic votes per candidate, refuted only on a majority, "
                              "default from --effort")
+    tuning.add_argument("--strict-coverage", action="store_true", default=False,
+                        dest="strict_coverage",
+                        help="with --gate, fail when a source file is owned by no unit instead of "
+                             "only noting it, so the source tree is the enforced coverage denominator")
     _add_domain_arg(repo)
 
     fetch = sub.add_parser("fetch", help="fetch verified source for a contract address")
@@ -581,8 +586,13 @@ def _dispatch(args, parser) -> int:
 
     if args.command == "review" and scope == "repo" and args.gate:
         from codejury.review.repo.gate import check_gate
+        domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+        detection = load_detection(domain.paths.detection_file)
         project_dir = Path(args.workspace) / Path(args.directory).resolve().name
-        result = check_gate(project_dir)
+        result = check_gate(project_dir, root=Path(args.directory).resolve(),
+                            detection=detection, strict_coverage=args.strict_coverage)
+        for note in result.notes:
+            print(f"NOTE: {note}", file=sys.stderr)
         if result.passed:
             print(f"Completeness Gate PASSED for {project_dir}")
             print("Checked: " + ", ".join(result.checked))
