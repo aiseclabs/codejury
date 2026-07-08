@@ -224,7 +224,7 @@ def _confirmer_for(args, spec):
     from codejury.review.repo.verifier import ModelRefutationChecker
     if _seat_backend(spec, args.executor) == "agent":
         from codejury.review.repo.agent import AgentRefutationChecker
-        return AgentRefutationChecker()
+        return AgentRefutationChecker(**_agent_backend_kw(args))
     return ModelRefutationChecker(provider=_role_provider(args, spec), model=spec["model"])
 
 
@@ -365,6 +365,13 @@ def _auto_concurrency(concurrency: int | None, finder_kind: str) -> int:
     if concurrency is not None:
         return concurrency
     return 2 if finder_kind == "agent" else 6
+
+
+def _agent_backend_kw(args) -> dict:
+    """The run tuning flags the subscription agent backends must honor, so --retries and --timeout
+    reach the agent path instead of silently keeping the _ClaudeBackend constructor defaults,
+    invariant 4."""
+    return {"retries": args.retries, "timeout": args.timeout}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -595,7 +602,7 @@ def _dispatch(args, parser) -> int:
             args.model = "mock"
         elif _seat_backend(challenger, args.executor) == "agent":
             from codejury.review.repo.agent import AgentVerifier
-            verifier_obj = AgentVerifier(content=domain.paths)
+            verifier_obj = AgentVerifier(content=domain.paths, **_agent_backend_kw(args))
             _warn_roles_under_agent(args, ("challenger",))
             if args.executor == "auto":
                 _note_subscription_fallback(("skeptic",))
@@ -651,7 +658,7 @@ def _dispatch(args, parser) -> int:
             skeptic_kind = _seat_backend(challenger, args.executor)
             if finder_kind == "agent":
                 from codejury.review.repo.agent import AgentReviewer
-                reviewer_obj = AgentReviewer(content=domain.paths)
+                reviewer_obj = AgentReviewer(content=domain.paths, **_agent_backend_kw(args))
             else:
                 # finder goes through provider+model so the engine builds the unit reviewer with its
                 # facts wiring, the skeptic and confirmers are injected from the challenger and judge
@@ -659,7 +666,7 @@ def _dispatch(args, parser) -> int:
                 model = finder["model"]
             if skeptic_kind == "agent":
                 from codejury.review.repo.agent import AgentVerifier
-                verifier_obj = AgentVerifier(content=domain.paths)
+                verifier_obj = AgentVerifier(content=domain.paths, **_agent_backend_kw(args))
             else:
                 verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
                                              model=challenger["model"], content=domain.paths)

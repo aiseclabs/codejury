@@ -621,3 +621,17 @@ def test_explicit_concurrency_overrides_the_backend_default(monkeypatch, tmp_pat
     captured = _capture_run(monkeypatch)
     main(["review", "repo", str(tmp_path), "--run", "--concurrency", "9"])
     assert captured["concurrency"] == 9
+
+
+def test_retries_and_timeout_reach_the_subscription_agent_finder(monkeypatch, tmp_path):
+    # --retries and --timeout once kept the _ClaudeBackend defaults on the subscription path, so a
+    # documented flag silently did nothing there, invariant 4. They must now reach the agent backend.
+    from codejury.review.repo.agent import AgentReviewer
+    captured = _capture_run(monkeypatch)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
+    main(["review", "repo", str(tmp_path), "--run", "--no-verify", "--retries", "5", "--timeout", "42"])
+    reviewer = captured["reviewer"]
+    assert isinstance(reviewer, AgentReviewer)
+    assert reviewer._retries == 5
+    assert reviewer._timeout == 42
