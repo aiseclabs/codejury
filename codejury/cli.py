@@ -344,6 +344,29 @@ def _add_audit_args(p) -> None:
     _add_domain_arg(p)
 
 
+# --effort is the one depth dial, so a run is one flag not a handful. Each level fixes two numbers,
+# a min_lens_shots and a votes: how many times every lens must fire, and how many skeptics must
+# agree before a candidate is dropped. The medium level equals the bare defaults, so leaving
+# --effort unset changes nothing.
+_EFFORT_PRESETS = {"low": (1, 1), "medium": (2, 1), "high": (3, 2)}
+
+
+def _resolve_effort(effort: str, shots: int | None, votes: int | None) -> tuple[int, int]:
+    """Fill min_lens_shots and votes from the effort level, an explicit flag on either overrides it."""
+    preset_shots, preset_votes = _EFFORT_PRESETS[effort]
+    return preset_shots if shots is None else shots, preset_votes if votes is None else votes
+
+
+def _auto_concurrency(concurrency: int | None, finder_kind: str) -> int:
+    """Pick the pass parallelism from the resolved finder backend when the operator set none. The
+    subscription agent shares one rate cap, so a wide fan-out trips it and every call fails, which
+    is a degraded run not zero findings, invariant 4. Hold it to 2 there, let a keyed API path run
+    wider. An explicit --concurrency always wins."""
+    if concurrency is not None:
+        return concurrency
+    return 2 if finder_kind == "agent" else 6
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="codejury")
     parser.add_argument("--version", action="version", version=f"codejury {__version__}")
@@ -379,6 +402,11 @@ def main(argv: list[str] | None = None) -> int:
 
     strategy = repo.add_argument_group("review strategy")
     _add_executor_arg(strategy)
+    strategy.add_argument("--effort", choices=("low", "medium", "high"), default="medium",
+                          help="how hard the run looks: low is one shot per lens and a fast pass, "
+                               "medium is the default two shots, high is three shots plus a "
+                               "majority of two skeptics before a candidate is dropped. Sets "
+                               "--min-lens-shots and --votes, either flag overrides it")
     strategy.add_argument("--facts", action="store_true", default=False,
                           help="ground review in a tool-extracted call graph, storage layout, and "
                                "read and write sets when the domain binds a facts backend such as "
@@ -404,15 +432,19 @@ def main(argv: list[str] | None = None) -> int:
                              "floor with a cycle of headroom for convergence")
     tuning.add_argument("--converge-after", type=int, default=2, dest="converge_after",
                         help="stop once this many consecutive passes add no new finding")
-    tuning.add_argument("--min-lens-shots", type=int, default=2, dest="min_lens_shots",
+    tuning.add_argument("--min-lens-shots", type=int, default=None, dest="min_lens_shots",
                         help="keep going until every lens has reviewed this many times, so a hard "
-                             "class is not left to one shot on a repo that converges fast")
-    tuning.add_argument("--concurrency", type=int, default=6,
-                        help="how many unit sub-reviews to run in parallel within a pass")
+                             "class is not left to one shot on a repo that converges fast, default "
+                             "from --effort")
+    tuning.add_argument("--concurrency", type=int, default=None,
+                        help="how many unit reviews to run in parallel within a pass, default 2 "
+                             "on the subscription backend so a wide fan-out does not trip its rate "
+                             "cap, 6 on an API key")
     tuning.add_argument("--no-verify", dest="verify", action="store_false", default=True,
                         help="skip the adversarial verification stage, keep every candidate")
-    tuning.add_argument("--votes", type=int, default=1,
-                        help="independent skeptic votes per candidate, refuted only on a majority")
+    tuning.add_argument("--votes", type=int, default=None,
+                        help="independent skeptic votes per candidate, refuted only on a majority, "
+                             "default from --effort")
     _add_domain_arg(repo)
 
     fetch = sub.add_parser("fetch", help="fetch verified source for a contract address")
@@ -548,6 +580,7 @@ def _dispatch(args, parser) -> int:
         from codejury.review.repo.engine import finalize_repo_review
         from codejury.review.repo.verifier import ModelVerifier
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+        args.min_lens_shots, args.votes = _resolve_effort(args.effort, args.min_lens_shots, args.votes)
         _warn_secondary_env()
         base = _base_spec(args)
         challenger = _role_spec(args, "challenger", base)
@@ -572,6 +605,8 @@ def _dispatch(args, parser) -> int:
         if not args.dry_run:
             confirmers = _confirmers(args, challenger=challenger, judge=judge)
         _note_verify_route(args, confirmers)
+        args.concurrency = _auto_concurrency(
+            args.concurrency, "" if args.dry_run else _seat_backend(challenger, args.executor))
         print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
         fr = finalize_repo_review(
             args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
@@ -594,6 +629,7 @@ def _dispatch(args, parser) -> int:
         from codejury.review.repo.engine import run_repo_review
         from codejury.review.repo.verifier import ModelVerifier
         domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+        args.min_lens_shots, args.votes = _resolve_effort(args.effort, args.min_lens_shots, args.votes)
         # scale the pass cap to the domain, so the min-lens-shots floor is always meetable and the
         # convergence early-stop can fire, with one lens cycle of headroom above the floor
         if args.max_passes is None:
@@ -635,6 +671,9 @@ def _dispatch(args, parser) -> int:
             # the judge and finder are the independent confirmers, the skeptic is the challenger and
             # confirms nothing, a drop needs every applicable confirmer to uphold the refutation
             confirmers = _confirmers(args, challenger=challenger, judge=judge, finder=finder)
+
+        args.concurrency = _auto_concurrency(
+            args.concurrency, "" if args.dry_run else _seat_backend(finder, args.executor))
 
         def _progress(p, lens, new, total):
             print(f"  pass {p} [{lens or 'general'}]  +{new} new  union={total}", file=sys.stderr)

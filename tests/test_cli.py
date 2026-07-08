@@ -561,3 +561,63 @@ def test_timeout_flag_is_accepted(tmp_path):
     ws = tmp_path / "ws"
     assert main(["review", "repo", str(repo), "--workspace", str(ws),
                  "--run", "--dry-run", "--timeout", "5"]) == 0
+
+
+def test_effort_levels_set_shots_and_votes():
+    assert climod._resolve_effort("low", None, None) == (1, 1)
+    assert climod._resolve_effort("medium", None, None) == (2, 1)
+    assert climod._resolve_effort("high", None, None) == (3, 2)
+
+
+def test_explicit_shots_or_votes_overrides_effort():
+    # the medium level equals the bare defaults, so a run that leaves --effort unset is unchanged,
+    # and an explicit flag always wins over the level it would otherwise fill
+    assert climod._resolve_effort("high", 5, None) == (5, 2)
+    assert climod._resolve_effort("low", None, 4) == (1, 4)
+
+
+def test_auto_concurrency_holds_the_subscription_agent_to_two():
+    # the subscription agent shares one rate cap, so a wide fan-out trips it, invariant 4. A keyed
+    # API path runs wider, and an explicit --concurrency always wins over either default.
+    assert climod._auto_concurrency(None, "agent") == 2
+    assert climod._auto_concurrency(None, "anthropic") == 6
+    assert climod._auto_concurrency(8, "agent") == 8
+
+
+def _capture_run(monkeypatch):
+    import codejury.review.repo.engine as eng
+    captured = {}
+
+    def fake_run(target, workspace, **kw):
+        captured.update(kw)
+        raise RuntimeError("stop after capture")
+
+    monkeypatch.setattr(eng, "run_repo_review", fake_run)
+    return captured
+
+
+def test_effort_high_flows_shots_and_votes_into_the_run(monkeypatch, tmp_path):
+    captured = _capture_run(monkeypatch)
+    main(["review", "repo", str(tmp_path), "--run", "--effort", "high"])
+    assert captured["min_lens_shots"] == 3
+    assert captured["votes"] == 2
+
+
+def test_keyless_run_defaults_concurrency_to_two(monkeypatch, tmp_path):
+    # no key, so the finder rides the subscription as an agent and the fan-out is held to 2
+    captured = _capture_run(monkeypatch)
+    main(["review", "repo", str(tmp_path), "--run"])
+    assert captured["concurrency"] == 2
+
+
+def test_keyed_run_defaults_concurrency_to_six(monkeypatch, tmp_path):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    captured = _capture_run(monkeypatch)
+    main(["review", "repo", str(tmp_path), "--run"])
+    assert captured["concurrency"] == 6
+
+
+def test_explicit_concurrency_overrides_the_backend_default(monkeypatch, tmp_path):
+    captured = _capture_run(monkeypatch)
+    main(["review", "repo", str(tmp_path), "--run", "--concurrency", "9"])
+    assert captured["concurrency"] == 9
