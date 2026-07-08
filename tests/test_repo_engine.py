@@ -663,6 +663,59 @@ def test_finalize_links_pocs_and_reconciles(tmp_path):
     assert "GET /x" not in report
 
 
+def test_run_pocs_writes_the_poc_annotates_and_never_drops(tmp_path):
+    from types import SimpleNamespace
+
+    from codejury.review.repo.engine import _finding_name, _run_pocs
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    findings = [Candidate(title="oracle", category="access-control", file="O.sol", line=5,
+                          symbol="setX", evidence="unprotected setter")]
+
+    class FakeBackend:
+        def available(self):
+            return True
+
+        def reproduce(self, **kw):
+            return SimpleNamespace(reproduced=True, test_source="contract T {}", detail="passed")
+
+    out = _run_pocs(ws, findings, FakeBackend(), root=str(tmp_path))
+    assert len(out) == 1
+    assert (ws / "pocs" / f"{_finding_name(findings[0])}.t.sol").read_text() == "contract T {}"
+    assert "PoC reproduced" in out[0].evidence
+
+
+def test_run_pocs_keeps_finding_when_the_poc_fails_or_backend_errors(tmp_path):
+    from codejury.domains.base import BackendUnavailable
+    from codejury.review.repo.engine import _run_pocs
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    findings = [Candidate(title="x", category="idor", file="A.sol", line=1)]
+
+    class Erroring:
+        def available(self):
+            return True
+
+        def reproduce(self, **kw):
+            raise RuntimeError("model down")
+
+    out = _run_pocs(ws, findings, Erroring(), root=str(tmp_path))
+    assert len(out) == 1  # a failed PoC never drops a finding, invariant 2
+    assert "PoC failed to run" in out[0].evidence
+
+    class Unavailable:
+        def available(self):
+            return False
+
+        def reproduce(self, **kw):
+            raise AssertionError("must not be called when unavailable")
+
+    with pytest.raises(BackendUnavailable):
+        _run_pocs(ws, findings, Unavailable(), root=str(tmp_path))
+
+
 def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
     # regression: the finding md must reproduce the agent's analysis prose, not a bare
     # pointer back to candidates/<name>.md, while findings.json still links to that file

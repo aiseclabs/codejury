@@ -21,7 +21,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from codejury.detection import load_detection
-from codejury.domains.base import ContentPaths, Domain
+from codejury.domains.base import BackendUnavailable, ContentPaths, Domain
 from codejury.domains.registry import default_domain
 from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
@@ -560,6 +560,7 @@ def finalize_repo_review(
     votes: int = 1,
     concurrency: int = 6,
     domain: Domain | None = None,
+    poc_backend: object | None = None,
 ) -> FinalizeResult:
     """The coded post-fan-out pipeline: dedup, verify, report over the candidates.
 
@@ -600,9 +601,39 @@ def finalize_repo_review(
             votes=votes, concurrency=concurrency, fresh=False, content=paths, by_file=by_file,
         )
 
+    if poc_backend is not None and deduped:
+        deduped = _run_pocs(ws, deduped, poc_backend, root)
+
     _write_findings(ws, deduped, root)
     _write_pocs_report(ws, deduped)
     return FinalizeResult(workspace=ws, parsed=len(cands), deduped=len(deduped), verify=vr)
+
+
+def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[Candidate]:
+    """Attach an executable PoC to each confirmed finding: generate, compile, and run it, then
+    write `pocs/<name>.<ext>` so the existing reconciliation links it. Adds evidence, never
+    drops a finding, invariant 2, so a PoC that fails to reproduce is recorded, not treated as
+    safe. A missing toolchain fails loud up front, invariant 4."""
+    if not backend.available():
+        raise BackendUnavailable(
+            "the PoC backend was requested but its toolchain is unavailable, re-run without --poc "
+            "or install the toolchain")
+    pocs = ws / "pocs"
+    pocs.mkdir(exist_ok=True)
+    annotated: list[Candidate] = []
+    for c in findings:
+        name = _finding_name(c)
+        try:
+            res = backend.reproduce(
+                title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root)
+            if res.test_source:
+                (pocs / f"{name}.t.sol").write_text(res.test_source, encoding="utf-8")
+            note = f"PoC reproduced: {res.detail}" if res.reproduced else f"PoC inconclusive: {res.detail}"
+        except Exception as exc:
+            # a failed PoC call is not a safe verdict, keep the finding and record the failure, invariant 4
+            note = f"PoC failed to run: {exc}"
+        annotated.append(replace(c, evidence=f"{c.evidence}\n\n[{note}]".strip()))
+    return annotated
 
 
 @dataclass(frozen=True, kw_only=True)

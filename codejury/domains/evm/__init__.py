@@ -13,6 +13,13 @@ from pathlib import Path
 from codejury.domains.base import Domain
 from codejury.domains.evm.facts.slither import SlitherFacts
 
+
+def _forge_poc(**kw):
+    """Build the Foundry PoC backend lazily, so importing the domain never pulls forge or a
+    provider, only building a backend does, and selecting the domain stays free of the extra."""
+    from codejury.domains.evm.poc import ForgePoC
+    return ForgePoC(**kw)
+
 # the repo-review pass lenses for contracts: each pass leads with one class, the empty lens
 # reviews every class. A named lens is a reliable focused pass and the empty catch-all is not,
 # so every shipped contract class gets its own lens rather than relying on the catch-all.
@@ -77,5 +84,6 @@ EVM = Domain(
     diff_focus=EVM_DIFF_FOCUS,
     diff_do_not_report=EVM_DIFF_DO_NOT_REPORT,
     facts_backend=SlitherFacts(),
+    poc_backend=_forge_poc,
     dedup_by_file=True,
 )

@@ -1,6 +1,7 @@
 """The domain layer: the web domain resolves its content, detection names a domain, and
 an unavailable domain fails loud rather than silently falling back."""
 
+import shutil
 import pytest
 
 from codejury.domains.base import Domain, content_paths
@@ -159,17 +160,44 @@ def test_evm_facts_backend_fails_loud_without_slither(monkeypatch):
         backend.extract(".")
 
 
-def test_evm_poc_verifier_fails_loud_without_forge(monkeypatch):
+def test_evm_poc_backend_fails_loud_without_forge(monkeypatch):
     from codejury.domains.base import BackendUnavailable
     from codejury.domains.evm.poc import ForgePoC
-    from codejury.review.repo.union import Candidate
-    from codejury.review.repo.verifier import Verifier
+    from codejury.providers.mock import MockProvider
 
-    poc = ForgePoC()
-    assert isinstance(poc, Verifier)
+    poc = ForgePoC(provider=MockProvider(default="x"), model="m")
     monkeypatch.setattr(poc, "available", lambda: False)
     with pytest.raises(BackendUnavailable):
-        poc.verify(Candidate(title="x"), ".")
+        poc.reproduce(title="x", analysis="", symbol="", file="A.sol", line=1, root=".")
+
+
+_POC_TEST = """\
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+import "../src/C.sol";
+contract PoCTest {
+    function testExploit() public {
+        C c = new C();
+        require(c.v() == 42, "unexpected");
+    }
+}
+"""
+
+
+@pytest.mark.skipif(shutil.which("forge") is None, reason="Foundry not installed")
+def test_forge_poc_compiles_and_runs_a_local_test(tmp_path):
+    from codejury.domains.evm.poc import ForgePoC
+    from codejury.providers.mock import MockProvider
+
+    (tmp_path / "C.sol").write_text(
+        "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n"
+        "contract C { function v() public pure returns (uint) { return 42; } }\n")
+    poc = ForgePoC(provider=MockProvider(default=_POC_TEST), model="m", timeout=120)
+    res = poc.reproduce(title="t", analysis="a", symbol="v", file="C.sol", line=1, root=str(tmp_path))
+    if not res.reproduced and "compile failed" in res.detail:
+        pytest.skip("solc toolchain or network unavailable for compile")
+    assert res.reproduced
+    assert res.test_source == _POC_TEST.strip()
 
 
 _REENTRANT_VAULT = """\

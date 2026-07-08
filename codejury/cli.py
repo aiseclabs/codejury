@@ -419,6 +419,12 @@ def main(argv: list[str] | None = None) -> int:
                                "read and write sets when the domain binds a facts backend such as "
                                "the EVM slither backend. Off by default since extraction is heavy, "
                                "the result is cached by source content hash so a re-run is free")
+    strategy.add_argument("--poc", action="store_true", default=False,
+                          help="on finalize, generate and run an executable PoC per confirmed finding "
+                               "when the domain binds a PoC backend such as the EVM Foundry reproducer. "
+                               "Off by default since it calls a model and a compiler per finding. Local "
+                               "only, it never forks, broadcasts, or holds a key. It only adds evidence, "
+                               "a finding is kept whether or not its PoC reproduces")
 
     roles = repo.add_argument_group(
         "model roles (advanced)",
@@ -618,11 +624,22 @@ def _dispatch(args, parser) -> int:
         _note_verify_route(args, confirmers)
         args.concurrency = _auto_concurrency(
             args.concurrency, "" if args.dry_run else _seat_backend(challenger, args.executor))
+        poc_backend_obj = None
+        if args.poc and not args.dry_run:
+            if domain.poc_backend is None:
+                print(f"NOTE: --poc ignored, the {domain.name} domain binds no PoC backend.", file=sys.stderr)
+            else:
+                if _seat_backend(base, args.executor) == "agent":
+                    from codejury.providers.claude_agent import ClaudeAgentProvider
+                    gen_provider = ClaudeAgentProvider(**_agent_backend_kw(args))
+                else:
+                    gen_provider = _role_provider(args, base)
+                poc_backend_obj = domain.poc_backend(provider=gen_provider, model=base["model"])
         print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
         fr = finalize_repo_review(
             args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
             provider=provider, model=args.model, verify=args.verify, votes=args.votes,
-            concurrency=args.concurrency, domain=domain,
+            concurrency=args.concurrency, domain=domain, poc_backend=poc_backend_obj,
         )
         kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
         refuted = len(fr.verify.refuted) if fr.verify else 0
