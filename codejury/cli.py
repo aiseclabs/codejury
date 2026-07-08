@@ -582,7 +582,11 @@ def _dispatch(args, parser) -> int:
             # unjudged set, so this is a failed audit, not a clean pass, invariant 4
             print("error: the adversarial audit degraded on an unusable judge reply, "
                   "the result is incomplete and not a clean pass", file=sys.stderr)
-        return 1 if degraded or gate(kept, args.fail_on) else 0
+        rc = 1 if degraded or gate(kept, args.fail_on) else 0
+        # a diff seat on the subscription may hold a persistent SDK session, close it like the
+        # repo paths do so its pooled Claude Code processes do not leak past the run
+        _close_backends(provider, finder_provider, challenger_provider, judge_provider)
+        return rc
 
     if args.command == "review" and scope == "repo" and args.gate:
         from codejury.review.repo.gate import check_gate

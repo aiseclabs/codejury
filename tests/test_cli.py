@@ -177,6 +177,25 @@ def test_diff_fail_on_high_exits_nonzero():
     assert main(["review", "diff", "--dry-run"]) == 0
 
 
+def test_review_diff_closes_its_backends(monkeypatch, tmp_path):
+    # a diff seat on the subscription may hold a persistent SDK session, so the diff path must
+    # close its backends like the repo paths, or a pooled Claude Code process leaks past the run
+    closed = []
+
+    class _Spy:
+        def close(self):
+            closed.append(True)
+
+    spy = _Spy()
+    monkeypatch.setattr(climod, "build_diff_providers",
+                        lambda args: (spy, "mock", None, None, None, None, None, None))
+    monkeypatch.setattr(climod, "audit_diff", lambda *a, **k: ([], None, False))
+    diff = tmp_path / "c.diff"
+    diff.write_text("--- a/x.py\n+++ b/x.py\n@@ -0,0 +1 @@\n+x = 1\n")
+    assert main(["review", "diff", "--file", str(diff)]) == 0
+    assert closed == [True]
+
+
 def test_repo_gate_exit_codes(tmp_path):
     repo = _flask_repo(tmp_path / "svc")
     ws = tmp_path / "ws"
