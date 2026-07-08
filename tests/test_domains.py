@@ -206,6 +206,37 @@ def test_forge_poc_repairs_its_test_after_a_failure(monkeypatch, tmp_path):
     assert runs == ["broken source", "good source"]  # the failure was fed back and repaired
 
 
+def test_forge_poc_generate_writes_a_test_without_running_it(tmp_path):
+    from codejury.domains.evm.poc import ForgePoC
+    from codejury.providers.mock import MockProvider
+
+    (tmp_path / "A.sol").write_text("contract A {}")
+    poc = ForgePoC(provider=MockProvider(default="contract PoC {}"), model="m")
+    art = poc.generate(title="t", analysis="a", symbol="s", file="A.sol", line=1, root=str(tmp_path))
+    assert art.ext == "t.sol"
+    assert "PoC" in art.source
+    assert art.run_hint
+
+
+def test_forge_poc_generate_needs_a_provider(tmp_path):
+    from codejury.domains.evm.poc import ForgePoC
+
+    poc = ForgePoC()  # a backend built to run only, with no provider
+    with pytest.raises(ValueError, match="needs a provider"):
+        poc.generate(title="t", analysis="a", symbol="s", file="A.sol", line=1, root=str(tmp_path))
+
+
+def test_forge_poc_execute_skips_and_notes_when_forge_is_absent(monkeypatch, tmp_path):
+    from codejury.domains.evm.poc import ForgePoC
+
+    poc = ForgePoC()
+    monkeypatch.setattr(poc, "available", lambda: False)
+    res = poc.execute(source="contract PoC {}", root=str(tmp_path))
+    assert res.ran is False
+    assert res.ok is False
+    assert "not installed" in res.detail
+
+
 _POC_TEST = """\
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;

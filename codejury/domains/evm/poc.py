@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from shutil import which
 
-from codejury.domains.base import BackendUnavailable
+from codejury.domains.base import BackendUnavailable, PoCArtifact, PoCExecResult
 from codejury.providers.base import Message, Provider
 
 _INSTALL_HINT = (
@@ -61,11 +61,16 @@ def _extract_solidity(text: str) -> str:
 
 
 class ForgePoC:
-    """Reproduce a candidate's exploit in a local Foundry test. Local only, invariant 6. Adds
-    evidence, never refutes, invariant 2."""
+    """Write and run a candidate's exploit as a local Foundry test. It writes a proof for every
+    finding, and when forge is present it also runs it, turning a model claim into a run fact.
+    Local only, invariant 6. Adds evidence, never refutes, invariant 2."""
 
-    def __init__(self, *, provider: Provider, model: str, timeout: int = 180,
-                 max_tokens: int = 4096, attempts: int = 2) -> None:
+    ext = "t.sol"
+
+    def __init__(self, *, provider: Provider | None = None, model: str | None = None,
+                 timeout: int = 180, max_tokens: int = 4096, attempts: int = 2) -> None:
+        # provider is optional so a runner that only executes can be built with no model, which
+        # lets finalize run a PoC an agent already wrote without spending a generation call
         self._provider = provider
         self._model = model
         self._timeout = timeout
@@ -76,10 +81,39 @@ class ForgePoC:
         self._attempts = max(1, attempts)
 
     def available(self) -> bool:
+        """Whether a written PoC can be executed here, which needs forge on PATH. Writing never
+        needs it, so a missing forge only means the run step is skipped, not that no PoC is written."""
         return which("forge") is not None
+
+    def generate(self, *, title: str, analysis: str, symbol: str, file: str,
+                 line: int | None, root: str) -> PoCArtifact:
+        """Write the Foundry test that proves the exploit, without running it."""
+        import_line, note = self._import_note(Path(root), file)
+        target = _read(Path(root) / file) if file else ""
+        prompt = _prompt(title=title, analysis=analysis, symbol=symbol, file=file, line=line,
+                         target_source=target, import_line=import_line, note=note)
+        return PoCArtifact(source=self._complete(prompt), ext=self.ext,
+                           run_hint="forge test, deploys the contract locally, no fork or rpc")
+
+    def execute(self, *, source: str, root: str) -> PoCExecResult:
+        """Compile and run a written Foundry test locally. Never forks or broadcasts, invariant 6.
+        Returns ran False when forge is absent so the caller notes it rather than dropping the
+        finding, invariant 2."""
+        if not self.available():
+            return PoCExecResult(ran=False, ok=False, detail="forge not installed, PoC not executed")
+        if not source:
+            return PoCExecResult(ran=False, ok=False, detail="no PoC source to run")
+        root_p = Path(root)
+        sources = sorted(root_p.rglob("*.sol"))
+        foundry = (root_p / "foundry.toml").is_file()
+        with self._project(root_p, sources, foundry) as (proj, test_path):
+            ok, detail = self._run_test(proj, source, test_path)
+        return PoCExecResult(ran=True, ok=ok, detail=detail)
 
     def reproduce(self, *, title: str, analysis: str, symbol: str, file: str,
                   line: int | None, root: str) -> PoCResult:
+        """Write the test and run it, repairing it across attempts when it fails to compile or
+        pass. The coded path uses this to write and prove a PoC in one call."""
         if not self.available():
             raise BackendUnavailable(_INSTALL_HINT)
         root_p = Path(root)
@@ -88,15 +122,7 @@ class ForgePoC:
             return PoCResult(reproduced=False, test_source="", detail="no Solidity sources under the target")
         foundry = (root_p / "foundry.toml").is_file()
         target = _read(root_p / file) if file else ""
-        if foundry:
-            # the test lives in the repo's own test dir, so it compiles through the repo's
-            # remappings and restored libraries, the only way a contract that imports OpenZeppelin builds
-            import_line = os.path.relpath(root_p / file, root_p / "test") if file else ""
-            note = ("This is a Foundry project. Import other libraries such as OpenZeppelin through "
-                    "the project's own remappings, for example \"openzeppelin/...\".")
-        else:
-            import_line = f"../src/{file}" if file else ""
-            note = "The contracts are copied under src, import any dependency by its src-relative path."
+        import_line, note = self._import_note(root_p, file)
         # prepare the project once, then let the model repair its own test across attempts against
         # the same prepared tree, so a restored dependency set is not rebuilt each round
         test_source = ""
@@ -109,10 +135,7 @@ class ForgePoC:
                 else:
                     prompt = _fix_prompt(previous=test_source, error=detail,
                                          import_line=import_line, note=note)
-                reply = self._provider.complete(
-                    system=_SYSTEM, messages=[Message(role="user", content=prompt)],
-                    model=self._model, max_tokens=self._max_tokens, cache=False)
-                test_source = _extract_solidity(reply.text)
+                test_source = self._complete(prompt)
                 if not test_source:
                     detail = "model returned no test source"
                     continue
@@ -120,6 +143,28 @@ class ForgePoC:
                 if ok:
                     return PoCResult(reproduced=True, test_source=test_source, detail=detail)
         return PoCResult(reproduced=False, test_source=test_source, detail=detail)
+
+    def _import_note(self, root: Path, file: str) -> tuple[str, str]:
+        """The import line for the contract under test and a note on resolving dependencies, which
+        differ for a Foundry repo compiled through its own remappings and a bare copied tree."""
+        if (root / "foundry.toml").is_file():
+            # the test lives in the repo's own test dir, so it compiles through the repo's
+            # remappings and restored libraries, the only way a contract that imports OpenZeppelin builds
+            import_line = os.path.relpath(root / file, root / "test") if file else ""
+            note = ("This is a Foundry project. Import other libraries such as OpenZeppelin through "
+                    "the project's own remappings, for example \"openzeppelin/...\".")
+        else:
+            import_line = f"../src/{file}" if file else ""
+            note = "The contracts are copied under src, import any dependency by its src-relative path."
+        return import_line, note
+
+    def _complete(self, prompt: str) -> str:
+        if self._provider is None:
+            raise ValueError("generating a PoC needs a provider, this backend was built to run only")
+        reply = self._provider.complete(
+            system=_SYSTEM, messages=[Message(role="user", content=prompt)],
+            model=self._model, max_tokens=self._max_tokens, cache=False)
+        return _extract_solidity(reply.text)
 
     @contextmanager
     def _project(self, root: Path, sources: list[Path], foundry: bool):

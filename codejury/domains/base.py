@@ -105,6 +105,30 @@ class BackendUnavailable(RuntimeError):
 
 
 @dataclass(frozen=True, kw_only=True)
+class PoCArtifact:
+    """One written proof of concept before it runs. Every domain writes one, so a finding always
+    carries a concrete reproduction recipe, not only a prose scenario. `source` is the runnable
+    text, `ext` is its file suffix so it lands as `pocs/<name>.<ext>`, and `run_hint` states how a
+    human runs it. Writing is separate from running: a domain writes for every finding, and only a
+    domain that runs safely and locally, such as evm under Foundry, also executes."""
+    source: str
+    ext: str
+    run_hint: str = ""
+
+
+@dataclass(frozen=True, kw_only=True)
+class PoCExecResult:
+    """The outcome of running one written PoC. `ran` is False when execution is out of scope, such
+    as a web PoC that a human runs against a sandbox, or when the toolchain is absent. `ok` is True
+    only when the PoC ran and proved the exploit. A PoC that did not run or did not pass is never a
+    safe verdict, it only fails to add positive evidence, so a finding is kept regardless,
+    invariant 2."""
+    ran: bool
+    ok: bool
+    detail: str
+
+
+@dataclass(frozen=True, kw_only=True)
 class Facts:
     """Deterministic, tool-extracted facts about a source tree, used to ground model review.
     `summary` is prompt-ready text the engine threads into shared context, `data` is the
