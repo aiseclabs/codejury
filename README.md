@@ -20,6 +20,11 @@ The tool has two review paths:
 - **Repo Review** fans out across a whole repository, reviews focused units, deduplicates
   candidates, verifies findings, and checks coverage with a gate.
 
+Diff Review is fast and reads only the change, so it catches what is visible in the diff.
+Cross-file business logic and invariants that span files need context from across the
+repository, which is Repo Review's job, so a clean Diff Review does not by itself clear the
+repository.
+
 Security knowledge is data. Vulnerability classes, language guides, framework guides, and
 protocol guides live in markdown under each review domain's `knowledge/` directory, for
 example `codejury/domains/web/knowledge/`, so adding a stack or class is usually a data
@@ -33,6 +38,13 @@ Install the core package and one model backend:
 ```bash
 pip install codejury
 pip install "codejury[anthropic]"   # or "codejury[openai]" or "codejury[litellm]"
+```
+
+Optional extras add capabilities you can install as needed:
+
+```bash
+pip install "codejury[evm]"         # Slither facts for Solidity, the --facts call graph
+pip install "codejury[claude-sdk]"  # a persistent Claude Code subscription transport
 ```
 
 Install the Repo Review slash command for an agent:
@@ -149,6 +161,9 @@ codejury review diff --file changes.diff --format sarif --fail-on high
 # review with no provider key, riding your Claude Code subscription
 codejury review diff --file changes.diff --executor subscription
 
+# carry fetched source provenance into the report, see Fetch Verified Source
+codejury review diff --file changes.diff --source-meta target/codejury-source.json
+
 # adversarial with a keyless Claude finder and judge plus an OpenAI challenger on its own key
 codejury review diff --file changes.diff --mode adversarial \
   --challenger-provider openai --challenger-api-key "$OPENAI_API_KEY"
@@ -209,7 +224,14 @@ codejury review repo /path/to/repo --gate
 `--finalize` deduplicates candidate files, verifies survivors, writes the confirmed
 `findings/`, records refuted candidates in `_refuted.md` and PoC reconciliation in
 `_pocs.md`, and writes ranked `findings.json`. `--gate` fails until the workspace has an
-enumerated surface, reviewed units, and calibrated candidates.
+enumerated surface, reviewed units, and calibrated candidates. Add `--strict-coverage` to
+also fail when a source file is owned by no unit, instead of noting it.
+
+Add `--poc` on finalize to generate and run an executable PoC for each confirmed finding
+when the domain binds a PoC backend, such as the EVM Foundry reproducer. It is off by
+default since it calls a model and a compiler per finding. A PoC runs locally only, it never
+forks a network, broadcasts, or holds a key, and it only adds evidence, so a finding is kept
+whether or not its PoC reproduces.
 
 For a headless run, use:
 
@@ -237,6 +259,12 @@ A `--run` chooses how each unit is reviewed:
   Claude Code access and no provider key. Use it when you want a tool-using agent rather
   than a single grounded call even where a key is present.
 
+The subscription backend starts a fresh `claude -p` process for every call by default. A
+Repo Review run makes many calls, so to amortize that startup set
+`CODEJURY_CLAUDE_TRANSPORT=sdk`, which keeps a Claude Agent SDK session alive across calls
+after you install `codejury[claude-sdk]`. The default `process` transport is unchanged, and
+an unknown transport value fails at startup rather than silently falling back.
+
 `--effort low|medium|high` is the depth axis, independent of the backend. It sets how hard the
 run looks: low takes one shot per lens for a fast pass, medium the default two, and high three
 shots plus a majority of two skeptics before a candidate is dropped. It fills `--min-lens-shots`
@@ -248,6 +276,24 @@ Set a distinct `--judge-model`, the confirmer, from the challenger to enable cro
 verification. The challenger refutes a finding and the judge must agree before it is dropped,
 so a deletion needs two models. With the judge not distinct from the challenger, the verify
 stage refutes nothing, the recall-safe default.
+
+## Fetch Verified Source
+
+Review a deployed contract by first pulling its verified source from a block explorer, then
+running Repo Review on the local tree:
+
+```bash
+codejury fetch source --chain eth --address 0x... --out ./target
+codejury review repo ./target --domain evm --run --facts
+```
+
+`fetch source` queries the Etherscan V2 API, which serves every supported chain from one
+endpoint with one key, so a single `CODEJURY_ETHERSCAN_API_KEY` covers `eth`, `bsc`, and
+`polygon`, chosen with `--chain`. Pass the key with `--api-key` or that environment variable.
+It writes the reconstructed source tree and a `codejury-source.json` recording the chain,
+address, compiler, and source URL, and it fails loud on an unverified or malformed response.
+It never runs a review on its own. Point Diff Review at that metadata file with
+`--source-meta` to carry the provenance into the report.
 
 ## Supported Knowledge
 
