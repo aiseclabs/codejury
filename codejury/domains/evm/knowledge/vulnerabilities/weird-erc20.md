@@ -8,7 +8,7 @@ aliases: [fee-on-transfer, deflationary-token, rebasing-token, erc777-hook]
 triggers: ["transferFrom", "transfer(", "balanceOf", "amount", "ERC777", "tokensReceived", "tokensToSend", "rebas", "fee", "safeTransferFrom", "received", "_rOwned", "_tOwned", "reflectionFromToken", "isExcluded", "_reflectFee"]
 ---
 
-## Weird ERC20 Behavior
+# Weird ERC20 Behavior
 
 A contract that integrates an arbitrary token often assumes the token moves exactly the
 requested `amount`, returns true, and never hands back control. Many real tokens break
@@ -32,7 +32,7 @@ desynchronizes any integrator that snapshots a balance. An owner-set transfer fe
 delivered amount is not fixed and can change under the integrator after the fact. Measure
 the real balance delta and do not assume a token's fee or balance is constant.
 
-### Vulnerable
+## Vulnerable
 ```solidity
 function deposit(uint256 amount) external {
     token.transferFrom(msg.sender, address(this), amount);
@@ -40,7 +40,7 @@ function deposit(uint256 amount) external {
 }
 ```
 
-### Secure
+## Secure
 ```solidity
 function deposit(uint256 amount) external {
     uint256 balanceBefore = token.balanceOf(address(this));

@@ -7,7 +7,7 @@ tags: [cwe-400, cwe-1333, cwe-770, owasp-a04]
 triggers: ["re.compile", "re.match", "re.search", "new RegExp", ".match(", "extractall", "decompress", "zipfile", "gzip", "read()", "* int", "range(int", "json.loads", "while"]
 ---
 
-## Uncontrolled Resource Consumption
+# Uncontrolled Resource Consumption
 
 A single request, or a few, exhausts a server resource and takes the service down. The
 common forms are a catastrophic-backtracking regular expression run on attacker input, the
@@ -17,7 +17,7 @@ bomb. Bound the work before doing it: cap the input size, reject or limit the co
 allocating, run untrusted patterns on a linear-time engine or a fixed timeout, and limit the
 decompressed size.
 
-### Python
+## Python
 Vulnerable:
 ```python
 # catastrophic backtracking, a crafted input hangs the worker
@@ -35,7 +35,7 @@ or a loop over a client-supplied count, with no upper bound. Validate the bound 
 allocation. For an upload or an archive, cap the declared and the decompressed size and stop
 reading past the limit.
 
-### Not a Finding
+## Not a Finding
 
 Report this only when one or a few requests cause a real outage: a worker hang, a process
 crash, or memory or CPU exhaustion that denies service. A bounded loop, a fixed-size

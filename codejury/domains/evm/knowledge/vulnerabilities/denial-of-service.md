@@ -8,7 +8,7 @@ aliases: [dos]
 triggers: ["for (", "while (", ".length", "push(", "transfer(", "revert", "external call", "unbounded", "for(uint", "selfdestruct"]
 ---
 
-## Denial of Service
+# Denial of Service
 
 A contract is wedged so a function can no longer succeed, locking funds or halting the
 protocol. The common forms are an unbounded loop over an array an attacker can grow until
@@ -17,7 +17,7 @@ the whole batch, and a critical step that depends on an external call a griefer 
 to revert. Favor pull payments over push, bound or paginate loops over attacker-grown
 arrays, and isolate one recipient's failure from the rest.
 
-### Vulnerable
+## Vulnerable
 ```solidity
 function payWinners() external {
     for (uint256 i = 0; i < winners.length; i++) {     // attacker-grown array, unbounded gas
@@ -26,7 +26,7 @@ function payWinners() external {
 }
 ```
 
-### Secure
+## Secure
 ```solidity
 mapping(address => uint256) public owed;               // pull payment, isolate failures
 function claim() external {

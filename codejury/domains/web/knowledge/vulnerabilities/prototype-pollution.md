@@ -7,7 +7,7 @@ tags: [cwe-1321, owasp-a08]
 triggers: ["__proto__", "constructor", "prototype", "merge", "Object.assign", "deepMerge", "[key]", "extend("]
 ---
 
-## Prototype Pollution
+# Prototype Pollution
 
 A recursive merge, clone, or `set`-by-path that copies attacker-controlled keys into a
 JavaScript object without rejecting `__proto__`, `constructor`, or `prototype` writes onto
@@ -16,7 +16,7 @@ attacker tamper with application logic, cause denial of service, or in some sink
 remote code execution. Reject those keys, use a null-prototype object or a `Map`, or
 validate against a schema before merging.
 
-### Vulnerable
+## Vulnerable
 ```javascript
 function merge(target, source) {
   for (const key in source) {
@@ -30,7 +30,7 @@ function merge(target, source) {
 merge({}, JSON.parse(req.body))
 ```
 
-### Secure
+## Secure
 ```javascript
 const BLOCKED = new Set(["__proto__", "constructor", "prototype"])
 function merge(target, source) {

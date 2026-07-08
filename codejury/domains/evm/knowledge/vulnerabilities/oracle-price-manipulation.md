@@ -8,7 +8,7 @@ aliases: [oracle, oracle-manipulation, oracle-validation, price-manipulation]
 triggers: ["getReserves", "slot0", "balanceOf(address(this))", "balanceOf(this)", "totalSupply", "price", "getAmountOut", "spot", "twap", "latestRoundData", "/ reserve", "sync", "skim"]
 ---
 
-## Oracle and Price Manipulation
+# Oracle and Price Manipulation
 
 A contract reads a price or value from a source an attacker can move within one
 transaction, a spot AMM price, the pool reserves, or a raw `balanceOf` used as a price,
@@ -23,7 +23,7 @@ into its own liquidity pair and then syncs, so the reserve ratio and any price d
 it shift within one transaction. Treat `sync`, `skim`, and a token that moves balance into
 its own pair as price-moving, and price off a manipulation-resistant source.
 
-### Vulnerable
+## Vulnerable
 ```solidity
 function collateralValue() public view returns (uint256) {
     (uint112 r0, uint112 r1, ) = pair.getReserves();   // spot reserves, flash-loan movable
@@ -31,7 +31,7 @@ function collateralValue() public view returns (uint256) {
 }
 ```
 
-### Secure
+## Secure
 ```solidity
 function collateralValue() public view returns (uint256) {
     (, int256 price, , uint256 updatedAt, ) = oracle.latestRoundData();

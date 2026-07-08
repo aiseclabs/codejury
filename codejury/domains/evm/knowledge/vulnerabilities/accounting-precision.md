@@ -8,7 +8,7 @@ aliases: [accounting, precision]
 triggers: ["* totalSupply", "/ totalSupply", "shares", "convertToShares", "convertToAssets", "totalAssets", "/ ", "mulDiv", "first deposit", "previewDeposit", "rounding", "decimals()", "* rate", "/ rate"]
 ---
 
-## Accounting and Precision Error
+# Accounting and Precision Error
 
 Share, fee, or balance math rounds in the attacker's favor, divides before multiplying
 and loses precision, or lets a first depositor manipulate the share price. The ERC-4626
@@ -23,7 +23,7 @@ that mints or credits from a price or rate without matching the token's `decimal
 orders of magnitude, so a deposit mints far more than paid for or a redemption pays far
 more than owed. Match units to each token's `decimals` and multiply before dividing.
 
-### Vulnerable
+## Vulnerable
 ```solidity
 function deposit(uint256 assets) external returns (uint256 shares) {
     shares = totalSupply == 0 ? assets : (assets * totalSupply) / totalAssets();   // first depositor inflates
@@ -31,7 +31,7 @@ function deposit(uint256 assets) external returns (uint256 shares) {
 }
 ```
 
-### Secure
+## Secure
 ```solidity
 function deposit(uint256 assets) external returns (uint256 shares) {
     shares = _convertToShares(assets, Math.Rounding.Down);   // round against the depositor

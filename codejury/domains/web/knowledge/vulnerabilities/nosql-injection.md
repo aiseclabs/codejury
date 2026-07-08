@@ -7,7 +7,7 @@ tags: [cwe-943, owasp-a03]
 triggers: ["find(", "findOne(", "$where", "$ne", "$gt", "req.body", "req.query", "collection.", "mongo"]
 ---
 
-## NoSQL Injection
+# NoSQL Injection
 
 Passing untrusted input straight into a NoSQL query object lets an attacker inject query
 operators rather than values. A login that builds `{ user, pass }` from the request body
@@ -16,7 +16,7 @@ extract or enumerate data. The sql-injection class does not cover this, the payl
 structured operator, not a string break. Coerce inputs to the expected scalar type or
 validate against a schema before querying.
 
-### Vulnerable
+## Vulnerable
 ```javascript
 app.post("/login", (req, res) => {
   db.users.findOne({ user: req.body.user, pass: req.body.pass })   // pass can be {$ne: null}
@@ -24,7 +24,7 @@ app.post("/login", (req, res) => {
 })
 ```
 
-### Secure
+## Secure
 ```javascript
 app.post("/login", (req, res) => {
   const user = String(req.body.user)
@@ -33,7 +33,7 @@ app.post("/login", (req, res) => {
 })
 ```
 
-### Not a Finding
+## Not a Finding
 
 A query whose untrusted fields are cast to a scalar or validated against a schema before
 the call is the expected control. Report it only when a request value reaches the query

@@ -7,7 +7,7 @@ tags: [cwe-444, owasp-a03]
 triggers: ["Content-Length", "Transfer-Encoding", "chunked", "rawHeaders", "proxy_pass", "createServer", "socket.on", "readSocket", "upstream", "keep-alive", "HTTP/1.1", "parseHeaders"]
 ---
 
-## HTTP Request Smuggling
+# HTTP Request Smuggling
 
 A front-end proxy and a back-end server disagree on where one request ends and the next
 begins, so an attacker smuggles a second request inside the body of the first. The
@@ -19,7 +19,7 @@ the victim's request. Frame the body one way only, reject a message that carries
 `Content-Length` and `Transfer-Encoding`, reject malformed chunked encoding, and keep the
 proxy and the origin on the same framing rules.
 
-### Node
+## Node
 Vulnerable:
 ```javascript
 // custom parser trusts Content-Length and ignores a conflicting Transfer-Encoding
@@ -37,7 +37,7 @@ if (hasCL && hasTE) {
 }
 ```
 
-### Not a Finding
+## Not a Finding
 
 Request smuggling needs a real framing disagreement between two hops, so a single server
 on a standard, conformant HTTP stack that already rejects conflicting framing is not a

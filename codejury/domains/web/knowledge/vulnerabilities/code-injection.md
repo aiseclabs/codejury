@@ -7,11 +7,11 @@ tags: [cwe-94, owasp-a03, injection, rce]
 triggers: ["eval(", "exec(", "compile(", "pickle.loads", "new Function", "setTimeout(\"", "vm.runInContext"]
 ---
 
-## Code Injection
+# Code Injection
 
 Passing untrusted input to a language evaluation primitive such as eval, exec, compile, dynamic import, or JS Function lets an attacker execute arbitrary code. Never evaluate untrusted input. Parse it with a data-only parser or dispatch through an allowlist.
 
-### Python
+## Python
 Vulnerable:
 ```python
 result = eval(request.args["expr"])

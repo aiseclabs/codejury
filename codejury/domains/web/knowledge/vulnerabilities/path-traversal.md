@@ -7,11 +7,11 @@ tags: [cwe-22, owasp-a01]
 triggers: ["open(", "os.path.join", "send_file", "sendfile", "readFile", "filename", "../", "upload"]
 ---
 
-## Path Traversal
+# Path Traversal
 
 A filesystem path built from untrusted input without containment lets `../` escape the intended directory. Resolve the path and confirm it stays within an allowed base, or use only the basename.
 
-### Python
+## Python
 Vulnerable:
 ```python
 open(os.path.join(UPLOAD_DIR, request.args["filename"]))
@@ -24,7 +24,7 @@ if not target.is_relative_to(base):
     raise ValueError("path escapes base dir")
 ```
 
-### Not a Finding
+## Not a Finding
 
 There is no traversal when the input is contained before the file operation, whichever way the
 containment is done:

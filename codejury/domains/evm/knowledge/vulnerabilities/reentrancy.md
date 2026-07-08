@@ -8,7 +8,7 @@ aliases: [read-only-reentrancy]
 triggers: [".call{value", ".call(", "transfer(", "send(", "external call", "balances[", "withdraw", "nonReentrant", "safeTransfer", "onERC721Received", "tokensToSend", "tokensReceived", "ERC777", "buyout", "before state", "get_virtual_price", "getReserves", "getRate", "sharePrice", "view returns", "balanceOf(address(this))"]
 ---
 
-## Reentrancy
+# Reentrancy
 
 An external call hands control to the callee before the contract finishes updating its
 own state, so the callee can call back in and act on the stale pre-update state. The
@@ -40,7 +40,7 @@ the local ones. In a lending, auction, or buyout flow that pays the current hold
 finalizes the position's terms, that payout is the callback window, so audit the order of
 the payout against the state writes.
 
-### Vulnerable
+## Vulnerable
 ```solidity
 function withdraw() external {
     uint256 bal = balances[msg.sender];
@@ -50,7 +50,7 @@ function withdraw() external {
 }
 ```
 
-### Secure
+## Secure
 ```solidity
 function withdraw() external nonReentrant {
     uint256 bal = balances[msg.sender];

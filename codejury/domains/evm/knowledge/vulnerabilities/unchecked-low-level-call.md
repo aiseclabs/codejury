@@ -8,7 +8,7 @@ aliases: [unchecked-call, unchecked-return]
 triggers: [".call(", ".call{value", ".delegatecall(", ".send(", "transfer(", "bool success", "bool ok", "(bool", "safeTransfer", "returndata", "returndatacopy", "abi.decode(returndata", "excessivelySafeCall"]
 ---
 
-## Unchecked Low-Level Call
+# Unchecked Low-Level Call
 
 A low-level `.call`, `.delegatecall`, or `.send` returns success as a boolean rather than
 reverting on failure. Ignoring that return value lets a failed transfer or call pass
@@ -24,7 +24,7 @@ an enormous bytes blob so that copying it, an implicit `returndatacopy` or an
 When the return payload is attacker-influenced, cap the copied size or use an
 `excessivelySafeCall` style helper, and never let a callee's return data dictate gas.
 
-### Vulnerable
+## Vulnerable
 ```solidity
 function payout(address to, uint256 amount) external {
     to.call{value: amount}("");          // return value ignored, a failed send looks successful
@@ -32,7 +32,7 @@ function payout(address to, uint256 amount) external {
 }
 ```
 
-### Secure
+## Secure
 ```solidity
 function payout(address to, uint256 amount) external {
     (bool ok, ) = to.call{value: amount}("");

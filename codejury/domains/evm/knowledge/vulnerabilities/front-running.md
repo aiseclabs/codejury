@@ -8,7 +8,7 @@ aliases: [mev, sandwich, slippage, frontrunning, front-run]
 triggers: ["swap", "minOut", "amountOutMin", "minAmountOut", "amountOutMinimum", "deadline", "getAmountOut", "addLiquidity", "removeLiquidity", "swapExactTokensForTokens", "0, path", "claim", "harvest"]
 ---
 
-## Front-Running and Slippage
+# Front-Running and Slippage
 
 A state-changing action is ordered against the victim in the mempool. A swap, deposit,
 or redeem that enforces no minimum output and no deadline executes at an attacker-chosen
@@ -18,7 +18,7 @@ into it. Bind every trade with a caller-supplied `minOut` and a `deadline`, and 
 value the transaction derives from a movable on-chain source as untrusted, see the
 oracle-price-manipulation class.
 
-### Vulnerable
+## Vulnerable
 ```solidity
 function zapIn(uint256 amountIn) external {
     // minOut hardcoded to 0 and block.timestamp as the deadline, so a sandwich sets the price
@@ -29,7 +29,7 @@ function zapIn(uint256 amountIn) external {
 }
 ```
 
-### Secure
+## Secure
 ```solidity
 function zapIn(uint256 amountIn, uint256 minOut, uint256 deadline) external {
     uint256[] memory out = router.swapExactTokensForTokens(
@@ -39,7 +39,7 @@ function zapIn(uint256 amountIn, uint256 minOut, uint256 deadline) external {
 }
 ```
 
-### Not a Finding
+## Not a Finding
 
 A trade that passes the caller's `minOut` and `deadline` straight through to the router
 is the expected control and is not reportable. Report it only when the slippage bound is

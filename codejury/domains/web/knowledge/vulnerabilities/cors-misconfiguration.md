@@ -7,7 +7,7 @@ tags: [cwe-942, owasp-a05]
 triggers: ["Access-Control-Allow-Origin", "Access-Control-Allow-Credentials", "cors(", "origin", "req.headers.origin", "ACAO"]
 ---
 
-## CORS Misconfiguration
+# CORS Misconfiguration
 
 A server that reflects the request `Origin` back into `Access-Control-Allow-Origin` while
 also sending `Access-Control-Allow-Credentials: true` lets any website read the
@@ -16,7 +16,7 @@ data or tokens cross-origin. Reflecting the origin, or trusting it by a substrin
 suffix match, is the exploitable form. Validate the origin against an exact allowlist and
 send credentials only to those origins.
 
-### Vulnerable
+## Vulnerable
 ```javascript
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", req.headers.origin)   // reflects any origin
@@ -25,7 +25,7 @@ app.use((req, res, next) => {
 })
 ```
 
-### Secure
+## Secure
 ```javascript
 const ALLOWED = new Set(["https://app.example.com"])
 app.use((req, res, next) => {
@@ -37,7 +37,7 @@ app.use((req, res, next) => {
 })
 ```
 
-### Not a Finding
+## Not a Finding
 
 A wildcard `Access-Control-Allow-Origin: *` without `Allow-Credentials` on data that is
 already public is not a finding, the browser blocks the credentialed case. An exact-match

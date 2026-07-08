@@ -8,7 +8,7 @@ aliases: [missing-access-control, broken-access-control]
 triggers: ["onlyOwner", "function mint", "function burn", "function withdraw", "selfdestruct", "tx.origin", "require(msg.sender", "_mint", "setOwner", "transferOwnership", "function approve", "blacklist", "isBlacklisted", "whenNotPaused", "external", "public", "tradingEnabled", "enableTrading", "maxTxAmount", "maxWallet", "setFee", "setTaxFee"]
 ---
 
-## Missing or Broken Access Control
+# Missing or Broken Access Control
 
 A privileged function, one that moves funds, mints or burns, sets a critical parameter,
 upgrades, or destroys the contract, is callable by an account that should not reach it.
@@ -33,7 +33,7 @@ user already paid for. Report the owner-only setter when a buyer's funds are rea
 unrecoverable through it, name the setter and the trapped path, and do not clear it merely
 because the contract has an owner.
 
-### Vulnerable
+## Vulnerable
 ```solidity
 function mint(address to, uint256 amount) external {   // no access control
     _mint(to, amount);                                  // anyone mints unlimited supply
@@ -45,7 +45,7 @@ function withdrawAll() external {
 }
 ```
 
-### Secure
+## Secure
 ```solidity
 function mint(address to, uint256 amount) external onlyMinter {
     _mint(to, amount);

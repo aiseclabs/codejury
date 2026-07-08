@@ -1,6 +1,8 @@
 ---
 description: Run a codejury smart contract security review of a diff or a whole repository
 ---
+# Smart Contract Security Review
+
 Run a codejury smart contract security review of: $ARGUMENTS
 
 First decide which path $ARGUMENTS names, the two are different tools, do not mix them.
@@ -16,14 +18,14 @@ First decide which path $ARGUMENTS names, the two are different tools, do not mi
 Run the coded engine and relay its report. There is nothing for you to judge, the engine
 chunks the diff, runs its passes, filters, and prints the findings.
 
-```
+```bash
 codejury review diff --file <the diff file> --domain evm
 ```
 
 For a git range instead of a file, drop `--file` and pass the range, with `--repo` if the
 repository is not the current directory:
 
-```
+```bash
 codejury review diff --repo <repo dir> --git-range origin/main...HEAD --domain evm
 ```
 
@@ -44,7 +46,7 @@ happens inside each sub-review, never in this main context.
 
 1. SCAFFOLD. Build the workspace and the deterministic worklist:
 
-   ```
+   ```bash
    codejury review repo $ARGUMENTS --domain evm
    ```
 
@@ -70,13 +72,14 @@ happens inside each sub-review, never in this main context.
    Read `METHODOLOGY.md` once for the full process.
 
 2. MAP. Make the worklist complete. Enumerate every external and public function, plus
-   `fallback` and `receive`, into `inventory/_surface.md`, and fill `inventory/_auth_model.md`
+   `fallback` and `receive`, into `inventory/_surface.md`. Fill `inventory/_auth_model.md`
    with the role and ownership model and the value map. If the operator seeded
-   `inventory/_invariants.md` with intent invariants, leave it for the units to check, and
-   if it is blank do not invent rows, an unseeded invariants file changes nothing. For anything the seeded units miss,
-   add a unit file by copying the mandate from a seeded one: contracts no glob flagged, and
-   sequence units for a multi-step or multi-contract flow whose invariant spans several
-   calls. Every entrypoint in the surface must be owned by some unit.
+   `inventory/_invariants.md` with intent invariants, leave it for the units to check. If
+   it is blank, do not invent rows, an unseeded invariants file changes nothing. For
+   anything the seeded units miss, add a unit file by copying the mandate from a seeded
+   one. Cover contracts no glob flagged. Add sequence units for a multi-step or
+   multi-contract flow whose invariant spans several calls. Every entrypoint in the
+   surface must be owned by some unit.
 
 3. FAN OUT. This step is mechanical, not a matter of judgment. For every unit in `units/`
    with `- Status: open`, launch one sub-review per unit as a separate subagent, in
@@ -97,7 +100,7 @@ happens inside each sub-review, never in this main context.
 4. FINALIZE. In code, do not dedup or verify in prose. Once the fan-out has covered the
    surface, run:
 
-   ```
+   ```bash
    codejury review repo $ARGUMENTS --domain evm --finalize
    ```
 
@@ -111,7 +114,7 @@ happens inside each sub-review, never in this main context.
    challenger seat to get an independent skeptic, Claude finds, GPT challenges, Claude confirms,
    by running finalize with the model reviewer:
 
-   ```
+   ```bash
    CODEJURY_PROVIDER=anthropic CODEJURY_MODEL=<a claude model> \
    CODEJURY_CHALLENGER_PROVIDER=openai CODEJURY_CHALLENGER_MODEL=<a gpt model> CODEJURY_CHALLENGER_WIRE_API=responses \
    CODEJURY_JUDGE_PROVIDER=anthropic CODEJURY_JUDGE_MODEL=<a claude model> \
@@ -124,7 +127,7 @@ happens inside each sub-review, never in this main context.
 
 5. GATE. Let codejury decide whether the review may stop:
 
-   ```
+   ```bash
    codejury review repo $ARGUMENTS --domain evm --gate
    ```
 

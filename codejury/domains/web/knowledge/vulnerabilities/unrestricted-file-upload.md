@@ -7,7 +7,7 @@ tags: [cwe-434, owasp-a04]
 triggers: ["upload", "filename", ".save(", "multipart", "content-type", "secure_filename", "os.path.join", "MimeType"]
 ---
 
-## Unrestricted File Upload
+# Unrestricted File Upload
 
 A handler that stores an uploaded file under an attacker-controlled name, extension, or
 content type, into a web-served or executable directory, lets an attacker upload a
@@ -16,7 +16,7 @@ The boundary with path-traversal is the file type and execution, not the path: h
 danger is what the stored file is and where it can run. Force a safe generated name, an
 allowlisted extension validated against the real content, and store outside the web root.
 
-### Vulnerable
+## Vulnerable
 ```python
 @app.post("/upload")
 def upload():
@@ -25,7 +25,7 @@ def upload():
     return "ok"
 ```
 
-### Secure
+## Secure
 ```python
 ALLOWED = {"png", "jpg", "pdf"}
 @app.post("/upload")
@@ -39,7 +39,7 @@ def upload():
     return "ok"
 ```
 
-### Not a Finding
+## Not a Finding
 
 An upload validated against an extension and content-type allowlist, stored under a
 generated name outside the web root, is the expected control. Report it only when the

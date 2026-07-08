@@ -7,11 +7,11 @@ tags: [cwe-362, cwe-367, owasp-a04]
 triggers: ["if balance", "balance -=", "select_for_update", "get(...).save", "check", "transaction", "lock", "atomic"]
 ---
 
-## Race Condition / TOCTOU
+# Race Condition / TOCTOU
 
 A check and the action it guards run on shared state without a lock or atomic update, so two concurrent requests both pass the check, enabling double-spend, double-redeem, or a limit bypass. Use a row lock, an atomic conditional update, or a transaction.
 
-### Python, Django
+## Python, Django
 Vulnerable:
 ```python
 acct = Account.objects.get(pk=pk)
@@ -28,7 +28,7 @@ with transaction.atomic():
         acct.save()
 ```
 
-### Not a Finding
+## Not a Finding
 
 A check and the write it guards performed atomically is not a race, whatever the mechanism: the
 row locked inside one transaction, a single conditional update that both tests and writes such as

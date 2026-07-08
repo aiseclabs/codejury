@@ -7,11 +7,11 @@ tags: [cwe-200, cwe-532, cwe-209, owasp-a02]
 triggers: ["traceback.format_exc", "str(e)", "log.info(token", "logger.debug(secret", "print(password", "DEBUG = True", "jsonify(error="]
 ---
 
-## Information Exposure
+# Information Exposure
 
 Sensitive data such as secrets, tokens, or PII written to logs, or internal detail such as stack traces, exception messages, or debug output returned to the client, helps an attacker and widens breach impact. Log only non-secret data, return a generic error to the caller, and keep detail server-side.
 
-### Python
+## Python
 Vulnerable:
 ```python
 logger.info("auth token: %s", token)
@@ -24,7 +24,7 @@ app.logger.exception("auth failed")
 return jsonify(error="internal error"), 500
 ```
 
-### Not a Finding
+## Not a Finding
 
 This is about leaking secrets/PII or internal detail. It is not a finding to:
 - read or serve a file, make a request, or return ordinary application data,
