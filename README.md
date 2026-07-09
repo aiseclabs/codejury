@@ -43,7 +43,7 @@ pip install "codejury[anthropic]"   # or "codejury[openai]" or "codejury[litellm
 Optional extras add capabilities you can install as needed:
 
 ```bash
-pip install "codejury[evm]"         # Slither facts for Solidity, the --facts call graph
+pip install "codejury[evm]"         # a Slither call graph backend for Solidity, the --facts flag
 pip install "codejury[claude-sdk]"  # a persistent Claude Code subscription transport
 ```
 
