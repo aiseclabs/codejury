@@ -186,10 +186,9 @@ parentheses. No body and no trailers, so no `Co-Authored-By` or other trailer li
 
 ## Detection Quality
 
-- Measure detection quality on real diffs. Synthetic golden sets are not the main signal.
-- Pick the model first, it dominates detection quality, mode comes second. Default to
-  standard mode with a strong model.
-- Use adversarial mode for extra recall on subtle cross-file logic, not as a
-  false-positive reducer.
+- Measure detection quality on real targets, not synthetic golden sets, and never fit the
+  benchmark, see invariant 5.
+- Model quality dominates and mode comes second, so put the strongest model in first. See the
+  README under Model and Mode Guidance for picking the mode.
 - Keep false positives down with the do-not-report guidance, deterministic filters, and
   verification, not by weakening the finding criteria.
