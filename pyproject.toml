@@ -27,7 +27,9 @@ dependencies = [
 anthropic = ["anthropic>=0.40"]
 openai = ["openai>=1.0"]
 litellm = ["litellm>=1.0"]
-all = ["anthropic>=0.40", "openai>=1.0", "litellm>=1.0"]
+# everything: all model providers plus the optional evm toolchain and the subscription transport,
+# so a single install has no missing piece, the heavy evm dependency is only pulled by this and evm
+all = ["anthropic>=0.40", "openai>=1.0", "litellm>=1.0", "slither-analyzer>=0.10", "web3>=6.0", "claude-agent-sdk>=0.2"]
 # the evm facts and PoC backends, heavy and lazy-imported, so they stay out of a base install
 evm = ["slither-analyzer>=0.10", "web3>=6.0"]
 # the persistent subscription transport, lazy-imported so the base install stays keyless and light

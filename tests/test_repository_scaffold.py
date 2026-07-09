@@ -245,6 +245,25 @@ def test_scaffold_writes_facts_when_opted_in(tmp_path):
     assert backend.calls == 1
 
 
+class _UnavailableBackend(FactsBackend):
+    """A facts backend whose toolchain is absent, so the scaffold must degrade, not fail."""
+
+    def available(self) -> bool:
+        return False
+
+    def extract(self, root):
+        raise AssertionError("extract must not run when the backend is unavailable")
+
+
+def test_scaffold_notes_the_degrade_when_facts_enabled_but_backend_unavailable(tmp_path):
+    # facts on, toolchain missing: degrade to file-slice review and say so, invariant 4, so a
+    # facts-off result is never read as a facts-on one
+    res = scaffold(_target(tmp_path), tmp_path / "work",
+                   domain=_facts_domain(_UnavailableBackend()), facts=True)
+    assert not (res.workspace / "_facts.md").exists()
+    assert "facts backend is not installed" in res.fallback_note
+
+
 def test_scaffold_persists_the_per_file_facts_map(tmp_path):
     # the engine grounds each unit per file, so the by_file map is persisted as json beside
     # the human-readable _facts.md

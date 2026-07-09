@@ -136,7 +136,7 @@ def _facts_cache_key(target: Path, files: tuple[str, ...], domain: Domain) -> st
 
 
 def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...], *,
-                 enabled: bool, cache_root: Path, detection: Detection) -> None:
+                 enabled: bool, cache_root: Path, detection: Detection) -> str:
     """Extract deterministic facts and persist them to `_facts.md`, the way `_stack.md`
     persists the stack, so the run, resume, and finalize steps read the same grounding
     from the workspace. Facts are opt-in since extraction is heavy, the caller passes
@@ -145,18 +145,24 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
     hash under `cache_root`, so a fresh scaffold or a second target on the same source
     reuses it rather than re-running the slither pass. A backend error is recorded to
     `_facts_error.txt` and the run continues without facts, never silently and never fatal
-    to an otherwise reviewable repository."""
+    to an otherwise reviewable repository. Returns a note when facts was enabled but could
+    not run, empty otherwise, so the caller can surface the degrade rather than hide it."""
     if not enabled:
-        return
+        return ""
     backend = domain.facts_backend
-    if backend is None or not backend.available():
-        return
+    if backend is None:
+        return ""
+    if not backend.available():
+        return (
+            "the facts backend is not installed, the review ran file-slice-only without "
+            "call-path units so cross-function coverage is reduced, install the domain's facts "
+            "extra such as codejury[evm] and a Solidity compiler to enable it")
     dest = ws / "_facts.md"
     dest_by_file = ws / "_facts_by_file.json"
     dest_units = ws / "_facts_units.json"
     if dest.is_file():
         # a prior scaffold already grounded this workspace, reuse it over re-extracting
-        return
+        return ""
     error = ws / "_facts_error.txt"
     if error.exists():
         error.unlink()
@@ -170,13 +176,15 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
             dest_by_file.write_text(cached_by_file.read_text(encoding="utf-8"), encoding="utf-8")
         if cached_units.is_file():
             dest_units.write_text(cached_units.read_text(encoding="utf-8"), encoding="utf-8")
-        return
+        return ""
     try:
         facts = backend.extract(target)
     except Exception as exc:
         error.write_text(f"facts extraction failed, the run falls back to heuristics: {exc}\n",
                          encoding="utf-8")
-        return
+        return (
+            "facts extraction failed so the review ran file-slice-only, cross-function coverage "
+            f"is reduced: {exc}")
     if not facts.empty:
         dest.write_text(facts.summary, encoding="utf-8")
         cache_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -200,6 +208,7 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
             payload = json.dumps(units)
             dest_units.write_text(payload, encoding="utf-8")
             cached_units.write_text(payload, encoding="utf-8")
+    return ""
 
 
 _SURFACE_TEMPLATE = """\
@@ -418,8 +427,8 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         guides=load_guides(paths.languages_dir, paths.frameworks_dir, paths.protocols_dir),
     )
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
-    _write_facts(ws, target, dom, model.files, enabled=facts,
-                 cache_root=Path(workspace) / ".facts-cache", detection=detection)
+    facts_note = _write_facts(ws, target, dom, model.files, enabled=facts,
+                              cache_root=Path(workspace) / ".facts-cache", detection=detection)
 
     candidates = candidate_entrypoint_files(
         model.files, root=target,
@@ -510,5 +519,5 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         created=created,
         had_prior_run=had_prior_run,
         cleared=cleared,
-        fallback_note=fallback_note,
+        fallback_note="; ".join(n for n in (fallback_note, facts_note) if n),
     )

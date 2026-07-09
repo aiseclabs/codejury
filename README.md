@@ -40,10 +40,16 @@ pip install codejury
 pip install "codejury[anthropic]"   # or "codejury[openai]" or "codejury[litellm]"
 ```
 
-Optional extras add capabilities you can install as needed:
+Or install everything in one shot, every provider plus the optional toolchains, so nothing is missing:
 
 ```bash
-pip install "codejury[evm]"         # a Slither call graph backend for Solidity, the --facts flag
+pip install "codejury[all]"
+```
+
+Optional extras add capabilities you can install one at a time instead:
+
+```bash
+pip install "codejury[evm]"         # a Slither call graph backend for Solidity, grounds EVM review
 pip install "codejury[claude-sdk]"  # a persistent Claude Code subscription transport
 ```
 
@@ -250,10 +256,14 @@ A `--run` chooses how each unit is reviewed:
   it has no subscription to fall back to. This is what lets a Claude finder ride your
   subscription while an OpenAI challenger uses its own key.
 - `--executor api` makes one grounded model call per unit and requires a key, a missing key
-  is a loud startup error, the same point as auto. Add `--facts` to ground that call in a
-  tool-extracted call graph, storage layout, and read and write sets when the domain binds a
-  facts backend, such as the EVM Slither backend. This is what gives a smart contract review
-  its call relationships, so prefer `--run --facts` on Solidity.
+  is a loud startup error, the same point as auto. Facts ground that call in a tool-extracted
+  call graph, storage layout, and read and write sets when the domain binds a facts backend,
+  such as the EVM Slither backend, which is what gives a smart contract review its call
+  relationships and co-locates a cross-function path the file slices would otherwise split.
+  A domain with a backend, the EVM domain, grounds with facts by default, and when the
+  toolchain is absent or the target does not compile the review degrades to file-slice
+  review with a loud note rather than failing. Pass `--no-facts` to force it off for a faster
+  pass, or `--facts` to force it on where it is not the default.
 - `--executor subscription` always runs each unit and its verification as a headless
   `claude -p` agent that reads and traces the files itself with read-only tools, using your
   Claude Code access and no provider key. Use it when you want a tool-using agent rather
@@ -284,7 +294,7 @@ running Repository Review on the local tree:
 
 ```bash
 codejury fetch source --chain eth --address 0x... --out ./target
-codejury review repository ./target --domain evm --run --facts
+codejury review repository ./target --domain evm --run
 ```
 
 `fetch source` queries the Etherscan V2 API, which serves every supported chain from one

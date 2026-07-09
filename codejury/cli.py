@@ -417,10 +417,12 @@ def main(argv: list[str] | None = None) -> int:
                                "medium is the default two shots, high is three shots plus a "
                                "majority of two skeptics before a candidate is dropped. Sets "
                                "--min-lens-shots and --votes, either flag overrides it")
-    strategy.add_argument("--facts", action="store_true", default=False,
+    strategy.add_argument("--facts", action=argparse.BooleanOptionalAction, default=None,
                           help="ground review in a tool-extracted call graph, storage layout, and "
-                               "read and write sets when the domain binds a facts backend such as "
-                               "the EVM slither backend. Off by default since extraction is heavy, "
+                               "read and write sets from the domain's facts backend such as the EVM "
+                               "slither backend. Defaults on when the domain binds a backend, so the "
+                               "EVM domain grounds by default and degrades to file-slice review with "
+                               "a note when the toolchain is absent. Pass --no-facts to force it off, "
                                "the result is cached by source content hash so a re-run is free")
     strategy.add_argument("--poc", action="store_true", default=False,
                           help="on finalize, generate and run an executable PoC per confirmed finding "
@@ -671,6 +673,13 @@ def _cmd_repository_finalize(args) -> int:
     return 0
 
 
+def _facts_enabled(args, domain) -> bool:
+    """Resolve the tri-state --facts flag. An explicit --facts or --no-facts wins, otherwise
+    facts are on when the domain binds a backend, so the EVM domain grounds by default while web,
+    with no backend, does not."""
+    return args.facts if args.facts is not None else domain.facts_backend is not None
+
+
 def _cmd_repository_run(args) -> int:
     from codejury.review.repository.engine import run_repository_review
     from codejury.review.repository.verifier import ModelVerifier
@@ -733,7 +742,9 @@ def _cmd_repository_run(args) -> int:
         max_passes=args.max_passes, converge_after=args.converge_after,
         min_lens_shots=args.min_lens_shots,
         concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
-        domain=domain, facts=args.facts, max_units=args.max_units,
+        domain=domain,
+        facts=_facts_enabled(args, domain),
+        max_units=args.max_units,
     )
     if res.scaffold.fallback_note:
         print(f"NOTE: {res.scaffold.fallback_note}.", file=sys.stderr)
@@ -778,7 +789,8 @@ def _cmd_repository_scaffold(args) -> int:
               "Add --run to drive the coded engine.", file=sys.stderr)
     domain = resolve_domain(args.domain, _repository_file_names(args.directory))
     res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain,
-                   facts=args.facts, max_units=args.max_units)
+                   facts=_facts_enabled(args, domain),
+                   max_units=args.max_units)
     (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
     if res.cleared:
         print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}", file=sys.stderr)
@@ -830,7 +842,7 @@ def _cmd_fetch_source(args) -> int:
     )
     print(f"Fetched {result.file_count} source file(s) for {result.meta.address} on {result.meta.chain}")
     print(f"Source tree and metadata written to {result.out_dir}")
-    print(f"Next: codejury review repository {result.out_dir} --domain evm --run --facts", file=sys.stderr)
+    print(f"Next: codejury review repository {result.out_dir} --domain evm --run", file=sys.stderr)
     return 0
 
 
