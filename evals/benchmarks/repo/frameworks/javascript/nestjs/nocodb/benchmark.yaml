@@ -16,7 +16,8 @@ target:
 stack:
   languages:
     - typescript
-  frameworks: []
+  frameworks:
+    - nestjs
   protocols: []
 
 knowledge:
