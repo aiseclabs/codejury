@@ -233,10 +233,11 @@ A `--run` chooses how each unit is reviewed:
   call graph, storage layout, and read and write sets when the domain binds a facts backend,
   such as the EVM Slither backend, which is what gives a smart contract review its call
   relationships and co-locates a cross-function path the file slices would otherwise split.
-  A domain with a backend, the EVM domain, grounds with facts by default, and when the
-  toolchain is absent or the target does not compile the review degrades to file-slice
-  review with a loud note rather than failing. Pass `--no-facts` to force it off for a faster
-  pass, or `--facts` to force it on where it is not the default.
+  A domain with a backend, the EVM domain, grounds with facts by default, except at `--effort
+  low`, the cheap fast tier where the pass stays file-slice only. When the toolchain is absent
+  or the target does not compile the review degrades to file-slice review with a loud note
+  rather than failing. Pass `--no-facts` to force it off for a faster pass, or `--facts` to
+  force it on where it is not the default.
 - `--executor subscription` always runs each unit and its verification as a headless
   `claude -p` agent that reads and traces the files itself with read-only tools, using your
   Claude Code access and no provider key. Use it when you want a tool-using agent rather
@@ -248,12 +249,19 @@ Repository Review run makes many calls, so to amortize that startup set
 after you install `codejury[claude-sdk]`. The default `process` transport is unchanged, and
 an unknown transport value fails at startup rather than silently falling back.
 
-`--effort low|medium|high` is the depth axis, independent of the backend. It sets how hard the
-run looks: low takes one shot per lens for a fast pass, medium the default two, and high three
-shots plus a majority of two skeptics before a candidate is dropped. It fills `--min-lens-shots`
-and `--votes`, and either flag overrides it. On the subscription backend the concurrency within a
-pass defaults to 2 so a wide fan-out does not trip the shared rate cap, and to 6 on an API key,
-override it with `--concurrency`.
+`--effort low|medium|high` is the one depth dial, each level fixing three things at once:
+
+| `--effort`         | Shots per lens | Skeptics to drop a candidate | Facts default        |
+|--------------------|----------------|------------------------------|----------------------|
+| `low`              | 1              | 1                            | Off, file-slice only |
+| `medium` (default) | 2              | 1                            | On                   |
+| `high`             | 3              | 2                            | On                   |
+
+`--min-lens-shots` and `--votes` override the shot and skeptic columns, and `--facts` or
+`--no-facts` overrides the facts column.
+
+On the subscription backend the concurrency within a pass defaults to 2 so a wide fan-out does not
+trip the shared rate cap, and to 6 on an API key, override it with `--concurrency`.
 
 Set a distinct `--judge-model`, the confirmer, from the challenger to enable cross-model
 verification. The challenger refutes a finding and the judge must agree before it is dropped,
