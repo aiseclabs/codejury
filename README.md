@@ -116,33 +116,6 @@ Useful flags:
 - `--retries <n>`
 - `--timeout <seconds>`
 
-## Data Boundary
-
-The tool sends code-derived content to the model provider you configure, so know what
-leaves the machine before reviewing a proprietary repository:
-
-- Diff Review on the `api` row sends the unified diff under review. On the `subscription`
-  row it sends the diff in the `claude -p` prompt through your Claude Code account, and the
-  diff agent uses no file tools, so only the diff text leaves the machine, not local files.
-- Under the default `--executor auto`, each seat follows the `api` row when it has a key
-  and the `subscription` row when it falls back to your Claude Code subscription, so what
-  leaves the machine is decided per seat by whether that seat has a key.
-- Repository Review with `--executor api` sends bounded source snippets, the detected stack
-  notes, the vulnerability guidance, and the findings.
-- Verification with `--executor api` sends the cited source file and the finding
-  details. On the `subscription` row, Claude Code receives the finding details and reads
-  the code itself through its read-only tools.
-- A repository seat on the `subscription` row does not use the configured provider key. It runs
-  Claude Code with read-only file tools, and Claude Code may send prompts and the code it
-  reads through your Claude Code account, so the code does not stay local. The diff agent is
-  narrower, it reads no files and sees only the diff in the prompt.
-
-A custom `--api-base` or a LiteLLM proxy becomes part of the trust boundary, so the data
-above also reaches that gateway. Prefer the `CODEJURY_API_KEY` environment variable over
-`--api-key`, since a flag can leak through shell history and process listings. The review
-workspace and the generated reports hold exploit paths, sensitive file locations, and
-PoCs, so treat them as sensitive. The workspace is created private, mode `0700`.
-
 ## Diff Review
 
 Diff Review is the fast coded path. It audits a unified diff with either a standard
@@ -286,6 +259,33 @@ Set a distinct `--judge-model`, the confirmer, from the challenger to enable cro
 verification. The challenger refutes a finding and the judge must agree before it is dropped,
 so a deletion needs two models. With the judge not distinct from the challenger, the verify
 stage refutes nothing, the recall-safe default.
+
+## Data Boundary
+
+The tool sends code-derived content to the model provider you configure, so know what
+leaves the machine before reviewing a proprietary repository:
+
+- Diff Review on the `api` row sends the unified diff under review. On the `subscription`
+  row it sends the diff in the `claude -p` prompt through your Claude Code account, and the
+  diff agent uses no file tools, so only the diff text leaves the machine, not local files.
+- Under the default `--executor auto`, each seat follows the `api` row when it has a key
+  and the `subscription` row when it falls back to your Claude Code subscription, so what
+  leaves the machine is decided per seat by whether that seat has a key.
+- Repository Review with `--executor api` sends bounded source snippets, the detected stack
+  notes, the vulnerability guidance, and the findings.
+- Verification with `--executor api` sends the cited source file and the finding
+  details. On the `subscription` row, Claude Code receives the finding details and reads
+  the code itself through its read-only tools.
+- A repository seat on the `subscription` row does not use the configured provider key. It runs
+  Claude Code with read-only file tools, and Claude Code may send prompts and the code it
+  reads through your Claude Code account, so the code does not stay local. The diff agent is
+  narrower, it reads no files and sees only the diff in the prompt.
+
+A custom `--api-base` or a LiteLLM proxy becomes part of the trust boundary, so the data
+above also reaches that gateway. Prefer the `CODEJURY_API_KEY` environment variable over
+`--api-key`, since a flag can leak through shell history and process listings. The review
+workspace and the generated reports hold exploit paths, sensitive file locations, and
+PoCs, so treat them as sensitive. The workspace is created private, mode `0700`.
 
 ## Fetch Verified Source
 
