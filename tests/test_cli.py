@@ -99,24 +99,24 @@ def test_old_audit_command_is_gone(capsys):
         main(["audit", "--dry-run"])
 
 
-def test_review_repo_writes_methodology_to_workspace(tmp_path):
-    repo = tmp_path / "svc"
-    repo.mkdir()
-    (repo / "app.py").write_text("x = 1\n")
+def test_review_repository_writes_methodology_to_workspace(tmp_path):
+    repository = tmp_path / "svc"
+    repository.mkdir()
+    (repository / "app.py").write_text("x = 1\n")
     ws = tmp_path / "ws"
-    rc = main(["review", "repo", str(repo), "--workspace", str(ws)])
+    rc = main(["review", "repository", str(repository), "--workspace", str(ws)])
     assert rc == 0
     assert (ws / "svc" / "METHODOLOGY.md").is_file()
 
 
-def test_review_repo_facts_flag_is_a_noop_without_a_backend(tmp_path):
+def test_review_repository_facts_flag_is_a_noop_without_a_backend(tmp_path):
     # --facts threads through, the web domain binds no backend so it is a harmless no-op,
     # never an error and never a stray _facts.md
-    repo = tmp_path / "svc"
-    repo.mkdir()
-    (repo / "app.py").write_text("x = 1\n")
+    repository = tmp_path / "svc"
+    repository.mkdir()
+    (repository / "app.py").write_text("x = 1\n")
     ws = tmp_path / "ws"
-    rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--facts"])
+    rc = main(["review", "repository", str(repository), "--workspace", str(ws), "--facts"])
     assert rc == 0
     assert not (ws / "svc" / "_facts.md").exists()
 
@@ -132,8 +132,8 @@ def test_install_slash_command_writes_the_file(tmp_path):
     assert rc == 0
     f = tmp_path / "codejury-review.md"
     text = f.read_text()
-    assert f.is_file() and "codejury review repo" in text
-    # the dispatcher carries both paths, repo fan-out and the coded diff command
+    assert f.is_file() and "codejury review repository" in text
+    # the dispatcher carries both paths, repository fan-out and the coded diff command
     assert "codejury review diff" in text
 
 
@@ -144,7 +144,7 @@ def test_install_slash_command_refuses_to_clobber_without_force(tmp_path, capsys
     assert target.read_text() == "my own prompt"
     assert "already exists" in capsys.readouterr().err
     assert main(["install-slash-command", "--dir", str(tmp_path), "--force"]) == 0
-    assert "codejury review repo" in target.read_text()
+    assert "codejury review repository" in target.read_text()
 
 
 def test_default_workspace_is_user_private(monkeypatch, tmp_path):
@@ -163,7 +163,7 @@ def test_slash_command_does_not_pin_a_shared_workspace():
     assert "/var/tmp" not in SLASH_COMMAND_FILE.read_text()
 
 
-def _flask_repo(root):
+def _flask_repository(root):
     root.mkdir()
     (root / "app.py").write_text(
         "from flask import Flask, request\napp = Flask(__name__)\n"
@@ -179,7 +179,7 @@ def test_diff_fail_on_high_exits_nonzero():
 
 def test_review_diff_closes_its_backends(monkeypatch, tmp_path):
     # a diff seat on the subscription may hold a persistent SDK session, so the diff path must
-    # close its backends like the repo paths, or a pooled Claude Code process leaks past the run
+    # close its backends like the repository paths, or a pooled Claude Code process leaks past the run
     closed = []
 
     class _Spy:
@@ -196,12 +196,12 @@ def test_review_diff_closes_its_backends(monkeypatch, tmp_path):
     assert closed == [True]
 
 
-def test_repo_gate_exit_codes(tmp_path):
-    repo = _flask_repo(tmp_path / "svc")
+def test_repository_gate_exit_codes(tmp_path):
+    repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
-    assert main(["review", "repo", str(repo), "--workspace", str(ws), "--gate"]) == 1
-    assert main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--dry-run"]) == 0
-    assert main(["review", "repo", str(repo), "--workspace", str(ws), "--gate"]) == 0
+    assert main(["review", "repository", str(repository), "--workspace", str(ws), "--gate"]) == 1
+    assert main(["review", "repository", str(repository), "--workspace", str(ws), "--run", "--dry-run"]) == 0
+    assert main(["review", "repository", str(repository), "--workspace", str(ws), "--gate"]) == 0
 
 
 def test_review_diff_bad_file_exits_nonzero(capsys):
@@ -299,27 +299,27 @@ def test_diff_adversarial_resolves_each_seat_independently(monkeypatch, capsys):
     assert not isinstance(captured["challenger"], ClaudeAgentProvider)
 
 
-def test_repo_mode_flags_are_mutually_exclusive(tmp_path):
+def test_repository_mode_flags_are_mutually_exclusive(tmp_path):
     # --run, --finalize, and --gate are workspace modes, scaffold is the default. Passing two
     # used to be resolved by a silent dispatch precedence, so --run --finalize quietly ran
     # finalize and rewrote findings/. argparse now rejects the combination loudly.
-    repo = _flask_repo(tmp_path / "svc")
+    repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
     for combo in (["--run", "--gate"], ["--run", "--finalize"], ["--finalize", "--gate"]):
         with pytest.raises(SystemExit) as exc:
-            main(["review", "repo", str(repo), "--workspace", str(ws), *combo])
+            main(["review", "repository", str(repository), "--workspace", str(ws), *combo])
         assert exc.value.code == 2          # argparse usage error, not a silent pick
     assert not (ws / "svc" / "findings.json").exists()
 
 
-def test_repo_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
-    repo = _flask_repo(tmp_path / "svc")
+def test_repository_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
+    repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
     monkeypatch.setattr("codejury.cli.make_provider",
                         lambda *a, **k: MockProvider(default="not json at all"))
     # a key keeps the seat on the provider path, the subject under test, the engine then fails loud
     # on the unparseable reply rather than the seat erroring at startup on a missing key
-    rc = main(["review", "repo", str(repo), "--workspace", str(ws), "--run", "--no-verify",
+    rc = main(["review", "repository", str(repository), "--workspace", str(ws), "--run", "--no-verify",
                "--executor", "api", "--api-key", "x"])
     assert rc == 1
 
@@ -428,18 +428,18 @@ def test_note_verify_route_states_the_active_route(capsys):
 def test_run_auto_falls_back_to_agent_finder_and_skeptic_without_a_key(monkeypatch, tmp_path):
     # the motivating case in miniature: no key anywhere, so the anthropic finder and skeptic ride
     # the subscription as agents, no provider is built
-    import codejury.review.repo.engine as eng
-    from codejury.review.repo.agent import AgentReviewer, AgentVerifier
+    import codejury.review.repository.engine as eng
+    from codejury.review.repository.agent import AgentReviewer, AgentVerifier
     captured = {}
 
     def fake_run(target, workspace, **kw):
         captured.update(kw)
         raise RuntimeError("stop after capture")
 
-    monkeypatch.setattr(eng, "run_repo_review", fake_run)
+    monkeypatch.setattr(eng, "run_repository_review", fake_run)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
-    main(["review", "repo", str(tmp_path), "--run", "--no-verify"])
+    main(["review", "repository", str(tmp_path), "--run", "--no-verify"])
     assert isinstance(captured["reviewer"], AgentReviewer)
     assert isinstance(captured["verifier"], AgentVerifier)
     assert captured["provider"] is None
@@ -447,8 +447,8 @@ def test_run_auto_falls_back_to_agent_finder_and_skeptic_without_a_key(monkeypat
 
 def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_path):
     # the challenger backs the skeptic, the judge is the independent confirmer, two distinct vendors
-    import codejury.review.repo.engine as eng
-    from codejury.review.repo.verifier import ModelRefutationChecker, ModelVerifier
+    import codejury.review.repository.engine as eng
+    from codejury.review.repository.verifier import ModelRefutationChecker, ModelVerifier
     captured = {}
 
     class _FR:
@@ -461,9 +461,9 @@ def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_
         captured["verifier"], captured["confirmers"] = verifier, confirmers
         return _FR()
 
-    monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
+    monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    rc = main(["review", "repo", str(tmp_path), "--finalize",
+    rc = main(["review", "repository", str(tmp_path), "--finalize",
                "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k",
                "--judge-provider", "anthropic", "--judge-model", "claude-x", "--judge-api-key", "k2"])
     assert rc == 0
@@ -475,7 +475,7 @@ def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_
 
 def test_finalize_default_has_no_confirmer_and_notes_keep_all(monkeypatch, tmp_path, capsys):
     # nothing overridden, so judge == challenger, no independent confirmer, keep everything and note it
-    import codejury.review.repo.engine as eng
+    import codejury.review.repository.engine as eng
 
     class _FR:
         parsed = 0
@@ -487,9 +487,9 @@ def test_finalize_default_has_no_confirmer_and_notes_keep_all(monkeypatch, tmp_p
         fake_finalize.confirmers = confirmers
         return _FR()
 
-    monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
+    monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
-    rc = main(["review", "repo", str(tmp_path), "--finalize"])
+    rc = main(["review", "repository", str(tmp_path), "--finalize"])
     assert rc == 0
     assert fake_finalize.confirmers == []
     out = capsys.readouterr()
@@ -499,7 +499,7 @@ def test_finalize_default_has_no_confirmer_and_notes_keep_all(monkeypatch, tmp_p
 
 
 def test_finalize_mentions_pocs_only_when_the_file_exists(monkeypatch, tmp_path, capsys):
-    import codejury.review.repo.engine as eng
+    import codejury.review.repository.engine as eng
 
     class _FR:
         parsed = 0
@@ -507,26 +507,26 @@ def test_finalize_mentions_pocs_only_when_the_file_exists(monkeypatch, tmp_path,
         workspace = tmp_path
         verify = None
 
-    monkeypatch.setattr(eng, "finalize_repo_review", lambda *a, **k: _FR())
+    monkeypatch.setattr(eng, "finalize_repository_review", lambda *a, **k: _FR())
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
     (tmp_path / "_pocs.md").write_text("# PoC Reconciliation\n", encoding="utf-8")
-    main(["review", "repo", str(tmp_path), "--finalize"])
+    main(["review", "repository", str(tmp_path), "--finalize"])
     assert f"PoC reconciliation in {tmp_path}/_pocs.md" in capsys.readouterr().out
 
 
 def test_run_passes_confirmers_and_no_extra_finders(monkeypatch, tmp_path):
-    import codejury.review.repo.engine as eng
+    import codejury.review.repository.engine as eng
     captured = {}
 
     def fake_run(target, workspace, **kw):
         captured.update(kw)
         raise RuntimeError("stop after capture")
 
-    monkeypatch.setattr(eng, "run_repo_review", fake_run)
+    monkeypatch.setattr(eng, "run_repository_review", fake_run)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     # the base key keeps the anthropic finder and judge on the API path so a confirmer is built, the
     # openai challenger is the skeptic and brings its own key
-    main(["review", "repo", str(tmp_path), "--run", "--no-verify", "--api-key", "basekey",
+    main(["review", "repository", str(tmp_path), "--run", "--no-verify", "--api-key", "basekey",
           "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k"])
     assert "extra_finder_backends" not in captured
     # one confirmer, the anthropic judge and finder share the base model, the openai skeptic excluded
@@ -537,9 +537,9 @@ def test_run_passes_confirmers_and_no_extra_finders(monkeypatch, tmp_path):
 def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monkeypatch, tmp_path):
     # the motivating case: an OpenAI challenger with its own key, a keyless Claude judge confirms
     # deletions on the subscription, no Anthropic key needed
-    import codejury.review.repo.engine as eng
-    from codejury.review.repo.agent import AgentRefutationChecker
-    from codejury.review.repo.verifier import ModelVerifier
+    import codejury.review.repository.engine as eng
+    from codejury.review.repository.agent import AgentRefutationChecker
+    from codejury.review.repository.verifier import ModelVerifier
     captured = {}
 
     class _FR:
@@ -552,9 +552,9 @@ def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monk
         captured["verifier"], captured["confirmers"] = verifier, confirmers
         return _FR()
 
-    monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
+    monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    rc = main(["review", "repo", str(tmp_path), "--finalize",
+    rc = main(["review", "repository", str(tmp_path), "--finalize",
                "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k",
                "--judge-provider", "anthropic", "--judge-model", "claude-x"])
     assert rc == 0
@@ -565,8 +565,8 @@ def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monk
 
 def test_executor_subscription_wires_the_agent_verifier(monkeypatch, tmp_path):
     # --executor subscription runs the finder and skeptic as the Claude Code agent, not a provider call
-    import codejury.review.repo.engine as eng
-    from codejury.review.repo.agent import AgentVerifier
+    import codejury.review.repository.engine as eng
+    from codejury.review.repository.agent import AgentVerifier
     captured = {}
 
     class _FR:
@@ -579,8 +579,8 @@ def test_executor_subscription_wires_the_agent_verifier(monkeypatch, tmp_path):
         captured["verifier"] = verifier
         return _FR()
 
-    monkeypatch.setattr(eng, "finalize_repo_review", fake_finalize)
-    rc = main(["review", "repo", str(tmp_path), "--finalize", "--executor", "subscription"])
+    monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
+    rc = main(["review", "repository", str(tmp_path), "--finalize", "--executor", "subscription"])
     assert rc == 0
     assert isinstance(captured["verifier"], AgentVerifier)
 
@@ -589,15 +589,15 @@ def test_executor_rename_is_a_clean_break(tmp_path):
     # the old --reviewer was renamed to --executor, and the executor value claude-cli to
     # subscription, both clean breaks with no alias, so argparse rejects the retired spellings
     with pytest.raises(SystemExit):
-        main(["review", "repo", str(tmp_path), "--finalize", "--reviewer", "model"])
+        main(["review", "repository", str(tmp_path), "--finalize", "--reviewer", "model"])
     with pytest.raises(SystemExit):
-        main(["review", "repo", str(tmp_path), "--finalize", "--executor", "claude-cli"])
+        main(["review", "repository", str(tmp_path), "--finalize", "--executor", "claude-cli"])
 
 
 def test_timeout_flag_is_accepted(tmp_path):
-    repo = _flask_repo(tmp_path / "svc")
+    repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
-    assert main(["review", "repo", str(repo), "--workspace", str(ws),
+    assert main(["review", "repository", str(repository), "--workspace", str(ws),
                  "--run", "--dry-run", "--timeout", "5"]) == 0
 
 
@@ -623,20 +623,20 @@ def test_auto_concurrency_holds_the_subscription_agent_to_two():
 
 
 def _capture_run(monkeypatch):
-    import codejury.review.repo.engine as eng
+    import codejury.review.repository.engine as eng
     captured = {}
 
     def fake_run(target, workspace, **kw):
         captured.update(kw)
         raise RuntimeError("stop after capture")
 
-    monkeypatch.setattr(eng, "run_repo_review", fake_run)
+    monkeypatch.setattr(eng, "run_repository_review", fake_run)
     return captured
 
 
 def test_effort_high_flows_shots_and_votes_into_the_run(monkeypatch, tmp_path):
     captured = _capture_run(monkeypatch)
-    main(["review", "repo", str(tmp_path), "--run", "--effort", "high"])
+    main(["review", "repository", str(tmp_path), "--run", "--effort", "high"])
     assert captured["min_lens_shots"] == 3
     assert captured["votes"] == 2
 
@@ -644,31 +644,31 @@ def test_effort_high_flows_shots_and_votes_into_the_run(monkeypatch, tmp_path):
 def test_keyless_run_defaults_concurrency_to_two(monkeypatch, tmp_path):
     # no key, so the finder rides the subscription as an agent and the fan-out is held to 2
     captured = _capture_run(monkeypatch)
-    main(["review", "repo", str(tmp_path), "--run"])
+    main(["review", "repository", str(tmp_path), "--run"])
     assert captured["concurrency"] == 2
 
 
 def test_keyed_run_defaults_concurrency_to_six(monkeypatch, tmp_path):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
     captured = _capture_run(monkeypatch)
-    main(["review", "repo", str(tmp_path), "--run"])
+    main(["review", "repository", str(tmp_path), "--run"])
     assert captured["concurrency"] == 6
 
 
 def test_explicit_concurrency_overrides_the_backend_default(monkeypatch, tmp_path):
     captured = _capture_run(monkeypatch)
-    main(["review", "repo", str(tmp_path), "--run", "--concurrency", "9"])
+    main(["review", "repository", str(tmp_path), "--run", "--concurrency", "9"])
     assert captured["concurrency"] == 9
 
 
 def test_retries_and_timeout_reach_the_subscription_agent_finder(monkeypatch, tmp_path):
     # --retries and --timeout once kept the _ClaudeBackend defaults on the subscription path, so a
     # documented flag silently did nothing there, invariant 4. They must now reach the agent backend.
-    from codejury.review.repo.agent import AgentReviewer
+    from codejury.review.repository.agent import AgentReviewer
     captured = _capture_run(monkeypatch)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
-    main(["review", "repo", str(tmp_path), "--run", "--no-verify", "--retries", "5", "--timeout", "42"])
+    main(["review", "repository", str(tmp_path), "--run", "--no-verify", "--retries", "5", "--timeout", "42"])
     reviewer = captured["reviewer"]
     assert isinstance(reviewer, AgentReviewer)
     assert reviewer._retries == 5

@@ -10,8 +10,8 @@ First decide which path $ARGUMENTS names, the two are different tools, do not mi
 - DIFF REVIEW when $ARGUMENTS is a unified diff file such as a `.diff` or `.patch`, a single
   file of diff text, or a git range such as `origin/main...HEAD`. This path is fully coded,
   you run one command and relay its report, there is no fan-out and no workspace.
-- REPO REVIEW when $ARGUMENTS is a directory, a whole repository to audit. This path is the
-  fan-out you orchestrate, follow the numbered steps under Repo Review.
+- REPOSITORY REVIEW when $ARGUMENTS is a directory, a whole repository to audit. This path is the
+  fan-out you orchestrate, follow the numbered steps under Repository Review.
 
 ## Diff Review
 
@@ -22,11 +22,11 @@ chunks the diff, runs its passes, filters, and prints the findings.
 codejury review diff --file <the diff file>
 ```
 
-For a git range instead of a file, drop `--file` and pass the range, with `--repo` if the
+For a git range instead of a file, drop `--file` and pass the range, with `--repository` if the
 repository is not the current directory:
 
 ```bash
-codejury review diff --repo <repo dir> --git-range origin/main...HEAD
+codejury review diff --repository <repository dir> --git-range origin/main...HEAD
 ```
 
 If `codejury` is not on PATH it is a pip-installed console script, so activate the project
@@ -37,18 +37,18 @@ failed review, not a clean pass, surface the error and never report zero finding
 broken run. A non-zero exit means a finding hit the severity gate or the audit degraded, say
 which. Then stop, Diff Review does not use the units, the workspace, or the gate below.
 
-## Repo Review
+## Repository Review
 
 You are the orchestrator, not the reviewer. Recall comes from fanning out: the tool
 gives you a deterministic unit worklist, you run one focused sub-review per unit in
 parallel, union their findings across diverse passes, verify, and stop on a gate. The
 deep reading happens inside each sub-review, never in this main context. A unit you
-review in passing here is the shallow whole-repo pass this method exists to replace.
+review in passing here is the shallow whole-repository pass this method exists to replace.
 
 1. SCAFFOLD. Build the workspace, the deterministic worklist you do not invent:
 
    ```bash
-   codejury review repo $ARGUMENTS
+   codejury review repository $ARGUMENTS
    ```
 
    The workspace defaults to a user-private directory under `XDG_STATE_HOME` or
@@ -111,7 +111,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    surface, run:
 
    ```bash
-   codejury review repo $ARGUMENTS --finalize
+   codejury review repository $ARGUMENTS --finalize
    ```
 
    In Claude Code, add `--executor subscription` to verify through your Claude Code access
@@ -132,7 +132,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
    CODEJURY_PROVIDER=anthropic CODEJURY_MODEL=<a claude model> \
    CODEJURY_CHALLENGER_PROVIDER=openai CODEJURY_CHALLENGER_MODEL=<a gpt model> CODEJURY_CHALLENGER_WIRE_API=responses \
    CODEJURY_JUDGE_PROVIDER=anthropic CODEJURY_JUDGE_MODEL=<a claude model> \
-   codejury review repo $ARGUMENTS --finalize --executor api
+   codejury review repository $ARGUMENTS --finalize --executor api
    ```
 
    The challenger GPT refutes and the judge Claude confirms, so a finding is dropped only when
@@ -142,7 +142,7 @@ review in passing here is the shallow whole-repo pass this method exists to repl
 5. GATE. Let codejury, not your judgment, decide whether the review may stop:
 
    ```bash
-   codejury review repo $ARGUMENTS --gate
+   codejury review repository $ARGUMENTS --gate
    ```
 
    If it exits non-zero it lists what is unmet: the surface not enumerated, a unit not

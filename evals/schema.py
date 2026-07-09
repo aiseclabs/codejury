@@ -2,7 +2,7 @@
 answer key itself.
 
 These shapes are the public internal API every runner and scorer agrees on. The diff path
-and the repo path differ only in how they produce reports, see runners/, then everything
+and the repository path differ only in how they produce reports, see runners/, then everything
 downstream speaks Report and AnswerKey. The answer key never reaches the review under test,
 so a high score cannot come from the review reading the key.
 """

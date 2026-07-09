@@ -20,7 +20,7 @@ def md_field(text: str, key: str) -> str | None:
     """Value of a `- key: value` line in a markdown body, or None when absent. `key`
     is embedded as a regex, so a caller may pass an alternation like
     `(?:risk|severity)`. The single source of this pattern, so the seeded-doc readers
-    in the repo engine and the gate cannot drift apart."""
+    in the repository engine and the gate cannot drift apart."""
     m = re.search(rf"(?im)^\s*-?\s*{key}\s*:\s*(.+?)\s*$", text)
     return m.group(1).strip() if m else None
 

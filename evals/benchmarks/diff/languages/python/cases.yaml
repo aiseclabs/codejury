@@ -389,9 +389,9 @@ cases:
       vulnerabilities: [sql-injection]
     tags: [injection, python, safe]
     diff: |
-      diff --git a/repo.py b/repo.py
-      --- a/repo.py
-      +++ b/repo.py
+      diff --git a/repository.py b/repository.py
+      --- a/repository.py
+      +++ b/repository.py
       @@ -6,2 +6,3 @@ def find(name):
       -    return None
       +    return User.objects.filter(name=name).first()

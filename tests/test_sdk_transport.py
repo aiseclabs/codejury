@@ -67,7 +67,7 @@ def _factory(events, *, messages=None, on_query=None):
     return make, creations
 
 
-def _ask(transport, cwd="/repo", tools=("Read",), timeout=10):
+def _ask(transport, cwd="/repository", tools=("Read",), timeout=10):
     args = ("--allowedTools", ",".join(tools)) if tools else ()
     return transport.ask("prompt", cwd=cwd, claude_bin="claude", args=args, timeout=timeout)
 
@@ -76,8 +76,8 @@ def _ask(transport, cwd="/repo", tools=("Read",), timeout=10):
 
 def test_allowed_tools_read_from_the_guarded_args():
     assert _allowed_tools_from_args(_compose_claude_args((), unsafe=False, allowed_tools=())) == ()
-    repo = _compose_claude_args(("--model", "x"), unsafe=False)
-    assert _allowed_tools_from_args(repo) == ("Read", "Grep", "Glob", "LS")
+    repository = _compose_claude_args(("--model", "x"), unsafe=False)
+    assert _allowed_tools_from_args(repository) == ("Read", "Grep", "Glob", "LS")
 
 
 def test_env_args_cannot_widen_sdk_tools_unless_unsafe():
@@ -237,7 +237,7 @@ def test_sdk_options_carry_the_allowlist_and_scrub_auth(monkeypatch):
     env = claude_agent._subscription_env()
     diff = claude_agent._sdk_options(sdk, cwd="", allowed_tools=(), cli_path="claude", env=env)
     assert diff.allowed_tools == []
-    repo = claude_agent._sdk_options(
+    repository = claude_agent._sdk_options(
         sdk, cwd="/r", allowed_tools=("Read", "Grep", "Glob", "LS"), cli_path="claude", env=env)
-    assert repo.allowed_tools == ["Read", "Grep", "Glob", "LS"]
-    assert "ANTHROPIC_API_KEY" not in repo.env and repo.env["PATH_KEEPME"] == "1"
+    assert repository.allowed_tools == ["Read", "Grep", "Glob", "LS"]
+    assert "ANTHROPIC_API_KEY" not in repository.env and repository.env["PATH_KEEPME"] == "1"

@@ -1,13 +1,13 @@
-# Repo Security Review: Agent Methodology
+# Repository Security Review: Agent Methodology
 
-A whole-repo security audit run by an interactive coding agent such as Claude Code
-or Codex. The agent does not review the repo in one pass. It maps the attack
+A whole-repository security audit run by an interactive coding agent such as Claude Code
+or Codex. The agent does not review the repository in one pass. It maps the attack
 surface, splits it into small units, runs a focused deep review on each unit in
 parallel, and aggregates the results.
 
 ## Why Fan Out
 
-A single agent reviewing a whole large repo dilutes. Its attention spreads across
+A single agent reviewing a whole large repository dilutes. Its attention spreads across
 the entire surface, every endpoint gets a shallow look, and the deep cross-file
 flaws below the entrypoint are missed. Measured on a real 30k-line backend, a
 single cold pass recovered about a quarter of the known issues. The same surface,
@@ -18,7 +18,7 @@ agent's rounds and not from re-running the whole review many times.
 So the work is three phases:
 
 - **Map**, build the attack-surface inventory, the authorization model, and the
-  sensitive-data map. The inventory is the coverage denominator: a real repo has
+  sensitive-data map. The inventory is the coverage denominator: a real repository has
   100+ endpoints, and you cannot claim coverage against what you happened to
   notice, only against an enumerated list.
 - **Fan Out**, decompose the surface into units and run a focused deep sub-review on
@@ -120,7 +120,7 @@ parallel.
 Do not review units yourself in this main context. Your job here is to orchestrate:
 enumerate, decompose, spawn one sub-review per unit, and aggregate. Keep this context
 lean so it does not dilute. The deep reading happens inside each subagent, never here.
-A unit looked at in passing by the orchestrator is the shallow whole-repo pass this
+A unit looked at in passing by the orchestrator is the shallow whole-repository pass this
 method exists to replace, and it is the single thing that drops recall.
 
 Give each sub-review only its slice plus the shared artifacts: `_stack.md`, the

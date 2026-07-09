@@ -19,7 +19,7 @@ class Suite:
     name: str
     description: str = ""
     tags: tuple[str, ...] = ()
-    kinds: tuple[str, ...] = ()     # optional filter, diff or repo, empty selects both
+    kinds: tuple[str, ...] = ()     # optional filter, diff or repository, empty selects both
 
 
 def load_suite(name_or_path: str | Path) -> Suite:
@@ -51,15 +51,15 @@ def _matches(suite: Suite, tags) -> bool:
 
 
 def select_cases(suite: Suite, cases):
-    """The diff cases the suite selects, by tag. A suite scoped to repo only selects none."""
+    """The diff cases the suite selects, by tag. A suite scoped to repository only selects none."""
     if suite.kinds and "diff" not in suite.kinds:
         return []
     return [c for c in cases if _matches(suite, c.tags)]
 
 
 def select_benchmarks(suite: Suite, benchmarks):
-    """The repo benchmarks the suite selects, by tag. A suite scoped to diff only selects
+    """The repository benchmarks the suite selects, by tag. A suite scoped to diff only selects
     none. A benchmark's tags come from its manifest."""
-    if suite.kinds and "repo" not in suite.kinds:
+    if suite.kinds and "repository" not in suite.kinds:
         return []
     return [b for b in benchmarks if _matches(suite, b.tags)]

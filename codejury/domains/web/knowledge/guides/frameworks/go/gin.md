@@ -8,7 +8,7 @@ detect:
   imports: ["github.com/gin-gonic/gin"]
 entrypoint_files: ["*main.go", "*/handlers/*.go", "*/handler/*.go", "*/api/*.go", "*/routes/*.go", "*/controllers/*.go"]
 entrypoint_markers: ["gin.Default(", "gin.New(", "*gin.Context", "router.GET", "router.POST", ".GET(", ".POST(", ".Group(", "c.Param", "c.Query", "c.ShouldBind"]
-logic_layers: ["*/service/*.go", "*/services/*.go", "*/usecase/*.go", "*/repository/*.go", "*/repo/*.go", "*/store/*.go", "*/dao/*.go", "*/model/*.go"]
+logic_layers: ["*/service/*.go", "*/services/*.go", "*/usecase/*.go", "*/repository/*.go", "*/repository/*.go", "*/store/*.go", "*/dao/*.go", "*/model/*.go"]
 ---
 # Gin Review Notes
 

@@ -1,8 +1,8 @@
-# PR security review with codejury. Copy into .github/workflows/ in your repo.
+# PR security review with codejury. Copy into .github/workflows/ in your repository.
 #
 # Audits the pull request's diff, uploads findings to GitHub code scanning as
 # SARIF, and fails the check on a HIGH or CRITICAL finding. Set a provider key
-# in the repo secrets first, under Settings then Secrets and variables then Actions:
+# in the repository secrets first, under Settings then Secrets and variables then Actions:
 #   CODEJURY_API_KEY   your model API key
 # and, if you go through a gateway, CODEJURY_API_BASE.
 
@@ -39,7 +39,7 @@ jobs:
           set +e
           codejury review diff \
             --provider anthropic \
-            --repo . \
+            --repository . \
             --git-range "origin/${{ github.base_ref }}...HEAD" \
             --format sarif --fail-on high > codejury.sarif
           echo "rc=$?" >> "$GITHUB_OUTPUT"

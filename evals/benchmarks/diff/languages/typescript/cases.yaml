@@ -18,7 +18,7 @@ cases:
       @@ -18,2 +18,3 @@ export class UsersController {
       -  find(@Param('name') name: string) {}
       +  find(@Param('name') name: string) {
-      +    return this.repo.query(`SELECT * FROM users WHERE name = '${name}'`)
+      +    return this.repository.query(`SELECT * FROM users WHERE name = '${name}'`)
       +  }
 
   - name: nest-ssrf
@@ -97,7 +97,7 @@ cases:
       @@ -18,2 +18,3 @@ export class UsersController {
       -  find(@Param('name') name: string) {}
       +  find(@Param('name') name: string) {
-      +    return this.repo.query('SELECT * FROM users WHERE name = $1', [name])
+      +    return this.repository.query('SELECT * FROM users WHERE name = $1', [name])
       +  }
 
   - name: safe-nest-ssrf

@@ -146,9 +146,9 @@ class ForgePoC:
 
     def _import_note(self, root: Path, file: str) -> tuple[str, str]:
         """The import line for the contract under test and a note on resolving dependencies, which
-        differ for a Foundry repo compiled through its own remappings and a bare copied tree."""
+        differ for a Foundry repository compiled through its own remappings and a bare copied tree."""
         if (root / "foundry.toml").is_file():
-            # the test lives in the repo's own test dir, so it compiles through the repo's
+            # the test lives in the repository's own test dir, so it compiles through the repository's
             # remappings and restored libraries, the only way a contract that imports OpenZeppelin builds
             import_line = os.path.relpath(root / file, root / "test") if file else ""
             note = ("This is a Foundry project. Import other libraries such as OpenZeppelin through "
@@ -168,12 +168,12 @@ class ForgePoC:
 
     @contextmanager
     def _project(self, root: Path, sources: list[Path], foundry: bool):
-        """A prepared Foundry project the test drops into, torn down after. A Foundry repo is copied
+        """A prepared Foundry project the test drops into, torn down after. A Foundry repository is copied
         and its libraries restored, the only way a contract with external dependencies compiles. A
-        repo with no foundry config gets a bare project with its sources copied under src. Never forks, invariant 6."""
+        repository with no foundry config gets a bare project with its sources copied under src. Never forks, invariant 6."""
         with tempfile.TemporaryDirectory(prefix="codejury-poc-") as tmp:
             if foundry:
-                proj = Path(tmp) / "repo"
+                proj = Path(tmp) / "repository"
                 shutil.copytree(root, proj, ignore=shutil.ignore_patterns("out", "cache", "node_modules"))
                 lib = proj / "lib"
                 if (proj / ".gitmodules").is_file() and not (lib.is_dir() and any(lib.iterdir())):

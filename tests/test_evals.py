@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evals import registry
 from evals.compare import compare, compare_by
 from evals.results import SuiteResult
-from evals.runners.repo import reports_from_findings_dir, score_repo
+from evals.runners.repository import reports_from_findings_dir, score_repository
 from evals.schema import Report, load_answer_key
 from evals.scorers.match import endpoint_match
 from evals.scorers.parse import parse_finding_md
@@ -362,7 +362,7 @@ def test_endpoint_keyed_planted_ignores_file_so_a_sibling_is_not_credited(tmp_pa
     assert sibling.missed == ["idor"]
 
 
-def test_parse_finding_md_and_score_repo(tmp_path):
+def test_parse_finding_md_and_score_repository(tmp_path):
     findings = tmp_path / "findings"
     findings.mkdir()
     (findings / "f1.md").write_text(
@@ -374,7 +374,7 @@ def test_parse_finding_md_and_score_repo(tmp_path):
 
     key = load_answer_key(_key(tmp_path,
         "target: t\nplanted:\n  - id: w\n    category: idor\n    entry: GET /wallets/<id>\n"))
-    res = score_repo(key, reports_from_findings_dir(findings))
+    res = score_repository(key, reports_from_findings_dir(findings))
     assert res.found == ["w"]
 
 
@@ -422,8 +422,8 @@ def test_registry_duplicate_name_across_roots_fails_loud(tmp_path, monkeypatch):
     # a private source that re-uses a public name must fail loud, not silently shadow it,
     # unless it opts in with override: true
     src = tmp_path / "private"
-    (src / "repo" / "open-webui").mkdir(parents=True)
-    (src / "repo" / "open-webui" / "answer_key.yaml").write_text(
+    (src / "repository" / "open-webui").mkdir(parents=True)
+    (src / "repository" / "open-webui" / "answer_key.yaml").write_text(
         "target: open-webui\nplanted:\n  - id: x\n    category: idor\n    entry: GET /x/<id>\n", encoding="utf-8")
     cfg = tmp_path / "local.yaml"
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
@@ -526,20 +526,20 @@ def test_default_diff_cases_split_positive_and_safe():
     assert all(c.diff.startswith("diff --git") for c in cases)
 
 
-def test_coverage_matrix_attributes_repo_entries_to_knowledge(tmp_path, monkeypatch):
+def test_coverage_matrix_attributes_repository_entries_to_knowledge(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
     from evals.coverage import coverage_matrix
     cov = coverage_matrix()
     # the open-webui benchmark plants three IDORs and guards two safe siblings, so the vuln
-    # attributes to its repo entries. Assert a lower bound, another target adding an IDOR,
+    # attributes to its repository entries. Assert a lower bound, another target adding an IDOR,
     # such as vikunja's task attachment IDOR, must not break this
     idor = cov["vuln:insecure-direct-object-reference"]
-    assert idor.repo_planted >= 3 and idor.repo_safe >= 2
+    assert idor.repository_planted >= 3 and idor.repository_safe >= 2
     assert idor.diff_positive >= 1
-    # languages/python is exercised by every Python repo target, so assert a lower bound
+    # languages/python is exercised by every Python repository target, so assert a lower bound
     # rather than a fixed count that a newly added target would break
     py = cov["guide:languages/python"]
-    assert py.repo_planted >= 3 and py.public >= 1
+    assert py.repository_planted >= 3 and py.public >= 1
 
 
 def test_coverage_problems_flag_a_vulnerability_missing_a_safe_case(tmp_path, monkeypatch):
@@ -619,8 +619,8 @@ def test_coverage_problems_flag_unresolved_reference(tmp_path, monkeypatch):
     # a benchmark that names a knowledge file which does not exist is broken data, the gate
     # must see it rather than score against a phantom class
     src = tmp_path / "private"
-    (src / "repo" / "ghost").mkdir(parents=True)
-    (src / "repo" / "ghost" / "answer_key.yaml").write_text(
+    (src / "repository" / "ghost").mkdir(parents=True)
+    (src / "repository" / "ghost" / "answer_key.yaml").write_text(
         "target: ghost\nplanted:\n  - id: g1\n    category: idor\n    entry: GET /g/<id>\n"
         "    knowledge:\n      vulnerabilities:\n        - no-such-class\n", encoding="utf-8")
     cfg = tmp_path / "local.yaml"
@@ -710,27 +710,27 @@ def test_one_report_cannot_satisfy_two_planted_entries(tmp_path):
     assert res.recall == 0.5
 
 
-def test_coverage_splits_diff_and_repo_dimensions():
+def test_coverage_splits_diff_and_repository_dimensions():
     from evals.coverage import Coverage, KnowledgeItem
     it = KnowledgeItem(ref="vuln:x", kind="vulnerability", path=Path("x.md"))
     diff_only = Coverage(item=it, diff_positive=1, diff_safe=1)
-    assert diff_only.diff_covered and not diff_only.repo_covered and diff_only.covered
-    repo_only = Coverage(item=it, repo_planted=1)
-    assert repo_only.repo_covered and not repo_only.diff_covered and repo_only.covered
+    assert diff_only.diff_covered and not diff_only.repository_covered and diff_only.covered
+    repository_only = Coverage(item=it, repository_planted=1)
+    assert repository_only.repository_covered and not repository_only.diff_covered and repository_only.covered
     assert not Coverage(item=it).covered
 
 
-def test_coverage_problems_flags_a_class_with_no_repo_target():
-    # the integration gap, a class a diff case exercises but no whole-repo benchmark plants
+def test_coverage_problems_flags_a_class_with_no_repository_target():
+    # the integration gap, a class a diff case exercises but no whole-repository benchmark plants
     from evals.coverage import Coverage, KnowledgeItem, coverage_problems
     def item(ref):
         return KnowledgeItem(ref=ref, kind="vulnerability", path=Path(f"{ref}.md"))
     cov = {
         "vuln:diffonly": Coverage(item=item("vuln:diffonly"), diff_positive=1, diff_safe=1),
-        "vuln:hasrepo": Coverage(item=item("vuln:hasrepo"), diff_positive=1, diff_safe=1, repo_planted=1),
+        "vuln:hasrepository": Coverage(item=item("vuln:hasrepository"), diff_positive=1, diff_safe=1, repository_planted=1),
     }
     kinds = {(p.ref, p.kind) for p in coverage_problems(cov)}
-    assert ("vuln:diffonly", "missing-repo-target") in kinds
-    assert ("vuln:hasrepo", "missing-repo-target") not in kinds
+    assert ("vuln:diffonly", "missing-repository-target") in kinds
+    assert ("vuln:hasrepository", "missing-repository-target") not in kinds
     # a diff case present means no missing-positive/safe for either
     assert ("vuln:diffonly", "missing-positive") not in kinds

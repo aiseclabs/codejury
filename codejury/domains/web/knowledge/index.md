@@ -4,7 +4,7 @@ Application-security vulnerability classes, one file per weakness under
 `vulnerabilities/`, named by the specific weakness, CWE-style. Each states impact,
 the markers to hunt in `triggers`, and vulnerable-vs-secure examples. The
 diff-audit engine injects the classes relevant to a change into the prompt. The
-repo-review agent reads them for the target's stack. A finding's `category` is one
+repository-review agent reads them for the target's stack. A finding's `category` is one
 of these ids.
 
 ## Vulnerability Classes by OWASP Category

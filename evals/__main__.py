@@ -1,15 +1,15 @@
 """Eval CLI: score a review, run the diff probe, or compare two results.
 
   python -m evals list
-  python -m evals repo open-webui --findings-dir /tmp/cj-owui/webui/findings
-  python -m evals repo open-webui --findings-json findings.json --json before.json
+  python -m evals repository open-webui --findings-dir /tmp/cj-owui/webui/findings
+  python -m evals repository open-webui --findings-json findings.json --json before.json
   python -m evals diff --mode standard --model <id> --runs 3
   python -m evals run public-smoke --model <id> --runs 3
   python -m evals compare before.json after.json --by vulnerability
   python -m evals gate after.json --baseline before.json --precision-floor 0.8
   python -m evals coverage
 
-The repo path scores the output an agent or a coded run already wrote, it does not run the
+The repository path scores the output an agent or a coded run already wrote, it does not run the
 review. Resolve a benchmark by name across the public benchmarks and any private source in
 the local config, see registry.py.
 """
@@ -24,7 +24,7 @@ from pathlib import Path
 from evals import registry
 from evals.compare import compare_files, format_compare, format_compare_by
 from evals.results import Result, SuiteResult
-from evals.runners.repo import reports_from_findings_dir, reports_from_json, score_repo
+from evals.runners.repository import reports_from_findings_dir, reports_from_json, score_repository
 from evals.schema import load_answer_key
 
 
@@ -58,7 +58,7 @@ def _emit(res: Result | SuiteResult, json_out: str | None) -> int:
     return 0 if clean else 1
 
 
-def _cmd_repo(args) -> int:
+def _cmd_repository(args) -> int:
     key = load_answer_key(registry.find_answer_key(args.name))
     if args.findings_json:
         reports = reports_from_json(args.findings_json)
@@ -66,11 +66,11 @@ def _cmd_repo(args) -> int:
         reports = reports_from_findings_dir(args.findings_dir)
     else:
         reports = reports_from_findings_dir(Path(args.workspace) / args.name / "findings")
-    return _emit(score_repo(key, reports, source_root=_resolve_source(args)), args.json)
+    return _emit(score_repository(key, reports, source_root=_resolve_source(args)), args.json)
 
 
 def _resolve_source(args) -> str | None:
-    """The repo source root a symbol span reads from, when available. Explicit `--source` wins,
+    """The repository source root a symbol span reads from, when available. Explicit `--source` wins,
     else a local clone under `<CODEJURY_BACKTEST_DIR>/repositories/<name>` is used when present,
     so the backtest scores by symbol span without a flag. Absent both, the scoring reads no source
     and a symbol anchor matches by name only, the committed suite behavior."""
@@ -179,17 +179,17 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="evals", description="detection-quality eval ruler")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    r = sub.add_parser("repo", help="score a whole-repo review against an answer key")
+    r = sub.add_parser("repository", help="score a whole-repository review against an answer key")
     r.add_argument("name", help="benchmark name, e.g. open-webui")
     r.add_argument("--workspace", default=None, help="review workspace root, reads <workspace>/<name>/findings")
     r.add_argument("--findings-dir", default=None, help="a findings/ directory directly")
     r.add_argument("--findings-json", default=None, help="a findings.json or a json list of reports")
     r.add_argument("--source", default=None,
-                   help="repo source root, lets a symbol anchor credit a report that pins the bug "
+                   help="repository source root, lets a symbol anchor credit a report that pins the bug "
                         "by line inside the symbol without naming it, auto-discovered from a "
                         "CODEJURY_BACKTEST_DIR clone when unset")
     r.add_argument("--json", default=None, help="write the structured result here for compare")
-    r.set_defaults(func=_cmd_repo)
+    r.set_defaults(func=_cmd_repository)
 
     d = sub.add_parser("diff", help="run the diff capability probe over the whole library and score")
     d.add_argument("--mode", default="standard")
@@ -228,8 +228,8 @@ def main(argv=None) -> int:
     cov.set_defaults(func=_cmd_coverage)
 
     args = p.parse_args(argv)
-    if args.cmd == "repo" and not (args.findings_dir or args.findings_json or args.workspace):
-        p.error("repo needs one of --workspace, --findings-dir, or --findings-json")
+    if args.cmd == "repository" and not (args.findings_dir or args.findings_json or args.workspace):
+        p.error("repository needs one of --workspace, --findings-dir, or --findings-json")
     return args.func(args)
 
 

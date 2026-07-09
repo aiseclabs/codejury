@@ -4,8 +4,8 @@ Two paths matched to their nature:
 
 - ``review diff`` runs the coded diff engine over a unified diff: a single
   balanced call in standard mode or the adversarial Finder/Challenger/Judge pass.
-- ``review repo <dir>`` drives a whole-repo review from a fan-out workspace. A bare
-  ``review repo`` only scaffolds the workspace for an interactive agent to follow the
+- ``review repository <dir>`` drives a whole-repository review from a fan-out workspace. A bare
+  ``review repository`` only scaffolds the workspace for an interactive agent to follow the
   methodology. ``--run`` runs the coded multi-pass engine to convergence, ``--finalize``
   dedups and adversarially verifies the candidates an agent or a run proposed, and
   ``--gate`` checks completeness.
@@ -42,7 +42,7 @@ from codejury.providers.factory import (
     make_provider,
 )
 from codejury.providers.mock import MockProvider
-from codejury.review.repo.scaffold import scaffold
+from codejury.review.repository.scaffold import scaffold
 
 _FORMATS = ("text", "markdown", "json", "sarif")
 _FAIL_ON = ("critical", "high", "medium", "low")
@@ -58,10 +58,10 @@ def _add_domain_arg(p) -> None:
     p.add_argument("--domain", default="auto", metavar="DOMAIN", help=_DOMAIN_HELP)
 
 
-def _repo_file_names(directory: str) -> list[str]:
+def _repository_file_names(directory: str) -> list[str]:
     """File names under the target, for domain detection only. Names carry the
     extensions the heuristic counts, so the walk reads no file content and prunes the
-    usual heavy directories to stay fast on a large repo."""
+    usual heavy directories to stay fast on a large repository."""
     names: list[str] = []
     for _root, dirs, files in os.walk(directory):
         dirs[:] = [d for d in dirs if d not in _DOMAIN_PRUNE]
@@ -86,7 +86,7 @@ def _read_diff(args) -> str:
             return f.read()
     if args.git_range:
         return subprocess.run(
-            ["git", "-C", args.repo or ".", "diff", args.git_range],
+            ["git", "-C", args.repository or ".", "diff", args.git_range],
             capture_output=True, text=True, check=True,
         ).stdout
     return sys.stdin.read()
@@ -119,7 +119,7 @@ _MOCK_REPLY = (
     '"confidence": 0.9}]}'
 )
 
-_REPO_MOCK_REPLY = (
+_REPOSITORY_MOCK_REPLY = (
     '{"findings": [{"title": "[mock] no backend called", "category": "other", '
     '"endpoint": "GET /mock", "file": "mock.py", "line": 1, "severity": "MEDIUM", '
     '"evidence": "mock.py:1", "status": "confirmed"}]}'
@@ -224,9 +224,9 @@ def _confirmer_for(args, spec):
     """One confirmer's `RefutationChecker`, resolved per seat like the finder and skeptic. A
     key-reachable seat is a grounded model call, a keyless Anthropic seat rides the subscription as
     an agent, a keyless non-Anthropic seat is a loud error."""
-    from codejury.review.repo.verifier import ModelRefutationChecker
+    from codejury.review.repository.verifier import ModelRefutationChecker
     if _seat_backend(spec, args.executor) == "agent":
-        from codejury.review.repo.agent import AgentRefutationChecker
+        from codejury.review.repository.agent import AgentRefutationChecker
         return AgentRefutationChecker(**_agent_backend_kw(args))
     return ModelRefutationChecker(provider=_role_provider(args, spec), model=spec["model"])
 
@@ -326,7 +326,7 @@ def _add_executor_arg(target) -> None:
 def _add_audit_args(p) -> None:
     """The diff audit flags for `review diff`."""
     p.add_argument("--file", default=None, help="unified diff file (default: read stdin)")
-    p.add_argument("--repo", default=None, help="repo path for --git-range")
+    p.add_argument("--repository", default=None, help="repository path for --git-range")
     p.add_argument("--git-range", default=None, help="git range to diff, e.g. origin/main...HEAD")
     p.add_argument("--dry-run", action="store_true",
                    help="run the engine with a mock provider and no key (a built-in demo diff if none is given)")
@@ -385,32 +385,32 @@ def main(argv: list[str] | None = None) -> int:
     review = sub.add_parser("review", help="review code for security findings")
     rsub = review.add_subparsers(dest="scope")
     _add_audit_args(rsub.add_parser("diff", help="audit a unified diff (the coded engine)"))
-    repo = rsub.add_parser("repo", help="scaffold a whole-repo review for an interactive agent")
-    repo.add_argument("directory", help="target repository to review")
-    repo.add_argument("--workspace", default=_default_workspace(),
+    repository = rsub.add_parser("repository", help="scaffold a whole-repository review for an interactive agent")
+    repository.add_argument("directory", help="target repository to review")
+    repository.add_argument("--workspace", default=_default_workspace(),
                       help="where to create the review workspace, defaults to a user-private "
                            "directory under XDG_STATE_HOME or ~/.local/state")
-    repo.add_argument("--fresh", action="store_true",
+    repository.add_argument("--fresh", action="store_true",
                       help="clear a previous review's output in the workspace first")
     # the workspace modes are mutually exclusive, scaffold is the default when none is set.
     # Two at once would otherwise fall to a dispatch precedence and silently run just one, so
     # --run --finalize could finalize and rewrite findings/, argparse rejects the pair instead
-    mode = repo.add_mutually_exclusive_group()
+    mode = repository.add_mutually_exclusive_group()
     mode.add_argument("--gate", action="store_true",
                       help="check the existing workspace against the Completeness Gate instead of scaffolding, "
                            "exit 0 if it passes, 1 if any item is unmet")
     mode.add_argument("--run", action="store_true",
-                      help="run the coded multi-pass engine over the repo, not just scaffold, "
+                      help="run the coded multi-pass engine over the repository, not just scaffold, "
                            "covers every unit each pass, cycles lenses, unions until convergence")
     mode.add_argument("--finalize", action="store_true",
                       help="post-process an existing workspace's candidates in code: dedup, "
                            "adversarially verify, and write the ranked report, resumable")
-    repo.add_argument("--dry-run", action="store_true",
+    repository.add_argument("--dry-run", action="store_true",
                       help="run only: drive the engine with a mock provider and no key, to smoke-test the pipeline")
 
-    _add_backend_args(repo.add_argument_group("model backend"))
+    _add_backend_args(repository.add_argument_group("model backend"))
 
-    strategy = repo.add_argument_group("review strategy")
+    strategy = repository.add_argument_group("review strategy")
     _add_executor_arg(strategy)
     strategy.add_argument("--effort", choices=("low", "medium", "high"), default="medium",
                           help="how hard the run looks: low is one shot per lens and a fast pass, "
@@ -429,7 +429,7 @@ def main(argv: list[str] | None = None) -> int:
                                "only, it never forks, broadcasts, or holds a key. It only adds evidence, "
                                "a finding is kept whether or not its PoC reproduces")
 
-    roles = repo.add_argument_group(
+    roles = repository.add_argument_group(
         "model roles (advanced)",
         "finder finds, challenger refutes, judge confirms before a deletion. Each field inherits the "
         "base backend when unset, so override only the seat you change, set a different vendor in any "
@@ -441,7 +441,7 @@ def main(argv: list[str] | None = None) -> int:
     for role in ROLES:
         _add_role_backend_args(roles, role)
 
-    tuning = repo.add_argument_group("run tuning (advanced)", "only affect --run, sane defaults otherwise")
+    tuning = repository.add_argument_group("run tuning (advanced)", "only affect --run, sane defaults otherwise")
     tuning.add_argument("--max-passes", type=int, default=None, dest="max_passes",
                         help="cap on diverse passes before stopping, default scales to the domain: "
                              "(min-lens-shots + 1) * number of lenses, so every lens meets its shot "
@@ -450,7 +450,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="stop once this many consecutive passes add no new finding")
     tuning.add_argument("--min-lens-shots", type=int, default=None, dest="min_lens_shots",
                         help="keep going until every lens has reviewed this many times, so a hard "
-                             "class is not left to one shot on a repo that converges fast, default "
+                             "class is not left to one shot on a repository that converges fast, default "
                              "from --effort")
     tuning.add_argument("--concurrency", type=int, default=None,
                         help="how many unit reviews to run in parallel within a pass, default 2 "
@@ -469,7 +469,7 @@ def main(argv: list[str] | None = None) -> int:
                         dest="strict_coverage",
                         help="with --gate, fail when a source file is owned by no unit instead of "
                              "only noting it, so the source tree is the enforced coverage denominator")
-    _add_domain_arg(repo)
+    _add_domain_arg(repository)
 
     fetch = sub.add_parser("fetch", help="fetch verified source for a contract address")
     fsub = fetch.add_subparsers(dest="fetch_kind")
@@ -584,14 +584,14 @@ def _cmd_review_diff(args) -> int:
               "the result is incomplete and not a clean pass", file=sys.stderr)
     rc = 1 if degraded or gate(kept, args.fail_on) else 0
     # a diff seat on the subscription may hold a persistent SDK session, close it like the
-    # repo paths do so its pooled Claude Code processes do not leak past the run
+    # repository paths do so its pooled Claude Code processes do not leak past the run
     _close_backends(provider, finder_provider, challenger_provider, judge_provider)
     return rc
 
 
-def _cmd_repo_gate(args) -> int:
-    from codejury.review.repo.gate import check_gate
-    domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+def _cmd_repository_gate(args) -> int:
+    from codejury.review.repository.gate import check_gate
+    domain = resolve_domain(args.domain, _repository_file_names(args.directory))
     detection = load_detection(domain.paths.detection_file)
     project_dir = Path(args.workspace) / Path(args.directory).resolve().name
     result = check_gate(project_dir, root=Path(args.directory).resolve(),
@@ -609,10 +609,10 @@ def _cmd_repo_gate(args) -> int:
     return 1
 
 
-def _cmd_repo_finalize(args) -> int:
-    from codejury.review.repo.engine import finalize_repo_review
-    from codejury.review.repo.verifier import ModelVerifier
-    domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+def _cmd_repository_finalize(args) -> int:
+    from codejury.review.repository.engine import finalize_repository_review
+    from codejury.review.repository.verifier import ModelVerifier
+    domain = resolve_domain(args.domain, _repository_file_names(args.directory))
     args.min_lens_shots, args.votes = _resolve_effort(args.effort, args.min_lens_shots, args.votes)
     _warn_secondary_env()
     base = _base_spec(args)
@@ -627,7 +627,7 @@ def _cmd_repo_finalize(args) -> int:
         provider = MockProvider(default='{"real": true, "reason": "[mock]"}')
         args.model = "mock"
     elif _seat_backend(challenger, args.executor) == "agent":
-        from codejury.review.repo.agent import AgentVerifier
+        from codejury.review.repository.agent import AgentVerifier
         verifier_obj = AgentVerifier(content=domain.paths, **_agent_backend_kw(args))
         _warn_roles_under_agent(args, ("challenger",))
         if args.executor == "auto":
@@ -652,7 +652,7 @@ def _cmd_repo_finalize(args) -> int:
                 gen_provider = _role_provider(args, base)
             poc_backend_obj = domain.poc_backend(provider=gen_provider, model=base["model"])
     print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
-    fr = finalize_repo_review(
+    fr = finalize_repository_review(
         args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
         provider=provider, model=args.model, verify=args.verify, votes=args.votes,
         concurrency=args.concurrency, domain=domain, poc_backend=poc_backend_obj,
@@ -671,10 +671,10 @@ def _cmd_repo_finalize(args) -> int:
     return 0
 
 
-def _cmd_repo_run(args) -> int:
-    from codejury.review.repo.engine import run_repo_review
-    from codejury.review.repo.verifier import ModelVerifier
-    domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+def _cmd_repository_run(args) -> int:
+    from codejury.review.repository.engine import run_repository_review
+    from codejury.review.repository.verifier import ModelVerifier
+    domain = resolve_domain(args.domain, _repository_file_names(args.directory))
     args.min_lens_shots, args.votes = _resolve_effort(args.effort, args.min_lens_shots, args.votes)
     # scale the pass cap to the domain, so the min-lens-shots floor is always meetable and the
     # convergence early-stop can fire, with one lens cycle of headroom above the floor
@@ -690,13 +690,13 @@ def _cmd_repo_run(args) -> int:
     model = args.model
     confirmers: list = []
     if args.dry_run:
-        provider = MockProvider(default=_REPO_MOCK_REPLY)
+        provider = MockProvider(default=_REPOSITORY_MOCK_REPLY)
         model = "mock"
     else:
         finder_kind = _seat_backend(finder, args.executor)
         skeptic_kind = _seat_backend(challenger, args.executor)
         if finder_kind == "agent":
-            from codejury.review.repo.agent import AgentReviewer
+            from codejury.review.repository.agent import AgentReviewer
             reviewer_obj = AgentReviewer(content=domain.paths, **_agent_backend_kw(args))
         else:
             # finder goes through provider+model so the engine builds the unit reviewer with its
@@ -704,7 +704,7 @@ def _cmd_repo_run(args) -> int:
             provider = _role_provider(args, finder)
             model = finder["model"]
         if skeptic_kind == "agent":
-            from codejury.review.repo.agent import AgentVerifier
+            from codejury.review.repository.agent import AgentVerifier
             verifier_obj = AgentVerifier(content=domain.paths, **_agent_backend_kw(args))
         else:
             verifier_obj = ModelVerifier(provider=_role_provider(args, challenger),
@@ -726,7 +726,7 @@ def _cmd_repo_run(args) -> int:
 
     _note_verify_route(args, confirmers)
     print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
-    res = run_repo_review(
+    res = run_repository_review(
         args.directory, args.workspace, provider=provider, model=model,
         reviewer=reviewer_obj, verifier=verifier_obj, confirmers=confirmers,
         verify=args.verify, votes=args.votes,
@@ -765,7 +765,7 @@ def _cmd_repo_run(args) -> int:
     return 1 if failures or not acc.converged else 0
 
 
-def _cmd_repo_scaffold(args) -> int:
+def _cmd_repository_scaffold(args) -> int:
     # a bare scaffold consumes none of the run-only options, so flag the common mistake
     # of setting one without --run rather than silently doing nothing with it
     ignored = [flag for flag, used in (
@@ -776,7 +776,7 @@ def _cmd_repo_scaffold(args) -> int:
     if ignored:
         print(f"NOTE: {', '.join(ignored)} only affect --run, this bare scaffold ignores them. "
               "Add --run to drive the coded engine.", file=sys.stderr)
-    domain = resolve_domain(args.domain, _repo_file_names(args.directory))
+    domain = resolve_domain(args.domain, _repository_file_names(args.directory))
     res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain,
                    facts=args.facts, max_units=args.max_units)
     (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
@@ -830,7 +830,7 @@ def _cmd_fetch_source(args) -> int:
     )
     print(f"Fetched {result.file_count} source file(s) for {result.meta.address} on {result.meta.chain}")
     print(f"Source tree and metadata written to {result.out_dir}")
-    print(f"Next: codejury review repo {result.out_dir} --domain evm --run --facts", file=sys.stderr)
+    print(f"Next: codejury review repository {result.out_dir} --domain evm --run --facts", file=sys.stderr)
     return 0
 
 
@@ -838,14 +838,14 @@ def _dispatch(args, parser) -> int:
     scope = getattr(args, "scope", None)
     if args.command == "review" and scope == "diff":
         return _cmd_review_diff(args)
-    if args.command == "review" and scope == "repo" and args.gate:
-        return _cmd_repo_gate(args)
-    if args.command == "review" and scope == "repo" and args.finalize:
-        return _cmd_repo_finalize(args)
-    if args.command == "review" and scope == "repo" and args.run:
-        return _cmd_repo_run(args)
-    if args.command == "review" and scope == "repo":
-        return _cmd_repo_scaffold(args)
+    if args.command == "review" and scope == "repository" and args.gate:
+        return _cmd_repository_gate(args)
+    if args.command == "review" and scope == "repository" and args.finalize:
+        return _cmd_repository_finalize(args)
+    if args.command == "review" and scope == "repository" and args.run:
+        return _cmd_repository_run(args)
+    if args.command == "review" and scope == "repository":
+        return _cmd_repository_scaffold(args)
     if args.command == "install-slash-command":
         return _cmd_install_slash_command(args)
     if args.command == "fetch" and getattr(args, "fetch_kind", None) == "source":
@@ -854,9 +854,9 @@ def _dispatch(args, parser) -> int:
         print("usage: codejury fetch source --chain <chain> --address 0x... --out <dir>", file=sys.stderr)
         return 1
     if args.command == "review":
-        print("usage: codejury review {diff,repo} ...", file=sys.stderr)
+        print("usage: codejury review {diff,repository} ...", file=sys.stderr)
         print("  diff   audit a unified diff for security findings", file=sys.stderr)
-        print("  repo   scaffold a whole-repo review for an interactive agent", file=sys.stderr)
+        print("  repository   scaffold a whole-repository review for an interactive agent", file=sys.stderr)
         return 1
     parser.print_help()
     return 1

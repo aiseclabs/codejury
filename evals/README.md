@@ -7,7 +7,7 @@ on real targets, not by the gate.
 
 The engine ships here. The data does not have to. Public OSS benchmarks live in
 `benchmarks/`. Private benchmarks stay wherever they already are and plug in through a
-local, uncommitted config, so nothing private enters the repo.
+local, uncommitted config, so nothing private enters the repository.
 
 ## What "Better" Means
 
@@ -28,7 +28,7 @@ Two tiers, kept honest:
 - Public benchmarks here are reproducible regression and smoke checks. They carry a
   leakage caveat, the model may have seen the CVE, so they measure "did not regress" more
   than true recall.
-- Private, unseen targets are the real recall signal. They never enter this repo.
+- Private, unseen targets are the real recall signal. They never enter this repository.
 
 ## Layout
 
@@ -41,7 +41,7 @@ evals/
     parse.py       read findings markdown and json into reports
     score.py       match reports against a key and tally the result
   runners/
-    repo.py        score a whole-repo review's findings output
+    repository.py        score a whole-repository review's findings output
     diff.py        run the diff capability probe and score
   diff_cases.py    load the shipped diff cases, engine-free so the matrix can read them
   registry.py      discover benchmarks across public and private sources
@@ -53,15 +53,15 @@ evals/
   benchmarks/
     diff/languages/<language>/cases.yaml   the shipped synthetic diff cases, each with knowledge
     diff/protocols/<protocol>/cases.yaml   protocol cases such as OAuth, independent of language
-    repo/frameworks/<language>/<framework>/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
-    repo/frameworks/<language>/<framework>/<name>/answer-key.yaml  planted issues and safe lookalikes
+    repository/frameworks/<language>/<framework>/<name>/benchmark.yaml   a git pointer plus the stack and knowledge it exercises
+    repository/frameworks/<language>/<framework>/<name>/answer-key.yaml  planted issues and safe lookalikes
 ```
 
 Benchmarks group under the same three buckets the knowledge guides use, `languages/`,
-`frameworks/`, and `protocols/`, so the eval tree mirrors the knowledge taxonomy. A repo
-target sits at `repo/frameworks/<language>/<framework>/<name>`, for example
-`repo/frameworks/python/flask/pyload` and `repo/frameworks/go/gin/answer`. A target may
-also sit flat at `repo/<name>`, the id is the leaf directory name either way, so the grouping
+`frameworks/`, and `protocols/`, so the eval tree mirrors the knowledge taxonomy. A repository
+target sits at `repository/frameworks/<language>/<framework>/<name>`, for example
+`repository/frameworks/python/flask/pyload` and `repository/frameworks/go/gin/answer`. A target may
+also sit flat at `repository/<name>`, the id is the leaf directory name either way, so the grouping
 path never renames a benchmark.
 
 A `benchmark.yaml` is the manifest, the clone pointer, never vendored code, plus the
@@ -80,7 +80,7 @@ under test never reads the key.
 Knowledge is data and the engine is generic, so a vulnerability class or a guide with no
 eval is a gap that should be visible, not silent. `python -m evals coverage` scans the
 knowledge tree and crosses it against the registry, counting the positive and safe diff
-cases and the repo planted and safe entries that exercise each file, public and private:
+cases and the repository planted and safe entries that exercise each file, public and private:
 
 ```bash
 python -m evals coverage
@@ -99,18 +99,18 @@ Create a local `evals/local.yaml`, gitignored, or point `CODEJURY_EVAL_CONFIG` a
 ```yaml
 benchmark_sources:
   - path: /abs/path/to/your/private/benchmarks   # read in place, nothing is copied or committed
-  - repo: git@github.com:you/private-benchmarks.git
+  - repository: git@github.com:you/private-benchmarks.git
     ref: main
 ```
 
-A source root may use the per-benchmark `repo/<name>/answer-key.yaml` layout, optionally
-grouped under a `repo/frameworks/<language>/<framework>/<name>` path, or the legacy
+A source root may use the per-benchmark `repository/<name>/answer-key.yaml` layout, optionally
+grouped under a `repository/frameworks/<language>/<framework>/<name>` path, or the legacy
 `groundtruth/<name>.yaml`, so existing private data scores without being reshaped. Benchmark
 names resolve across the public root and every source.
 
 ## Run
 
-The repo path does not run the review, the agent or a coded run does that, this scores the
+The repository path does not run the review, the agent or a coded run does that, this scores the
 output it wrote. To score the whole public suite in one sweep rather than one target, see
 `BACKTEST.md`, the batch runbook that derives the targets and order from the committed
 benchmarks and drives the agent path end to end.
@@ -124,10 +124,10 @@ git clone --depth 1 --branch v0.3.8 https://github.com/open-webui/open-webui /tm
 #    the provider API when a key is reachable and rides the Claude Code subscription when it
 #    is not, so it runs without extra setup. Pass --executor api to require a key and fail
 #    loud when there is none, the deterministic path to prefer in CI:
-codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui --run --executor auto
+codejury review repository /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui --run --executor auto
 #    or scaffold only and let an agent follow METHODOLOGY.md, the /codejury-review slash
 #    command, then finalize, the same methodology run by an agent instead of code:
-# codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
+# codejury review repository /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
 #    Both are product paths and should agree, score whichever wrote findings. Do not invent a
 #    third orchestration, a custom harness drifts from the product and the score stops meaning
 #    anything. --run needs detectable entrypoints, a no-entrypoint scope such as a plain library
@@ -135,7 +135,7 @@ codejury review repo /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui --run
 
 # 2. score it, prefer --findings-json, findings/ collapses findings on one endpoint of
 #    different classes into a single file, so --findings-dir can undercount the reports
-python -m evals repo open-webui --findings-json /tmp/cj-owui/webui/findings.json --json after.json
+python -m evals repository open-webui --findings-json /tmp/cj-owui/webui/findings.json --json after.json
 
 # 3. compare two versions, --by groups the flips by an axis to see where a move landed
 python -m evals compare before.json after.json
@@ -160,7 +160,7 @@ python -m evals list
 Repeated runs are how a change is judged honestly, the review is not deterministic. A single
 run is one `Result`, `--runs N` folds N runs into a frequency verdict, found by strict
 majority, so one lucky or unlucky run does not move the score and the spread is visible. The
-repo path stays score-only, aggregate N agent runs by scoring each and reading the flips.
+repository path stays score-only, aggregate N agent runs by scoring each and reading the flips.
 
 The `gate` is the policy that blocks a regression in CI. It fails loud on a failed review
 step, a planted issue caught at baseline now missing, a new false positive on a safe
@@ -169,7 +169,7 @@ that resolves to no file or an unlocatable key entry. An extra unkeyed report al
 fails the gate, the key cannot say whether it is a real bug.
 
 A benchmark grows by adding more planted issues and lookalikes, or a new
-`repo/frameworks/<language>/<framework>/<name>/` directory with its `benchmark.yaml` and
+`repository/frameworks/<language>/<framework>/<name>/` directory with its `benchmark.yaml` and
 `answer-key.yaml`. The diff probe grows by adding a
 row to the `benchmarks/diff/languages/<language>/cases.yaml` for its language, or to
 `diff/protocols/<protocol>/cases.yaml` for a protocol case, a positive with a category or a safe
@@ -177,5 +177,5 @@ lookalike without one, each naming the knowledge it exercises so
 `coverage` attributes it. A row outside the web default carries a `domain`, for example a
 Solidity case sets `domain: evm` so it scores against the EVM knowledge and prompt. A suite grows by
 adding `suites/<name>.yaml` naming the tags it selects, no second list of cases
-to keep in sync. Keep public benchmarks public and non-proprietary, this repo ships to PyPI
+to keep in sync. Keep public benchmarks public and non-proprietary, this repository ships to PyPI
 and GitHub.

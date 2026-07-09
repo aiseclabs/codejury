@@ -2,8 +2,8 @@
 
 A subscription seat runs a headless Claude Code agent via `claude -p` instead of calling
 a vendor API, so it uses the operator's Claude Code access with no provider key or proxy
-limit. The same transport serves both review paths: the repo backends in
-`review/repo/agent.py` subclass `_ClaudeBackend` to read files themselves, and
+limit. The same transport serves both review paths: the repository backends in
+`review/repository/agent.py` subclass `_ClaudeBackend` to read files themselves, and
 `ClaudeAgentProvider` here is a drop-in `Provider` for the diff path, where the diff is
 already in the prompt and no file tools are needed.
 
@@ -69,7 +69,7 @@ def _drop_flag(args: tuple[str, ...], flag: str) -> tuple[str, ...]:
 def _compose_claude_args(extra: tuple[str, ...], *, unsafe: bool,
                          allowed_tools: tuple[str, ...] = READ_ONLY_TOOLS) -> tuple[str, ...]:
     """The effective `claude -p` args. `allowed_tools` is mandatory and substituted by the caller,
-    the repo backends read files so they pass the read-only set, the diff provider answers from the
+    the repository backends read files so they pass the read-only set, the diff provider answers from the
     prompt so it passes none. Extra args from `CODEJURY_CLAUDE_ARGS` or the constructor are appended,
     but any `--allowedTools` they carry is dropped, so a misconfigured environment cannot silently
     widen the tools. `CODEJURY_CLAUDE_UNSAFE_TOOLS=1` is the one explicit way to hand tool selection

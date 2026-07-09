@@ -70,7 +70,7 @@ def content_paths(content_root: str | Path) -> ContentPaths:
 @dataclass(frozen=True, kw_only=True)
 class Domain:
     """A named review domain: where its content lives plus the review strategy that is
-    data, not engine logic. `lenses` rotate the repo-review passes, and the diff focus and
+    data, not engine logic. `lenses` rotate the repository-review passes, and the diff focus and
     do-not-report blocks lead the diff prompt. The engine reads these from the selected
     domain rather than naming any of them itself, so a new domain is the data here plus a
     content root. Severity is the model's, graded against the domain's rubric markdown, so
@@ -80,14 +80,14 @@ class Domain:
     lenses: tuple[str, ...]
     diff_focus: str
     diff_do_not_report: str
-    # the optional facts backend that grounds repo review, None when the domain has none,
+    # the optional facts backend that grounds repository review, None when the domain has none,
     # so the engine falls back to its own heuristics
     facts_backend: FactsBackend | None = None
     # an optional PoC backend factory, called with a provider and model to build a reproducer,
     # None when the domain has no executable PoC, so the engine skips the opt-in PoC stage. The
     # engine names no tool, the domain binds one, such as the evm Foundry reproducer.
     poc_backend: object | None = None
-    # dedup granularity for repo review. The web default keeps the endpoint in the key, so
+    # dedup granularity for repository review. The web default keeps the endpoint in the key, so
     # one class on two HTTP routes is two findings to fix. A domain whose endpoint is a
     # function sharing a helper sets this True to dedup by file and class, since the same
     # root cause surfaces at every caller and is one finding, not one per function.
@@ -136,7 +136,7 @@ class Facts:
     mean no backend ran, the engine falls back to its own heuristics.
 
     A backend may also fill `data["by_file"]`, a generic convention the engine reads: a map
-    from a source path relative to the repo to a prompt-ready facts block for that file. When set,
+    from a source path relative to the repository to a prompt-ready facts block for that file. When set,
     the engine grounds each unit with only the facts for the files it owns, so a large file
     split into slices still carries its whole call graph, the cross-slice signal a flat,
     truncated global dump loses. The map is data the domain fills, the engine names no

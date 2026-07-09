@@ -429,7 +429,7 @@ def test_rel_file_relativizes_to_root_and_falls_back(tmp_path):
     assert _rel_file(contract(_Name(absolute=str(root / "src" / "Vault.sol"))), root) == "src/Vault.sol"
     # a file outside the root, such as a dependency, falls back to its basename
     assert _rel_file(contract(_Name(absolute="/elsewhere/Ownable.sol")), root) == "Ownable.sol"
-    # the root is the file itself, a review of a single file, the name relative to the repo is the basename
+    # the root is the file itself, a review of a single file, the name relative to the repository is the basename
     assert _rel_file(contract(_Name(absolute=str(root / "Vault.sol"))), root / "Vault.sol") == "Vault.sol"
     assert _rel_file(type("C2", (), {"source_mapping": None})(), root) == ""
 
@@ -439,7 +439,7 @@ def test_importing_the_evm_domain_does_not_pull_the_heavy_tools():
     import sys
 
     # loading the domain binds the facts backend, a light module, but must never pull the
-    # optional slither dependency, the forge PoC module, or the repo engine, so registering
+    # optional slither dependency, the forge PoC module, or the repository engine, so registering
     # or selecting the domain stays free of the optional dependency
     code = (
         "import codejury.domains.evm, sys\n"

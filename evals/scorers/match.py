@@ -93,7 +93,7 @@ def _match_one(report_ep: str, key_entry: str) -> bool:
 
 def endpoint_match(report_ep: str, key_entry: str) -> bool:
     """Match by method and path, where either path may carry a leading mount prefix the
-    other omits, so a real repo's /api/v1/memories/*/update matches a key entry of
+    other omits, so a real repository's /api/v1/memories/*/update matches a key entry of
     /memories/*/update. Methods must agree when both are present. The shorter path aligns
     as a suffix of the longer, and the overlap is anchored by its first segment matching as
     a literal or both wildcards, so a deeper item path like /wallets/<id> is not conflated

@@ -6,7 +6,7 @@ They are the paths the engine reads when no domain is selected, so every existin
 keeps resolving the same files. A non-default domain is reached through `codejury.domains`,
 whose `Domain.paths` returns the same `ContentPaths` shape these constants come from.
 Content lives per domain under `domains/<name>/`: `knowledge/` is the pluggable security
-knowledge, `playbook/` is the repo-review agent path's assets, `detection.yaml` is the file
+knowledge, `playbook/` is the repository-review agent path's assets, `detection.yaml` is the file
 classification config.
 """
 

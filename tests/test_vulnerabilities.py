@@ -52,7 +52,7 @@ def test_normalize_category_maps_onto_vulnerability_id_set():
 
 
 def test_web_classes_declare_no_aliases():
-    # web keeps the empty alias map, so the repo category normalization does nothing there
+    # web keeps the empty alias map, so the repository category normalization does nothing there
     assert all(v.aliases == () for v in _VULNS)
     assert category_aliases() == {}
 

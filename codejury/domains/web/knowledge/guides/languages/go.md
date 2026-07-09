@@ -6,7 +6,7 @@ detect:
   files: ["*.go", "go.mod"]
 entrypoint_files: ["*main.go", "*/handlers/*.go", "*/handler/*.go", "*/api/*.go", "*/routes/*.go"]
 entrypoint_markers: ["http.HandleFunc", "http.ListenAndServe", "ServeMux", "http.Handler", "func(w http.ResponseWriter"]
-logic_layers: ["*/service/*.go", "*/services/*.go", "*/usecase/*.go", "*/repository/*.go", "*/repo/*.go", "*/store/*.go", "*/dao/*.go", "*/model/*.go", "*/models/*.go"]
+logic_layers: ["*/service/*.go", "*/services/*.go", "*/usecase/*.go", "*/repository/*.go", "*/repository/*.go", "*/store/*.go", "*/dao/*.go", "*/model/*.go", "*/models/*.go"]
 api_patterns: ["^func [A-Z]", "^func \\([^)]*\\) [A-Z]"]
 ---
 # Go Review Notes

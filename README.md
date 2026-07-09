@@ -17,12 +17,12 @@ AI-assisted security review for code diffs and whole repositories.
 The tool has two review paths:
 
 - **Diff Review** audits a pull request or unified diff in one command.
-- **Repo Review** fans out across a whole repository, reviews focused units, deduplicates
+- **Repository Review** fans out across a whole repository, reviews focused units, deduplicates
   candidates, verifies findings, and checks coverage with a gate.
 
 Diff Review is fast and reads only the change, so it catches what is visible in the diff.
 Cross-file business logic and invariants that span files need context from across the
-repository, which is Repo Review's job, so a clean Diff Review does not by itself clear the
+repository, which is Repository Review's job, so a clean Diff Review does not by itself clear the
 repository.
 
 Security knowledge is data. Vulnerability classes, language guides, framework guides, and
@@ -47,7 +47,7 @@ pip install "codejury[evm]"         # a Slither call graph backend for Solidity,
 pip install "codejury[claude-sdk]"  # a persistent Claude Code subscription transport
 ```
 
-Install the Repo Review slash command for an agent:
+Install the Repository Review slash command for an agent:
 
 ```bash
 codejury install-slash-command                  # Claude Code
@@ -55,7 +55,7 @@ codejury install-slash-command --agent codex    # Codex
 ```
 
 `install-slash-command` copies `/codejury-review` into the selected agent's command
-directory. The one command dispatches by argument: a directory runs the Repo Review
+directory. The one command dispatches by argument: a directory runs the Repository Review
 fan-out, a diff file or git range runs the coded Diff Review. Pass `--dir` to install it
 somewhere else.
 
@@ -94,8 +94,8 @@ export CODEJURY_JUDGE_MODEL=...                  # a Claude model, the confirmer
 ```
 
 The same `CODEJURY_FINDER_*` / `CODEJURY_CHALLENGER_*` / `CODEJURY_JUDGE_*` and the matching
-`--finder-* / --challenger-* / --judge-*` flags work on both `review diff` and `review repo`.
-Note that `review repo --run` finds with one model, the finder, it no longer adds a second
+`--finder-* / --challenger-* / --judge-*` flags work on both `review diff` and `review repository`.
+Note that `review repository --run` finds with one model, the finder, it no longer adds a second
 co-finder, and a seat that runs on the subscription supplies its own review, so it ignores
 that seat's backend flags while the others still apply.
 
@@ -121,12 +121,12 @@ leaves the machine before reviewing a proprietary repository:
 - Under the default `--executor auto`, each seat follows the `api` row when it has a key
   and the `subscription` row when it falls back to your Claude Code subscription, so what
   leaves the machine is decided per seat by whether that seat has a key.
-- Repo Review with `--executor api` sends bounded source snippets, the detected stack
+- Repository Review with `--executor api` sends bounded source snippets, the detected stack
   notes, the vulnerability guidance, and the findings.
 - Verification with `--executor api` sends the cited source file and the finding
   details. On the `subscription` row, Claude Code receives the finding details and reads
   the code itself through its read-only tools.
-- A repo seat on the `subscription` row does not use the configured provider key. It runs
+- A repository seat on the `subscription` row does not use the configured provider key. It runs
   Claude Code with read-only file tools, and Claude Code may send prompts and the code it
   reads through your Claude Code account, so the code does not stay local. The diff agent is
   narrower, it reads no files and sees only the diff in the prompt.
@@ -147,7 +147,7 @@ single model call or an adversarial Finder, Challenger, and Judge pass.
 codejury review diff --file changes.diff
 
 # review a git range
-codejury review diff --repo /path/to/app --git-range origin/main...HEAD
+codejury review diff --repository /path/to/app --git-range origin/main...HEAD
 
 # review stdin
 git diff HEAD~1 | codejury review diff
@@ -169,24 +169,24 @@ codejury review diff --file changes.diff --mode adversarial \
   --challenger-provider openai --challenger-api-key "$OPENAI_API_KEY"
 ```
 
-Diff Review takes the same `--executor auto|api|subscription` as Repo Review, see Review
+Diff Review takes the same `--executor auto|api|subscription` as Repository Review, see Review
 Strategy. The default `auto` calls the provider when a seat has a key and falls back to your
-Claude Code subscription for a keyless Anthropic seat. Unlike the repo agent, the diff agent
+Claude Code subscription for a keyless Anthropic seat. Unlike the repository agent, the diff agent
 answers from the diff in the prompt and reads no files.
 
 `codejury review diff --dry-run` uses a mock provider and a built-in demo diff, so it needs
 no API key.
 
-## Repo Review
+## Repository Review
 
-Repo Review is the recall-first path for whole repositories. A whole codebase is too large
+Repository Review is the recall-first path for whole repositories. A whole codebase is too large
 for one useful model call, so the tool creates a workspace, builds a unit worklist, and
 reviews focused units instead of doing one shallow pass.
 
 Start by scaffolding a workspace:
 
 ```bash
-codejury review repo /path/to/repo
+codejury review repository /path/to/repository
 ```
 
 The workspace contains:
@@ -207,7 +207,7 @@ _pocs.md        PoC reconciliation, planned versus delivered
 Then run the interactive slash command in Claude Code or Codex:
 
 ```text
-/codejury-review /path/to/repo
+/codejury-review /path/to/repository
 ```
 
 The agent maps the attack surface, fills the authorization model, runs one focused
@@ -217,8 +217,8 @@ PoCs must run only against sandbox or dev environments, never production.
 After the fan-out review, run the coded finalization and gate:
 
 ```bash
-codejury review repo /path/to/repo --finalize
-codejury review repo /path/to/repo --gate
+codejury review repository /path/to/repository --finalize
+codejury review repository /path/to/repository --gate
 ```
 
 `--finalize` deduplicates candidate files, verifies survivors, writes the confirmed
@@ -236,7 +236,7 @@ whether or not its PoC reproduces.
 For a headless run, use:
 
 ```bash
-codejury review repo /path/to/repo --run
+codejury review repository /path/to/repository --run
 ```
 
 ### Review Strategy
@@ -260,7 +260,7 @@ A `--run` chooses how each unit is reviewed:
   than a single grounded call even where a key is present.
 
 The subscription backend starts a fresh `claude -p` process for every call by default. A
-Repo Review run makes many calls, so to amortize that startup set
+Repository Review run makes many calls, so to amortize that startup set
 `CODEJURY_CLAUDE_TRANSPORT=sdk`, which keeps a Claude Agent SDK session alive across calls
 after you install `codejury[claude-sdk]`. The default `process` transport is unchanged, and
 an unknown transport value fails at startup rather than silently falling back.
@@ -280,11 +280,11 @@ stage refutes nothing, the recall-safe default.
 ## Fetch Verified Source
 
 Review a deployed contract by first pulling its verified source from a block explorer, then
-running Repo Review on the local tree:
+running Repository Review on the local tree:
 
 ```bash
 codejury fetch source --chain eth --address 0x... --out ./target
-codejury review repo ./target --domain evm --run --facts
+codejury review repository ./target --domain evm --run --facts
 ```
 
 `fetch source` queries the Etherscan V2 API, which serves every supported chain from one

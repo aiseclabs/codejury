@@ -1,13 +1,13 @@
 """Language and framework review guides as data.
 
 Each `knowledge/guides/languages/*.md` and `knowledge/guides/frameworks/*.md` is a knowledge unit: YAML
-frontmatter declaring how to detect the language or framework in a target repo
+frontmatter declaring how to detect the language or framework in a target repository
 by file-name globs, dependency-manifest substrings, import markers, or
 language-neutral content tokens such as a protocol's wire fields, and a body of
 review guidance covering where input enters, common sinks, auth conventions, and
 gotchas.
 
-Selection is generic: a guide applies when its detect signals fire on the repo.
+Selection is generic: a guide applies when its detect signals fire on the repository.
 Adding a language or framework is a drop-in file under the right directory, no
 code change, which keeps the unbounded language/framework axis out of code.
 """

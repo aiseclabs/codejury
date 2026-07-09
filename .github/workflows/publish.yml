@@ -1,7 +1,7 @@
 name: Publish to PyPI
 
 # Publishes on GitHub Release. Uses PyPI Trusted Publishing via OIDC, so no API
-# token is stored anywhere, PyPI verifies this repo and environment instead.
+# token is stored anywhere, PyPI verifies this repository and environment instead.
 # The build job verifies the artifact before publish runs, so a release cannot
 # ship failing tests, broken metadata, or a wheel missing its bundled resources.
 on:

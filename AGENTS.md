@@ -4,7 +4,7 @@ Project instructions for coding agents. Codex reads `AGENTS.md` directly. Claude
 reads it through the `@AGENTS.md` import in `CLAUDE.md`.
 
 An AI-assisted security review tool for code diffs and whole repositories. Diff Review
-is the coded path. Repo Review is the fan-out path where code owns the deterministic
+is the coded path. Repository Review is the fan-out path where code owns the deterministic
 orchestration and agents or model calls provide per-unit judgment.
 
 ## Non-Negotiable Invariants
@@ -25,7 +25,7 @@ orchestration and agents or model calls provide per-unit judgment.
    best practices, speculation, or config-leak-only risks.
 4. **Fail loud, never report failure as clean.** A failed, rate-limited, blank,
    malformed, or unparsable model call is a failed review step, not zero findings.
-   Diff Review must surface the error. Repo Review must count failed unit reviews,
+   Diff Review must surface the error. Repository Review must count failed unit reviews,
    preserve candidates when verification cannot complete, and avoid marking incomplete
    work as complete.
 5. **Improve the general case, never fit the benchmark.** A change to knowledge,
@@ -34,11 +34,11 @@ orchestration and agents or model calls provide per-unit judgment.
    variables, or fix shapes. Validate a change on a target it was not derived from, the
    benchmark it came from can only sanity-check, never prove. Never adjust a scorer or
    an answer key to raise a score.
-6. **PoC verification is safe and human-in-the-loop.** Repo Review PoCs run only
+6. **PoC verification is safe and human-in-the-loop.** Repository Review PoCs run only
    against sandbox or dev environments. Ask the operator for credentials and test data.
    Never use production systems, real credentials, or destructive actions without
    explicit approval.
-7. **English only.** Repo code, comments, docs, prompts, and data are English only.
+7. **English only.** Repository code, comments, docs, prompts, and data are English only.
 8. **No proprietary content.** The project is public on GitHub and PyPI. Do not add
    internal, confidential, or proprietary code or data.
 
@@ -69,9 +69,9 @@ orchestration and agents or model calls provide per-unit judgment.
 - `AdversarialAuditRunner` runs Finder, Challenger, and Judge passes for higher recall.
 - Findings use `codejury/finding.py` and render through `codejury/report.py`.
 
-### Repo Review
+### Repository Review
 
-- Lives under `codejury/review/repo/` with playbook assets in each domain's `playbook/`.
+- Lives under `codejury/review/repository/` with playbook assets in each domain's `playbook/`.
 - `scaffold.py` builds the workspace, stack notes, candidate files, unit files, and
   methodology assets.
 - `model.py` builds a language-agnostic repository file map from data-driven detection
@@ -111,7 +111,7 @@ orchestration and agents or model calls provide per-unit judgment.
 - Keep changes scoped to the requested behavior and the surrounding module boundaries.
 - Prefer existing helper APIs and local patterns over new abstractions.
 - When changing model-call handling, preserve fail-loud semantics.
-- When changing Repo Review, think through scaffold, run, resume, finalize,
+- When changing Repository Review, think through scaffold, run, resume, finalize,
   verification, gate, and tests as one workflow.
 - When changing output formats, keep text, markdown, JSON, SARIF, and severity gates in
   sync.
@@ -125,20 +125,20 @@ orchestration and agents or model calls provide per-unit judgment.
   `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`
 - Diff Review:
   `codejury review diff --file changes.diff`
-- Repo Review scaffold:
-  `codejury review repo <dir>`
-- Repo Review coded run:
-  `codejury review repo <dir> --run`
-- Repo Review finalize:
-  `codejury review repo <dir> --finalize`
-- Repo Review gate:
-  `codejury review repo <dir> --gate`
+- Repository Review scaffold:
+  `codejury review repository <dir>`
+- Repository Review coded run:
+  `codejury review repository <dir> --run`
+- Repository Review finalize:
+  `codejury review repository <dir> --finalize`
+- Repository Review gate:
+  `codejury review repository <dir> --gate`
 - Choose the backend, running it yourself is cheapest on the keyless subscription, which
   auto lowers concurrency so a wide fan-out does not trip its rate cap:
-  `codejury review repo <dir> --run --executor subscription`
+  `codejury review repository <dir> --run --executor subscription`
 - Set the review depth, low is one lens shot, medium is the default two, high is three
   shots plus a stricter majority of two skeptics to drop a candidate:
-  `codejury review repo <dir> --run --effort high`
+  `codejury review repository <dir> --run --effort high`
 - Install slash command:
   `codejury install-slash-command --agent claude|codex`
 - Provider configuration comes from flags or environment, not an auto-loaded `.env`:
@@ -169,7 +169,7 @@ Prose, in comments, docstrings, and markdown:
 - No parentheses. Reword the aside with "such as", "for example", or a comma.
 - Few hyphenated words. Keep the hyphen only where it is part of an identifier, a CLI flag like `--git-range`, a rule id like `sql-injection`, or a file path.
 - No sentence begins with the lowercase brand. Start with "It", "The tool", or a rewording.
-- Title Case headings. Name the two paths "Diff Review" and "Repo Review" in headings, lowercase "diff review" and "whole-repo review" in running text.
+- Title Case headings. Name the two paths "Diff Review" and "Repository Review" in headings, lowercase "diff review" and "whole-repository review" in running text.
 - English only, no CJK, see invariant 7.
 
 Semicolons and parentheses stay where they are code, not prose: code fences, inline code, rule trigger tokens, a method reference like `complete()`, and the prompt strings sent to the model.

@@ -1,6 +1,6 @@
 """Call-path unit packing from the facts call graph.
 
-A whole-repo review splits a large file into char windows, but a cross-function logic bug
+A whole-repository review splits a large file into char windows, but a cross-function logic bug
 lives on a call path, not in a window, so the path is split across units or buried in a
 file too large to focus on. A focused probe showed the model frames such a bug reliably
 when its call path is co-located in one small window, and not when the whole file is in one

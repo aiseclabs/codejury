@@ -1,8 +1,8 @@
 # Batch Recall Backtest
 
-A self-contained runbook for scoring whole-repo recall across the committed public suite. A
+A self-contained runbook for scoring whole-repository recall across the committed public suite. A
 fresh session reads this file and drives the whole batch, no extra explanation. It reproduces
-on any machine from the repo alone, no private data, since every target and its answer key are
+on any machine from the repository alone, no private data, since every target and its answer key are
 committed under `benchmarks/`.
 
 Read this together with the `Run` section of `README.md`, which scores one target and states
@@ -11,7 +11,7 @@ failure rules.
 
 ## What This Measures
 
-Whole-repo recall of the Repo Review methodology over real third-party code at real vulnerable
+Whole-repository recall of the Repository Review methodology over real third-party code at real vulnerable
 versions. The denominator is the planted issues in each `answer-key.yaml`, so the score is
 "did the methodology surface the real bug buried in a real surface", not a synthetic probe.
 
@@ -22,8 +22,8 @@ python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
 codejury install-slash-command --agent claude
 ```
 
-Set `CODEJURY_BACKTEST_DIR` to a root outside the repo tree. Clones, workspaces, and scores all
-live under it, so nothing large lands in the repo and there is no gitignore to maintain. There
+Set `CODEJURY_BACKTEST_DIR` to a root outside the repository tree. Clones, workspaces, and scores all
+live under it, so nothing large lands in the repository and there is no gitignore to maintain. There
 is no default. If it is unset, stop and ask the operator for one before starting, do not fall
 back to a temporary path. The batch spans several sessions and resumes from the scores under
 this root, so a directory wiped on reboot such as `/tmp` loses the progress and forces a rerun.
@@ -32,7 +32,7 @@ Pick a persistent location, a data volume or a home subdirectory.
 ## Targets and Order
 
 Do not hardcode a target list, derive it. The targets are every `benchmark.yaml` under
-`benchmarks/repo/`. For each, read `target.url`, `target.ref`, and `target.path`, the review
+`benchmarks/repository/`. For each, read `target.url`, `target.ref`, and `target.path`, the review
 scope, and read the sibling `answer-key.yaml` for the `planted` count and the categories.
 
 Order by information value over token cost, the same rule each run so the order is reproducible
@@ -55,16 +55,16 @@ Working top-down through that order:
    exact `ref` at depth 1, fall back to a filtered full clone plus checkout for a server that
    will not serve a bare sha.
 3. Review the scope with the `/codejury-review` methodology. Scaffold with
-   `codejury review repo <root>/repositories/<name>/<path> --workspace <root>/workspaces/<name>`,
+   `codejury review repository <root>/repositories/<name>/<path> --workspace <root>/workspaces/<name>`,
    then follow the workspace `METHODOLOGY.md`, fan out one sub-review per `Status: open` unit
    across diverse passes, write candidates, then
-   `codejury review repo <same dir> --workspace <same workspace> --finalize --executor auto`.
+   `codejury review repository <same dir> --workspace <same workspace> --finalize --executor auto`.
 4. Score. Locate the findings with `find <root>/workspaces/<name> -name findings.json`, then
-   `python -m evals repo <name> --findings-json <that path> --json <root>/results/<name>.json`.
+   `python -m evals repository <name> --findings-json <that path> --json <root>/results/<name>.json`.
 5. Report the recall for the target, `X/Y` found, then move to the next.
 
 The coded path is the alternative that writes the same findings.json without an agent, one
-`codejury review repo <dir> --workspace <ws> --run --executor auto`, prefer it for a scope with
+`codejury review repository <dir> --workspace <ws> --run --executor auto`, prefer it for a scope with
 detectable entrypoints. Score whichever path wrote the findings.
 
 ## Rules

@@ -91,7 +91,7 @@ def _rel_file(contract, root_abs: Path) -> str:
         except ValueError:
             rel = ""
         # relative_to yields "." when the root is the file itself, then the name relative to
-        # the repo is just the basename, the form a unit's files take
+        # the repository is just the basename, the form a unit's files take
         return rel if rel and rel != "." else abs_p.name
     return getattr(filename, "short", "") or getattr(filename, "used", "")
 

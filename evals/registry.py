@@ -1,12 +1,12 @@
-"""Benchmark discovery: the public benchmarks in the repo plus private sources from a
+"""Benchmark discovery: the public benchmarks in the repository plus private sources from a
 local, uncommitted config, merged into one named view.
 
-The repo ships only public OSS benchmarks under `evals/benchmarks`. Private benchmarks
+The repository ships only public OSS benchmarks under `evals/benchmarks`. Private benchmarks
 stay wherever they already live: a local config, gitignored, lists their sources as a path
-or a private git repo, and they plug in under the same names. Nothing private moves into
-the repo and nothing private commits. A source root may use the per-benchmark layout,
-`repo/<name>/benchmark.yaml` plus `answer-key.yaml`, optionally grouped under a frameworks
-path such as `repo/frameworks/python/flask/<name>`, or the legacy `groundtruth/<name>.yaml`,
+or a private git repository, and they plug in under the same names. Nothing private moves into
+the repository and nothing private commits. A source root may use the per-benchmark layout,
+`repository/<name>/benchmark.yaml` plus `answer-key.yaml`, optionally grouped under a frameworks
+path such as `repository/frameworks/python/flask/<name>`, or the legacy `groundtruth/<name>.yaml`,
 so an existing private benchmark scores without being reshaped. A name that appears in two
 roots fails loud, unless the private source sets `override: true` to shadow a public one on
 purpose.
@@ -49,10 +49,10 @@ def _config_path() -> Path | None:
     return local if local.is_file() else None
 
 
-def _clone(repo: str, ref: str | None) -> Path:
-    """Clone or update a private benchmark repo into the cache, so a private source can be
-    a git url rather than a path in the repo. Network and credentials are the operator's."""
-    slug = "".join(c if c.isalnum() else "-" for c in repo).strip("-")
+def _clone(repository: str, ref: str | None) -> Path:
+    """Clone or update a private benchmark repository into the cache, so a private source can be
+    a git url rather than a path in the repository. Network and credentials are the operator's."""
+    slug = "".join(c if c.isalnum() else "-" for c in repository).strip("-")
     dest = _CACHE / slug
     if dest.is_dir():
         subprocess.run(["git", "-C", str(dest), "pull", "--ff-only"], check=True, capture_output=True)
@@ -61,7 +61,7 @@ def _clone(repo: str, ref: str | None) -> Path:
         cmd = ["git", "clone", "--depth", "1"]
         if ref:
             cmd += ["--branch", ref]
-        cmd += [repo, str(dest)]
+        cmd += [repository, str(dest)]
         subprocess.run(cmd, check=True, capture_output=True)
     return dest
 
@@ -77,10 +77,10 @@ def _sources() -> list[tuple[Path, str, bool]]:
         override = bool(src.get("override", False))
         if "path" in src:
             sources.append((Path(src["path"]).expanduser(), "private", override))
-        elif "repo" in src:
-            sources.append((_clone(src["repo"], src.get("ref")), "private", override))
+        elif "repository" in src:
+            sources.append((_clone(src["repository"], src.get("ref")), "private", override))
         else:
-            raise ValueError(f"benchmark source {src} has neither path nor repo")
+            raise ValueError(f"benchmark source {src} has neither path nor repository")
     return sources
 
 
@@ -89,7 +89,7 @@ def _read_manifest(path: Path) -> tuple[str, dict, dict, tuple[str, ...]]:
     carries only the clone pointer and a kind, so stack, knowledge, and tags come back
     empty and the matrix falls back to the answer key for attribution."""
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    kind = str(data.get("kind", "repo"))
+    kind = str(data.get("kind", "repository"))
     stack = data.get("stack") or {}
     knowledge = data.get("knowledge") or {}
     tags = tuple(data.get("tags") or ())
@@ -97,7 +97,7 @@ def _read_manifest(path: Path) -> tuple[str, dict, dict, tuple[str, ...]]:
 
 
 def _benchmark_at(name: str, answer_key: Path, manifest: Path | None, provenance: str) -> Benchmark:
-    kind, stack, knowledge, tags = "repo", {}, {}, ()
+    kind, stack, knowledge, tags = "repository", {}, {}, ()
     if manifest is not None:
         kind, stack, knowledge, tags = _read_manifest(manifest)
     return Benchmark(id=name, kind=kind, answer_key=answer_key, provenance=provenance,
@@ -109,25 +109,25 @@ def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
     groundtruth layout alike. The per-benchmark layout wins when both name the same id.
 
     A benchmark is any directory holding an answer-key.yaml, or the legacy answer_key.yaml,
-    so a target may sit flat at repo/<name> or grouped at
-    repo/frameworks/<language>/<framework>/<name>, mirroring the knowledge guides taxonomy. The id is the leaf directory name regardless of
+    so a target may sit flat at repository/<name> or grouped at
+    repository/frameworks/<language>/<framework>/<name>, mirroring the knowledge guides taxonomy. The id is the leaf directory name regardless of
     the grouping path, so moving a target between groups does not rename it. Two targets with
     the same leaf name fail loud, an id collision is a mistake not a silent last-wins."""
     found: dict[str, Benchmark] = {}
-    repo_dir = root / "repo"
-    if repo_dir.is_dir():
+    repository_dir = root / "repository"
+    if repository_dir.is_dir():
         # answer-key.yaml is canonical, answer_key.yaml is the legacy name still read so a
         # private benchmark need not be reshaped. The hyphen form wins when a dir has both.
         by_dir: dict[Path, Path] = {}
-        for key in sorted(repo_dir.rglob("answer_key.yaml")):
+        for key in sorted(repository_dir.rglob("answer_key.yaml")):
             by_dir[key.parent] = key
-        for key in sorted(repo_dir.rglob("answer-key.yaml")):
+        for key in sorted(repository_dir.rglob("answer-key.yaml")):
             by_dir[key.parent] = key
         for d, key in sorted(by_dir.items()):
             manifest = next((d / m for m in ("benchmark.yaml", "target.yaml") if (d / m).is_file()), None)
             if d.name in found:
                 raise ValueError(
-                    f"two repo benchmarks share the leaf name '{d.name}' under {repo_dir}, "
+                    f"two repository benchmarks share the leaf name '{d.name}' under {repository_dir}, "
                     f"at {found[d.name].answer_key} and {key}. The id is the leaf directory "
                     f"name, so rename one of the two target directories.")
             found[d.name] = _benchmark_at(d.name, key, manifest, provenance)

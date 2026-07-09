@@ -1,7 +1,7 @@
 """The evm domain: smart contract security knowledge for Solidity and the EVM.
 
 Its content root is this package directory, holding the Solidity `knowledge/`, the
-repo-review `playbook/`, and `detection.yaml`. The review strategy is data here too:
+repository-review `playbook/`, and `detection.yaml`. The review strategy is data here too:
 the pass lenses and the diff prompt's focus and do-not-report blocks. This package
 imports only `codejury.domains.base` and its own
 light facts backend module, both free of the optional EVM dependency, so loading the
@@ -20,7 +20,7 @@ def _forge_poc(**kw):
     from codejury.domains.evm.poc import ForgePoC
     return ForgePoC(**kw)
 
-# the repo-review pass lenses for contracts: each pass leads with one class, the empty lens
+# the repository-review pass lenses for contracts: each pass leads with one class, the empty lens
 # reviews every class. A named lens is a reliable focused pass and the empty catch-all is not,
 # so every shipped contract class gets its own lens rather than relying on the catch-all.
 EVM_LENSES = (

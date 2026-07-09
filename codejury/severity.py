@@ -2,7 +2,7 @@
 
 Both review paths grade on the same four levels, so the canonical tuple, the
 free-text normalizer, the rank order, and the SARIF mapping live here once. The diff
-report and the repo calibration both import from this module, so the level names and
+report and the repository calibration both import from this module, so the level names and
 their ordering cannot drift apart.
 """
 

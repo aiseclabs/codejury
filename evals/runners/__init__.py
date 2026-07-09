@@ -2,6 +2,6 @@
 
 Only runners are path specific, everything after a Report is shared. The diff runner runs
 synthetic patches through audit_diff in process and folds the findings into a Result. The
-repo runner is score only, it reads the findings a whole-repo review already wrote and
+repository runner is score only, it reads the findings a whole-repository review already wrote and
 scores them, since that review is agent driven and runs out of process.
 """
