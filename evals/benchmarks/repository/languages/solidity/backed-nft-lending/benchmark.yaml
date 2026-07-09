@@ -33,5 +33,7 @@ tags:
   - solidity
   - code4rena
   - nft-lending
-  - reentrancy
   - erc777
+  - reentrancy
+  - denial-of-service
+  - accounting-precision

@@ -37,7 +37,9 @@ knowledge:
 
 tags:
   - public
-  - authz
-  - idor
-  - ssrf
+  - web
+  - go
   - echo
+  - missing-authorization
+  - insecure-direct-object-reference
+  - server-side-request-forgery

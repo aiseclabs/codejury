@@ -36,5 +36,7 @@ knowledge:
 
 tags:
   - public
-  - authz
+  - web
+  - go
   - gin
+  - missing-authorization

@@ -36,6 +36,10 @@ knowledge:
 
 tags:
   - public
-  - insecure-direct-object-reference
-  - resource-exhaustion
+  - web
+  - python
   - django
+  - insecure-direct-object-reference
+  - missing-authorization
+  - server-side-template-injection
+  - resource-exhaustion

@@ -28,5 +28,6 @@ knowledge:
 
 tags:
   - public
-  - http-response-splitting
+  - web
   - python
+  - http-response-splitting

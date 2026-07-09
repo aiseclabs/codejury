@@ -32,6 +32,8 @@ knowledge:
 
 tags:
   - public
+  - web
+  - python
+  - django
   - oauth
   - open-redirect
-  - django

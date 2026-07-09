@@ -28,5 +28,6 @@ knowledge:
 
 tags:
   - public
-  - http-request-smuggling
+  - web
   - python
+  - http-request-smuggling

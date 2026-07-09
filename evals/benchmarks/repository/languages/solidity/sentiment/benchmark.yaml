@@ -28,6 +28,8 @@ knowledge:
 
 tags:
   - public
-  - reentrancy
-  - read-only-reentrancy
+  - evm
   - solidity
+  - sherlock
+  - read-only-reentrancy
+  - reentrancy

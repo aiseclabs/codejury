@@ -29,6 +29,7 @@ knowledge:
 
 tags:
   - public
-  - insecure-direct-object-reference
+  - web
   - python
   - graphql
+  - insecure-direct-object-reference

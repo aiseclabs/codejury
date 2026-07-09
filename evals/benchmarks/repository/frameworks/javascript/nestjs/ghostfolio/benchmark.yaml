@@ -34,5 +34,7 @@ knowledge:
 
 tags:
   - public
-  - sql-injection
+  - web
+  - typescript
   - nestjs
+  - sql-injection

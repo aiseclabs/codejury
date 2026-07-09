@@ -39,8 +39,8 @@ tags:
   - reentrancy
   - oracle-price-manipulation
   - access-control
-  - accounting-precision
   - denial-of-service
-  - front-running
   - unchecked-low-level-call
+  - accounting-precision
+  - front-running
   - unsafe-math

@@ -28,4 +28,7 @@ knowledge:
 
 tags:
   - public
-  - authz
+  - web
+  - python
+  - fastapi
+  - insecure-direct-object-reference

@@ -28,5 +28,6 @@ knowledge:
 
 tags:
   - public
-  - cors-misconfiguration
+  - web
   - go
+  - cors-misconfiguration

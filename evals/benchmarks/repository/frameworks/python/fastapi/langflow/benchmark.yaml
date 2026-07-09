@@ -29,5 +29,7 @@ knowledge:
 
 tags:
   - public
-  - authn
+  - web
+  - python
   - fastapi
+  - improper-authentication

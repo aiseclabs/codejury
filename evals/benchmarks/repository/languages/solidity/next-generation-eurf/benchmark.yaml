@@ -34,4 +34,7 @@ tags:
   - solidity
   - code4rena
   - signature-replay
+  - accounting-precision
   - access-control
+  - unchecked-low-level-call
+  - proxy-delegatecall

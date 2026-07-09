@@ -31,6 +31,7 @@ knowledge:
 
 tags:
   - public
+  - web
+  - typescript
   - graphql
   - missing-authorization
-  - typescript

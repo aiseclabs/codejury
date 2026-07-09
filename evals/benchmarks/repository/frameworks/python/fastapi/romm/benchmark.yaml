@@ -30,5 +30,7 @@ knowledge:
 
 tags:
   - public
-  - session
+  - web
+  - python
   - fastapi
+  - insecure-session-management

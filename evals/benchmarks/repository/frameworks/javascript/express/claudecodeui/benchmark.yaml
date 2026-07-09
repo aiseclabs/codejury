@@ -29,5 +29,7 @@ knowledge:
 
 tags:
   - public
-  - command-injection
+  - web
+  - javascript
   - express
+  - command-injection

@@ -38,7 +38,10 @@ knowledge:
 
 tags:
   - public
-  - authz
-  - open-redirect
-  - xss
+  - web
+  - python
+  - javascript
   - flask
+  - missing-authorization
+  - open-redirect
+  - cross-site-scripting

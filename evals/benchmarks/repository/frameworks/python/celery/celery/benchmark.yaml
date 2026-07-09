@@ -29,6 +29,7 @@ knowledge:
 
 tags:
   - public
+  - web
+  - python
   - celery
   - insecure-deserialization
-  - python

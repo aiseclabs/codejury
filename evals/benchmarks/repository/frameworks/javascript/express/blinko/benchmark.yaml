@@ -34,7 +34,8 @@ knowledge:
 
 tags:
   - public
+  - web
+  - javascript
+  - express
   - business-logic
   - path-traversal
-  - authz
-  - express

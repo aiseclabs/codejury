@@ -27,5 +27,6 @@ knowledge:
 
 tags:
   - public
-  - jwt
+  - web
   - javascript
+  - jwt-validation

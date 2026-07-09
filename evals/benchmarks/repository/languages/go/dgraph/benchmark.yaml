@@ -27,5 +27,6 @@ knowledge:
 
 tags:
   - public
-  - security-misconfiguration
+  - web
   - go
+  - security-misconfiguration

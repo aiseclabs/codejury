@@ -30,5 +30,7 @@ knowledge:
 
 tags:
   - public
-  - csrf
+  - web
+  - python
   - flask
+  - cross-site-request-forgery
