@@ -29,10 +29,10 @@ planted:
       oracle with no access control, or getUnderlyingPrice trusting a caller-set
       feed, hits this entry. The safe pattern gates the setter behind onlyOwner
       or a role and treats the oracle address as an admin-only parameter.
-knowledge:
-  vulnerabilities:
-    - access-control
-    - oracle-price-manipulation
-  guides:
-    - languages/solidity
-    - protocols/defi-primitives
+    knowledge:
+      vulnerabilities:
+        - access-control
+        - oracle-price-manipulation
+      guides:
+        - languages/solidity
+        - protocols/defi-primitives
