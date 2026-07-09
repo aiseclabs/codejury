@@ -33,20 +33,20 @@ Solidity smart contracts, selected with `--domain` or detected automatically.
 
 ## Install
 
-Install the core package and one model backend:
-
-```bash
-pip install codejury
-pip install "codejury[anthropic]"   # or "codejury[openai]" or "codejury[litellm]"
-```
-
-Or install everything in one shot, every provider plus the optional toolchains, so nothing is missing:
+The simplest install pulls everything, every model backend plus the optional toolchains, so no
+capability is missing:
 
 ```bash
 pip install "codejury[all]"
 ```
 
-Optional extras add capabilities you can install one at a time instead:
+To keep it lean, install only the pieces you need instead. At least one model backend is required:
+
+```bash
+pip install "codejury[anthropic]"   # or "codejury[openai]" or "codejury[litellm]"
+```
+
+Then add optional capabilities as you need them:
 
 ```bash
 pip install "codejury[evm]"         # a Slither call graph backend for Solidity, grounds EVM review
