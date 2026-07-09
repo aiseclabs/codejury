@@ -251,11 +251,11 @@ an unknown transport value fails at startup rather than silently falling back.
 
 `--effort low|medium|high` is the one depth dial, each level fixing three things at once:
 
-| `--effort`         | Shots per lens | Skeptics to drop a candidate | Facts default        |
-|--------------------|----------------|------------------------------|----------------------|
-| `low`              | 1              | 1                            | Off, file-slice only |
-| `medium` (default) | 2              | 1                            | On                   |
-| `high`             | 3              | 2                            | On                   |
+| `--effort` | Shots per lens | Skeptics to drop a candidate | Facts default |
+|:---|:---|:---|:---|
+| `low` | 1 | 1 | Off |
+| `medium` (default) | 2 | 1 | On |
+| `high` | 3 | 2 | On |
 
 `--min-lens-shots` and `--votes` override the shot and skeptic columns, and `--facts` or
 `--no-facts` overrides the facts column.
