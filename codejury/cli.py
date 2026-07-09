@@ -421,9 +421,10 @@ def main(argv: list[str] | None = None) -> int:
                           help="ground review in a tool-extracted call graph, storage layout, and "
                                "read and write sets from the domain's facts backend such as the EVM "
                                "slither backend. Defaults on when the domain binds a backend, so the "
-                               "EVM domain grounds by default and degrades to file-slice review with "
-                               "a note when the toolchain is absent. Pass --no-facts to force it off, "
-                               "the result is cached by source content hash so a re-run is free")
+                               "EVM domain grounds by default, except at --effort low where the cheap "
+                               "fast pass stays file-slice only. It degrades to file-slice review with "
+                               "a note when the toolchain is absent. Pass --no-facts to force it off or "
+                               "--facts to force it on, the result is cached by source hash so a re-run is free")
     strategy.add_argument("--poc", action="store_true", default=False,
                           help="on finalize, generate and run an executable PoC per confirmed finding "
                                "when the domain binds a PoC backend such as the EVM Foundry reproducer. "
@@ -674,10 +675,13 @@ def _cmd_repository_finalize(args) -> int:
 
 
 def _facts_enabled(args, domain) -> bool:
-    """Resolve the tri-state --facts flag. An explicit --facts or --no-facts wins, otherwise
-    facts are on when the domain binds a backend, so the EVM domain grounds by default while web,
-    with no backend, does not."""
-    return args.facts if args.facts is not None else domain.facts_backend is not None
+    """Resolve the tri-state --facts flag. An explicit --facts or --no-facts wins. Otherwise facts
+    are on when the domain binds a backend, so the EVM domain grounds by default while web, with no
+    backend, does not. The exception is --effort low, the cheap fast tier, where the extra call-path
+    units are not worth their cost, so a low pass stays file-slice only unless --facts is explicit."""
+    if args.facts is not None:
+        return args.facts
+    return domain.facts_backend is not None and args.effort != "low"
 
 
 def _cmd_repository_run(args) -> int:

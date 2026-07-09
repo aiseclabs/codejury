@@ -673,3 +673,21 @@ def test_retries_and_timeout_reach_the_subscription_agent_finder(monkeypatch, tm
     assert isinstance(reviewer, AgentReviewer)
     assert reviewer._retries == 5
     assert reviewer._timeout == 42
+
+
+def test_facts_default_is_on_for_a_backend_domain_but_off_at_low_effort():
+    from types import SimpleNamespace
+    from codejury.domains.registry import get_domain
+    evm, web = get_domain("evm"), get_domain("web")
+
+    def args(facts, effort):
+        return SimpleNamespace(facts=facts, effort=effort)
+
+    # unset --facts: on for a backend domain at medium and high, off at the cheap low tier, off for web
+    assert climod._facts_enabled(args(None, "medium"), evm) is True
+    assert climod._facts_enabled(args(None, "high"), evm) is True
+    assert climod._facts_enabled(args(None, "low"), evm) is False
+    assert climod._facts_enabled(args(None, "medium"), web) is False
+    # an explicit flag wins over both the default and the low tier
+    assert climod._facts_enabled(args(True, "low"), evm) is True
+    assert climod._facts_enabled(args(False, "medium"), evm) is False
