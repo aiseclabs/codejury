@@ -143,7 +143,7 @@ codejury review diff --file changes.diff --executor subscription
 # carry fetched source provenance into the report, see Fetch Verified Source
 codejury review diff --file changes.diff --source-meta target/codejury-source.json
 
-# adversarial with a keyless Claude finder and judge plus an OpenAI challenger on its own key
+# run adversarial mode with a keyless Claude finder and judge plus an OpenAI challenger on its own key
 codejury review diff --file changes.diff --mode adversarial \
   --challenger-provider openai --challenger-api-key "$OPENAI_API_KEY"
 ```
