@@ -42,10 +42,10 @@ planted:
     category: server-side-request-forgery
     files:
       - pkg/modules/migration/helpers.go
+    severity: HIGH
     symbols:
       - DownloadFile
       - DownloadFileWithHeaders
-    severity: HIGH
     note: >
       CVE-2026-33675, GHSA-g66v-54v9-52pr. DownloadFile and DownloadFileWithHeaders build the
       request with http.NewRequestWithContext and run it on a bare http.Client{} with no check
@@ -68,9 +68,9 @@ planted:
     files:
       - pkg/utils/avatar.go
       - pkg/modules/auth/openid/openid.go
+    severity: HIGH
     symbols:
       - DownloadImage
-    severity: HIGH
     note: >
       CVE-2026-33679, GHSA-g9xj-752q-xh63. DownloadImage issues an http.NewRequestWithContext
       GET on a bare http.Client{} with no destination validation. The OpenID Connect login flow

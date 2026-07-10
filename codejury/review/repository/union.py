@@ -65,7 +65,8 @@ class Candidate:
             return ("fc", file, cat, ep) if by_file else ("ep", ep, cat)
         # No endpoint to anchor on. Falling straight to file and class would merge two distinct
         # same-class findings in one file into one slot and silently drop the second, the recall
-        # loss the red line forbids, as eurf masked approve behind setOwner. A line is an objective
+        # loss the red line forbids, as a contract that masks an approve behind a setOwner in the
+        # same file and class would. A line is an objective
         # per-finding anchor, so when present it keeps distinct findings apart. Only with neither
         # endpoint nor line do we fall to file and class.
         if self.line is not None:

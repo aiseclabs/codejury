@@ -13,8 +13,8 @@ from codejury.review.repository.agent import (
     _envelope_error,
     _result_text,
 )
-from codejury.review.repository.shapes import Unit
 from codejury.review.repository.engine import run_repository_review
+from codejury.review.repository.shapes import Unit
 from codejury.review.repository.union import Candidate
 
 

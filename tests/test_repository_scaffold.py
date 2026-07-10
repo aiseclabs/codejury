@@ -7,7 +7,7 @@ from dataclasses import replace
 
 import pytest
 
-from codejury.domains.base import Facts, FactsBackend
+from codejury.domains.base import Domain, Facts, FactsBackend
 from codejury.domains.web import WEB
 from codejury.review.repository.scaffold import scaffold
 
@@ -226,7 +226,7 @@ class _CountingBackend(FactsBackend):
         })
 
 
-def _facts_domain(backend: FactsBackend) -> object:
+def _facts_domain(backend: FactsBackend) -> Domain:
     return replace(WEB, facts_backend=backend)
 
 

@@ -29,9 +29,10 @@ from evals.schema import load_answer_key
 
 
 def _format_result(res) -> str:
+    known = len(res.found) + len(res.false_positives)
     lines = [f"=== {res.target} ===",
              f"  recall    {len(res.found)}/{res.n_planted} = {res.recall:.0%}",
-             f"  precision {res.precision_known:.0%}  over {len(res.found) + len(res.false_positives)} known-matched of {res.n_reports} reports"]
+             f"  precision {res.precision_known:.0%}  over {known} known-matched of {res.n_reports} reports"]
     runs = getattr(res, "runs", None)
     if runs:
         lines.insert(1, f"  runs      {runs}, found by strict majority")
@@ -209,7 +210,7 @@ def main(argv=None) -> int:
 
     sub.add_parser("list", help="benchmarks and suites the registry sees").set_defaults(func=_cmd_list)
 
-    c = sub.add_parser("compare", help="compare two result json files")
+    c = sub.add_parser("compare", help="compare two result JSON files")
     c.add_argument("before")
     c.add_argument("after")
     c.add_argument("--by", default=None,
@@ -218,8 +219,8 @@ def main(argv=None) -> int:
     c.set_defaults(func=_cmd_compare)
 
     g = sub.add_parser("gate", help="fail loud on a regression against a baseline")
-    g.add_argument("after", help="the result json to gate")
-    g.add_argument("--baseline", default=None, help="a baseline result json to judge the move against")
+    g.add_argument("after", help="the result JSON to gate")
+    g.add_argument("--baseline", default=None, help="a baseline result JSON to judge the move against")
     g.add_argument("--precision-floor", type=float, default=0.0, help="fail when precision is below this")
     g.add_argument("--no-structural", action="store_true", help="skip the benchmark-data soundness checks")
     g.set_defaults(func=_cmd_gate)

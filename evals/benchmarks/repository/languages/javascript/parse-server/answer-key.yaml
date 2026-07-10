@@ -18,7 +18,7 @@ planted:
       - findUsersWithAuthData
     note: >-
       CVE-2026-32248. findUsersWithAuthData reads providerAuthData = authData[provider] from the
-      request body (RestWrite passes this.data.authData straight in) and builds a query
+      request body, since RestWrite passes this.data.authData straight in, and builds a query
       { [`authData.${provider}.id`]: providerAuthData.id }, then runs
       config.database.find('_User', { $or: validQueries }). Because providerAuthData.id is used
       as-is, an attacker submits an object such as { "$regex": ".*" } for the id, turning the

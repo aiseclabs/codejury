@@ -17,6 +17,10 @@ from codejury.review.diff.audit import AuditRunner
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
 
 
+def _ask(prov):
+    return prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+
+
 def _envelope(result_text: str) -> str:
     return json.dumps({"type": "result", "subtype": "success", "result": result_text})
 
@@ -36,7 +40,7 @@ def test_complete_folds_system_ahead_of_the_user_content():
 
 def test_complete_returns_the_unwrapped_envelope_text():
     prov = ClaudeAgentProvider(runner=lambda p, **k: _envelope('{"findings": []}'))
-    result = prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+    result = _ask(prov)
     assert result.text == '{"findings": []}'
 
 
@@ -60,7 +64,7 @@ def test_complete_fails_loud_on_an_error_envelope_via_the_default_runner(monkeyp
     monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)
     prov = ClaudeAgentProvider(retries=0, backoff=0)
     with pytest.raises(RuntimeError):
-        prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+        _ask(prov)
 
 
 def test_complete_propagates_a_runner_failure():
@@ -69,7 +73,7 @@ def test_complete_propagates_a_runner_failure():
 
     prov = ClaudeAgentProvider(runner=boom, retries=0, backoff=0)
     with pytest.raises(RuntimeError, match="claude not found"):
-        prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+        _ask(prov)
 
 
 def test_diff_agent_passes_no_file_tools_but_keeps_json_output():
@@ -121,7 +125,7 @@ def test_retry_then_succeed():
         return _envelope('{"findings": []}')
 
     prov = ClaudeAgentProvider(runner=flaky, retries=2, backoff=0)
-    prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+    _ask(prov)
     assert calls["n"] == 2
 
 
@@ -143,7 +147,7 @@ def test_process_is_the_default_transport_and_calls_subprocess(monkeypatch):
 
     monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)
     prov = ClaudeAgentProvider(retries=0, backoff=0)
-    result = prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+    result = _ask(prov)
     assert result.text == '{"findings": []}'
     assert "-p" in captured["cmd"]
 
@@ -153,7 +157,7 @@ def test_injected_runner_wins_over_the_transport_env(monkeypatch):
     monkeypatch.setenv("CODEJURY_CLAUDE_TRANSPORT", "bogus")
     prov = ClaudeAgentProvider(runner=lambda p, **k: _envelope('{"findings": []}'))
     assert prov._transport is None
-    result = prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+    result = _ask(prov)
     assert result.text == '{"findings": []}'
 
 
@@ -169,7 +173,7 @@ def test_explicit_transport_is_used_and_closed():
             calls["close"] += 1
 
     prov = ClaudeAgentProvider(transport=FakeTransport())
-    prov.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+    _ask(prov)
     prov.close()
     assert calls == {"ask": 1, "close": 1}
 

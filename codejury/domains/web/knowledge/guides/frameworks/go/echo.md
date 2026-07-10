@@ -8,7 +8,7 @@ detect:
   imports: ["github.com/labstack/echo"]
 entrypoint_files: ["*main.go", "*/handlers/*.go", "*/handler/*.go", "*/api/*.go", "*/routes/*.go", "*/controllers/*.go"]
 entrypoint_markers: ["echo.New(", "echo.Context", "e.GET", "e.POST", ".GET(", ".POST(", ".Group(", "c.Param", "c.QueryParam", "c.Bind"]
-logic_layers: ["*/service/*.go", "*/services/*.go", "*/usecase/*.go", "*/repository/*.go", "*/repository/*.go", "*/store/*.go", "*/dao/*.go", "*/model/*.go"]
+logic_layers: ["*/service/*.go", "*/services/*.go", "*/usecase/*.go", "*/repository/*.go", "*/repositories/*.go", "*/store/*.go", "*/dao/*.go", "*/model/*.go"]
 ---
 # Echo Review Notes
 

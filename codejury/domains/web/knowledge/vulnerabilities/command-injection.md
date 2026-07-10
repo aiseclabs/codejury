@@ -23,8 +23,14 @@ subprocess.run(["ping", "-c", "1", host], shell=False)
 ```
 
 ## Node.js
-Vulnerable: `child_process.exec(`ping ${host}`)`
-Secure: `child_process.execFile("ping", ["-c", "1", host])`
+Vulnerable:
+```javascript
+child_process.exec(`ping ${host}`)
+```
+Secure:
+```javascript
+child_process.execFile("ping", ["-c", "1", host])
+```
 
 ## Not a Finding
 

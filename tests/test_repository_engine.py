@@ -137,9 +137,9 @@ def test_build_units_groups_trace_targets_by_package():
         ["accounts/views/api.py", "authorization/views/web.py"],
         ["accounts/managers/m.py", "authorization/dao/d.py"],
     )
-    by = {u.name: u for u in units}
-    assert "accounts/managers/m.py" in by["accounts/views/api.py"].files
-    assert "authorization/dao/d.py" not in by["accounts/views/api.py"].files
+    units_by_name = {u.name: u for u in units}
+    assert "accounts/managers/m.py" in units_by_name["accounts/views/api.py"].files
+    assert "authorization/dao/d.py" not in units_by_name["accounts/views/api.py"].files
 
 
 def test_build_units_splits_a_large_file_into_overlapping_windows(tmp_path):
@@ -303,11 +303,7 @@ def test_parse_candidate_drops_a_cleared_or_refuted_record(tmp_path):
 
 
 def test_finalize_dedups_verifies_and_reports(tmp_path):
-    target = tmp_path / "proj"
-    target.mkdir()
-    ws = tmp_path / "work"
-    candidates = ws / "proj" / "candidates"
-    candidates.mkdir(parents=True)
+    target, ws, candidates = _finalize_ws(tmp_path)
     (candidates / "a.md").write_text("# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
     (candidates / "a2.md").write_text("# idor again\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/{id}`\n## Analysis\napp/v.py:10\n")
     (candidates / "b.md").write_text("# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n")
@@ -356,6 +352,15 @@ def test_finalize_falls_back_to_the_union_when_no_agent_candidates(tmp_path):
 class _AllReal(Verifier):
     def verify(self, c, root):
         return Verdict(real=True, reason="")
+
+
+def _finalize_ws(tmp_path):
+    target = tmp_path / "proj"
+    target.mkdir()
+    ws = tmp_path / "work"
+    candidates = ws / "proj" / "candidates"
+    candidates.mkdir(parents=True)
+    return target, ws, candidates
 
 
 def _seed_one_candidate(target, ws):
@@ -466,11 +471,7 @@ def test_corrupt_union_on_resume_raises_loud_and_keeps_report(custody_repository
 
 
 def test_corrupt_verified_on_finalize_raises_loud(tmp_path):
-    target = tmp_path / "proj"
-    target.mkdir()
-    ws = tmp_path / "work"
-    candidates = ws / "proj" / "candidates"
-    candidates.mkdir(parents=True)
+    target, ws, candidates = _finalize_ws(tmp_path)
     (candidates / "a.md").write_text("# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
     (ws / "proj" / "_verified.json").write_text("{corrupt", encoding="utf-8")
 
@@ -503,11 +504,7 @@ def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_p
 def test_finalize_drops_issue_with_no_file_location(tmp_path):
     # invariant 3: no file location means not reportable, so the issue is dropped, not
     # carried into the report with an empty location.
-    target = tmp_path / "proj"
-    target.mkdir()
-    ws = tmp_path / "work"
-    candidates = ws / "proj" / "candidates"
-    candidates.mkdir(parents=True)
+    target, ws, candidates = _finalize_ws(tmp_path)
     (candidates / "noloc.md").write_text(
         "# missing location\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n"
         "## Analysis\nno concrete location was cited.\n")
@@ -518,11 +515,7 @@ def test_finalize_drops_issue_with_no_file_location(tmp_path):
 
 
 def test_finalize_preserves_blocked_status(tmp_path):
-    target = tmp_path / "proj"
-    target.mkdir()
-    ws = tmp_path / "work"
-    candidates = ws / "proj" / "candidates"
-    candidates.mkdir(parents=True)
+    target, ws, candidates = _finalize_ws(tmp_path)
     (candidates / "blocked.md").write_text(
         "# needs poc\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n- Status: blocked\n"
         "## Analysis\napp/s.py:5 no nonce, a PoC needs credentials.\n")
@@ -675,10 +668,10 @@ def test_finalize_links_pocs_and_reconciles(tmp_path):
 
     finalize_repository_review(target, ws, verify=False)
     data = json.loads((proj / "findings.json").read_text())
-    by = {f["entry"]: f for f in data["findings"]}
-    assert by["GET /x/<id>"]["poc"] == "pocs/x.sh"
-    assert by["GET /x/<id>"]["candidate"] == "candidates/x.md"
-    assert by["POST /t"]["poc"] == ""
+    findings_by_entry = {f["entry"]: f for f in data["findings"]}
+    assert findings_by_entry["GET /x/<id>"]["poc"] == "pocs/x.sh"
+    assert findings_by_entry["GET /x/<id>"]["candidate"] == "candidates/x.md"
+    assert findings_by_entry["POST /t"]["poc"] == ""
 
     report = (proj / "_pocs.md").read_text()
     assert "POST /t" in report

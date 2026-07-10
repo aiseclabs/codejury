@@ -57,22 +57,23 @@ def _guide(path, meta: dict, body: str) -> Guide:
     )
 
 
-def entrypoint_globs(guides: list[Guide]) -> tuple[str, ...]:
-    """The entrypoint-file globs declared by a set of guides, deduplicated."""
+def _ordered_unique(guides: list[Guide], attr: str) -> tuple[str, ...]:
+    """The values of one Guide list attribute across a set of guides, order preserved, deduplicated."""
     seen: dict[str, None] = {}
     for g in guides:
-        for pat in g.entrypoint_files:
-            seen.setdefault(pat, None)
+        for item in getattr(g, attr):
+            seen.setdefault(item, None)
     return tuple(seen)
+
+
+def entrypoint_globs(guides: list[Guide]) -> tuple[str, ...]:
+    """The entrypoint-file globs declared by a set of guides, deduplicated."""
+    return _ordered_unique(guides, "entrypoint_files")
 
 
 def entrypoint_markers(guides: list[Guide]) -> tuple[str, ...]:
     """The entrypoint content markers declared by a set of guides, deduplicated."""
-    seen: dict[str, None] = {}
-    for g in guides:
-        for m in g.entrypoint_markers:
-            seen.setdefault(m, None)
-    return tuple(seen)
+    return _ordered_unique(guides, "entrypoint_markers")
 
 
 def api_patterns(guides: list[Guide]) -> tuple[str, ...]:
@@ -80,22 +81,14 @@ def api_patterns(guides: list[Guide]) -> tuple[str, ...]:
     application entrypoint, so its exported symbols are the attack surface, since every
     consumer feeds attacker-influenced data into them. These name how a language marks an
     export, such as a capitalized Go function, so seeding stays data-driven."""
-    seen: dict[str, None] = {}
-    for g in guides:
-        for p in g.api_patterns:
-            seen.setdefault(p, None)
-    return tuple(seen)
+    return _ordered_unique(guides, "api_patterns")
 
 
 def logic_layer_globs(guides: list[Guide]) -> tuple[str, ...]:
     """The downstream business-logic globs declared by a set of guides,
     deduplicated. These name where logic lives below the entrypoint, for example
     managers, controllers, dao, and services, so a trace does not stop at the view."""
-    seen: dict[str, None] = {}
-    for g in guides:
-        for pat in g.logic_layers:
-            seen.setdefault(pat, None)
-    return tuple(seen)
+    return _ordered_unique(guides, "logic_layers")
 
 
 def load_guides(languages_dir=LANGUAGES_DIR, frameworks_dir=FRAMEWORKS_DIR, protocols_dir=PROTOCOLS_DIR) -> list[Guide]:

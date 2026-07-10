@@ -5,7 +5,7 @@ kind: repository
 # facilitator where a lender can be bought out by a better lender. This target covers the
 # callback reentrancy class on a codebase unrelated to revert-lend, so a fix for that class
 # is measured for generalization rather than fit to one repository. The buyout path pays the
-# current lender before it finalizes loan state, so a loan asset that can call back, an ERC777,
+# current lender before it finalizes loan state, so a loan asset that can call back, an ERC-777,
 # re-enters or reverts on the payout.
 target:
   type: git
@@ -26,6 +26,7 @@ knowledge:
     - accounting-precision
   guides:
     - languages/solidity
+    - protocols/defi-primitives
 
 tags:
   - public

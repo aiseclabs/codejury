@@ -154,7 +154,7 @@ def _role_provider(args, spec):
                          retries=args.retries, wire_api=spec["wire_api"], timeout=args.timeout)
 
 
-# The env var each vendor SDK reads when no explicit key is passed. litellm has no single name, so
+# The env var each vendor SDK reads when no explicit key is passed. LiteLLM has no single name, so
 # it is reachable only with an explicit key, never a subscription seat.
 _SDK_KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
 
@@ -305,7 +305,7 @@ def _add_role_backend_args(target, role: str) -> None:
     target.add_argument(f"--{role}-api-base", default=d["api_base"], dest=f"{role}_api_base")
     target.add_argument(f"--{role}-wire-api", default=d["wire_api"], dest=f"{role}_wire_api",
                         choices=("chat", "responses"),
-                        help=f"openai {role} wire API, responses for the gpt-5 reasoning models")
+                        help=f"OpenAI {role} wire API, responses for the GPT-5 reasoning models")
 
 
 _EXECUTOR_HELP = (
@@ -785,7 +785,7 @@ def _cmd_repository_scaffold(args) -> int:
     # of setting one without --run rather than silently doing nothing with it
     ignored = [flag for flag, used in (
         ("--dry-run", args.dry_run),
-        ("--executor", args.executor != "api"),
+        ("--executor", args.executor != "auto"),
         ("--no-verify", not args.verify),
     ) if used]
     if ignored:

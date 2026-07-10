@@ -24,7 +24,7 @@ from codejury.providers.claude_agent import (
 )
 
 
-def _ok_messages(text: str = "ok") -> list:
+def _ok_messages(text: str = "ok") -> list[SimpleNamespace]:
     return [
         SimpleNamespace(content=[SimpleNamespace(text=text)], model="m"),
         SimpleNamespace(subtype="success", is_error=False, result=text),

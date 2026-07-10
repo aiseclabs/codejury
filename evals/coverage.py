@@ -50,9 +50,8 @@ class Coverage:
     @property
     def covered(self) -> bool:
         # coverage has two dimensions. A class exercised only by a diff case is still unmeasured at
-        # the integration level, where business logic and cross-file recall live. The old flat flag
-        # hid that, marking a class covered on one diff case while no whole-repository target planted it,
-        # see missing-repository-target.
+        # the integration level, where business logic and cross-file recall live, see
+        # missing-repository-target.
         return self.diff_covered or self.repository_covered
 
 

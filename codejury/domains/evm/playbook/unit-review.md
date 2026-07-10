@@ -14,7 +14,7 @@ for the recurring ways a static read misjudges them.
 
 Hunt the high-impact classes: reentrancy, missing or broken access control, oracle and
 price manipulation, accounting and precision errors, proxy, delegatecall, and initializer
-flaws, signature replay, unchecked low-level calls, weird ERC20 behavior such as
+flaws, signature replay, unchecked low-level calls, weird ERC-20 behavior such as
 fee-on-transfer and rebasing tokens, and denial of service. Money is the asset, grade
 every finding by funds moved, locked, or stolen.
 
@@ -25,7 +25,7 @@ of a named guard:
   path? A `nonReentrant` modifier guards one function, not the cross-function path that
   shares the same state, nor a read-only reentrancy where another protocol reads this
   contract's view mid-update. A push transfer re-enters too: when this contract itself
-  calls `safeTransferFrom` of an NFT or an ERC1155, or sends an ERC777 token, to a
+  calls `safeTransferFrom` of an NFT or an ERC-1155, or sends an ERC-777 token, to a
   recipient the caller controls, the recipient's `onERC721Received`, `onERC1155Received`,
   or `tokensReceived` hook runs before the calling function returns, so a liquidation, a
   settlement, or a loan cleanup that moves a position to its owner before it finishes

@@ -24,9 +24,9 @@ planted:
     entry: GET /v1/user/detail
     files:
       - server/routerTrpc/user.ts
+    severity: HIGH
     symbols:
       - detail
-    severity: HIGH
     note: >
       The detail procedure takes an optional id and returns that account including its
       apiToken in the token output field. Its guard reads
@@ -51,9 +51,9 @@ planted:
     entry: POST /v1/user/upsert
     files:
       - server/routerTrpc/user.ts
+    severity: CRITICAL
     symbols:
       - upsertUser
-    severity: CRITICAL
     note: >
       The upsert procedure is authProcedure.use(demoAuthMiddleware), which blocks demo mode
       but enforces no ownership. It reads id from the request body and runs

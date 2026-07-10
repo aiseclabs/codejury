@@ -7,7 +7,7 @@
 # commit. Public advisory CVE-2023-22893, GHSA-xv3q-jrmm-4fxv, so this target measures regression
 # more than true recall. It plants one JWT validation flaw, the Cognito login provider decodes
 # the id token without verifying its signature. The fix adds a jwt.verify against the Cognito
-# JWKS, which is the safe sibling.
+# JWKS.
 
 target: strapi
 

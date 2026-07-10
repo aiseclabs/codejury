@@ -189,7 +189,6 @@ class AdversarialAuditRunner:
         focus: str = FOCUS,
         do_not_report: str = DO_NOT_REPORT,
     ) -> None:
-        self._provider = provider
         self._max_tokens = max_tokens
         # each role is a (provider, model) backend, defaulting field by field to the shared one,
         # so a different vendor can sit in any seat for cross-model review

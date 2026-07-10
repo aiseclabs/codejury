@@ -20,6 +20,7 @@ cycle.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -86,7 +87,7 @@ class Domain:
     # an optional PoC backend factory, called with a provider and model to build a reproducer,
     # None when the domain has no executable PoC, so the engine skips the opt-in PoC stage. The
     # engine names no tool, the domain binds one, such as the evm Foundry reproducer.
-    poc_backend: object | None = None
+    poc_backend: Callable[..., object] | None = None
     # dedup granularity for repository review. The web default keeps the endpoint in the key, so
     # one class on two HTTP routes is two findings to fix. A domain whose endpoint is a
     # function sharing a helper sets this True to dedup by file and class, since the same

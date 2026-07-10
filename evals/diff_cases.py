@@ -53,7 +53,7 @@ def _case(row, i: int) -> DiffCase:
 
 
 def load_cases(path: str | Path) -> list[DiffCase]:
-    """Load cases from a YAML list of {name, category, diff, knowledge, tags}, failing loud
+    """Load cases from a YAML list of {name, category, diff, knowledge, tags, domain}, failing loud
     on a row with no diff rather than silently probing nothing."""
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     rows = data.get("cases") if isinstance(data, dict) else data

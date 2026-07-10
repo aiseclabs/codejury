@@ -110,9 +110,10 @@ def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
 
     A benchmark is any directory holding an answer-key.yaml, or the legacy answer_key.yaml,
     so a target may sit flat at repository/<name> or grouped at
-    repository/frameworks/<language>/<framework>/<name>, mirroring the knowledge guides taxonomy. The id is the leaf directory name regardless of
-    the grouping path, so moving a target between groups does not rename it. Two targets with
-    the same leaf name fail loud, an id collision is a mistake not a silent last-wins."""
+    repository/frameworks/<language>/<framework>/<name>, mirroring the knowledge guides
+    taxonomy. The id is the leaf directory name regardless of the grouping path, so moving
+    a target between groups does not rename it. Two targets with the same leaf name fail
+    loud, an id collision is a mistake not a silent last-wins."""
     found: dict[str, Benchmark] = {}
     repository_dir = root / "repository"
     if repository_dir.is_dir():

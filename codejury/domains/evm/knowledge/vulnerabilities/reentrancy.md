@@ -23,12 +23,12 @@ before the external call, or guard with `nonReentrant`, and remember a guard on 
 function does not stop the cross-contract read-only form, the view must be consistent at the
 moment of the external call.
 
-A token transfer is an external call too. An ERC777 token runs a `tokensToSend` hook on
+A token transfer is an external call too. An ERC-777 token runs a `tokensToSend` hook on
 the sender and a `tokensReceived` hook on the recipient, and other tokens add their own
-transfer callback, so a plain `transfer` or `safeTransfer` of an ERC20 can hand control to
+transfer callback, so a plain `transfer` or `safeTransfer` of an ERC-20 can hand control to
 an attacker exactly like a raw `call`. Treat any token whose address is not a fixed trusted
 constant as possibly hook bearing and check every token-move path for reentrancy, not only
-the `call{value}` paths. Clearing a path because the token is assumed to be a normal ERC20
+the `call{value}` paths. Clearing a path because the token is assumed to be a normal ERC-20
 with no hook is an assumed off-file control unless the token set is pinned to a known
 allowlist, so keep the finding, see the recall red line.
 

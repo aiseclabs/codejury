@@ -17,7 +17,6 @@ planted:
     symbols:
       - isMatchingRedirectURI
       - MatchRedirectURIWithClientRedirectURIs
-      - strings.ToLower
     note: >-
       GHSA-5hvv-m4w4-gf6v. isMatchingRedirectURI compares each registered redirect URI to the
       requested one with strings.ToLower(b) == strings.ToLower(uri), a case-insensitive match rather

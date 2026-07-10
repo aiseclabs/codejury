@@ -124,7 +124,7 @@ def test_parse_rejects_source_without_inline_content():
         parse_source_code(payload, "Token")
 
 
-def _parse(payload: dict):
+def _parse(payload: dict) -> tuple[SourceMeta, dict[str, str]]:
     return parse_getsourcecode(
         payload, source="bscscan", chain="bsc", chain_id=56,
         address="0xabc", source_url="https://bscscan.com/address/0xabc#code",

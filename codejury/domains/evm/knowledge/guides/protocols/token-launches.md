@@ -9,7 +9,7 @@ detect:
 
 These patterns are common to token-launch contracts, most visibly on BSC but not unique to
 it, where a token layers a transfer tax, reflection, trading switches, and liquidity
-handling on top of ERC20. Read the `languages/solidity` guide for idioms and `erc-standards`
+handling on top of ERC-20. Read the `languages/solidity` guide for idioms and `erc-standards`
 for the base token invariants. The high-value bugs are owner control that can trap a buyer
 and price or reserve manipulation through the token's own liquidity, so confirm a concrete,
 unrecoverable user harm rather than reporting that the owner is privileged.

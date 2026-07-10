@@ -1,6 +1,6 @@
 ---
 id: http-response-splitting
-title: HTTP Response Splitting
+title: HTTP Response Splitting / Header Injection
 lens: http-response-splitting
 impact: MEDIUM
 tags: [cwe-113, cwe-93, owasp-a03]

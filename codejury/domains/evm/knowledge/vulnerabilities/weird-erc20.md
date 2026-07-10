@@ -1,6 +1,6 @@
 ---
 id: weird-erc20
-title: Weird ERC20 Behavior
+title: Weird ERC-20 Behavior
 lens: weird-erc20
 impact: HIGH
 tags: [fee-on-transfer, rebasing, erc777, accounting, fund-loss]
@@ -8,7 +8,7 @@ aliases: [fee-on-transfer, deflationary-token, rebasing-token, erc777-hook]
 triggers: ["transferFrom", "transfer(", "balanceOf", "amount", "ERC777", "tokensReceived", "tokensToSend", "rebas", "fee", "safeTransferFrom", "received", "_rOwned", "_tOwned", "reflectionFromToken", "isExcluded", "_reflectFee"]
 ---
 
-# Weird ERC20 Behavior
+# Weird ERC-20 Behavior
 
 A contract that integrates an arbitrary token often assumes the token moves exactly the
 requested `amount`, returns true, and never hands back control. Many real tokens break
@@ -16,7 +16,7 @@ those assumptions. A fee-on-transfer or deflationary token delivers less than `a
 so crediting the caller the requested amount over-credits a deposit and inflates shares,
 balances, or accounting against the pool. A rebasing token changes balances out from
 under a stored amount, so a figure recorded at deposit no longer matches the real
-balance. An ERC777 token runs a `tokensReceived` or `tokensToSend` hook inside a plain
+balance. An ERC-777 token runs a `tokensReceived` or `tokensToSend` hook inside a plain
 `transfer` or `transferFrom`, handing control to a party the caller chooses, which is a
 reentrancy vector covered in reentrancy. The boundary with unchecked-low-level-call is
 that the return value here is honored, the bug is that the amount moved is not the amount

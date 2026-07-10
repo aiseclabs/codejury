@@ -21,8 +21,8 @@ the code. When a real run later proves a new recurring misjudgement, add it here
   has not yet moved. Controlling fact: during the callback window, what does each `ownerOf`,
   balance, or role read return, and can a reentrant call into another function be paid or
   authorized against that stale ownership?
-- A payout made with a plain ERC20 `transfer` or `safeTransfer` still hands control to the
-  recipient when that token is ERC777 or carries a transfer hook, so paying a recipient the
+- A payout made with a plain ERC-20 `transfer` or `safeTransfer` still hands control to the
+  recipient when that token is ERC-777 or carries a transfer hook, so paying a recipient the
   caller chooses before the position is finalized is a reentrancy sink, not only a
   `.call{value:}` or an NFT `safeTransferFrom`. Controlling fact: is the asset one fixed
   address you can read and confirm has no callback, or is it set per market, per loan, or by

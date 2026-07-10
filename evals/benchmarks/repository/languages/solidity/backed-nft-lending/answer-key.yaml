@@ -1,3 +1,7 @@
+# Answer key for the backed-nft-lending target. Real third-party code at a real vulnerable commit,
+# not authored here, see benchmark.yaml for the clone pointer. The review under test never reads
+# this file.
+
 target: backed-nft-lending
 
 # Ground truth from the Code4rena report at https://code4rena.com/reports/2022-04-backed
@@ -15,7 +19,7 @@ planted:
     severity: HIGH
     note: >-
       C4 H-02 plus H-03. lend() transfers accumulated interest and principal to the current
-      lender before it finalizes loanInfo, so an ERC777 loan asset fires a receive hook that
+      lender before it finalizes loanInfo, so an ERC-777 loan asset fires a receive hook that
       re-enters lend() to manipulate the loan terms, or chains into repayAndCloseLoan() to
       steal funds. No nonReentrant guard and no effects-then-interactions ordering on the
       buyout path.
@@ -30,7 +34,7 @@ planted:
     file: contracts/NFTLoanFacilitator.sol
     severity: MEDIUM
     note: >-
-      C4 M-01. A malicious current lender holds the loan through a contract whose ERC777
+      C4 M-01. A malicious current lender holds the loan through a contract whose ERC-777
       receive hook reverts, so the buyout payout in lend() always reverts and no better
       lender can ever replace them, a griefing denial of service on the same callback path
       as the reentrancy.

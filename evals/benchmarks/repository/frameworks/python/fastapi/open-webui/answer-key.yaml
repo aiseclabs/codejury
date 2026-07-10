@@ -61,6 +61,7 @@ planted:
 
 safe:
   - id: safe-memory-delete
+    category: insecure-direct-object-reference
     entry: DELETE /memories/<memory_id>
     file: routers/memories.py
     note: delete_memory_by_id is scoped by id AND user_id, the correct sibling of the
@@ -72,6 +73,7 @@ safe:
         - languages/python
         - frameworks/python/fastapi
   - id: safe-memory-get
+    category: insecure-direct-object-reference
     entry: GET /memories/
     file: routers/memories.py
     note: get_memories is scoped to the caller user id, safe

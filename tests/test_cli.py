@@ -428,15 +428,8 @@ def test_note_verify_route_states_the_active_route(capsys):
 def test_run_auto_falls_back_to_agent_finder_and_skeptic_without_a_key(monkeypatch, tmp_path):
     # the motivating case in miniature: no key anywhere, so the anthropic finder and skeptic ride
     # the subscription as agents, no provider is built
-    import codejury.review.repository.engine as eng
     from codejury.review.repository.agent import AgentReviewer, AgentVerifier
-    captured = {}
-
-    def fake_run(target, workspace, **kw):
-        captured.update(kw)
-        raise RuntimeError("stop after capture")
-
-    monkeypatch.setattr(eng, "run_repository_review", fake_run)
+    captured = _capture_run(monkeypatch)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
     main(["review", "repository", str(tmp_path), "--run", "--no-verify"])
@@ -451,15 +444,9 @@ def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_
     from codejury.review.repository.verifier import ModelRefutationChecker, ModelVerifier
     captured = {}
 
-    class _FR:
-        parsed = 0
-        deduped = 0
-        workspace = str(tmp_path)
-        verify = None
-
     def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
         captured["verifier"], captured["confirmers"] = verifier, confirmers
-        return _FR()
+        return _finalize_result(tmp_path)
 
     monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
@@ -477,15 +464,9 @@ def test_finalize_default_has_no_confirmer_and_notes_keep_all(monkeypatch, tmp_p
     # nothing overridden, so judge == challenger, no independent confirmer, keep everything and note it
     import codejury.review.repository.engine as eng
 
-    class _FR:
-        parsed = 0
-        deduped = 0
-        workspace = str(tmp_path)
-        verify = None
-
     def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
         fake_finalize.confirmers = confirmers
-        return _FR()
+        return _finalize_result(tmp_path)
 
     monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
@@ -501,13 +482,7 @@ def test_finalize_default_has_no_confirmer_and_notes_keep_all(monkeypatch, tmp_p
 def test_finalize_mentions_pocs_only_when_the_file_exists(monkeypatch, tmp_path, capsys):
     import codejury.review.repository.engine as eng
 
-    class _FR:
-        parsed = 0
-        deduped = 0
-        workspace = tmp_path
-        verify = None
-
-    monkeypatch.setattr(eng, "finalize_repository_review", lambda *a, **k: _FR())
+    monkeypatch.setattr(eng, "finalize_repository_review", lambda *a, **k: _finalize_result(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
     (tmp_path / "_pocs.md").write_text("# PoC Reconciliation\n", encoding="utf-8")
     main(["review", "repository", str(tmp_path), "--finalize"])
@@ -515,14 +490,7 @@ def test_finalize_mentions_pocs_only_when_the_file_exists(monkeypatch, tmp_path,
 
 
 def test_run_passes_confirmers_and_no_extra_finders(monkeypatch, tmp_path):
-    import codejury.review.repository.engine as eng
-    captured = {}
-
-    def fake_run(target, workspace, **kw):
-        captured.update(kw)
-        raise RuntimeError("stop after capture")
-
-    monkeypatch.setattr(eng, "run_repository_review", fake_run)
+    captured = _capture_run(monkeypatch)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     # the base key keeps the anthropic finder and judge on the API path so a confirmer is built, the
     # openai challenger is the skeptic and brings its own key
@@ -542,15 +510,9 @@ def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monk
     from codejury.review.repository.verifier import ModelVerifier
     captured = {}
 
-    class _FR:
-        parsed = 0
-        deduped = 0
-        workspace = str(tmp_path)
-        verify = None
-
     def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
         captured["verifier"], captured["confirmers"] = verifier, confirmers
-        return _FR()
+        return _finalize_result(tmp_path)
 
     monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
@@ -569,15 +531,9 @@ def test_executor_subscription_wires_the_agent_verifier(monkeypatch, tmp_path):
     from codejury.review.repository.agent import AgentVerifier
     captured = {}
 
-    class _FR:
-        parsed = 0
-        deduped = 0
-        workspace = str(tmp_path)
-        verify = None
-
     def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
         captured["verifier"] = verifier
-        return _FR()
+        return _finalize_result(tmp_path)
 
     monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     rc = main(["review", "repository", str(tmp_path), "--finalize", "--executor", "subscription"])
@@ -620,6 +576,11 @@ def test_auto_concurrency_holds_the_subscription_agent_to_two():
     assert climod._auto_concurrency(None, "agent") == 2
     assert climod._auto_concurrency(None, "anthropic") == 6
     assert climod._auto_concurrency(8, "agent") == 8
+
+
+def _finalize_result(tmp_path):
+    from types import SimpleNamespace
+    return SimpleNamespace(parsed=0, deduped=0, workspace=str(tmp_path), verify=None)
 
 
 def _capture_run(monkeypatch):

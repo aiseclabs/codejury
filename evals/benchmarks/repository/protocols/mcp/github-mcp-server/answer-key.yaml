@@ -9,7 +9,9 @@
 # handler where the untrusted flow enters the model. Prompt injection is scored as a flow, not a
 # jailbreak string, so the entry is kept coarse on the handler that first returns attacker-authored
 # content to the model.
+
 target: github-mcp-server
+
 planted:
   - id: get-issue-returns-untrusted-issue-body-to-model
     category: prompt-injection

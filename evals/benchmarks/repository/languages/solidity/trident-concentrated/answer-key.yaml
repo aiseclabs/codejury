@@ -1,4 +1,5 @@
 target: trident-concentrated
+
 # Ground truth is the Code4rena SushiSwap Trident phase 2 report,
 # https://code4rena.com/reports/2021-09-sushitrident-2, cross checked against the
 # audited source at commit c405f340 in sushiswap/trident. The review under test

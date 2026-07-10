@@ -31,7 +31,7 @@ planted:
       - allowance
     note: >-
       C4 M-01. transferFrom charges the transfer fee through an internal _update on top of
-      amount, but the ERC20 allowance only covers amount, so a spender moves more of the
+      amount, but the ERC-20 allowance only covers amount, so a spender moves more of the
       holder's balance than was approved. Closest of the eight EVM classes is accounting,
       the bug is really an allowance accounting gap.
     knowledge:
