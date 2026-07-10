@@ -1,22 +1,11 @@
-# Python
 __pycache__/
 *.py[cod]
 build/
 dist/
 *.egg-info/
-
-# Virtual environment
 .venv/
-
-# Env and secrets
 .env
-
-# Tooling caches
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
 
 # Harness and public benchmarks ship, private config and benchmarks do not
 evals/local.yaml
