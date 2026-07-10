@@ -206,7 +206,7 @@ def test_scaffold_writes_no_facts_for_the_web_domain(tmp_path):
 
 class _CountingBackend(FactsBackend):
     """A stand-in facts backend that counts extractions, so a test can assert the cache
-    spared the heavy slither pass without needing the real toolchain."""
+    spared the heavy Slither pass without needing the real toolchain."""
 
     def __init__(self) -> None:
         self.calls = 0
@@ -311,7 +311,7 @@ def test_scaffold_reuses_the_cached_per_file_facts_map(tmp_path):
 
 def test_scaffold_reuses_cached_facts_across_a_fresh_run(tmp_path):
     # a fresh scaffold clears the workspace, but the content hash cache survives, so the
-    # slither pass runs once for a source tree, not on every re-run
+    # Slither pass runs once for a source tree, not on every re-run
     backend = _CountingBackend()
     dom = _facts_domain(backend)
     work = tmp_path / "work"
@@ -341,7 +341,7 @@ def test_scaffold_persists_facts_for_the_evm_domain(tmp_path):
 
     backend = EVM.facts_backend
     if backend is None or not backend.available() or which("forge") is None:
-        pytest.skip("slither or foundry not installed, the facts path needs both")
+        pytest.skip("Slither or foundry not installed, the facts path needs both")
     res = scaffold(_foundry_project(tmp_path), tmp_path / "work", domain=EVM, facts=True)
     facts = res.workspace / "_facts.md"
     assert facts.is_file()

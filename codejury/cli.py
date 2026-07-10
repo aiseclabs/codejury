@@ -420,7 +420,7 @@ def main(argv: list[str] | None = None) -> int:
     strategy.add_argument("--facts", action=argparse.BooleanOptionalAction, default=None,
                           help="ground review in a tool-extracted call graph, storage layout, and "
                                "read and write sets from the domain's facts backend such as the EVM "
-                               "slither backend. Defaults on when the domain binds a backend, so the "
+                               "Slither backend. Defaults on when the domain binds a backend, so the "
                                "EVM domain grounds by default, except at --effort low where the cheap "
                                "fast pass stays file-slice only. It degrades to file-slice review with "
                                "a note when the toolchain is absent. Pass --no-facts to force it off or "

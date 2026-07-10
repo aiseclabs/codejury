@@ -5,7 +5,7 @@ repository-review `playbook/`, and `detection.yaml`. The review strategy is data
 the pass lenses and the diff prompt's focus and do-not-report blocks. This package
 imports only `codejury.domains.base` and its own
 light facts backend module, both free of the optional EVM dependency, so loading the
-domain never needs slither or foundry.
+domain never needs Slither or foundry.
 """
 
 from pathlib import Path

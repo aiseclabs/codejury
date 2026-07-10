@@ -1,11 +1,11 @@
 """Slither-backed facts for the evm domain, grounding contract review in a call graph,
 storage layout, and per-function read and write sets. Behind the codejury[evm] extra and a
 Solidity compiler, availability is lazy-checked so importing the domain never needs the
-heavy dependency, and slither itself is imported only inside extract.
+heavy dependency, and Slither itself is imported only inside extract.
 
 A backend that cannot run fails loud rather than returning empty facts that would read as a
 clean review, invariant 4. A missing toolchain raises BackendUnavailable, a compile error
-in the target propagates as the native slither error.
+in the target propagates as the native Slither error.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class SlitherFacts(FactsBackend):
                 continue
             functions: dict = {}
             for f in c.functions_declared:
-                # skip the pseudo functions slither synthesizes for state variable initializers
+                # skip the pseudo functions Slither synthesizes for state variable initializers
                 if f.name.startswith("slitherConstructor"):
                     continue
                 callees = sorted({
@@ -98,7 +98,7 @@ def _rel_file(contract, root_abs: Path) -> str:
 
 def _fn_range(function) -> list | None:
     """A function's source range as [start, end] char offsets in its file, so the engine can
-    slice the body for a call-path unit without parsing Solidity. None when slither recorded
+    slice the body for a call-path unit without parsing Solidity. None when Slither recorded
     no mapping, then the function cannot be packed by source."""
     mapping = getattr(function, "source_mapping", None)
     start = getattr(mapping, "start", None)

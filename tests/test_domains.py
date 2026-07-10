@@ -153,7 +153,7 @@ def test_evm_facts_backend_fails_loud_without_slither(monkeypatch):
 
     backend = SlitherFacts()
     assert isinstance(backend, FactsBackend)
-    # force the missing-tool path so it runs whether or not slither is installed: a missing
+    # force the missing-tool path so it runs whether or not Slither is installed: a missing
     # toolchain is a loud failure, never empty facts that read as a clean review
     monkeypatch.setattr(backend, "available", lambda: False)
     with pytest.raises(BackendUnavailable):
@@ -318,7 +318,7 @@ def test_slither_facts_extract_grounds_a_real_contract(tmp_path):
 
     backend = SlitherFacts()
     if not backend.available() or which("solc") is None:
-        pytest.skip("slither or solc not installed, the extraction path needs both")
+        pytest.skip("Slither or solc not installed, the extraction path needs both")
     sol = tmp_path / "Vault.sol"
     sol.write_text(_REENTRANT_VAULT, encoding="utf-8")
 
@@ -439,7 +439,7 @@ def test_importing_the_evm_domain_does_not_pull_the_heavy_tools():
     import sys
 
     # loading the domain binds the facts backend, a light module, but must never pull the
-    # optional slither dependency, the forge PoC module, or the repository engine, so registering
+    # optional Slither dependency, the forge PoC module, or the repository engine, so registering
     # or selecting the domain stays free of the optional dependency
     code = (
         "import codejury.domains.evm, sys\n"

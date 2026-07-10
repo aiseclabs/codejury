@@ -121,7 +121,7 @@ _FACTS_SCHEMA = "1"
 
 def _facts_cache_key(target: Path, files: tuple[str, ...], domain: Domain) -> str:
     """A content hash over the source in scope, so a re-run reuses the extracted facts
-    instead of paying the slither pass again, while a source edit invalidates the entry."""
+    instead of paying the Slither pass again, while a source edit invalidates the entry."""
     h = hashlib.sha256()
     h.update(f"{_FACTS_SCHEMA}\x00{domain.name}".encode())
     for rel in sorted(files):
@@ -143,7 +143,7 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
     `enabled`. A domain may bind no backend or the toolchain may be absent, in which case
     the run falls back to its own heuristics. The extraction is cached by source content
     hash under `cache_root`, so a fresh scaffold or a second target on the same source
-    reuses it rather than re-running the slither pass. A backend error is recorded to
+    reuses it rather than re-running the Slither pass. A backend error is recorded to
     `_facts_error.txt` and the run continues without facts, never silently and never fatal
     to an otherwise reviewable repository. Returns a note when facts was enabled but could
     not run, empty otherwise, so the caller can surface the degrade rather than hide it."""
