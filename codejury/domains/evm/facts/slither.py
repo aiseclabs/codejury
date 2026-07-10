@@ -18,7 +18,7 @@ from codejury.domains.evm.facts.call_path import call_path_units
 
 _INSTALL_HINT = (
     "Slither is not installed. The evm facts backend needs the optional dependency and a "
-    "Solidity compiler: pip install 'codejury[evm]', and install solc or foundry."
+    "Solidity compiler: pip install 'codejury[evm]', and install solc or Foundry."
 )
 
 

@@ -170,7 +170,7 @@ class ForgePoC:
     def _project(self, root: Path, sources: list[Path], foundry: bool):
         """A prepared Foundry project the test drops into, torn down after. A Foundry repository is copied
         and its libraries restored, the only way a contract with external dependencies compiles. A
-        repository with no foundry config gets a bare project with its sources copied under src. Never forks, invariant 6."""
+        repository with no Foundry config gets a bare project with its sources copied under src. Never forks, invariant 6."""
         with tempfile.TemporaryDirectory(prefix="codejury-poc-") as tmp:
             if foundry:
                 proj = Path(tmp) / "repository"

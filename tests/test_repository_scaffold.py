@@ -341,7 +341,7 @@ def test_scaffold_persists_facts_for_the_evm_domain(tmp_path):
 
     backend = EVM.facts_backend
     if backend is None or not backend.available() or which("forge") is None:
-        pytest.skip("Slither or foundry not installed, the facts path needs both")
+        pytest.skip("Slither or Foundry not installed, the facts path needs both")
     res = scaffold(_foundry_project(tmp_path), tmp_path / "work", domain=EVM, facts=True)
     facts = res.workspace / "_facts.md"
     assert facts.is_file()
