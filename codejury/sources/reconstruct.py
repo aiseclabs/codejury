@@ -2,7 +2,7 @@
 SourceMeta. Pure, no network and no filesystem, so tests drive it with fixtures.
 
 An explorer returns the SourceCode field in one of three shapes: plain Solidity
-text, a single JSON object, or a standard json input wrapped in an extra pair of
+text, a single JSON object, or a standard JSON input wrapped in an extra pair of
 braces. The paths inside come from an untrusted response, so each is checked
 against traversal before it can become a file path.
 """
@@ -37,7 +37,7 @@ def _content_of(entry: object) -> str | None:
 
 
 def _sources_map(obj: dict[str, Any]) -> dict[str, Any]:
-    """The path to entry map, whether the JSON is a standard json input with a
+    """The path to entry map, whether the JSON is a standard JSON input with a
     sources key or a direct path map."""
     inner = obj.get("sources")
     if isinstance(inner, dict):

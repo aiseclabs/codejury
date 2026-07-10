@@ -194,7 +194,7 @@ def main(argv=None) -> int:
     d = sub.add_parser("diff", help="run the diff capability probe over the whole library and score")
     d.add_argument("--mode", default="standard")
     d.add_argument("--model", default=None)
-    d.add_argument("--cases", default=None, help="cases yaml, defaults to the shipped diff cases")
+    d.add_argument("--cases", default=None, help="cases YAML, defaults to the shipped diff cases")
     d.add_argument("--runs", type=int, default=1, help="repeat N times and fold by frequency")
     d.add_argument("--json", default=None)
     d.set_defaults(func=_cmd_diff)

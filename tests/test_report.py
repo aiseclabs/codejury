@@ -1,4 +1,4 @@
-"""Render Findings as text/markdown/json/sarif and gate on severity."""
+"""Render Findings as text/markdown/JSON/SARIF and gate on severity."""
 
 import json
 from pathlib import Path

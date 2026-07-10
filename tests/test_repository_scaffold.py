@@ -265,7 +265,7 @@ def test_scaffold_notes_the_degrade_when_facts_enabled_but_backend_unavailable(t
 
 
 def test_scaffold_persists_the_per_file_facts_map(tmp_path):
-    # the engine grounds each unit per file, so the by_file map is persisted as json beside
+    # the engine grounds each unit per file, so the by_file map is persisted as JSON beside
     # the human-readable _facts.md
     import json
 

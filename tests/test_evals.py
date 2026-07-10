@@ -634,7 +634,7 @@ def test_coverage_problems_flag_unresolved_reference(tmp_path, monkeypatch):
 def test_shipped_solidity_cases_run_under_the_evm_domain():
     from evals.runners.diff import default_cases
     sol = [c for c in default_cases() if "solidity" in c.tags]
-    assert sol, "no solidity diff cases shipped"
+    assert sol, "no Solidity diff cases shipped"
     assert all(c.domain == "evm" for c in sol)
     # the pairs guard each class against a miss and a false positive
     assert any(c.is_positive for c in sol) and any(not c.is_positive for c in sol)
@@ -654,7 +654,7 @@ def test_solidity_cases_resolve_to_evm_knowledge_no_unresolved(tmp_path, monkeyp
     _public_only(tmp_path, monkeypatch)
     from evals.coverage import coverage_matrix, coverage_problems
     cov = coverage_matrix()
-    # the shipped solidity pairs attribute to the evm classes, a positive and a safe each
+    # the shipped Solidity pairs attribute to the EVM classes, a positive and a safe each
     assert cov["vuln:reentrancy"].diff_positive >= 1 and cov["vuln:reentrancy"].diff_safe >= 1
     # an evm class case must not read as a broken reference, the gate-fatal problem kind
     unresolved = {p.ref for p in coverage_problems(cov) if p.kind == "unresolved-reference"}
