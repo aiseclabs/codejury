@@ -338,6 +338,7 @@ Every reportable finding should have:
 - file and line
 - severity
 - category
+- description
 - exploit scenario
 - recommendation
 - confidence or verification status
