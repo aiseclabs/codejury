@@ -55,6 +55,10 @@ pip install "codejury[claude-sdk]"  # a persistent Claude Code subscription tran
 
 Install the Repository Review slash command for an agent:
 
+```text
+codejury install-slash-command [--agent claude|codex] [--dir <dir>] [--force]
+```
+
 ```bash
 codejury install-slash-command                  # Claude Code
 codejury install-slash-command --agent codex    # Codex
@@ -121,6 +125,10 @@ Useful flags:
 Diff Review is the fast coded path. It audits a unified diff with either a standard
 single model call or an adversarial Finder, Challenger, and Judge pass.
 
+```text
+codejury review diff [--file <file> | --git-range <range>] [options]
+```
+
 ```bash
 # review a diff file
 codejury review diff --file changes.diff
@@ -162,6 +170,10 @@ Repository Review is the recall-first path for whole repositories. A whole codeb
 for one useful model call, so the tool creates a workspace, builds a unit worklist, and
 reviews focused units instead of doing one shallow pass.
 
+```text
+codejury review repository <repository> [--invariants <file>] [options]
+```
+
 Start by scaffolding a workspace:
 
 ```bash
@@ -197,6 +209,12 @@ Then run the interactive slash command in Claude Code or Codex:
 
 ```text
 /codejury-review /path/to/repository
+```
+
+The slash command takes the same arguments as `codejury review repository`:
+
+```text
+/codejury-review <repository> [--invariants <file>] [options]
 ```
 
 The agent maps the attack surface, fills the authorization model, runs one focused
@@ -309,6 +327,10 @@ PoCs, so treat them as sensitive. The workspace is created private, mode `0700`.
 
 Review a deployed contract by first pulling its verified source from a block explorer, then
 running Repository Review on the local tree:
+
+```text
+codejury fetch source --address <address> --out <dir> [options]
+```
 
 ```bash
 codejury fetch source --chain eth --address 0x... --out ./target
