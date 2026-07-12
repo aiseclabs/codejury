@@ -56,6 +56,11 @@ happens inside each sub-review, never in this main context.
    `. .venv/bin/activate`, or run `python -m codejury`. If it reports a previous review's
    output, ask me whether to clear it, and if I say yes, re-run with `--fresh`.
 
+   To seed the intent invariants for this codebase, the business rules only I know, include
+   `--invariants <path>` in the command. It imports that file and never overwrites an already
+   edited `inventory/_invariants.md`. These invariants belong with the product, so keep the
+   file in the repository and reuse it across reviews.
+
    RESUMING. If a previous run was interrupted, run this command again without clearing.
    It resumes: a unit already marked `- Status: reviewed` is skipped, and `--finalize`
    does not re-verify a settled finding. Keep resuming in new sessions until the gate

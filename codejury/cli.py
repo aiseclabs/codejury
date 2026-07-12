@@ -392,6 +392,9 @@ def main(argv: list[str] | None = None) -> int:
                            "directory under XDG_STATE_HOME or ~/.local/state")
     repository.add_argument("--fresh", action="store_true",
                       help="clear a previous review's output in the workspace first")
+    repository.add_argument("--invariants", default=None, metavar="FILE",
+                      help="seed inventory/_invariants.md from FILE, the business rules only you "
+                           "know, kept with the product and imported here")
     # the workspace modes are mutually exclusive, scaffold is the default when none is set.
     # Two at once would otherwise fall to a dispatch precedence and silently run just one, so
     # --run --finalize could finalize and rewrite findings/, argparse rejects the pair instead
@@ -749,9 +752,12 @@ def _cmd_repository_run(args) -> int:
         domain=domain,
         facts=_facts_enabled(args, domain),
         max_units=args.max_units,
+        invariants=args.invariants,
     )
     if res.scaffold.fallback_note:
         print(f"NOTE: {res.scaffold.fallback_note}.", file=sys.stderr)
+    if res.scaffold.invariants_note:
+        print(f"NOTE: {res.scaffold.invariants_note}.", file=sys.stderr)
     acc = res.accumulator
     reported = res.verify.confirmed if res.verify else acc.findings
     by_sev: dict[str, int] = {}
@@ -794,7 +800,7 @@ def _cmd_repository_scaffold(args) -> int:
     domain = resolve_domain(args.domain, _repository_file_names(args.directory))
     res = scaffold(args.directory, args.workspace, fresh=args.fresh, domain=domain,
                    facts=_facts_enabled(args, domain),
-                   max_units=args.max_units)
+                   max_units=args.max_units, invariants=args.invariants)
     (Path(res.workspace) / "METHODOLOGY.md").write_text(res.methodology, encoding="utf-8")
     if res.cleared:
         print(f"Cleared {len(res.cleared)} prior-run paths in {res.workspace}", file=sys.stderr)
@@ -809,6 +815,8 @@ def _cmd_repository_scaffold(args) -> int:
           f"{res.workspace}/inventory/_entrypoints.md", file=sys.stderr)
     if res.fallback_note:
         print(f"NOTE: {res.fallback_note}.", file=sys.stderr)
+    if res.invariants_note:
+        print(f"NOTE: {res.invariants_note}.", file=sys.stderr)
     print(f"Methodology: {res.workspace}/METHODOLOGY.md", file=sys.stderr)
     print(
         "This command sets up the review, it does not find anything itself. Next, have an "

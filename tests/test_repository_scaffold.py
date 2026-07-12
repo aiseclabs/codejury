@@ -103,6 +103,44 @@ def test_scaffold_keeps_an_edited_invariants_file_and_does_not_count_it_as_prior
     assert second.had_prior_run is False
 
 
+def test_scaffold_imports_invariants_from_a_file(tmp_path):
+    src = tmp_path / "invariants.md"
+    src.write_text("only the owner may withdraw their balance\n", encoding="utf-8")
+    res = scaffold(_target(tmp_path), tmp_path / "work", invariants=src)
+    inv = res.workspace / "inventory" / "_invariants.md"
+    assert inv.read_text() == "only the owner may withdraw their balance\n"
+    assert "seeded" in res.invariants_note
+
+
+def test_scaffold_import_does_not_clobber_an_edited_invariants_file(tmp_path):
+    target = _target(tmp_path)
+    ws = tmp_path / "work"
+    inv = scaffold(target, ws).workspace / "inventory" / "_invariants.md"
+    inv.write_text("hand written rule\n", encoding="utf-8")
+    src = tmp_path / "other.md"
+    src.write_text("imported rule\n", encoding="utf-8")
+    res = scaffold(target, ws, invariants=src)
+    assert inv.read_text() == "hand written rule\n"
+    assert "kept the edited" in res.invariants_note
+
+
+def test_scaffold_fresh_replaces_invariants_from_the_import(tmp_path):
+    target = _target(tmp_path)
+    ws = tmp_path / "work"
+    inv = scaffold(target, ws).workspace / "inventory" / "_invariants.md"
+    inv.write_text("hand written rule\n", encoding="utf-8")
+    src = tmp_path / "other.md"
+    src.write_text("imported rule\n", encoding="utf-8")
+    res = scaffold(target, ws, fresh=True, invariants=src)
+    assert res.workspace.joinpath("inventory", "_invariants.md").read_text() == "imported rule\n"
+    assert "seeded" in res.invariants_note
+
+
+def test_scaffold_import_fails_loud_on_a_missing_file(tmp_path):
+    with pytest.raises(ValueError, match="invariants file cannot be read"):
+        scaffold(_target(tmp_path), tmp_path / "work", invariants=tmp_path / "nope.md")
+
+
 def test_scaffold_flags_candidate_entrypoint_files(tmp_path):
     d = tmp_path / "dj"
     d.mkdir()

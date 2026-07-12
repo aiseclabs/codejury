@@ -55,6 +55,11 @@ review in passing here is the shallow whole-repository pass this method exists t
    `~/.local/state`, the same path for all three steps below, so they share one workspace.
    Pass `--workspace <path>` to override it.
 
+   To seed the intent invariants for this codebase, the business rules only I know, include
+   `--invariants <path>` in the command. It imports that file and never overwrites an already
+   edited `inventory/_invariants.md`. These invariants belong with the product, so keep the
+   file in the repository and reuse it across reviews.
+
    If `codejury` is not on PATH it is a pip-installed console script, so activate the
    project venv first, for example `. .venv/bin/activate`, or run `python -m codejury`.
    If it reports a previous review's output in the workspace, ask me whether to clear

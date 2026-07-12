@@ -813,11 +813,13 @@ def run_repository_review(
     facts: bool = False,
     extra_finder_backends: tuple = (),
     max_units: int | None = None,
+    invariants: str | Path | None = None,
 ) -> RunResult:
     domain = domain or default_domain()
     paths = domain.paths
     root = str(Path(target).resolve())
-    res = scaffold(target, workspace, fresh=fresh, domain=domain, facts=facts, max_units=max_units)
+    res = scaffold(target, workspace, fresh=fresh, domain=domain, facts=facts, max_units=max_units,
+                   invariants=invariants)
     ws = res.workspace
     units = build_units(root, res.candidate_files, res.trace_targets, _load_facts_units(ws))
     if not units:

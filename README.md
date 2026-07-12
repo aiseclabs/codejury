@@ -183,6 +183,16 @@ _refuted.md     refuted candidates and why
 _pocs.md        PoC reconciliation, planned versus delivered
 ```
 
+To seed intent invariants, the business rules only you know that a static read cannot
+infer, keep an invariants file with the repository and pass `--invariants <path>`. It
+imports the file into `inventory/_invariants.md` and never overwrites an edited one, so
+clear the workspace with `--fresh` to replace it. Write one rule per line as `only <who>
+may <operation> <asset>, under <condition>`. Leave it out to seed nothing.
+
+```bash
+codejury review repository /path/to/repository --invariants invariants.md
+```
+
 Then run the interactive slash command in Claude Code or Codex:
 
 ```text
