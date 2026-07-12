@@ -26,6 +26,7 @@ body:
     id: kind
     attributes:
       label: Kind
+      description: Which kind of detection quality issue this is.
       options:
         - False negative, a real exploitable issue was missed
         - False positive, a non issue was reported

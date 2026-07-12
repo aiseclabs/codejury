@@ -5,9 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for filing a bug. Fill in the required fields, and add the rest where you can,
-        so a maintainer or an automated agent can reproduce and fix it without a follow up.
-        English only.
+        Fill in the required fields, and add the rest where you can, so a maintainer or an
+        automated agent can reproduce and fix it without a follow up. English only.
   - type: checkboxes
     id: preflight
     attributes:
