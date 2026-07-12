@@ -1,6 +1,6 @@
 name: Feature Request
 description: Propose a new capability or a change in behavior.
-title: "feat: "
+title: "feature: "
 body:
   - type: markdown
     attributes:

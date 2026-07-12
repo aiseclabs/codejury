@@ -52,8 +52,8 @@ body:
       description: >
         The smallest input that triggers the bug. Attach the diff file, or a target
         repository with an exact commit, or paste a minimal snippet in a code block.
-        Without a reproduction a maintainer or an agent usually cannot fix the bug, so this
-        is the most valuable field even though it is optional.
+        Without a reproduction a maintainer or an automated agent usually cannot fix the
+        bug, so this is the most valuable field even though it is optional.
   - type: textarea
     id: expected
     attributes:

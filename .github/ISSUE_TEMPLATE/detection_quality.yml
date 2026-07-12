@@ -11,10 +11,11 @@ body:
 
         This report is evidence for improving the general case. It is not a request to add
         a specific case to any answer key, and a fix must hold on targets it was not derived
-        from. English only.
+        from.
 
         If you cannot fill every field, open it anyway with what you have. A missed real
         issue matters more than a complete form, and a maintainer will help fill the rest.
+        English only.
   - type: checkboxes
     id: preflight
     attributes:
