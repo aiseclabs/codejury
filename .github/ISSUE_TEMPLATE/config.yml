@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question Or Discussion
+    url: https://github.com/aiseclabs/codejury/discussions
+    about: Ask a usage question or discuss an idea. Issues are for bugs, detection quality, and feature requests.
+  - name: Security Vulnerability
+    url: https://github.com/aiseclabs/codejury/security/advisories/new
+    about: Report a security vulnerability privately through a GitHub advisory. Do not open a public issue.

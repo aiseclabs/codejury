@@ -1,0 +1,81 @@
+name: Detection Quality
+description: Report a missed real issue, a false positive, or a wrong severity or category.
+title: "detection: "
+labels: ["detection-quality", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for the quality of what a review found or missed. A missed real
+        issue is the most serious outcome, a false positive is next. Give evidence a
+        maintainer or an automated agent can verify against the same code.
+
+        This report is evidence for improving the general case. It is not a request to add
+        a specific case to any answer key, and a fix must hold on targets it was not derived
+        from. English only.
+
+        If you cannot fill every field, open it anyway with what you have. A missed real
+        issue matters more than a complete form, and a maintainer will help fill the rest.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - False negative, a real exploitable issue was missed
+        - False positive, a non issue was reported
+        - Wrong severity or wrong category
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Target Repository
+      description: A link to the public code under review, using its real project name.
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit Or Version
+      description: The exact commit SHA if you have it, otherwise the released version, so the same code can be fetched and checked.
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: The file and line the finding is about. Without a location it cannot be verified.
+      placeholder: path/to/file.py:123
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: What Was Reported Or Missed
+      description: >
+        For a false positive, paste the finding as reported. For a missed issue, describe
+        the issue and a concrete end to end exploit scenario.
+    validations:
+      required: true
+  - type: textarea
+    id: controlling_fact
+    attributes:
+      label: Controlling Fact
+      description: >
+        The fact in the code that settles it. Why the reported finding is safe for a false
+        positive, or why the missed issue is genuinely exploitable for a false negative.
+    validations:
+      required: true
+  - type: input
+    id: config
+    attributes:
+      label: Review Configuration
+      description: Domain, mode or effort, and model used for the run.
+      placeholder: web, effort medium, gpt-5.5

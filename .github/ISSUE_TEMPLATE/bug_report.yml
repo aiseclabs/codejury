@@ -1,0 +1,85 @@
+name: Bug Report
+description: Report a defect in a review run, the CLI, or the output.
+title: "bug: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Fill in the required fields, and add the rest where you can,
+        so a maintainer or an automated agent can reproduce and fix it without a follow up.
+        English only.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I reproduced this on the latest released version.
+          required: true
+  - type: dropdown
+    id: path
+    attributes:
+      label: Review Path
+      description: Which path or command shows the bug.
+      options:
+        - Diff Review
+        - Repository Review
+        - install-slash-command
+        - Other or not sure
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact Command
+      description: The exact command you ran, so it can be run again as is.
+      render: shell
+      placeholder: codejury review diff --file changes.diff
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `codejury --version`.
+      placeholder: codejury 1.5.2
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal Reproduction Input
+      description: >
+        The smallest input that triggers the bug. Attach the diff file, or a target
+        repository with an exact commit, or paste a minimal snippet in a code block.
+        Without a reproduction a maintainer or an agent usually cannot fix the bug, so this
+        is the most valuable field even though it is optional.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen. This is the bar the fix is measured against.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What happened instead. Paste the full error or output, not a screenshot.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: backend
+    attributes:
+      label: Provider, Model, Executor
+      description: The `CODEJURY_MODEL`, provider, and `--executor` in use, so we can tell whether the bug is backend specific.
+      placeholder: openai, gpt-5.5, --executor api
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system and Python version.
+      placeholder: macOS 14, Python 3.12
