@@ -1,7 +1,6 @@
 name: Detection Quality
 description: Report a missed real issue, a false positive, or a wrong severity or category.
 title: "detection: "
-labels: ["detection-quality", "triage"]
 body:
   - type: markdown
     attributes:
@@ -30,7 +29,7 @@ body:
       options:
         - False negative, a real exploitable issue was missed
         - False positive, a non issue was reported
-        - Wrong severity or wrong category
+        - Wrong grade, the severity or category is off
     validations:
       required: true
   - type: input
@@ -74,7 +73,7 @@ body:
     validations:
       required: true
   - type: input
-    id: config
+    id: run_config
     attributes:
       label: Review Configuration
       description: Domain, mode or effort, and model used for the run.

@@ -1,7 +1,6 @@
 name: Bug Report
 description: Report a defect in a review run, the CLI, or the output.
 title: "bug: "
-labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
