@@ -38,8 +38,3 @@ body:
         - Data change, knowledge or detection under a domain
         - Engine or CLI change
         - Not sure
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives Considered
-      description: Other approaches you weighed and why you set them aside.
