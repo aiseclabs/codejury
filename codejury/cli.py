@@ -24,6 +24,13 @@ import sys
 from pathlib import Path
 
 from codejury import __version__
+from codejury.envfile import load_env_file
+
+# Load a working-directory .env before the provider factory freezes its env-backed defaults, so
+# both review paths and the slash command that shells into this CLI pick up config from the file
+# without a manual source. A value already in the real environment wins, see load_env_file.
+_ENV_LOADED = load_env_file()
+
 from codejury.detection import load_detection
 from codejury.domains.registry import available_domains, get_domain, resolve_domain
 from codejury.sources.explorer import CHAINS
@@ -378,6 +385,10 @@ def _agent_backend_kw(args) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if _ENV_LOADED:
+        n = len(_ENV_LOADED)
+        plural = "s" if n != 1 else ""
+        print(f"loaded {n} setting{plural} from .env: {', '.join(_ENV_LOADED)}", file=sys.stderr)
     parser = argparse.ArgumentParser(prog="codejury")
     parser.add_argument("--version", action="version", version=f"codejury {__version__}")
     sub = parser.add_subparsers(dest="command")

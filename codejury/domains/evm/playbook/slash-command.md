@@ -128,7 +128,8 @@ happens inside each sub-review, never in this main context.
 
    The challenger GPT refutes and the judge Claude confirms, so a finding is dropped only when
    two different vendors agree. The judge must be a distinct model from the challenger, else
-   nothing is refuted. Set the OpenAI and Anthropic keys in the environment.
+   nothing is refuted. Set the OpenAI and Anthropic keys in the environment, or in a
+   `.env` in the working directory, which the CLI loads at startup, a shell value wins.
 
 5. GATE. Let codejury decide whether the review may stop:
 

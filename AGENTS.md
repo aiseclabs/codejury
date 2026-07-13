@@ -141,7 +141,9 @@ orchestration and agents or model calls provide per-unit judgment.
   `codejury review repository <dir> --run --effort high`
 - Install slash command:
   `codejury install-slash-command --agent claude|codex`
-- Provider configuration comes from flags or environment, not an auto-loaded `.env`:
+- Provider configuration comes from flags or environment, and the CLI loads a
+  working-directory `.env` at startup so a project can set it once. A value already
+  exported in the shell wins over the file:
   `CODEJURY_MODEL`, `CODEJURY_API_KEY`, `CODEJURY_API_BASE`
 
 ## Contributing Rules

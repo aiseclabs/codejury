@@ -109,7 +109,10 @@ Note that `review repository --run` finds with one model, the finder, it no long
 co-finder, and a seat that runs on the subscription supplies its own review, so it ignores
 that seat's backend flags while the others still apply.
 
-The tool does not auto-load `.env`.
+The CLI loads a `.env` from the working directory at startup, so a project can set its
+provider config once instead of exporting it every session. A value already exported in the
+shell wins over the file, and a missing file is fine. The auto-load is a CLI convenience, so
+importing the library directly does not read `.env`.
 
 Useful flags:
 
