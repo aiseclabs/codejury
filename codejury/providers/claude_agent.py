@@ -147,8 +147,7 @@ class ClaudeTransport:
 
 
 class ProcessClaudeTransport(ClaudeTransport):
-    """One `claude -p` process per call, the historical behavior, now opt-in via
-    `CODEJURY_CLAUDE_TRANSPORT=process`."""
+    """One `claude -p` process per call, opt-in via `CODEJURY_CLAUDE_TRANSPORT=process`."""
 
     def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...],
             timeout: int) -> str:

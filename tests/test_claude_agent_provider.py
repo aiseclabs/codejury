@@ -27,8 +27,8 @@ def _envelope(result_text: str) -> str:
 
 @pytest.fixture(autouse=True)
 def _use_process_transport(monkeypatch):
-    # this file exercises the process transport, `claude -p`, through a faked subprocess, now that
-    # sdk is the default. Tests that need a different transport set the env themselves after this.
+    # this file exercises the process transport, `claude -p`, through a faked subprocess. Tests
+    # that need a different transport set the env themselves after this.
     monkeypatch.setenv("CODEJURY_CLAUDE_TRANSPORT", "process")
 
 
