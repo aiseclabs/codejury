@@ -1,6 +1,6 @@
 ---
 description: Run a codejury security review of a diff or a whole repository
-argument-hint: <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>]
+argument-hint: <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>] [--workspace <path>]
 ---
 # Security Review
 
@@ -14,7 +14,7 @@ Run a codejury security review of: $ARGUMENTS
   range such as `origin/main...HEAD`, or a repository directory.
 - `--coded` is one switch that decides the engine and the model backend together:
   - absent, the default: model calls run on your Claude Code subscription with
-    `--executor subscription`, so **your `.env` is not used**. A repository is reviewed by the
+    `--executor subscription`, so **your `.env` provider config is not used**. A repository is reviewed by the
     agent fan-out you orchestrate.
   - present: every codejury model call runs with `--executor api`, so **your `.env` provider
     config is used**. A repository is reviewed by codejury's own coded engine with `--run`.
