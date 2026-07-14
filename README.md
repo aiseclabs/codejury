@@ -158,12 +158,12 @@ codejury review repository <repository> (--scaffold | --run | --finalize | --gat
 In Claude Code or Codex, one command runs the whole review, scaffold, fan-out, finalize, and gate:
 
 ```text
-/codejury-review <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>]
+/codejury-review <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>] [--workspace <path>]
 ```
 
 `--coded` picks the engine and the model backend together. Without it, the default, a
 repository is reviewed by the agent fan-out on your Claude Code subscription, so your `.env`
-is not used. With it, codejury's own coded engine reviews the repository through `--run` on
+provider config is not used. With it, codejury's own coded engine reviews the repository through `--run` on
 `--executor api`, so your `.env` provider config is used throughout. The slash command
 announces the choice on its first line, so which backend ran is never a guess. In the default
 fan-out mode the agent maps the attack surface, fills the authorization model, runs one focused
@@ -244,8 +244,8 @@ A `--run` chooses how each unit is reviewed:
 The subscription backend keeps a Claude Agent SDK session alive across calls by default,
 amortizing the Claude Code startup that a fresh `claude -p` per call would pay on a many-call
 Repository Review run. The SDK ships in the base install. Set `CODEJURY_CLAUDE_TRANSPORT=process`
-for the older behavior, one `claude -p` per call. An unknown transport value fails at startup
-rather than silently falling back.
+for one `claude -p` per call. An unknown transport value fails at startup rather than silently
+falling back.
 
 `--effort low|medium|high` is the one depth dial, each level fixing three things at once:
 
