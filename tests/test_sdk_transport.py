@@ -72,8 +72,6 @@ def _ask(transport, cwd="/repository", tools=("Read",), timeout=10):
     return transport.ask("prompt", cwd=cwd, claude_bin="claude", args=args, timeout=timeout)
 
 
-# --- tool policy: read the guarded allowlist out of the composed args ---
-
 def test_allowed_tools_read_from_the_guarded_args():
     assert _allowed_tools_from_args(_compose_claude_args((), unsafe=False, allowed_tools=())) == ()
     repository = _compose_claude_args(("--model", "x"), unsafe=False)
@@ -86,8 +84,6 @@ def test_env_args_cannot_widen_sdk_tools_unless_unsafe():
     unsafe = _compose_claude_args(("--allowedTools", "Bash"), unsafe=True)
     assert _allowed_tools_from_args(unsafe) == ("Bash",)
 
-
-# --- fail-loud parsing of the SDK response ---
 
 def test_result_from_messages_extracts_assistant_text():
     assert _result_from_messages(_ok_messages("hello")) == "hello"
@@ -122,8 +118,6 @@ def test_result_from_messages_raises_on_empty_reply():
     with pytest.raises(RuntimeError, match="empty"):
         _result_from_messages(msgs)
 
-
-# --- the session pool and restart rules, driven by a fake client ---
 
 def test_transport_returns_text_and_reuses_one_session_serially():
     events = []
@@ -208,8 +202,6 @@ def test_concurrent_asks_do_not_share_a_client():
     assert results == {1: "ok", 2: "ok"}
     assert len(creations) == 2 and len(set(seen_ids)) == 2
 
-
-# --- resolution, config, and the real options builder ---
 
 def test_resolve_transport_selects_sdk_and_reports_both_on_unknown():
     assert isinstance(_resolve_transport("sdk"), SdkClaudeTransport)
