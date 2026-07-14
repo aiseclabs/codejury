@@ -121,9 +121,10 @@ git clone --depth 1 --branch v0.3.8 https://github.com/open-webui/open-webui /tm
 #    the coded engine, deterministic and reproducible, the path to prefer for a regression.
 #    --run scaffolds, fans out one sub-review per unit over diverse passes, verifies, and
 #    writes findings.json, all in one command, no separate finalize. --executor auto calls
-#    the provider API when a key is reachable and rides the Claude Code subscription when it
-#    is not, so it runs without extra setup. Pass --executor api to require a key and fail
-#    loud when there is none, the deterministic path to prefer in CI:
+#    the provider API when a key is reachable, and an Anthropic seat with no key falls back to
+#    the Claude Code subscription, so a Claude run needs no extra setup. A keyless non-Anthropic
+#    seat fails loud instead. Pass --executor api to require a key and fail loud when there is
+#    none, the deterministic path to prefer in CI:
 codejury review repository /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui --run --executor auto
 #    or scaffold only and let an agent follow METHODOLOGY.md, the /codejury-review slash
 #    command, then finalize, the same methodology run by an agent instead of code:
