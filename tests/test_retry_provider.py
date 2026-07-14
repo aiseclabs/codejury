@@ -185,7 +185,7 @@ def test_hard_timeout_retries_then_recovers():
 
 
 def test_no_hard_timeout_leaves_call_unbounded():
-    # without a deadline the inner call runs to completion, the behavior before the bound
+    # without a deadline the inner call runs to completion, unbounded
     inner = _Flaky(fail_times=0)
     provider = RetryProvider(inner)
     assert _call(provider).text == "ok"

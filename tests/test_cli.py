@@ -322,8 +322,8 @@ def test_diff_adversarial_resolves_each_seat_independently(monkeypatch, capsys):
 
 def test_repository_mode_flags_are_mutually_exclusive(tmp_path):
     # --scaffold, --run, --finalize, and --gate are the workspace modes, one is required.
-    # Passing two used to be resolved by a silent dispatch precedence, so --run --finalize
-    # quietly ran finalize and rewrote findings/. argparse now rejects the combination loudly.
+    # argparse rejects passing two loudly, so a combination like --run --finalize cannot
+    # silently run finalize and rewrite findings/.
     repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
     for combo in (["--run", "--gate"], ["--run", "--finalize"], ["--finalize", "--gate"]):
@@ -563,8 +563,8 @@ def test_executor_subscription_wires_the_agent_verifier(monkeypatch, tmp_path):
 
 
 def test_executor_rename_is_a_clean_break(tmp_path):
-    # the old --reviewer was renamed to --executor, and the executor value claude-cli to
-    # subscription, both clean breaks with no alias, so argparse rejects the retired spellings
+    # --executor and its subscription value are clean breaks with no alias for the retired
+    # --reviewer flag or its claude-cli value, so argparse rejects the retired spellings
     with pytest.raises(SystemExit):
         main(["review", "repository", str(tmp_path), "--finalize", "--reviewer", "model"])
     with pytest.raises(SystemExit):
@@ -644,8 +644,8 @@ def test_explicit_concurrency_overrides_the_backend_default(monkeypatch, tmp_pat
 
 
 def test_retries_and_timeout_reach_the_subscription_agent_finder(monkeypatch, tmp_path):
-    # --retries and --timeout once kept the _ClaudeBackend defaults on the subscription path, so a
-    # documented flag silently did nothing there, invariant 4. They must now reach the agent backend.
+    # --retries and --timeout must reach the agent backend on the subscription path, so a
+    # documented flag does not silently keep the _ClaudeBackend defaults there, invariant 4.
     from codejury.review.repository.agent import AgentReviewer
     captured = _capture_run(monkeypatch)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)

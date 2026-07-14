@@ -323,8 +323,8 @@ def _unit_md(name: str, mandate: str, *, owned_path: str | None = None,
 
 def _has_prior_run(ws: Path) -> bool:
     """True when the workspace already holds a previous review's output, not just a
-    bare scaffold. Seeded but un-reviewed units do not count, since the scaffold now
-    seeds them. A reviewed unit, a finding, a PoC, or an edited surface does."""
+    bare scaffold. Seeded but un-reviewed units do not count, the scaffold seeds them.
+    A reviewed unit, a finding, a PoC, or an edited surface does."""
     if not ws.exists():
         return False
     for sub in ("candidates", "findings", "pocs"):

@@ -18,7 +18,7 @@ DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-opus-4-8")
 DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 # retry attempts on a transient failure, env-backed like the rest of the backend config so
-# CI can set it once, symmetric with the timeout knobs that were already env-only
+# CI can set it once, symmetric with the env-only timeout knobs
 DEFAULT_RETRIES = int(os.environ.get("CODEJURY_RETRIES", "2"))
 
 # Per-role model backends, finder, challenger, and judge, shared by both review paths. A role

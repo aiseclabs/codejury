@@ -1,8 +1,8 @@
 """AnthropicProvider: Provider backed by the Anthropic Messages API.
 
 When ``cache`` is set, the system prompt is marked with an ephemeral
-cache_control block. The capability checklist is large and reused across
-artifacts, so caching it is the high-value target.
+cache_control block. The system prompt carries the large security-knowledge
+block reused across every review call, so caching it is the high-value target.
 
 The Anthropic client is injectable so the mapping and caching logic can be
 tested without the SDK or an API key. Constructed lazily otherwise, reading

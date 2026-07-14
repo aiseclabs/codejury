@@ -17,7 +17,7 @@ def test_web_domain_resolves_shipped_content():
     assert paths.detection_file.is_file()
     assert paths.methodology_file.is_file()
     assert paths.severity_rubric_file.is_file()
-    # the knowledge index and vulnerabilities share a parent, the relocation kept them together
+    # the knowledge index and the vulnerabilities directory share a parent
     assert paths.knowledge_index.parent == paths.vulnerabilities_dir.parent
 
 

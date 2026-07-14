@@ -200,8 +200,9 @@ def _seat_backend(spec, executor: str) -> str:
 
 
 def _warn_secondary_env() -> None:
-    """The CODEJURY_SECONDARY_* names were replaced by the per-role CODEJURY_CHALLENGER_* and
-    CODEJURY_JUDGE_* names. Warn when the old names are still set so they are not silently ignored."""
+    """Warn when the deprecated CODEJURY_SECONDARY_* names are still set so they are not silently
+    ignored. They are no longer read, the per-role CODEJURY_CHALLENGER_* and CODEJURY_JUDGE_* names
+    replace them."""
     if any(k.startswith("CODEJURY_SECONDARY_") for k in os.environ):
         print("NOTE: CODEJURY_SECONDARY_* is no longer read. Use CODEJURY_CHALLENGER_* for the "
               "skeptic and CODEJURY_JUDGE_* for the confirmer.", file=sys.stderr)

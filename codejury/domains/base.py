@@ -1,6 +1,6 @@
 """A review domain: a self-contained body of security knowledge plus where it lives.
 
-The tool reviews more than one kind of code, web today, smart contracts next. The
+The tool reviews more than one kind of code, web code and smart contracts. The
 engine itself names no language, all the language and vulnerability knowledge is data
 under a content root: `knowledge/`, `playbook/`, and `detection.yaml`. A `Domain` ties a
 name to one such content root, and `ContentPaths` resolves the fixed file layout under

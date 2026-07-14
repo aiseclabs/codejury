@@ -40,8 +40,8 @@ def _judge(checker):
 
 
 def test_a_refutation_alone_never_drops_a_finding_without_a_confirmer():
-    # a single skeptic opinion can no longer delete, the M-01 red-line fix: with no independent
-    # confirmer every refutation is kept pending evidence.
+    # with no independent confirmer a refutation cannot delete a finding, it is kept
+    # pending evidence.
     cands = [Candidate(title="real1", endpoint="GET /a"),
              Candidate(title="fp", endpoint="GET /b")]
     vr = verify_findings(cands, StubVerifier(["fp"]), ".", concurrency=2)
@@ -152,8 +152,8 @@ def test_model_verifier_keeps_on_unparseable_reply():
 
 
 def test_model_verifier_keeps_a_refutation_that_rests_on_an_unshown_file():
-    # the cross-file authorization gap the skeptic used to drop by trusting an upstream
-    # check it never read, so a refutation citing another file keeps the finding
+    # a refutation that rests on an upstream check in a file the skeptic never read keeps the
+    # finding, so a cross-file authorization gap is not dropped
     prov = MockProvider(default='{"real": false, "reason": "the service checks the owner", '
                         '"control_file": "internal/service/answer_service.go"}')
     verdict = ModelVerifier(provider=prov, model="mock").verify(

@@ -1,8 +1,8 @@
 """The web domain: application security knowledge for web code, the default domain.
 
 Its content root is this package directory, holding the `knowledge/`, `playbook/`, and
-`detection.yaml` that codejury has always shipped. The review strategy that used to sit
-in the engine lives here too as data: the pass lenses and the diff prompt's focus and
+`detection.yaml` that codejury has always shipped. The review strategy lives here too
+as data: the pass lenses and the diff prompt's focus and
 do-not-report blocks. The engine modules import these as their
 defaults. This package imports only `codejury.domains.base`, so it stays a leaf the
 engine can depend on without a cycle.
