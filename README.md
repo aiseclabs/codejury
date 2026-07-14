@@ -33,41 +33,35 @@ Solidity smart contracts, selected with `--domain` or detected automatically.
 
 ## Install
 
-The simplest install pulls everything, every model backend plus the optional toolchains, so no
-capability is missing:
+The base install just works, it pulls the Anthropic and OpenAI backends and the Claude Code
+subscription transport:
 
 ```bash
-pip install "codejury[all]"
+pip install codejury
 ```
 
-To keep it lean, install only the pieces you need instead. At least one model backend is required:
+Add the Solidity toolchain only if you review smart contracts, and LiteLLM only if you proxy other
+providers. `codejury[all]` is both:
 
 ```bash
-pip install "codejury[anthropic]"   # or "codejury[openai]" or "codejury[litellm]"
+pip install "codejury[evm]"       # a Slither call graph backend for Solidity, grounds EVM review
+pip install "codejury[litellm]"   # proxy other providers behind one API
 ```
 
-Then add optional capabilities as you need them:
-
-```bash
-pip install "codejury[evm]"         # a Slither call graph backend for Solidity, grounds EVM review
-pip install "codejury[claude-sdk]"  # a persistent Claude Code subscription transport
-```
-
-Install the Repository Review slash command for an agent:
+Install the `/codejury-review` slash command:
 
 ```text
-codejury install-slash-command [--agent claude|codex] [--dir <dir>] [--force]
+codejury install-slash-command [--dir <dir>] [--force]
 ```
 
 ```bash
-codejury install-slash-command                  # Claude Code
-codejury install-slash-command --agent codex    # Codex
+codejury install-slash-command
 ```
 
-`install-slash-command` copies `/codejury-review` into the selected agent's command
-directory. The one command dispatches by argument: a directory runs the Repository Review
-fan-out, a diff file or git range runs the coded Diff Review. Pass `--dir` to install it
-somewhere else.
+It installs one command into both the Claude Code and Codex command directories, so it works in
+either agent. The one command dispatches by argument: a directory runs the Repository Review
+fan-out, a diff file or git range runs the coded Diff Review, and `--domain web|evm|auto` picks
+the domain at review time. Pass `--dir` to install into one directory instead.
 
 ## Configure a Model Backend
 
@@ -174,13 +168,13 @@ for one useful model call, so the tool creates a workspace, builds a unit workli
 reviews focused units instead of doing one shallow pass.
 
 ```text
-codejury review repository <repository> [--invariants <file>] [options]
+codejury review repository <repository> (--scaffold | --run | --finalize | --gate) [--invariants <file>] [options]
 ```
 
 Start by scaffolding a workspace:
 
 ```bash
-codejury review repository /path/to/repository
+codejury review repository /path/to/repository --scaffold
 ```
 
 The workspace contains:
@@ -205,7 +199,7 @@ clear the workspace with `--fresh` to replace it. Write one rule per line as `on
 may <operation> <asset>, under <condition>`. Leave it out to seed nothing.
 
 ```bash
-codejury review repository /path/to/repository --invariants invariants.md
+codejury review repository /path/to/repository --scaffold --invariants invariants.md
 ```
 
 Then run the interactive slash command in Claude Code or Codex:
@@ -214,15 +208,22 @@ Then run the interactive slash command in Claude Code or Codex:
 /codejury-review /path/to/repository
 ```
 
-The slash command takes the same arguments as `codejury review repository`:
+The slash command takes a target plus an optional `--coded` switch:
 
 ```text
-/codejury-review <repository> [--invariants <file>] [options]
+/codejury-review <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>]
 ```
 
-The agent maps the attack surface, fills the authorization model, runs one focused
-sub-review per unit, records findings, and leaves deterministic post-processing to code.
-PoCs must run only against sandbox or dev environments, never production.
+`--coded` picks the engine and the model backend together. Without it, the default, a
+repository is reviewed by the agent fan-out on your Claude Code subscription, so your `.env`
+is not used. With it, codejury's own coded engine reviews the repository through `--run` on
+`--executor api`, so your `.env` provider config is used throughout. The slash command
+announces the choice on its first line, so which backend ran is never a guess.
+
+In the default fan-out mode the agent maps the attack surface, fills the authorization model,
+runs one focused sub-review per unit, records findings, and leaves deterministic
+post-processing to code. PoCs must run only against sandbox or dev environments, never
+production.
 
 After the fan-out review, run the coded finalization and gate:
 
@@ -274,11 +275,11 @@ A `--run` chooses how each unit is reviewed:
   Claude Code access and no provider key. Use it when you want a tool-using agent rather
   than a single grounded call even where a key is present.
 
-The subscription backend starts a fresh `claude -p` process for every call by default. A
-Repository Review run makes many calls, so to amortize that startup set
-`CODEJURY_CLAUDE_TRANSPORT=sdk`, which keeps a Claude Agent SDK session alive across calls
-after you install `codejury[claude-sdk]`. The default `process` transport is unchanged, and
-an unknown transport value fails at startup rather than silently falling back.
+The subscription backend keeps a Claude Agent SDK session alive across calls by default,
+amortizing the Claude Code startup that a fresh `claude -p` per call would pay on a many-call
+Repository Review run. The SDK ships in the base install. Set `CODEJURY_CLAUDE_TRANSPORT=process`
+for the older behavior, one `claude -p` per call. An unknown transport value fails at startup
+rather than silently falling back.
 
 `--effort low|medium|high` is the one depth dial, each level fixing three things at once:
 

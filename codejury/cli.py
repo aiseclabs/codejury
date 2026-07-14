@@ -4,11 +4,11 @@ Two paths matched to their nature:
 
 - ``review diff`` runs the coded diff engine over a unified diff: a single
   balanced call in standard mode or the adversarial Finder/Challenger/Judge pass.
-- ``review repository <dir>`` drives a whole-repository review from a fan-out workspace. A bare
-  ``review repository`` only scaffolds the workspace for an interactive agent to follow the
-  methodology. ``--run`` runs the coded multi-pass engine to convergence, ``--finalize``
-  dedups and adversarially verifies the candidates an agent or a run proposed, and
-  ``--gate`` checks completeness.
+- ``review repository <dir>`` drives a whole-repository review from a fan-out workspace. It
+  requires one explicit mode. ``--scaffold`` builds the workspace for an interactive agent to
+  follow the methodology. ``--run`` runs the coded multi-pass engine to convergence,
+  ``--finalize`` dedups and adversarially verifies the candidates an agent or a run proposed,
+  and ``--gate`` checks completeness.
 
 ``review diff --dry-run`` exercises the engine with a mock provider and no key.
 The audit orchestration itself lives in ``codejury.review.diff.engine``.
@@ -32,9 +32,10 @@ from codejury.envfile import load_env_file
 _ENV_LOADED = load_env_file()
 
 from codejury.detection import load_detection
-from codejury.domains.registry import available_domains, get_domain, resolve_domain
+from codejury.domains.registry import available_domains, resolve_domain
 from codejury.sources.explorer import CHAINS
 from codejury.report import gate, render
+from codejury.resources import SLASH_COMMAND_FILE
 from codejury.review.diff.engine import audit_diff
 from codejury.providers.factory import (
     DEFAULT_API_BASE,
@@ -396,7 +397,7 @@ def main(argv: list[str] | None = None) -> int:
     review = sub.add_parser("review", help="review code for security findings")
     rsub = review.add_subparsers(dest="scope")
     _add_audit_args(rsub.add_parser("diff", help="audit a unified diff (the coded engine)"))
-    repository = rsub.add_parser("repository", help="scaffold a whole-repository review for an interactive agent")
+    repository = rsub.add_parser("repository", help="run a whole-repository review: --scaffold, --run, --finalize, or --gate")
     repository.add_argument("directory", help="target repository to review")
     repository.add_argument("--workspace", default=_default_workspace(),
                       help="where to create the review workspace, defaults to a user-private "
@@ -406,10 +407,13 @@ def main(argv: list[str] | None = None) -> int:
     repository.add_argument("--invariants", default=None, metavar="FILE",
                       help="seed inventory/_invariants.md from FILE, the business rules only you "
                            "know, kept with the product and imported here")
-    # the workspace modes are mutually exclusive, scaffold is the default when none is set.
+    # the workspace modes are mutually exclusive and one is required, no implicit default.
     # Two at once would otherwise fall to a dispatch precedence and silently run just one, so
     # --run --finalize could finalize and rewrite findings/, argparse rejects the pair instead
-    mode = repository.add_mutually_exclusive_group()
+    mode = repository.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--scaffold", action="store_true",
+                      help="build the review workspace: detect the stack, slice units, seed the inventory, "
+                           "the prerequisite for --run, --finalize, and --gate")
     mode.add_argument("--gate", action="store_true",
                       help="check the existing workspace against the Completeness Gate instead of scaffolding, "
                            "exit 0 if it passes, 1 if any item is unmet")
@@ -501,14 +505,11 @@ def main(argv: list[str] | None = None) -> int:
                      help="replace a non-empty output directory instead of refusing")
 
     inst = sub.add_parser("install-slash-command",
-                          help="install the /codejury-review slash command for an agent")
-    inst.add_argument("--agent", choices=("claude", "codex"), default="claude",
-                      help="which agent's command directory to install into")
-    inst.add_argument("--dir", default=None, help="explicit target directory, overrides --agent")
+                          help="install the /codejury-review slash command for Claude Code and Codex")
+    inst.add_argument("--dir", default=None,
+                      help="install into this one directory instead of the agent command directories")
     inst.add_argument("--force", action="store_true",
                       help="overwrite an existing codejury-review.md at the destination")
-    inst.add_argument("--domain", default="web", metavar="DOMAIN",
-                      help="which domain's slash command to install, one of: " + ", ".join(available_domains()))
 
     args = parser.parse_args(argv)
     try:
@@ -839,20 +840,27 @@ def _cmd_repository_scaffold(args) -> int:
 
 
 def _cmd_install_slash_command(args) -> int:
-    slash_command_file = get_domain(args.domain).paths.slash_command_file
-    agent_dirs = {
-        "claude": Path.home() / ".claude" / "commands",
-        "codex": Path.home() / ".codex" / "prompts",
-    }
-    target_dir = Path(args.dir) if args.dir else agent_dirs[args.agent]
-    dst = target_dir / "codejury-review.md"
-    if dst.exists() and not args.force:
-        print(f"{dst} already exists. Re-run with --force to overwrite it.", file=sys.stderr)
+    # One domain-agnostic command, installed into both agent command directories so it works in
+    # Claude Code and Codex without a choice. Both read a markdown prompt with $ARGUMENTS. The
+    # command threads --domain through to codejury, so web and evm run from the same command.
+    content = SLASH_COMMAND_FILE.read_text(encoding="utf-8")
+    if args.dir:
+        targets = [Path(args.dir)]
+    else:
+        targets = [Path.home() / ".claude" / "commands", Path.home() / ".codex" / "prompts"]
+    installed = 0
+    for target_dir in targets:
+        dst = target_dir / "codejury-review.md"
+        if dst.exists() and not args.force:
+            print(f"{dst} already exists, keeping it. Re-run with --force to overwrite.", file=sys.stderr)
+            continue
+        target_dir.mkdir(parents=True, exist_ok=True)
+        dst.write_text(content, encoding="utf-8")
+        print(f"Installed slash command to {dst}")
+        installed += 1
+    if installed == 0:
         return 1
-    target_dir.mkdir(parents=True, exist_ok=True)
-    dst.write_text(slash_command_file.read_text(encoding="utf-8"), encoding="utf-8")
-    print(f"Installed slash command to {dst}")
-    print("Run it in the agent with: /codejury-review <repository or diff>")
+    print("Run it with: /codejury-review <repository or diff> [--coded] [--domain web|evm|auto]")
     return 0
 
 
@@ -879,7 +887,7 @@ def _dispatch(args, parser) -> int:
         return _cmd_repository_finalize(args)
     if args.command == "review" and scope == "repository" and args.run:
         return _cmd_repository_run(args)
-    if args.command == "review" and scope == "repository":
+    if args.command == "review" and scope == "repository" and args.scaffold:
         return _cmd_repository_scaffold(args)
     if args.command == "install-slash-command":
         return _cmd_install_slash_command(args)

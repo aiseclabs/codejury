@@ -127,7 +127,7 @@ git clone --depth 1 --branch v0.3.8 https://github.com/open-webui/open-webui /tm
 codejury review repository /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui --run --executor auto
 #    or scaffold only and let an agent follow METHODOLOGY.md, the /codejury-review slash
 #    command, then finalize, the same methodology run by an agent instead of code:
-# codejury review repository /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
+# codejury review repository /tmp/owui/backend/apps/webui --scaffold --workspace /tmp/cj-owui
 #    Both are product paths and should agree, score whichever wrote findings. Do not invent a
 #    third orchestration, a custom harness drifts from the product and the score stops meaning
 #    anything. --run needs detectable entrypoints, a no-entrypoint scope such as a plain library

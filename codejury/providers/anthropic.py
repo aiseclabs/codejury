@@ -41,7 +41,7 @@ class AnthropicProvider(Provider):
                 import anthropic
             except ImportError as exc:
                 raise RuntimeError(
-                    "anthropic SDK not installed. run: pip install 'codejury[anthropic]'"
+                    "anthropic not installed, it is a base dependency, run: pip install codejury"
                 ) from exc
             kwargs: dict[str, Any] = {}
             if self._api_key:

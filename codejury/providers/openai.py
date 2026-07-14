@@ -34,7 +34,7 @@ class OpenAIProvider(Provider):
             try:
                 import openai
             except ImportError as exc:
-                raise RuntimeError("openai not installed. run: pip install 'codejury[openai]'") from exc
+                raise RuntimeError("openai not installed, it is a base dependency, run: pip install codejury") from exc
             kwargs: dict[str, Any] = {}
             if self._api_key:
                 kwargs["api_key"] = self._api_key

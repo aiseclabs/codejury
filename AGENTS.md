@@ -102,8 +102,9 @@ orchestration and agents or model calls provide per-unit judgment.
   `--executor` seat resolution in the CLI.
 - JSON extraction lives in `codejury/json_parse.py`.
 - The CLI entry point is `codejury.cli:main`.
-- `install-slash-command` copies the selected domain's `playbook/slash-command.md` into
-  the selected agent's command directory.
+- `install-slash-command` copies one domain-agnostic `codejury/playbook/slash-command.md`
+  into both the Claude Code and Codex command directories. The command threads `--domain`
+  through to codejury, so a single install drives web and evm.
 
 ## Agent Workflow
 
@@ -126,7 +127,7 @@ orchestration and agents or model calls provide per-unit judgment.
 - Diff Review:
   `codejury review diff --file changes.diff`
 - Repository Review scaffold:
-  `codejury review repository <dir>`
+  `codejury review repository <dir> --scaffold`
 - Repository Review coded run:
   `codejury review repository <dir> --run`
 - Repository Review finalize:
@@ -140,7 +141,7 @@ orchestration and agents or model calls provide per-unit judgment.
   shots plus a stricter majority of two skeptics to drop a candidate:
   `codejury review repository <dir> --run --effort high`
 - Install slash command:
-  `codejury install-slash-command --agent claude|codex`
+  `codejury install-slash-command`
 - Provider configuration comes from flags or environment, and the CLI loads a
   working-directory `.env` at startup so a project can set it once. A value already
   exported in the shell wins over the file:

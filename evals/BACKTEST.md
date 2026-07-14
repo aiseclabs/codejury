@@ -19,7 +19,7 @@ versions. The denominator is the planted issues in each `answer-key.yaml`, so th
 
 ```bash
 python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]"
-codejury install-slash-command --agent claude
+codejury install-slash-command
 ```
 
 Set `CODEJURY_BACKTEST_DIR` to a root outside the repository tree. Clones, workspaces, and scores all
@@ -55,7 +55,7 @@ Working top-down through that order:
    exact `ref` at depth 1, fall back to a filtered full clone plus checkout for a server that
    will not serve a bare sha.
 3. Review the scope with the `/codejury-review` methodology. Scaffold with
-   `codejury review repository <root>/repositories/<name>/<path> --workspace <root>/workspaces/<name>`,
+   `codejury review repository <root>/repositories/<name>/<path> --scaffold --workspace <root>/workspaces/<name>`,
    then follow the workspace `METHODOLOGY.md`, fan out one sub-review per `Status: open` unit
    across diverse passes, write candidates, then
    `codejury review repository <same dir> --workspace <same workspace> --finalize --executor auto`.

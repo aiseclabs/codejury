@@ -10,9 +10,16 @@ knowledge, `playbook/` is the repository-review agent path's assets, `detection.
 classification config.
 """
 
+from pathlib import Path
+
 from codejury.domains.registry import default_domain
 
 _PATHS = default_domain().paths
+
+# The slash command is one domain-agnostic file, not a per-domain asset: it threads --domain
+# through to codejury, which detects or is told the domain, so a single installed command drives
+# both web and evm. The per-domain playbook assets below stay domain-specific.
+SLASH_COMMAND_FILE = Path(__file__).parent / "playbook" / "slash-command.md"
 
 VULNERABILITIES_DIR = _PATHS.vulnerabilities_dir
 LANGUAGES_DIR = _PATHS.languages_dir
@@ -21,7 +28,6 @@ PROTOCOLS_DIR = _PATHS.protocols_dir
 KNOWLEDGE_INDEX = _PATHS.knowledge_index
 
 METHODOLOGY_FILE = _PATHS.methodology_file
-SLASH_COMMAND_FILE = _PATHS.slash_command_file
 UNIT_REVIEW_FILE = _PATHS.unit_review_file
 SEVERITY_RUBRIC_FILE = _PATHS.severity_rubric_file
 FALSE_POSITIVE_TRAPS_FILE = _PATHS.false_positive_traps_file

@@ -18,25 +18,25 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
 ]
+# The base install just works: the two common providers, the subscription transport, and the
+# config parsers, all light and pure Python. Only the heavy Solidity toolchain and the LiteLLM
+# proxy stay optional, so a normal user runs `pip install codejury` and reviews right away.
 dependencies = [
     "pyyaml>=6.0",
     "json-repair>=0.30",
+    "anthropic>=0.40",
+    "openai>=1.0",
+    "claude-agent-sdk>=0.2",
 ]
 
 [project.optional-dependencies]
-anthropic = ["anthropic>=0.40"]
-openai = ["openai>=1.0"]
+# LiteLLM proxies other providers behind one API, heavy transitive deps, so it is opt-in
 litellm = ["litellm>=1.0"]
-# everything: all model providers plus the optional evm toolchain and the subscription transport,
-# so a single install has no missing piece, the heavy evm dependency is only pulled by this and evm
-all = ["anthropic>=0.40", "openai>=1.0", "litellm>=1.0", "slither-analyzer>=0.10", "web3>=6.0", "claude-agent-sdk>=0.2"]
-# the evm facts and PoC backends, heavy and lazy-imported, so they stay out of a base install
+# the evm facts and PoC backends, a Slither call graph and web3, heavy and lazy-imported
 evm = ["slither-analyzer>=0.10", "web3>=6.0"]
-# the persistent subscription transport, lazy-imported so the base install stays keyless and light
-claude-sdk = ["claude-agent-sdk>=0.2"]
-# the SDK is a light pure Python package, so unlike the heavy evm toolchain it is installed for
-# tests, and the SDK transport is exercised against the real package rather than a stand-in
-dev = ["pytest>=8.0", "jsonschema>=4.0", "claude-agent-sdk>=0.2"]
+# everything on top of the base: LiteLLM and the evm toolchain
+all = ["litellm>=1.0", "slither-analyzer>=0.10", "web3>=6.0"]
+dev = ["pytest>=8.0", "jsonschema>=4.0"]
 
 [project.scripts]
 codejury = "codejury.cli:main"
@@ -55,7 +55,7 @@ build-backend = "setuptools.build_meta"
 include = ["codejury*"]
 
 [tool.setuptools.package-data]
-codejury = ["domains/*/knowledge/**/*.md", "domains/*/playbook/**/*.md", "domains/*/detection.yaml"]
+codejury = ["playbook/*.md", "domains/*/knowledge/**/*.md", "domains/*/playbook/**/*.md", "domains/*/detection.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

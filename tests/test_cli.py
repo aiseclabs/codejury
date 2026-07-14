@@ -104,9 +104,19 @@ def test_review_repository_writes_methodology_to_workspace(tmp_path):
     repository.mkdir()
     (repository / "app.py").write_text("x = 1\n")
     ws = tmp_path / "ws"
-    rc = main(["review", "repository", str(repository), "--workspace", str(ws)])
+    rc = main(["review", "repository", str(repository), "--workspace", str(ws), "--scaffold"])
     assert rc == 0
     assert (ws / "svc" / "METHODOLOGY.md").is_file()
+
+
+def test_review_repository_requires_a_mode(tmp_path):
+    repository = tmp_path / "svc"
+    repository.mkdir()
+    (repository / "app.py").write_text("x = 1\n")
+    ws = tmp_path / "ws"
+    with pytest.raises(SystemExit) as exc:
+        main(["review", "repository", str(repository), "--workspace", str(ws)])
+    assert exc.value.code == 2
 
 
 def test_review_repository_facts_flag_is_a_noop_without_a_backend(tmp_path):
@@ -116,7 +126,7 @@ def test_review_repository_facts_flag_is_a_noop_without_a_backend(tmp_path):
     repository.mkdir()
     (repository / "app.py").write_text("x = 1\n")
     ws = tmp_path / "ws"
-    rc = main(["review", "repository", str(repository), "--workspace", str(ws), "--facts"])
+    rc = main(["review", "repository", str(repository), "--workspace", str(ws), "--scaffold", "--facts"])
     assert rc == 0
     assert not (ws / "svc" / "_facts.md").exists()
 
@@ -145,6 +155,17 @@ def test_install_slash_command_refuses_to_clobber_without_force(tmp_path, capsys
     assert "already exists" in capsys.readouterr().err
     assert main(["install-slash-command", "--dir", str(tmp_path), "--force"]) == 0
     assert "codejury review repository" in target.read_text()
+
+
+def test_install_slash_command_writes_both_agent_dirs(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    assert main(["install-slash-command"]) == 0
+    claude = tmp_path / ".claude" / "commands" / "codejury-review.md"
+    codex = tmp_path / ".codex" / "prompts" / "codejury-review.md"
+    assert claude.is_file() and codex.is_file()
+    # one domain-agnostic command that threads --domain, so both web and evm run from it
+    assert "--domain web|evm|auto" in claude.read_text()
+    assert claude.read_text() == codex.read_text()
 
 
 def test_default_workspace_is_user_private(monkeypatch, tmp_path):
@@ -300,9 +321,9 @@ def test_diff_adversarial_resolves_each_seat_independently(monkeypatch, capsys):
 
 
 def test_repository_mode_flags_are_mutually_exclusive(tmp_path):
-    # --run, --finalize, and --gate are workspace modes, scaffold is the default. Passing two
-    # used to be resolved by a silent dispatch precedence, so --run --finalize quietly ran
-    # finalize and rewrote findings/. argparse now rejects the combination loudly.
+    # --scaffold, --run, --finalize, and --gate are the workspace modes, one is required.
+    # Passing two used to be resolved by a silent dispatch precedence, so --run --finalize
+    # quietly ran finalize and rewrote findings/. argparse now rejects the combination loudly.
     repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
     for combo in (["--run", "--gate"], ["--run", "--finalize"], ["--finalize", "--gate"]):

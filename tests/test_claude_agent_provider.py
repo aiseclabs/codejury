@@ -25,6 +25,13 @@ def _envelope(result_text: str) -> str:
     return json.dumps({"type": "result", "subtype": "success", "result": result_text})
 
 
+@pytest.fixture(autouse=True)
+def _use_process_transport(monkeypatch):
+    # this file exercises the process transport, `claude -p`, through a faked subprocess, now that
+    # sdk is the default. Tests that need a different transport set the env themselves after this.
+    monkeypatch.setenv("CODEJURY_CLAUDE_TRANSPORT", "process")
+
+
 def test_complete_folds_system_ahead_of_the_user_content():
     captured = {}
 
@@ -136,8 +143,8 @@ def test_unknown_transport_env_fails_loud(monkeypatch):
         ClaudeAgentProvider()
 
 
-def test_process_is_the_default_transport_and_calls_subprocess(monkeypatch):
-    monkeypatch.delenv("CODEJURY_CLAUDE_TRANSPORT", raising=False)
+def test_process_transport_calls_subprocess_when_selected(monkeypatch):
+    monkeypatch.setenv("CODEJURY_CLAUDE_TRANSPORT", "process")
     captured = {}
 
     def fake_run(cmd, **kw):

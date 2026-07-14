@@ -12,10 +12,11 @@ configurable, via the constructor or `CODEJURY_CLAUDE_BIN` / `CODEJURY_CLAUDE_AR
 prompt is fed on stdin so a large mandate does not hit the argv limit. The subprocess call
 goes through an injected runner, so the backends are testable with no real `claude`.
 
-The call runs through a `ClaudeTransport`, selected by `CODEJURY_CLAUDE_TRANSPORT`, so a
-future persistent transport can amortize the Claude Code startup cost that today is paid on
-every call, without touching the retry or fail-loud path. The default is `process`, one
-`claude -p` per call. An injected runner still wins, so the tests keep their seam.
+The call runs through a `ClaudeTransport`, selected by `CODEJURY_CLAUDE_TRANSPORT`, so the
+persistent transport can amortize the Claude Code startup cost that a fresh process pays on
+every call, without touching the retry or fail-loud path. The default is `sdk`, a persistent
+Claude Agent SDK session. Set `CODEJURY_CLAUDE_TRANSPORT=process` for one `claude -p` per
+call. An injected runner still wins, so the tests keep their seam.
 
 This module is a leaf: it imports only the standard library and `providers.base`, never
 `review/` or `domains/`, so the transport sits at the provider layer and both paths depend
@@ -146,7 +147,8 @@ class ClaudeTransport:
 
 
 class ProcessClaudeTransport(ClaudeTransport):
-    """The default transport, one `claude -p` process per call, the historical behavior."""
+    """One `claude -p` process per call, the historical behavior, now opt-in via
+    `CODEJURY_CLAUDE_TRANSPORT=process`."""
 
     def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...],
             timeout: int) -> str:
@@ -168,7 +170,7 @@ def _import_sdk():
             import claude_agent_sdk as sdk
         except ImportError as exc:
             raise RuntimeError(
-                "the SDK transport needs the claude-agent-sdk package, install codejury[claude-sdk]"
+                "claude-agent-sdk not installed, it is a base dependency, run: pip install codejury"
             ) from exc
         _SDK = sdk
     return _SDK
@@ -385,10 +387,10 @@ class SdkClaudeTransport(ClaudeTransport):
 
 
 def _resolve_transport(name: str | None = None) -> ClaudeTransport:
-    """The transport named by `CODEJURY_CLAUDE_TRANSPORT`, `process` by default. An unknown
+    """The transport named by `CODEJURY_CLAUDE_TRANSPORT`, `sdk` by default. An unknown
     value fails loud at construction rather than silently falling back to a working default,
     so a misconfigured transport cannot pass as a clean run, invariant 4."""
-    name = name if name is not None else os.environ.get(_TRANSPORT_ENV, "process")
+    name = name if name is not None else os.environ.get(_TRANSPORT_ENV, "sdk")
     if name == "process":
         return ProcessClaudeTransport()
     if name == "sdk":
@@ -411,7 +413,7 @@ class _ClaudeBackend:
         self._retries = retries
         self._backoff = backoff
         # An injected runner wins, the test seam. Otherwise a transport runs the call: the one
-        # passed in, or the one CODEJURY_CLAUDE_TRANSPORT selects, process by default. The
+        # passed in, or the one CODEJURY_CLAUDE_TRANSPORT selects, sdk by default. The
         # transport is held so a persistent one can be closed at the end of a run.
         self._transport = None if runner is not None else (transport or _resolve_transport())
         self._runner = runner if runner is not None else self._transport.ask

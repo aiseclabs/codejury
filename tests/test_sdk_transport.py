@@ -217,6 +217,11 @@ def test_resolve_transport_selects_sdk_and_reports_both_on_unknown():
         _resolve_transport("bogus")
 
 
+def test_sdk_is_the_default_transport(monkeypatch):
+    monkeypatch.delenv("CODEJURY_CLAUDE_TRANSPORT", raising=False)
+    assert isinstance(_resolve_transport(), SdkClaudeTransport)
+
+
 def test_int_env_fails_loud_on_a_non_integer(monkeypatch):
     monkeypatch.setenv("CODEJURY_CLAUDE_SDK_POOL_SIZE", "lots")
     with pytest.raises(RuntimeError, match="must be an integer"):

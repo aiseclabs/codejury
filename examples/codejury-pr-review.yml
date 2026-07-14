@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: pip install "codejury[anthropic]"
+      - run: pip install codejury
 
       - name: Audit the PR diff
         id: review

@@ -1,6 +1,6 @@
 """A review domain: a self-contained body of security knowledge plus where it lives.
 
-codejury reviews more than one kind of code, web today, smart contracts next. The
+The tool reviews more than one kind of code, web today, smart contracts next. The
 engine itself names no language, all the language and vulnerability knowledge is data
 under a content root: `knowledge/`, `playbook/`, and `detection.yaml`. A `Domain` ties a
 name to one such content root, and `ContentPaths` resolves the fixed file layout under
@@ -38,7 +38,6 @@ class ContentPaths:
     protocols_dir: Path
     knowledge_index: Path
     methodology_file: Path
-    slash_command_file: Path
     unit_review_file: Path
     severity_rubric_file: Path
     false_positive_traps_file: Path
@@ -60,7 +59,6 @@ def content_paths(content_root: str | Path) -> ContentPaths:
         protocols_dir=guides / "protocols",
         knowledge_index=knowledge / "index.md",
         methodology_file=playbook / "methodology.md",
-        slash_command_file=playbook / "slash-command.md",
         unit_review_file=playbook / "unit-review.md",
         severity_rubric_file=playbook / "severity-rubric.md",
         false_positive_traps_file=playbook / "false-positive-traps.md",
