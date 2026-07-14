@@ -33,39 +33,23 @@ Solidity smart contracts, selected with `--domain` or detected automatically.
 
 ## Install
 
-The base install just works, it pulls the Anthropic and OpenAI backends and the Claude Code
-subscription transport:
-
 ```bash
 pip install codejury
-```
-
-Add the Solidity toolchain only if you review smart contracts, and LiteLLM only if you proxy other
-providers. `codejury[all]` is both:
-
-```bash
-pip install "codejury[evm]"       # a Slither call graph backend for Solidity, grounds EVM review
-pip install "codejury[litellm]"   # proxy other providers behind one API
-```
-
-Install the `/codejury-review` slash command:
-
-```text
-codejury install-slash-command [--dir <dir>] [--force]
-```
-
-```bash
 codejury install-slash-command
 ```
 
-It installs one command into both the Claude Code and Codex command directories, so it works in
-either agent. The one command dispatches by argument: a directory runs the Repository Review
-fan-out, a diff file or git range runs the coded Diff Review, and `--domain web|evm|auto` picks
-the domain at review time. Pass `--dir` to install into one directory instead.
+That is the whole setup. `pip install codejury` pulls everything a normal review needs, the
+Anthropic and OpenAI backends and the Claude Code subscription transport, with no extras to
+choose. `codejury install-slash-command` drops the `/codejury-review` command into both the
+Claude Code and Codex command directories, so it works in either agent: run it on a repository
+directory for a whole-repository review, or on a diff file or git range for a diff review.
+
+Only smart contract review needs more, the heavy Solidity toolchain, so add it when you need it
+with `pip install "codejury[evm]"`.
 
 ## Configure a Model Backend
 
-Set a provider key through flags or environment variables:
+Set a provider key, or run keyless on your Claude Code subscription with `--executor subscription`:
 
 ```bash
 export CODEJURY_MODEL=claude-opus-4-8
@@ -73,21 +57,36 @@ export CODEJURY_API_KEY=...
 export CODEJURY_API_BASE=...   # optional gateway or proxy
 ```
 
-Both review paths name three model roles, finder, challenger, and judge. The finder finds, the
-challenger refutes, the judge confirms before a deletion. Each role defaults to the base
-`--model`, so a single-model run sets only `--model`. Put a different vendor in any seat for
-cross-model review, where uncorrelated blind spots catch what one model misses, and a deletion
-needs the judge to be a distinct model from the challenger so no lone skeptic drops a real
-finding. With the judge not distinct, nothing is refuted, the recall-safe default.
+The CLI loads a `.env` from the working directory at startup, so a project can set its provider
+config once instead of exporting it every session. A value already exported in the shell wins
+over the file, and a missing file is fine. The auto-load is a CLI convenience, so importing the
+library directly does not read `.env`.
+
+Useful flags:
+
+- `--provider anthropic|openai|litellm`
+- `--model <model>`
+- `--api-key <key>`
+- `--api-base <url>`
+- `--retries <n>`
+- `--timeout <seconds>`
+
+### Cross-Model Review
+
+A single-model run needs only the setup above. For stronger verification, both review paths name
+three model roles, finder, challenger, and judge. The finder finds, the challenger refutes, the
+judge confirms before a deletion. Each role defaults to the base `--model`. Put a different vendor
+in any seat for cross-model review, where uncorrelated blind spots catch what one model misses, and
+a deletion needs the judge to be a distinct model from the challenger so no lone skeptic drops a
+real finding. With the judge not distinct, nothing is refuted, the recall-safe default.
 
 Each role takes a full backend, the same five fields as the base, every one unset by default:
 `CODEJURY_<ROLE>_PROVIDER`, `_MODEL`, `_API_KEY`, `_API_BASE`, `_WIRE_API`, with `<ROLE>` one of
 `FINDER`, `CHALLENGER`, `JUDGE`, and the matching `--<role>-provider`, `--<role>-model`,
 `--<role>-api-key`, `--<role>-api-base`, `--<role>-wire-api` flags. An unset field inherits the
-base, so you set none of these for a single-model run and override only the seat you want to
-change. The key and the api-base inherit the base only when the role keeps the base provider. A
-role that switches vendor brings its own key, since the base key belongs to the base vendor. For
-example a Claude base finder challenged by GPT and confirmed by Claude:
+base, so override only the seat you want to change, and a role that switches vendor brings its own
+key since the base key belongs to the base vendor. For example a Claude base finder challenged by
+GPT and confirmed by Claude:
 
 ```bash
 export CODEJURY_CHALLENGER_PROVIDER=openai
@@ -99,23 +98,9 @@ export CODEJURY_JUDGE_MODEL=...                  # a Claude model, the confirmer
 
 The same `CODEJURY_FINDER_*` / `CODEJURY_CHALLENGER_*` / `CODEJURY_JUDGE_*` and the matching
 `--finder-* / --challenger-* / --judge-*` flags work on both `review diff` and `review repository`.
-Note that `review repository --run` finds with one model, the finder, it no longer adds a second
-co-finder, and a seat that runs on the subscription supplies its own review, so it ignores
-that seat's backend flags while the others still apply.
-
-The CLI loads a `.env` from the working directory at startup, so a project can set its
-provider config once instead of exporting it every session. A value already exported in the
-shell wins over the file, and a missing file is fine. The auto-load is a CLI convenience, so
-importing the library directly does not read `.env`.
-
-Useful flags:
-
-- `--provider anthropic|openai|litellm`
-- `--model <model>`
-- `--api-key <key>`
-- `--api-base <url>`
-- `--retries <n>`
-- `--timeout <seconds>`
+Note that `review repository --run` finds with one model, the finder, and a seat that runs on the
+subscription supplies its own review, so it ignores that seat's backend flags while the others
+still apply.
 
 ## Diff Review
 
@@ -171,13 +156,49 @@ reviews focused units instead of doing one shallow pass.
 codejury review repository <repository> (--scaffold | --run | --finalize | --gate) [--invariants <file>] [options]
 ```
 
-Start by scaffolding a workspace:
+### From an Agent
 
-```bash
-codejury review repository /path/to/repository --scaffold
+In Claude Code or Codex, one command runs the whole review, scaffold, fan-out, finalize, and gate:
+
+```text
+/codejury-review <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>]
 ```
 
-The workspace contains:
+`--coded` picks the engine and the model backend together. Without it, the default, a
+repository is reviewed by the agent fan-out on your Claude Code subscription, so your `.env`
+is not used. With it, codejury's own coded engine reviews the repository through `--run` on
+`--executor api`, so your `.env` provider config is used throughout. The slash command
+announces the choice on its first line, so which backend ran is never a guess. In the default
+fan-out mode the agent maps the attack surface, fills the authorization model, runs one focused
+sub-review per unit, records findings, and leaves deterministic post-processing to code. PoCs
+run only against sandbox or dev environments, never production.
+
+### From the CLI
+
+The slash command runs these four steps for you. Run them yourself for a headless or CI review,
+or to drive the coded engine without an agent:
+
+```bash
+codejury review repository /path/to/repository --scaffold     # build the workspace and unit worklist
+codejury review repository /path/to/repository --run          # coded multi-pass review to convergence
+codejury review repository /path/to/repository --finalize     # dedup candidates, verify, write findings
+codejury review repository /path/to/repository --gate         # check coverage, non-zero until it is met
+```
+
+`--run` reviews every unit each pass and cycles lenses until convergence, see Review Strategy for
+how each unit is reviewed. `--finalize` deduplicates candidate files, verifies survivors, writes
+the confirmed `findings/`, records refuted candidates in `_refuted.md` and PoC reconciliation in
+`_pocs.md`, and writes ranked `findings.json`. `--gate` fails until the workspace has an enumerated
+surface, reviewed units, and calibrated candidates. Add `--strict-coverage` to also fail when a
+source file is owned by no unit, instead of noting it. Add `--poc` on finalize to generate and run
+an executable PoC for each confirmed finding when the domain binds a PoC backend, such as the EVM
+Foundry reproducer. It is off by default since it calls a model and a compiler per finding. A PoC
+runs locally only, it never forks a network, broadcasts, or holds a key, and it only adds evidence,
+so a finding is kept whether or not its PoC reproduces.
+
+### The Workspace
+
+Scaffold creates a private workspace holding:
 
 ```text
 inventory/      attack surface, authorization model, seeded entrypoints, severity rubric
@@ -192,63 +213,11 @@ _refuted.md     refuted candidates and why
 _pocs.md        PoC reconciliation, planned versus delivered
 ```
 
-To seed intent invariants, the business rules only you know that a static read cannot
-infer, keep an invariants file with the repository and pass `--invariants <path>`. It
-imports the file into `inventory/_invariants.md` and never overwrites an edited one, so
-clear the workspace with `--fresh` to replace it. Write one rule per line as `only <who>
-may <operation> <asset>, under <condition>`. Leave it out to seed nothing.
-
-```bash
-codejury review repository /path/to/repository --scaffold --invariants invariants.md
-```
-
-Then run the interactive slash command in Claude Code or Codex:
-
-```text
-/codejury-review /path/to/repository
-```
-
-The slash command takes a target plus an optional `--coded` switch:
-
-```text
-/codejury-review <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>]
-```
-
-`--coded` picks the engine and the model backend together. Without it, the default, a
-repository is reviewed by the agent fan-out on your Claude Code subscription, so your `.env`
-is not used. With it, codejury's own coded engine reviews the repository through `--run` on
-`--executor api`, so your `.env` provider config is used throughout. The slash command
-announces the choice on its first line, so which backend ran is never a guess.
-
-In the default fan-out mode the agent maps the attack surface, fills the authorization model,
-runs one focused sub-review per unit, records findings, and leaves deterministic
-post-processing to code. PoCs must run only against sandbox or dev environments, never
-production.
-
-After the fan-out review, run the coded finalization and gate:
-
-```bash
-codejury review repository /path/to/repository --finalize
-codejury review repository /path/to/repository --gate
-```
-
-`--finalize` deduplicates candidate files, verifies survivors, writes the confirmed
-`findings/`, records refuted candidates in `_refuted.md` and PoC reconciliation in
-`_pocs.md`, and writes ranked `findings.json`. `--gate` fails until the workspace has an
-enumerated surface, reviewed units, and calibrated candidates. Add `--strict-coverage` to
-also fail when a source file is owned by no unit, instead of noting it.
-
-Add `--poc` on finalize to generate and run an executable PoC for each confirmed finding
-when the domain binds a PoC backend, such as the EVM Foundry reproducer. It is off by
-default since it calls a model and a compiler per finding. A PoC runs locally only, it never
-forks a network, broadcasts, or holds a key, and it only adds evidence, so a finding is kept
-whether or not its PoC reproduces.
-
-For a headless run, use:
-
-```bash
-codejury review repository /path/to/repository --run
-```
+To seed intent invariants, the business rules only you know that a static read cannot infer, keep
+an invariants file with the repository and pass `--invariants <path>` to scaffold. It imports the
+file into `inventory/_invariants.md` and never overwrites an edited one, so clear the workspace
+with `--fresh` to replace it. Write one rule per line as `only <who> may <operation> <asset>,
+under <condition>`. Leave it out to seed nothing.
 
 ### Review Strategy
 
