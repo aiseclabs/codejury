@@ -1,4 +1,4 @@
-"""Phase B: the persistent Claude Agent SDK transport.
+"""The persistent Claude Agent SDK transport.
 
 A fake async client stands in for the SDK, so no test spawns a real Claude Code, and the
 pool, the session restart rules, and the fail-loud parsing are all exercised without a key.

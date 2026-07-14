@@ -1,4 +1,4 @@
-"""Phase 2: the explorer HTTP layer and the fetch orchestration.
+"""The explorer HTTP layer and the fetch orchestration.
 
 A fake opener stands in for the network, so no test reaches out. The fetch path
 writes a source tree plus metadata and fails loud on every bad input.

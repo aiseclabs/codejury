@@ -1,4 +1,4 @@
-"""Phase 0 and Phase 1: the SourceMeta data class and the pure explorer parser.
+"""The SourceMeta data class and the pure explorer parser.
 
 No network and no filesystem, the parser is driven with inline fixtures shaped
 like a block explorer getsourcecode response.
