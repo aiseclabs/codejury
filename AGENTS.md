@@ -91,9 +91,8 @@ orchestration and agents or model calls provide per-unit judgment.
   frontmatter.
 - Source extensions, manifests, noise directories, and test conventions live in each
   domain's `detection.yaml`, for example `codejury/domains/web/detection.yaml`.
-- The evm domain adds a `facts/` package, a Slither call-graph backend and a Forge PoC seam.
-  Slither and web3 ship in the base install, and both are lazy-imported so the web path never
-  loads them.
+- The evm domain adds an optional `facts/` package, a Slither call-graph backend and a
+  Forge PoC seam, behind the `codejury[evm]` extra.
 
 ### Providers and Integrations
 

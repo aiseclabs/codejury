@@ -155,9 +155,9 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
         return ""
     if not backend.available():
         return (
-            "the facts backend is unavailable, the review ran file-slice-only without "
-            "call-path units so cross-function coverage is reduced, install a Solidity compiler "
-            "such as solc or Foundry to enable it")
+            "the facts backend is not installed, the review ran file-slice-only without "
+            "call-path units so cross-function coverage is reduced, install the domain's facts "
+            "extra such as codejury[evm] and a Solidity compiler to enable it")
     dest = ws / "_facts.md"
     dest_by_file = ws / "_facts_by_file.json"
     dest_units = ws / "_facts_units.json"

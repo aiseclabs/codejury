@@ -44,6 +44,9 @@ choose. `codejury install-slash-command` drops the `/codejury-review` command in
 Claude Code and Codex command directories, so it works in either agent: run it on a repository
 directory for a whole-repository review, or on a diff file or git range for a diff review.
 
+Only smart contract review needs more, the heavy Solidity toolchain, so add it when you need it
+with `pip install "codejury[evm]"`.
+
 ## Configure a Model Backend
 
 Set a provider key, or run keyless on your Claude Code subscription with `--executor subscription`:
