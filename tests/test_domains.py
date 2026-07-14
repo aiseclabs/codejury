@@ -314,6 +314,7 @@ contract Vault {
 def test_slither_facts_extract_grounds_a_real_contract(tmp_path):
     from shutil import which
 
+    from codejury.domains.base import BackendUnavailable
     from codejury.domains.evm.facts.slither import SlitherFacts
 
     backend = SlitherFacts()
@@ -322,7 +323,12 @@ def test_slither_facts_extract_grounds_a_real_contract(tmp_path):
     sol = tmp_path / "Vault.sol"
     sol.write_text(_REENTRANT_VAULT, encoding="utf-8")
 
-    facts = backend.extract(sol)
+    try:
+        facts = backend.extract(sol)
+    except BackendUnavailable:
+        # a solc is on PATH but cannot compile here, such as a solc-select shim with no version
+        # selected on CI, so the extraction path is exercised elsewhere, not on this runner
+        pytest.skip("the solc on PATH cannot compile, no usable Solidity toolchain")
     assert not facts.empty
     vault = facts.data["contracts"]["Vault"]
     assert "balances" in {v["name"] for v in vault["state"]}
