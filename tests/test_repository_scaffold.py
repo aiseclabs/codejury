@@ -299,7 +299,7 @@ def test_scaffold_notes_the_degrade_when_facts_enabled_but_backend_unavailable(t
     res = scaffold(_target(tmp_path), tmp_path / "work",
                    domain=_facts_domain(_UnavailableBackend()), facts=True)
     assert not (res.workspace / "_facts.md").exists()
-    assert "facts backend is not installed" in res.fallback_note
+    assert "facts backend is unavailable" in res.fallback_note
 
 
 def test_scaffold_persists_the_per_file_facts_map(tmp_path):

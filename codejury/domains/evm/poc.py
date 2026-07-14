@@ -1,7 +1,7 @@
 """Forge PoC reproduction for the evm domain. For a candidate it generates a Foundry test
 that demonstrates the exploit, then compiles and runs it locally, turning a model claim into
-a run fact. Behind the codejury[evm] extra and a Foundry toolchain, availability is
-lazy-checked so importing the domain never needs forge.
+a run fact. It needs a Foundry toolchain at runtime, availability is lazy-checked so importing
+the domain never needs forge.
 
 Safety is the hard contract, invariant 6. Tier one runs only locally: it never passes a fork
 url or an rpc, never broadcasts, never holds a private key, and reverts to no network. Each

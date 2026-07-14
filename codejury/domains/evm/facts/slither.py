@@ -1,7 +1,7 @@
 """Slither-backed facts for the evm domain, grounding contract review in a call graph,
-storage layout, and per-function read and write sets. Behind the codejury[evm] extra and a
-Solidity compiler, availability is lazy-checked so importing the domain never needs the
-heavy dependency, and Slither itself is imported only inside extract.
+storage layout, and per-function read and write sets. It needs a Solidity compiler at runtime,
+availability is lazy-checked so importing the domain never needs the compiler, and Slither
+itself is imported only inside extract.
 
 A backend that cannot run fails loud rather than returning empty facts that would read as a
 clean review, invariant 4. A missing toolchain raises BackendUnavailable, a compile error
@@ -17,8 +17,8 @@ from codejury.domains.base import BackendUnavailable, Facts, FactsBackend
 from codejury.domains.evm.facts.call_path import call_path_units
 
 _INSTALL_HINT = (
-    "Slither is not installed. The evm facts backend needs the optional dependency and a "
-    "Solidity compiler: pip install 'codejury[evm]', and install solc or Foundry."
+    "The evm facts backend needs a Solidity compiler, install solc or Foundry. Slither itself "
+    "ships in the base install, reinstall codejury if it is missing."
 )
 
 
