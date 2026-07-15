@@ -1,4 +1,4 @@
-"""Diff-audit orchestration (codejury.review.diff.engine) plus the thin CLI surface.
+"""Diff-audit orchestration plus the thin CLI surface.
 
 A diff over the size budget is split per file and audited one file at a time so a
 big PR does not overflow the model context and silently truncate the reply. The
@@ -329,7 +329,7 @@ def test_repository_mode_flags_are_mutually_exclusive(tmp_path):
     for combo in (["--run", "--gate"], ["--run", "--finalize"], ["--finalize", "--gate"]):
         with pytest.raises(SystemExit) as exc:
             main(["review", "repository", str(repository), "--workspace", str(ws), *combo])
-        assert exc.value.code == 2          # argparse usage error, not a silent pick
+        assert exc.value.code == 2
     assert not (ws / "svc" / "findings.json").exists()
 
 

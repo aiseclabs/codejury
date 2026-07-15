@@ -242,7 +242,7 @@ def _confirmer_for(args, spec):
 
 
 def _confirmers(args, *, challenger, judge, finder=None):
-    """The independent confirmers a drop needs, each `(label, RefutationChecker)`. A refuted finding
+    """The independent confirmers a drop needs, each label and checker pair. A refuted finding
     is dropped only when every applicable confirmer upholds the refutation. The challenger is the
     skeptic, so it is never a confirmer, a read cannot confirm its own refutation. The judge and the
     finder are confirmers, deduped by model, each labeled by its model so the route skips it for a

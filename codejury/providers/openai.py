@@ -65,7 +65,7 @@ class OpenAIProvider(Provider):
             model=model,
             messages=api_messages,
             max_tokens=max_tokens,
-            temperature=0,  # determinism: same input gives the same verdicts
+            temperature=0,  # so the same input yields the same verdicts
             timeout=self._timeout,
         )
         return CompletionResult(text=choice_text(response))

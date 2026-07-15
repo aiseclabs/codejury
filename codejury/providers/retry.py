@@ -1,4 +1,4 @@
-"""RetryProvider: wrap any Provider, retrying complete() on transient failure.
+"""RetryProvider: wrap any Provider, retrying `complete` on transient failure.
 
 Real model calls fail intermittently, on timeouts, blank bodies, or rate limits. This
 decorator retries and re-raises the last error once attempts are exhausted. A rate limit is
@@ -41,7 +41,7 @@ def _call_with_deadline(fn: Callable[[], CompletionResult], timeout: float) -> C
     def run() -> None:
         try:
             out.put((True, fn()))
-        except BaseException as exc:   # carry any failure back to the caller's retry handling
+        except BaseException as exc:
             out.put((False, exc))
 
     threading.Thread(target=run, daemon=True).start()

@@ -114,7 +114,7 @@ def test_source_inventory_notes_a_file_owned_by_no_unit(tmp_path):
     (ws / "inventory" / "_surface.md").write_text(
         _SURFACE + "| app | owned.py | none | u1 | assigned |\n")
     result = check_gate(ws, root=target)
-    assert result.passed  # a soft signal by default, it does not fail the gate
+    assert result.passed
     assert any("orphan.py" in n for n in result.notes)
     assert not any("owned.py" in n for n in result.notes)
 

@@ -22,7 +22,7 @@ class Unit:
     """One unit of the worklist: the files it owns plus the files it traces into. `span`,
     when set, is the char window of the first owned file this unit reviews, so a file too
     large for one call is split across sibling units instead of being silently truncated.
-    `fragments`, when set, are `(file, start, end)` source slices this unit reviews instead
+    `fragments`, when set, are source slices this unit reviews instead
     of whole files, so a call-path unit co-locates a function and its call-graph neighborhood
     rather than a char window. `files` still names the source files for facts grounding and
     coverage bookkeeping."""

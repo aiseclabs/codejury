@@ -19,19 +19,8 @@ def _web_poc(**kw):
     from codejury.domains.web.poc import WebPoC
     return WebPoC(**kw)
 
-# the repository-review pass lenses: each pass leads with one class, the empty lens reviews every
-# class. A named lens is a reliable focused pass and the empty catch-all is not, so every shipped
-# class gets a named lens rather than relying on the catch-all to surface it. Naming is one unified
-# rule, no abbreviations, always the full name. A single-class lens is named exactly its class id,
-# the CWE-style full name, so lens and class never drift. An umbrella lens leads a family hunted by
-# one reading motion, covers several classes, and is named a neutral family noun that is never
-# equal to any class id, so a lens name tells you at a glance whether it is one class or a family:
-# injection covers sql, nosql, command, and code, authentication covers auth bypass, jwt, and
-# session, authorization covers IDOR and missing checks, cryptography covers secrets, transport,
-# and weak crypto, deserialization covers prototype pollution, cross-origin covers csrf and cors. A
-# family becomes an umbrella only when a recognized neutral family name exists, so request smuggling
-# and response splitting, and path traversal and file upload, stay single-class lenses rather than
-# take an invented family name.
+# named lenses give each shipped class a focused pass. Umbrella lenses use only recognized
+# family names, so a lens name shows whether it covers one class or a related family.
 WEB_LENSES = (
     "authorization",
     "authentication",

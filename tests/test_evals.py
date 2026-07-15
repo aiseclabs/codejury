@@ -107,9 +107,9 @@ def test_load_answer_key_rejects_unlocatable_entry(tmp_path):
 def test_category_match_credits_a_broader_label_but_not_a_sibling():
     from evals.scorers.match import category_match
     assert category_match("code-injection", "code-injection")
-    assert category_match("injection", "code-injection")        # the generic credits the specific
+    assert category_match("injection", "code-injection")
     assert category_match("code-injection", "injection")
-    assert not category_match("sql-injection", "code-injection")  # siblings stay distinct
+    assert not category_match("sql-injection", "code-injection")
     assert not category_match("", "code-injection")
 
 
@@ -150,8 +150,8 @@ def test_one_report_on_several_safe_anchors_counts_as_one_false_positive(tmp_pat
     ]
     res = score(key, reports)
     assert res.found == ["real"]
-    assert res.false_positives == ["r-dup"]            # counted once, not twice
-    assert res.to_dict()["precision_known"] == 0.5     # 1 found / (1 found + 1 fp)
+    assert res.false_positives == ["r-dup"]
+    assert res.to_dict()["precision_known"] == 0.5
 
 
 def test_safe_anchor_on_an_endpoint_requires_the_class_it_certifies(tmp_path):
@@ -166,8 +166,8 @@ def test_safe_anchor_on_an_endpoint_requires_the_class_it_certifies(tmp_path):
         "safe:\n"
         "  - id: authz-ok\n    category: business-logic\n    entry: GET /users/list\n"))
     reports = [
-        Report.make("r-hit", "GET /x/9", "missing authorization", []),      # class-blind planted match
-        Report.make("r-adjacent", "GET /users/list", "information exposure", []),  # different class, not the FP
+        Report.make("r-hit", "GET /x/9", "missing authorization", []),
+        Report.make("r-adjacent", "GET /users/list", "information exposure", []),
     ]
     res = score(key, reports)
     assert res.found == ["real"]
@@ -191,8 +191,8 @@ def test_planted_with_endpoint_is_credited_by_its_exact_file_and_symbol_anchor(t
                       ["utils/dataUtils.ts"], text="deepMerge writes attacker keys")
     wrong_symbol = Report.make("r-wrong", "POST /api/v1/db/x/test", "prototype pollution",
                                ["utils/dataUtils.ts"], text="shallowCopy is fine here")
-    assert score(key, [hit]).found == ["sink"]        # exact file+symbol credited despite endpoint diff
-    assert score(key, [wrong_symbol]).found == []     # same file, different function, not the bug
+    assert score(key, [hit]).found == ["sink"]
+    assert score(key, [wrong_symbol]).found == []
 
 
 def test_symbol_anchor_credits_a_report_that_pins_the_line_without_naming_the_symbol(tmp_path):
@@ -203,14 +203,14 @@ def test_symbol_anchor_credits_a_report_that_pins_the_line_without_naming_the_sy
     src = tmp_path / "src"
     src.mkdir()
     (src / "mod.ts").write_text(
-        "export function createGen(a, b) {\n"       # line 1
-        "    const x = 1;\n"                          # line 2
-        "    const service = new ItemsService(c);\n"  # line 3, the sink, inside createGen
-        "    return x;\n"                             # line 4
-        "}\n"                                          # line 5
-        "function other() {\n"                        # line 6
-        "    return 2;\n"                             # line 7
-        "}\n",                                         # line 8
+        "export function createGen(a, b) {\n"
+        "    const x = 1;\n"
+        "    const service = new ItemsService(c);\n"
+        "    return x;\n"
+        "}\n"
+        "function other() {\n"
+        "    return 2;\n"
+        "}\n",
         encoding="utf-8")
     key = load_answer_key(_key(tmp_path,
         "target: t\n"
@@ -221,9 +221,9 @@ def test_symbol_anchor_credits_a_report_that_pins_the_line_without_naming_the_sy
                          text="new ItemsService built with no accountability", lines=[3])
     sibling = Report.make("r-sib", "", "missing authorization", ["src/mod.ts"],
                           text="something in the other function", lines=[7])
-    assert score(key, [inside], source_root=str(tmp_path)).found == ["gen"]   # line in createGen span
-    assert score(key, [inside]).found == []                                   # no source, name not typed
-    assert score(key, [sibling], source_root=str(tmp_path)).found == []       # line in a sibling function
+    assert score(key, [inside], source_root=str(tmp_path)).found == ["gen"]
+    assert score(key, [inside]).found == []
+    assert score(key, [sibling], source_root=str(tmp_path)).found == []
 
 
 def test_safe_symbol_anchor_without_endpoint_requires_the_class_it_certifies(tmp_path):
@@ -233,12 +233,12 @@ def test_safe_symbol_anchor_without_endpoint_requires_the_class_it_certifies(tmp
     src = tmp_path / "src"
     src.mkdir()
     (src / "body.py").write_text(
-        "class LengthReader:\n"      # line 1
-        "    def read(self, n):\n"   # line 2
-        "        return n\n"         # line 3, end of LengthReader span
-        "class Body:\n"              # line 4
-        "    def readline(self):\n"  # line 5
-        "        return 1\n",        # line 6
+        "class LengthReader:\n"
+        "    def read(self, n):\n"
+        "        return n\n"
+        "class Body:\n"
+        "    def readline(self):\n"
+        "        return 1\n",
         encoding="utf-8")
     key = load_answer_key(_key(tmp_path,
         "target: t\n"
@@ -251,9 +251,7 @@ def test_safe_symbol_anchor_without_endpoint_requires_the_class_it_certifies(tmp
                             text="reads too much", lines=[3])
     same_class = Report.make("r-sc", "", "http request smuggling", ["src/body.py"],
                              text="framing desync", lines=[3])
-    # a different class only sharing the file and a line in the span is not the guarded decoy
     assert score(key, [off_class], source_root=str(tmp_path)).false_positives == []
-    # the class the anchor certifies, taken on the same line, is the decoy and does count
     assert score(key, [same_class], source_root=str(tmp_path)).false_positives == ["r-sc"]
 
 
@@ -269,8 +267,8 @@ def test_symbol_anchor_matches_a_whole_word_not_a_substring(tmp_path):
                       text="the fee is charged beyond the approved allowance")
     real = Report.make("r-real", "", "access control", ["Token.sol"],
                        text="approve skips the blacklist sanity check")
-    assert score(key, [fee]).found == []                     # approved is not the symbol approve
-    assert score(key, [real]).found == ["approve-skips"]     # the whole word approve is the anchor
+    assert score(key, [fee]).found == []
+    assert score(key, [real]).found == ["approve-skips"]
 
 
 def test_a_duplicate_report_of_a_planted_bug_is_not_a_false_positive(tmp_path):
@@ -290,9 +288,9 @@ def test_a_duplicate_report_of_a_planted_bug_is_not_a_false_positive(tmp_path):
     fb = Report.make("r-fb", "", "proxy-delegatecall", ["VaultProxy.sol"],
                      text="fallback delegatecalls to the config-derived implementation")
     res = score(key, [init, fb])
-    assert res.found == ["proxy-takeover"]         # the real bug is credited
-    assert res.false_positives == []               # the duplicate finding is not a false positive
-    assert len(res.extra) == 1                      # the uncredited duplicate lands as extra, not a FP
+    assert res.found == ["proxy-takeover"]
+    assert res.false_positives == []
+    assert len(res.extra) == 1
 
 
 def test_accounting_shape_folds_to_the_accounting_class():
@@ -491,7 +489,7 @@ def test_suite_result_to_markdown_shows_runs_and_flaky():
 
 
 def test_run_diff_cases_handles_the_audit_three_tuple_and_degraded(monkeypatch):
-    # audit_diff returns (kept, dropped, degraded), guard the unpacking and that a degraded
+    # guard the audit tuple unpacking and that a degraded
     # audit counts as a failed step, not a clean zero, invariant 4
     from evals.diff_cases import DiffCase
     from evals.runners import diff as diffmod
@@ -581,8 +579,8 @@ def test_suite_result_folds_runs_by_strict_majority():
     assert sr.runs == 3
     assert sr.found == ["a", "b"]
     assert sr.missed == ["c"]
-    assert sr.false_positives == []        # safe-x flagged once of three, not a majority
-    assert sr.errors == 1                  # summed across runs, not hidden, invariant 4
+    assert sr.false_positives == []
+    assert sr.errors == 1
     assert sr.n_reports == 7
     assert sr.found_freq == {"a": 3, "b": 2, "c": 1}
     d = sr.to_dict()

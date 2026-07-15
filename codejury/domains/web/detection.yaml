@@ -1,4 +1,4 @@
-# File and path classification across ecosystems, so the code enumerates no language. Loaded by detection.py.
+# File and path classification across ecosystems, loaded by detection.py.
 
 skip_dirs: [".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache", "build", "dist", "target", "out", ".tox", ".eggs", ".next", ".nuxt"]
 

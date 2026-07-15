@@ -20,9 +20,8 @@ def _forge_poc(**kw):
     from codejury.domains.evm.poc import ForgePoC
     return ForgePoC(**kw)
 
-# the repository-review pass lenses for contracts: each pass leads with one class, the empty lens
-# reviews every class. A named lens is a reliable focused pass and the empty catch-all is not,
-# so every shipped contract class gets its own lens rather than relying on the catch-all.
+# named lenses give each shipped contract class a focused pass. The empty catch-all reviews
+# every class but is less reliable, so it is a backstop, not the primary coverage.
 EVM_LENSES = (
     "access-control",
     "reentrancy",

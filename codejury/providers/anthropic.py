@@ -23,13 +23,12 @@ class AnthropicProvider(Provider):
         api_key: str | None = None,
         api_base: str | None = None,
         client: Any | None = None,
-        temperature: float | None = 0.0,
+        temperature: float | None = 0.0,  # so the same input yields the same verdicts
         timeout: float = 240.0,
     ) -> None:
         self._api_key = api_key
         self._api_base = api_base
         self._client = client
-        # determinism: temperature 0 so the same input yields the same verdicts
         self._temperature = temperature
         # per-request deadline: a hung or rate-limit-stalled call returns to the retry layer
         # to back off, instead of holding the slot until a far longer ceiling

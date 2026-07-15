@@ -11,7 +11,7 @@ kind: repository
 target:
   type: git
   url: https://github.com/ghostfolio/ghostfolio
-  # the fix is commit f2c81ada, PR 6408, "Refactor $queryRawUnsafe() in data provider
+  # the fix is commit f2c81ada, PR 6408, "Refactor `$queryRawUnsafe` in data provider
   # service", which moved the query to a parameterized tagged template. Pin its parent, the
   # exact vulnerable commit. Clone, then git checkout this commit.
   ref: 3f14e5ad3a82cdb15651778b2e23a1fe30b4d4bd

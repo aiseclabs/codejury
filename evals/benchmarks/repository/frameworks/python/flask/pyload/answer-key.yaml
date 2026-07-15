@@ -8,7 +8,7 @@
 # real code at this commit, not from the advisory text alone. These are public CVEs, so this
 # target carries a leakage caveat and measures regression more than true recall, the unseen
 # private targets carry the real signal. The safe siblings, the authenticated routes and the
-# .text() renderer, are the precision guard. A report that matches neither a planted issue nor
+# `.text` renderer, are the precision guard. A report that matches neither a planted issue nor
 # a safe sibling is listed as extra, it may be another real bug these do not cover.
 
 target: pyload

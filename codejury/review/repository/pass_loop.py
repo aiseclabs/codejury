@@ -48,7 +48,7 @@ def run_passes(
     ceiling. Passes run in order, but the units within a pass are independent, so they run
     concurrently up to `concurrency`, since each is a network bound model call. Results are
     merged in unit order, so the converged finding set is the same as a serial run.
-    `on_pass(pass_number, lens, new_this_pass, union_size)` is called after each pass.
+    The pass callback is called after each pass.
 
     Convergence needs two signals, not one. The union must have saturated, the last
     `converge_after` passes added nothing, and every lens must have fired at least
@@ -83,7 +83,7 @@ def run_passes(
         lens_shots[lens] = lens_shots.get(lens, 0) + 1
         if concurrency > 1 and len(units) > 1:
             with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                per_unit = list(pool.map(lambda u: review_unit(u, lens, rv), units))   # order preserved, the zip below relies on it
+                per_unit = list(pool.map(lambda u: review_unit(u, lens, rv), units))
         else:
             per_unit = [review_unit(u, lens, rv) for u in units]
         # tag each finding with the model that produced it, so two models reaching the same
@@ -96,7 +96,7 @@ def run_passes(
         # of saturation, keep it from counting toward convergence, invariant 4
         n_new = acc.add_pass(candidates, clean=pass_errors == 0)
         if persist is not None:
-            persist(acc.findings)   # checkpoint the union each pass, so a kill mid-run can resume
+            persist(acc.findings)  # checkpoint the union so a kill mid-run can resume
         if on_pass is not None:
             on_pass(i + 1, lens, n_new, len(acc.findings))
         covered = all(lens_shots.get(l, 0) >= floor for l in lenses)

@@ -47,7 +47,7 @@ def extract_json_object(text: str) -> dict | None:
 
 
 def require_json_object(text: str, *, required_key: str, error: type[Exception], message: str) -> dict:
-    """Extract a JSON object that must carry `required_key`, or raise `error(message)`.
+    """Extract a JSON object that must carry `required_key`, or raise the requested error.
     For the fail-loud callers: a reply with no JSON object, or one missing the key, is a
     failed model call, not an empty result, so it raises rather than returning nothing.
     The caller owns the exception type and the message, this owns only the mechanics."""
@@ -59,8 +59,8 @@ def require_json_object(text: str, *, required_key: str, error: type[Exception],
 
 def optional_json_object(text: str, *, required_key: str | None = None) -> tuple[dict, bool]:
     """Extract a JSON object and report whether it is usable, never raising. For the
-    callers that degrade rather than fail: an unusable reply yields `({}, False)` so the
-    caller can fall back, a usable one yields `(obj, True)`. When `required_key` is set,
+    callers that degrade rather than fail: an unusable reply yields an empty object with
+    a false ok flag. A usable reply yields the object with a true ok flag. When `required_key` is set,
     usable also means the key is present. The caller owns the fallback policy."""
     obj = extract_json_object(text)
     ok = bool(obj) and (required_key is None or required_key in obj)

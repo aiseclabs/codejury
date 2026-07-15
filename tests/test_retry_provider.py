@@ -150,7 +150,7 @@ def test_non_rate_limit_keeps_linear_backoff():
 
 
 class _Hang(Provider):
-    """Blocks on complete() until released, the proxy-holds-the-connection failure an SDK
+    """Blocks on `complete` until released, the proxy-holds-the-connection failure an SDK
     timeout does not catch."""
 
     def __init__(self):
@@ -173,13 +173,13 @@ def test_hard_timeout_aborts_a_hung_call():
             _call(provider)
         assert inner.calls == 1
     finally:
-        inner.release.set()   # let the abandoned daemon thread finish, no leak across tests
+        inner.release.set()
 
 
 def test_hard_timeout_retries_then_recovers():
     # the deadline failure feeds the retry loop, so a one-off stall is retried and recovers
     inner = _Hang()
-    inner.release.set()   # second attempt returns immediately
+    inner.release.set()
     provider = RetryProvider(inner, max_attempts=2, hard_timeout=5.0, sleep=lambda _: None)
     assert _call(provider).text == "late"
 

@@ -203,7 +203,7 @@ def test_forge_poc_repairs_its_test_after_a_failure(monkeypatch, tmp_path):
     monkeypatch.setattr(poc, "_run_test", fake_run)
     res = poc.reproduce(title="t", analysis="a", symbol="s", file="A.sol", line=1, root=str(tmp_path))
     assert res.reproduced
-    assert runs == ["broken source", "good source"]  # the failure was fed back and repaired
+    assert runs == ["broken source", "good source"]
 
 
 def test_forge_poc_generate_writes_a_test_without_running_it(tmp_path):
@@ -221,7 +221,7 @@ def test_forge_poc_generate_writes_a_test_without_running_it(tmp_path):
 def test_forge_poc_generate_needs_a_provider(tmp_path):
     from codejury.domains.evm.poc import ForgePoC
 
-    poc = ForgePoC()  # a backend built to run only, with no provider
+    poc = ForgePoC()
     with pytest.raises(ValueError, match="needs a provider"):
         poc.generate(title="t", analysis="a", symbol="s", file="A.sol", line=1, root=str(tmp_path))
 
@@ -368,7 +368,7 @@ def test_by_file_groups_contract_facts_by_source_path():
         "Lib": {"file": "", "state": [], "functions": {}},
     }
     by = _by_file(contracts)
-    assert set(by) == {"src/Vault.sol", "src/Token.sol"}  # the contract with no path is dropped
+    assert set(by) == {"src/Vault.sol", "src/Token.sol"}
     assert "contract Vault" in by["src/Vault.sol"] and "reenter" in by["src/Vault.sol"]
     assert "contract Token" in by["src/Token.sol"]
 
@@ -385,10 +385,10 @@ def test_call_path_units_anchor_on_risk_functions_with_neighborhood():
 
     contracts = {
         "Vault": {"file": "src/Vault.sol", "state": [], "functions": {
-            "getBalance()": _fn([0, 100]),                                  # pure, no anchor
+            "getBalance()": _fn([0, 100]),
             "liquidate()": _fn([100, 300], external_call=True, can_reenter=True, calls=["_cleanupLoan()"]),
             "_cleanupLoan()": _fn([300, 420], external_call=True, can_reenter=True, calls=["_update()"]),
-            "_update()": _fn([420, 480]),                                   # callee, not an anchor itself
+            "_update()": _fn([420, 480]),
         }}}
     units = call_path_units(contracts)
     # liquidate's set {liquidate,_cleanupLoan} is a subset of _cleanupLoan's
@@ -397,7 +397,7 @@ def test_call_path_units_anchor_on_risk_functions_with_neighborhood():
     u = units[0]
     assert "_cleanupLoan" in u["name"] and u["files"] == ["src/Vault.sol"]
     starts = [f[1] for f in u["fragments"]]
-    assert starts == sorted(starts) == [100, 300, 420]   # liquidate, _cleanupLoan, _update
+    assert starts == sorted(starts) == [100, 300, 420]
     assert all(f[0] == "src/Vault.sol" for f in u["fragments"])
     # the pure getter is on no risk path, the file unit covers it, not a call-path unit
     assert not any(f[1] == 0 for f in u["fragments"])
@@ -409,8 +409,8 @@ def test_call_path_units_skip_no_range_and_respect_the_char_cap():
     contracts = {
         "C": {"file": "a.sol", "state": [], "functions": {
             "f()": _fn([0, 50], external_call=True, calls=["big()", "noRange()"]),
-            "big()": _fn([50, 50 + _UNIT_CHAR_CAP + 100]),   # too large to co-locate, dropped
-            "noRange()": _fn(None),                          # backend recorded none, skipped
+            "big()": _fn([50, 50 + _UNIT_CHAR_CAP + 100]),
+            "noRange()": _fn(None),
         }}}
     units = call_path_units(contracts)
     assert len(units) == 1
@@ -435,7 +435,7 @@ def test_rel_file_relativizes_to_root_and_falls_back(tmp_path):
     assert _rel_file(contract(_Name(absolute=str(root / "src" / "Vault.sol"))), root) == "src/Vault.sol"
     # a file outside the root, such as a dependency, falls back to its basename
     assert _rel_file(contract(_Name(absolute="/elsewhere/Ownable.sol")), root) == "Ownable.sol"
-    # the root is the file itself, a review of a single file, the name relative to the repository is the basename
+    # a single-file review uses the basename as the repository-relative name
     assert _rel_file(contract(_Name(absolute=str(root / "Vault.sol"))), root / "Vault.sol") == "Vault.sol"
     assert _rel_file(type("C2", (), {"source_mapping": None})(), root) == ""
 

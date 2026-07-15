@@ -11,25 +11,19 @@ from codejury.providers.openai import OpenAIProvider
 from codejury.providers.retry import RetryProvider
 
 PROVIDERS = ("anthropic", "openai", "litellm")
-# the default provider, env-backed like the model and the checker provider, so the main
-# backend can be set once in the environment instead of named on every invocation
+# the base backend is env-backed so callers can configure a default once.
 DEFAULT_PROVIDER = os.environ.get("CODEJURY_PROVIDER", "anthropic")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-opus-4-8")
 DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
-# the base seat's OpenAI wire, env-backed like the rest so a GPT-5 reasoning model that only
-# answers on the Responses API can be set once, chat for the models that answer on Chat Completions
+# the OpenAI wire is env-backed because GPT-5 reasoning models answer on Responses.
 DEFAULT_WIRE_API = os.environ.get("CODEJURY_WIRE_API", "chat")
-# retry attempts on a transient failure, env-backed like the rest of the backend config so
-# CI can set it once, symmetric with the env-only timeout knobs
+# retry count follows the same env-backed backend config as the timeout.
 DEFAULT_RETRIES = int(os.environ.get("CODEJURY_RETRIES", "2"))
 
-# Per-role model backends, finder, challenger, and judge, shared by both review paths. A role
-# names what a model does, finder scans, challenger refutes, judge confirms before a deletion,
-# so a different vendor in any seat gives uncorrelated blind spots. Each field defaults to None
-# meaning inherit the base backend, resolved at build time, so the common single-model run sets
-# only --model. A distinct judge from the challenger is what lets a deletion need two models to
-# agree, with none set nothing is refuted, the recall-safe default.
+# finder, challenger, and judge can inherit the base backend or name their own.
+# a distinct judge makes deletion require two independent reads, and with none set
+# nothing is refuted, the recall-safe default.
 ROLES = ("finder", "challenger", "judge")
 DEFAULT_ROLE_BACKENDS = {
     role: {
@@ -41,9 +35,7 @@ DEFAULT_ROLE_BACKENDS = {
     }
     for role in ROLES
 }
-# A single per-call deadline in seconds. The provider SDK enforces it, and when retries are on
-# the retry layer enforces the same bound with a daemon thread, for the case the SDK timeout
-# cannot cover such as a proxy that holds the connection open.
+# the retry layer also enforces this deadline when an SDK timeout cannot.
 DEFAULT_TIMEOUT = float(os.environ.get("CODEJURY_TIMEOUT", "240"))
 
 

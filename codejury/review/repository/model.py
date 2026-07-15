@@ -38,7 +38,7 @@ def _read_files(root: Path, detection: Detection | None = None) -> tuple[str, ..
             continue
         try:
             if not path.resolve().is_relative_to(root):
-                continue  # symlink escaping the tree
+                continue  # a symlink escaping the repository tree
         except OSError:
             continue
         out.append(str(rel))

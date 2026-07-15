@@ -112,7 +112,7 @@ def merge(pool: dict[tuple, Candidate], incoming: list[Candidate], by_file: bool
 def collapse_colocated(cands: list[Candidate]) -> list[Candidate]:
     """Merge candidates that cite the exact same file, line, and class, preserving order.
 
-    The primary `key()` dedups by endpoint, but two passes can label one defect with
+    The primary key dedups by endpoint, but two passes can label one defect with
     different endpoint prose, a controller method on one pass and the HTTP route on
     another, so they survive endpoint dedup. An identical file, line, and category is
     the same defect by its objective location, so collapse those too. Only applies when

@@ -342,7 +342,7 @@ def test_scaffold_reuses_the_cached_per_file_facts_map(tmp_path):
     work = tmp_path / "work"
     scaffold(_target(tmp_path), work, domain=dom, facts=True)
     res = scaffold(_target(tmp_path), work, domain=dom, facts=True, fresh=True)
-    assert backend.calls == 1  # the map rode the content hash cache, no re-extract
+    assert backend.calls == 1
     assert json.loads((res.workspace / "_facts_by_file.json").read_text())["app.py"]
     assert json.loads((res.workspace / "_facts_units.json").read_text())[0]["name"] == "app.py#Fake.f"
 
@@ -357,7 +357,7 @@ def test_scaffold_reuses_cached_facts_across_a_fresh_run(tmp_path):
     assert backend.calls == 1
     res = scaffold(_target(tmp_path), work, domain=dom, facts=True, fresh=True)
     assert (res.workspace / "_facts.md").read_text().startswith("contract Fake")
-    assert backend.calls == 1  # served from cache, not re-extracted
+    assert backend.calls == 1
 
 
 def test_scaffold_reextracts_when_source_changes(tmp_path):

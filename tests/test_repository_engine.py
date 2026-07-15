@@ -1,4 +1,4 @@
-"""The coded run engine end to end (review repository --run), driven by a mock provider so
+"""The coded run engine end to end, driven by a mock provider so
 it needs no key: scaffold, build units, run passes to convergence, write findings,
 mark units reviewed."""
 
@@ -26,7 +26,6 @@ _REPLY = (
 def test_with_facts_folds_persisted_facts_and_marks_truncation(tmp_path):
     from codejury.review.repository.engine import _FACTS_CONTEXT_CAP, _with_facts
 
-    # no facts file, the shared context is unchanged
     assert _with_facts("STACK", tmp_path) == "STACK"
 
     (tmp_path / "_facts.md").write_text("contract V\n  external withdraw()  ext-call", encoding="utf-8")
@@ -59,7 +58,6 @@ def test_reviewer_grounds_a_unit_with_only_its_own_files_facts(tmp_path):
 
 
 def test_reviewer_adds_no_facts_block_without_a_map(tmp_path):
-    # the web path binds no facts backend, so the prompt is unchanged, no facts section
     (tmp_path / "v.py").write_text("x = 1")
     prov = MockProvider(default='{"findings": []}')
     ModelReviewer(provider=prov, model="mock").review(
@@ -98,7 +96,7 @@ def test_gather_assembles_call_path_fragments(tmp_path):
              fragments=(("V.sol", 0, 4), ("V.sol", 104, 112)))
     g = gather(u)
     assert "AAAA" in g and "CCCC_TWO" in g
-    assert "B" * 100 not in g            # the gap between fragments is not pulled in
+    assert "B" * 100 not in g
     assert "chars 0-4" in g
 
 
@@ -107,7 +105,7 @@ def test_build_units_appends_call_path_units_from_facts(tmp_path):
     specs = [{"name": "V.sol#V.liquidate", "files": ["V.sol"],
               "fragments": [["V.sol", 10, 50], ["V.sol", 60, 120]]}]
     units = build_units(str(tmp_path), ["V.sol"], [], specs)
-    assert "V.sol" in [u.name for u in units]          # the file unit still covers the file
+    assert "V.sol" in [u.name for u in units]
     cp = [u for u in units if u.fragments]
     assert len(cp) == 1
     assert cp[0].name == "V.sol#V.liquidate" and cp[0].files == ("V.sol",)
@@ -147,16 +145,16 @@ def test_build_units_splits_a_large_file_into_overlapping_windows(tmp_path):
     units = build_units(str(tmp_path), ["views.py"], [])
     assert [u.name for u in units] == ["views.py#1", "views.py#2", "views.py#3"]
     assert units[0].span[0] == 0
-    assert units[1].span[0] < units[0].span[1]   # windows overlap
-    assert units[-1].span[1] == 60_000            # together they cover the whole file
+    assert units[1].span[0] < units[0].span[1]
+    assert units[-1].span[1] == 60_000
 
 
 def test_spans_snaps_a_window_to_a_top_level_construct_boundary():
-    a = "def f():\n" + "    x = 1\n" * 2000            # one construct under a window
-    text = a + "def g():\n" + "    y = 2\n" * 2000     # a second, so the file needs splitting
+    a = "def f():\n" + "    x = 1\n" * 2000
+    text = a + "def g():\n" + "    y = 2\n" * 2000
     spans = _spans(text)
     assert spans[0][0] == 0
-    assert text[spans[0][1]:].startswith("def g")     # window ends at the next def, not mid-body
+    assert text[spans[0][1]:].startswith("def g")
 
 
 def test_build_units_keeps_a_small_file_whole(tmp_path):
@@ -718,7 +716,7 @@ def test_run_pocs_keeps_finding_when_the_poc_fails_or_backend_errors(tmp_path):
             raise RuntimeError("model down")
 
     out = _run_pocs(ws, findings, Erroring(), root=str(tmp_path))
-    assert len(out) == 1  # a failed PoC never drops a finding, invariant 2
+    assert len(out) == 1
     assert "PoC failed to run" in out[0].evidence
 
     class Unavailable:
@@ -747,7 +745,7 @@ def test_run_pocs_writes_only_for_a_backend_that_does_not_execute(tmp_path):
         ext = "py"
 
         def available(self):
-            return False  # never runs automatically, yet the PoC is still written
+            return False
 
         def generate(self, **kw):
             return SimpleNamespace(source="import requests\n", ext="py", run_hint="python it")
@@ -797,7 +795,7 @@ def test_execute_present_pocs_leaves_a_web_domain_to_reconciliation(tmp_path):
 
     domain = SimpleNamespace(poc_backend=lambda: WebRunner())
     out = _execute_present_pocs(ws, [c], domain, root=str(tmp_path))
-    assert out[0].evidence == "x"  # a web PoC runs by hand, finalize does not run it
+    assert out[0].evidence == "x"
 
 
 def test_execute_present_pocs_does_not_run_a_finding_the_write_step_already_ran(tmp_path):
@@ -823,13 +821,11 @@ def test_execute_present_pocs_does_not_run_a_finding_the_write_step_already_ran(
 
     domain = SimpleNamespace(poc_backend=lambda: Runner())
     out = _execute_present_pocs(ws, [c], domain, root=str(tmp_path))
-    assert ran == []  # already annotated by the write step, not run twice
+    assert ran == []
     assert out[0].evidence.count("[PoC") == 1
 
 
 def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
-    # regression: the finding md must reproduce the agent's analysis prose, not a bare
-    # pointer back to candidates/<name>.md, while findings.json still links to that file
     target = tmp_path / "proj"
     target.mkdir()
     ws = tmp_path / "work"
@@ -846,14 +842,13 @@ def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
     finding = (proj / "findings" / "key-leak.md").read_text()
     assert "ships a literal AUTH0_AUTH_KEY" in finding
     assert "## Attack Path" in finding and "## Fix" in finding
-    assert "key-leak.md" not in finding   # the basename never leaks into the analysis body
+    assert "key-leak.md" not in finding
     data = json.loads((proj / "findings.json").read_text())
     assert data["findings"][0]["candidate"] == "candidates/key-leak.md"
 
 
 def test_keystr_respects_by_file_for_cross_file_findings():
-    # two findings of the same class and endpoint in different files: by_file keeps them
-    # distinct in the verified store, the default collapses them and one verdict would mask the other
+    # by_file keeps cross-file findings distinct in the verified store.
     from codejury.review.repository.engine import _keystr
     from codejury.review.repository.union import Candidate
     a = Candidate(title="t", category="reentrancy", endpoint="withdraw", file="A.sol")

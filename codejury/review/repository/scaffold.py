@@ -44,7 +44,7 @@ _DETECT_TOTAL = 8_000_000
 
 _DIRS = ("inventory", "units", "candidates", "findings", "pocs")
 
-# marks a directory as a codejury workspace, so a destructive --fresh clear never wipes an arbitrary directory
+# the marker keeps --fresh from clearing an arbitrary directory
 _MARKER = ".codejury-workspace"
 
 

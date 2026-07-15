@@ -190,8 +190,7 @@ class AdversarialAuditRunner:
         do_not_report: str = DO_NOT_REPORT,
     ) -> None:
         self._max_tokens = max_tokens
-        # each role is a (provider, model) backend, defaulting field by field to the shared one,
-        # so a different vendor can sit in any seat for cross-model review
+        # each role is a provider and model pair, so any seat can use a different vendor
         self._finder = (finder_provider or provider, finder_model or model)
         self._challenger = (challenger_provider or provider, challenger_model or model)
         self._judge = (judge_provider or provider, judge_model or model)
@@ -203,7 +202,7 @@ class AdversarialAuditRunner:
         """Return the parsed object and an ok flag. ok is False when the response
         could not be parsed into a JSON object, for example a provider error page,
         a blocked request, or prose, so the caller does not treat an unusable reply
-        as an empty result. `backend` is the role's (provider, model)."""
+        as an empty result. `backend` is the role's provider and model pair."""
         provider, model = backend
         try:
             result = provider.complete(

@@ -5,11 +5,11 @@
 target: backed-nft-lending
 
 # Ground truth from the Code4rena report at https://code4rena.com/reports/2022-04-backed
-# cross checked against the audited source at commit e8015d7c. NFTLoanFacilitator.lend()
+# cross checked against the audited source at commit e8015d7c. NFTLoanFacilitator.lend
 # pays the current lender on a buyout before it finalizes loanInfo, so a loan asset that
 # can call back re-enters or reverts on that payout. The three planted entries are distinct
 # classes in one file, so a match by class and file does not collide and no symbols are
-# needed. The two reported lend() reentrancy issues H-02 and H-03 collapse to one planted
+# needed. The two reported lend reentrancy issues H-02 and H-03 collapse to one planted
 # entry, the same callback path, since the engine dedups one class per file.
 
 planted:

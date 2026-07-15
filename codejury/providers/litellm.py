@@ -22,7 +22,7 @@ class LiteLLMProvider(Provider):
         *,
         api_key: str | None = None,
         api_base: str | None = None,
-        temperature: float = 0.0,  # determinism: same input gives the same verdicts
+        temperature: float = 0.0,  # so the same input yields the same verdicts
         completion: Callable[..., Any] | None = None,
         timeout: float = 240.0,
     ) -> None:

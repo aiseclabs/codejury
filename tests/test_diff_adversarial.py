@@ -140,7 +140,7 @@ def test_audit_diff_surfaces_degraded_on_unusable_judge():
     provider = MockProvider(responses=[_finder([_VULN]), _challenger(), "not json", "not json"], default="{}")
     kept, _, degraded = audit_diff(_DIFF, provider=provider, model="m", mode="adversarial", max_rounds=1)
     assert degraded is True
-    assert [f.category for f in kept] == ["sql-injection"]   # the recall-safe fallback still returns findings
+    assert [f.category for f in kept] == ["sql-injection"]
 
 
 def test_audit_diff_standard_mode_is_never_degraded():
