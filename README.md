@@ -52,7 +52,12 @@ Set a provider key, or run keyless on your Claude Code subscription with `--exec
 export CODEJURY_MODEL=claude-opus-4-8
 export CODEJURY_API_KEY=...
 export CODEJURY_API_BASE=...   # optional gateway or proxy
+export CODEJURY_WIRE_API=chat  # set responses for a gpt-5 reasoning model, see below
 ```
+
+An OpenAI gpt-5 reasoning model answers on the Responses API, not Chat Completions, so set
+`CODEJURY_WIRE_API=responses` or pass `--wire-api responses` for the base model, otherwise the
+call comes back blank and the review fails loud. Chat is the default and fits the other models.
 
 The CLI loads a `.env` from the working directory at startup, so a project can set its provider
 config once instead of exporting it every session. A value already exported in the shell wins
@@ -65,6 +70,7 @@ Useful flags:
 - `--model <model>`
 - `--api-key <key>`
 - `--api-base <url>`
+- `--wire-api chat|responses`
 - `--retries <n>`
 - `--timeout <seconds>`
 

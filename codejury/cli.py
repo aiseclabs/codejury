@@ -45,6 +45,7 @@ from codejury.providers.factory import (
     DEFAULT_RETRIES,
     DEFAULT_ROLE_BACKENDS,
     DEFAULT_TIMEOUT,
+    DEFAULT_WIRE_API,
     PROVIDERS,
     ROLES,
     make_provider,
@@ -137,7 +138,7 @@ _REPOSITORY_MOCK_REPLY = (
 def _base_spec(args):
     """The base backend each role inherits from when its own field is unset."""
     return {"provider": args.provider, "model": args.model,
-            "api_key": args.api_key, "api_base": args.api_base, "wire_api": "chat"}
+            "api_key": args.api_key, "api_base": args.api_base, "wire_api": args.wire_api}
 
 
 def _role_spec(args, role, base):
@@ -151,7 +152,7 @@ def _role_spec(args, role, base):
         "model": getattr(args, f"{role}_model") or base["model"],
         "api_key": getattr(args, f"{role}_api_key") or (base["api_key"] if same_vendor else None),
         "api_base": getattr(args, f"{role}_api_base") or (base["api_base"] if same_vendor else None),
-        "wire_api": getattr(args, f"{role}_wire_api") or "chat",
+        "wire_api": getattr(args, f"{role}_wire_api") or base["wire_api"],
     }
 
 
@@ -296,6 +297,9 @@ def _add_backend_args(target) -> None:
     target.add_argument("--model", default=DEFAULT_MODEL)
     target.add_argument("--api-key", default=DEFAULT_API_KEY)
     target.add_argument("--api-base", default=DEFAULT_API_BASE)
+    target.add_argument("--wire-api", default=DEFAULT_WIRE_API, dest="wire_api",
+                        choices=("chat", "responses"),
+                        help="OpenAI base-seat wire API, responses for the GPT-5 reasoning models")
     target.add_argument("--retries", type=int, default=DEFAULT_RETRIES,
                         help="provider retry attempts on transient failure")
     target.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT,
@@ -563,8 +567,8 @@ def diff_args_from_env(mode: str, *, executor: str = "auto", rounds: int = 3):
     drive the audit through the product path rather than a hardcoded provider."""
     from types import SimpleNamespace
     ns = dict(provider=DEFAULT_PROVIDER, model=DEFAULT_MODEL, api_key=DEFAULT_API_KEY,
-              api_base=DEFAULT_API_BASE, retries=DEFAULT_RETRIES, timeout=DEFAULT_TIMEOUT,
-              executor=executor, mode=mode, rounds=rounds)
+              api_base=DEFAULT_API_BASE, wire_api=DEFAULT_WIRE_API, retries=DEFAULT_RETRIES,
+              timeout=DEFAULT_TIMEOUT, executor=executor, mode=mode, rounds=rounds)
     for role in ROLES:
         d = DEFAULT_ROLE_BACKENDS[role]
         ns[f"{role}_provider"] = d["provider"]

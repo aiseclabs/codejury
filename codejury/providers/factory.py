@@ -17,6 +17,9 @@ DEFAULT_PROVIDER = os.environ.get("CODEJURY_PROVIDER", "anthropic")
 DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-opus-4-8")
 DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
+# the base seat's OpenAI wire, env-backed like the rest so a GPT-5 reasoning model that only
+# answers on the Responses API can be set once, chat for the models that answer on Chat Completions
+DEFAULT_WIRE_API = os.environ.get("CODEJURY_WIRE_API", "chat")
 # retry attempts on a transient failure, env-backed like the rest of the backend config so
 # CI can set it once, symmetric with the env-only timeout knobs
 DEFAULT_RETRIES = int(os.environ.get("CODEJURY_RETRIES", "2"))

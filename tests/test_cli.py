@@ -347,7 +347,8 @@ def test_repository_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
 
 def _role_args(**over):
     from argparse import Namespace
-    base = dict(provider="anthropic", model="claude-base", api_key="basekey", api_base=None)
+    base = dict(provider="anthropic", model="claude-base", api_key="basekey", api_base=None,
+                wire_api="chat")
     for role in ("finder", "challenger", "judge"):
         for field in ("provider", "model", "api_key", "api_base", "wire_api"):
             base[f"{role}_{field}"] = None
@@ -360,6 +361,17 @@ def test_role_spec_inherits_base_when_unset():
     a = _role_args()
     s = _role_spec(a, "challenger", _base_spec(a))
     assert (s["provider"], s["model"], s["api_key"]) == ("anthropic", "claude-base", "basekey")
+
+
+def test_base_seat_wire_flows_and_role_inherits_it():
+    # the base seat's wire must be the resolved --wire-api, not a hardcoded chat, so a reasoning
+    # model that only answers on the responses wire can run a standard review, and a role with no
+    # wire of its own inherits it rather than snapping back to chat
+    from codejury.cli import _base_spec, _role_spec
+    a = _role_args(wire_api="responses")
+    base = _base_spec(a)
+    assert base["wire_api"] == "responses"
+    assert _role_spec(a, "challenger", base)["wire_api"] == "responses"
 
 
 def test_role_spec_cross_vendor_override_drops_base_key():

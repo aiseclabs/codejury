@@ -146,7 +146,7 @@ orchestration and agents or model calls provide per-unit judgment.
 - Provider configuration comes from flags or environment, and the CLI loads a
   working-directory `.env` at startup so a project can set it once. A value already
   exported in the shell wins over the file:
-  `CODEJURY_MODEL`, `CODEJURY_API_KEY`, `CODEJURY_API_BASE`
+  `CODEJURY_MODEL`, `CODEJURY_API_KEY`, `CODEJURY_API_BASE`, `CODEJURY_WIRE_API`
 
 ## Contributing Rules
 
