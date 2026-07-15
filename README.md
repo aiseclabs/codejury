@@ -164,7 +164,7 @@ codejury review repository <repository> (--scaffold | --run | --finalize | --gat
 In Claude Code or Codex, one command runs the whole review, scaffold, fan-out, finalize, and gate:
 
 ```text
-/codejury-review <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>] [--workspace <path>]
+/codejury-review <target> [--coded] [--domain auto|web|evm] [--effort low|medium|high] [--invariants <file>] [--workspace <path>]
 ```
 
 `--coded` picks the engine and the model backend together. Without it, the default, a

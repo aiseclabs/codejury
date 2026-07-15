@@ -1,6 +1,6 @@
 ---
 description: Run a codejury security review of a diff or a whole repository
-argument-hint: <target> [--coded] [--domain web|evm|auto] [--effort low|medium|high] [--invariants <file>] [--workspace <path>]
+argument-hint: <target> [--coded] [--domain auto|web|evm] [--effort low|medium|high] [--invariants <file>] [--workspace <path>]
 ---
 # Security Review
 
@@ -21,7 +21,7 @@ Run a codejury security review of: $ARGUMENTS
 - Let `EXEC` be `api` when `--coded` is present, else `subscription`.
 - These flags pass through to codejury, each routed to the step that reads it. `--coded` is for
   you, never pass it to codejury, and never pass `--executor`, `--coded` already sets it:
-  - `--domain web|evm|auto`, the review domain, `auto` detects from the target. Pass it to every
+  - `--domain auto|web|evm`, the review domain, `auto` detects from the target. Pass it to every
     step so they agree. Omit to let codejury detect.
   - `--effort low|medium|high`, the depth dial, append to `--run` and `--finalize`.
   - `--invariants <file>`, the operator-seeded intent invariants, append to `--scaffold` only.

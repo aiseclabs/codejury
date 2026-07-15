@@ -865,7 +865,7 @@ def _cmd_install_slash_command(args) -> int:
         installed += 1
     if installed == 0:
         return 1
-    print("Run it with: /codejury-review <repository or diff> [--coded] [--domain web|evm|auto]")
+    print("Run it with: /codejury-review <repository or diff> [--coded] [--domain auto|web|evm]")
     return 0
 
 

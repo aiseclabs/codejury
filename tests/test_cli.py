@@ -164,7 +164,7 @@ def test_install_slash_command_writes_both_agent_dirs(monkeypatch, tmp_path):
     codex = tmp_path / ".codex" / "prompts" / "codejury-review.md"
     assert claude.is_file() and codex.is_file()
     # one domain-agnostic command that threads --domain, so both web and evm run from it
-    assert "--domain web|evm|auto" in claude.read_text()
+    assert "--domain auto|web|evm" in claude.read_text()
     assert claude.read_text() == codex.read_text()
 
 
