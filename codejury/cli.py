@@ -308,8 +308,8 @@ def _add_backend_args(target) -> None:
 
 def _add_role_backend_args(target, role: str) -> None:
     """The per-role backend override flags for finder, challenger, or judge. Each field defaults
-    to None meaning inherit the base --provider/--model/--api-key/--api-base, resolved at build
-    time, so a single-model run sets only --model. A role that overrides the provider to a
+    to None meaning inherit the base --provider/--model/--api-key/--api-base/--wire-api, resolved
+    at build time, so a single-model run sets only --model. A role that overrides the provider to a
     different vendor takes its own key, not the base vendor's."""
     d = DEFAULT_ROLE_BACKENDS[role]
     target.add_argument(f"--{role}-provider", choices=PROVIDERS, default=d["provider"], dest=f"{role}_provider")
