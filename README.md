@@ -52,10 +52,10 @@ Set a provider key, or run keyless on your Claude Code subscription with `--exec
 export CODEJURY_MODEL=claude-opus-4-8
 export CODEJURY_API_KEY=...
 export CODEJURY_API_BASE=...   # optional gateway or proxy
-export CODEJURY_WIRE_API=chat  # set responses for a gpt-5 reasoning model, see below
+export CODEJURY_WIRE_API=chat  # set responses for a GPT-5 reasoning model, see below
 ```
 
-An OpenAI gpt-5 reasoning model answers on the Responses API, not Chat Completions, so set
+An OpenAI GPT-5 reasoning model answers on the Responses API, not Chat Completions, so set
 `CODEJURY_WIRE_API=responses` or pass `--wire-api responses` for the base model, otherwise the
 call comes back blank and the review fails loud. Chat is the default and fits the other models.
 
@@ -95,7 +95,7 @@ GPT and confirmed by Claude:
 export CODEJURY_CHALLENGER_PROVIDER=openai
 export CODEJURY_CHALLENGER_MODEL=...             # a GPT model, the skeptic
 export CODEJURY_CHALLENGER_API_KEY=...
-export CODEJURY_CHALLENGER_WIRE_API=responses    # the gpt-5 reasoning models speak Responses
+export CODEJURY_CHALLENGER_WIRE_API=responses    # the GPT-5 reasoning models speak Responses
 export CODEJURY_JUDGE_MODEL=...                  # a Claude model, the confirmer, distinct from the challenger
 ```
 
