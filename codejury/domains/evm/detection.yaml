@@ -11,3 +11,7 @@ manifests: ["foundry.toml", "hardhat.config.js", "hardhat.config.ts", "remapping
 test_dirs: ["test", "tests"]
 
 test_name_patterns: ["*.t.sol", "*.test.sol", "test_*", "*.spec.sol"]
+
+doc_extensions: [".md", ".markdown", ".rst", ".txt", ".adoc"]
+
+lockfiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "Cargo.lock", "composer.lock"]

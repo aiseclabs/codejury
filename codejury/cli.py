@@ -36,7 +36,7 @@ from codejury.domains.registry import available_domains, resolve_domain
 from codejury.sources.explorer import CHAINS
 from codejury.report import gate, render
 from codejury.resources import SLASH_COMMAND_FILE
-from codejury.review.diff.engine import audit_diff
+from codejury.review.diff.engine import audit_diff, strip_noise_files
 from codejury.providers.factory import (
     DEFAULT_API_BASE,
     DEFAULT_API_KEY,
@@ -592,6 +592,11 @@ def _cmd_review_diff(args) -> int:
         domain = resolve_domain(args.domain, _diff_paths(diff))
         (provider, model, finder_provider, finder_model,
          challenger_provider, challenger_model, judge_provider, judge_model) = build_diff_providers(args)
+    _, skipped_noise = strip_noise_files(diff, load_detection(domain.paths.detection_file))
+    if skipped_noise:
+        shown = ", ".join(skipped_noise[:5])
+        more = f", and {len(skipped_noise) - 5} more" if len(skipped_noise) > 5 else ""
+        print(f"skipped {len(skipped_noise)} non-source file(s): {shown}{more}", file=sys.stderr)
     kept, _, degraded = audit_diff(
         diff, provider=provider, model=model,
         mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 
+from codejury.detection import Detection, load_detection
 from codejury.domains.base import Domain
 from codejury.domains.registry import default_domain
 from codejury.review.diff.adversarial import AdversarialAuditRunner
@@ -34,6 +35,46 @@ def split_diff_by_file(diff: str) -> list[str]:
     if cur:
         chunks.append("".join(cur))
     return chunks or ([diff] if diff.strip() else [])
+
+
+def _chunk_path(chunk: str) -> str:
+    """The file path a per-file diff chunk is about, preferring the new-side `+++`
+    path and falling back to the old-side `---` path for a deletion, then to the
+    `diff --git` header. Empty when no path can be read, so the caller keeps the
+    chunk rather than dropping what it cannot classify."""
+    plus = minus = git = ""
+    for line in chunk.splitlines():
+        if line.startswith("+++ ") and not plus:
+            plus = line[4:].strip()
+        elif line.startswith("--- ") and not minus:
+            minus = line[4:].strip()
+        elif line.startswith("diff --git ") and not git:
+            git = line
+        if plus and minus and git:
+            break
+    for cand in (plus, minus):
+        if cand and cand != "/dev/null":
+            return cand[2:] if cand[:2] in ("a/", "b/") else cand
+    tail = git.partition(" b/")[2]
+    return tail.strip() if tail else ""
+
+
+def strip_noise_files(diff: str, detection: Detection | None = None) -> tuple[str, tuple[str, ...]]:
+    """Drop the files a reviewer should not read from a unified diff, returning the
+    stripped diff and the skipped paths. A file is dropped only when Detection flags
+    it as noise, which wastes review budget and, once a diff is chunked one file at a
+    time, a whole model call. A chunk whose path cannot be read is kept, recall over
+    cost, invariant 2."""
+    det = detection or load_detection()
+    kept: list[str] = []
+    skipped: list[str] = []
+    for chunk in split_diff_by_file(diff):
+        path = _chunk_path(chunk)
+        if path and det.is_noise_path(path):
+            skipped.append(path)
+        else:
+            kept.append(chunk)
+    return "".join(kept), tuple(skipped)
 
 
 def dedup_findings(findings: list[Finding]) -> list[Finding]:
@@ -76,6 +117,11 @@ def audit_diff(
     domain = domain or default_domain()
     content = domain.paths
     focus, do_not_report = domain.diff_focus, domain.diff_do_not_report
+    diff, _ = strip_noise_files(diff, load_detection(content.detection_file))
+    if not diff.strip():
+        # nothing but noise survived the strip, so there is no source to review, a clean
+        # result rather than a failed one, invariant 4
+        return [], [], False
 
     def _run_one(d: str) -> list[Finding]:
         nonlocal degraded

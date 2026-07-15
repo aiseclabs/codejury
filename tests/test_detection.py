@@ -33,3 +33,22 @@ def test_is_test_path_keeps_production_sampleish_names():
     d = load_detection()
     for f in ("app/sample_rate.py", "app/mock_billing.py", "app/example_config.py", "app/latest.py"):
         assert not d.is_test_path(f), f
+
+
+def test_is_noise_path_drops_docs_lockfiles_tests_and_vendored():
+    d = load_detection()
+    for f in ("README.md", "docs/guide.rst", "NOTES.txt",
+              "package-lock.json", "frontend/yarn.lock", "go.sum",
+              "app/tests/test_views.py", "app/views_test.go",
+              "node_modules/left-pad/index.js", "dist/bundle.js"):
+        assert d.is_noise_path(f), f
+
+
+def test_is_noise_path_keeps_source_and_security_relevant_non_source():
+    # a denylist, not the inverse of source_extensions, so a non-source file that can still
+    # carry an exploit stays in review, invariant 2
+    d = load_detection()
+    for f in ("app/views.py", "src/main.go",
+              "migrations/001_users.sql", "deploy/entrypoint.sh",
+              "Dockerfile", "infra/main.tf", "config/settings.yaml"):
+        assert not d.is_noise_path(f), f

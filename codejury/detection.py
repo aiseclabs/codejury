@@ -27,6 +27,8 @@ class Detection:
     manifests: tuple[str, ...]
     test_dirs: frozenset[str]
     test_name_patterns: tuple[str, ...]
+    doc_extensions: frozenset[str]
+    lockfiles: frozenset[str]
 
     @property
     def detection_extensions(self) -> frozenset[str]:
@@ -43,6 +45,23 @@ class Detection:
         name = parts[-1].lower()
         return any(fnmatch.fnmatch(name, pat) for pat in self.test_name_patterns)
 
+    def is_noise_path(self, path: str) -> bool:
+        """True when a path cannot hold an exploitable code change and should not
+        be sent to a reviewer: a noise or vendored directory, test code, a
+        documentation file, or a generated dependency lockfile. This is a denylist
+        of files known to carry no logic, not the inverse of source_extensions, so
+        a security-relevant non-source file such as a `.sql` migration, a shell
+        script, or a Dockerfile is kept, invariant 2."""
+        parts = path.replace("\\", "/").split("/")
+        if any(p in self.skip_dirs for p in parts[:-1]):
+            return True
+        if self.is_test_path(path):
+            return True
+        name = parts[-1]
+        if name in self.lockfiles:
+            return True
+        return Path(name).suffix.lower() in self.doc_extensions
+
 
 @lru_cache(maxsize=None)
 def load_detection(detection_file: Path = DETECTION_FILE) -> Detection:
@@ -56,4 +75,6 @@ def load_detection(detection_file: Path = DETECTION_FILE) -> Detection:
         manifests=tuple(data.get("manifests", [])),
         test_dirs=frozenset(data.get("test_dirs", [])),
         test_name_patterns=tuple(data.get("test_name_patterns", [])),
+        doc_extensions=frozenset(data.get("doc_extensions", [])),
+        lockfiles=frozenset(data.get("lockfiles", [])),
     )

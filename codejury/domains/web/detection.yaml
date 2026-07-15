@@ -11,3 +11,7 @@ manifests: ["requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup
 test_dirs: ["test", "tests", "__tests__", "__mocks__", "mocks", "fixtures", "testdata", "e2e", "spec", "specs"]
 
 test_name_patterns: ["test_*", "*_test.*", "*.test.*", "*.spec.*"]
+
+doc_extensions: [".md", ".markdown", ".rst", ".txt", ".adoc"]
+
+lockfiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "poetry.lock", "Pipfile.lock", "Cargo.lock", "Gemfile.lock", "go.sum", "composer.lock"]

@@ -4,6 +4,7 @@ false-positive filter. Deterministic with a MockProvider, no key."""
 import json
 
 from codejury.review.diff.audit import AuditRunner
+from codejury.review.diff.engine import audit_diff, strip_noise_files
 from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.prompts import standard_audit_prompt
 from codejury.finding import Finding, finding_from_dict, findings_from_list
@@ -135,3 +136,37 @@ def test_filter_drops_low_confidence():
 def test_filter_keeps_real_high_confidence_prod_finding():
     kept, dropped = FindingsFilter().filter([_f("app/payment.py", conf=0.95)])
     assert len(kept) == 1 and dropped == []
+
+
+_SRC = "diff --git a/app.py b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
+_DOC = "diff --git a/README.md b/README.md\n@@ -0,0 +1 @@\n+# Title\n"
+_LOCK = "diff --git a/package-lock.json b/package-lock.json\n@@ -0,0 +1 @@\n+{}\n"
+
+
+def test_strip_noise_files_drops_docs_and_lockfiles_keeps_source():
+    kept, skipped = strip_noise_files(_SRC + _DOC + _LOCK)
+    assert kept == _SRC
+    assert set(skipped) == {"README.md", "package-lock.json"}
+
+
+def test_strip_noise_files_keeps_a_chunk_whose_path_cannot_be_read():
+    headerless = "@@ -0,0 +1 @@\n+x = 1\n"
+    kept, skipped = strip_noise_files(headerless)
+    assert kept == headerless and skipped == ()
+
+
+def test_audit_diff_does_not_send_noise_files_to_the_model():
+    provider = MockProvider(default='{"findings": []}')
+    audit_diff(_SRC + _DOC, provider=provider, model="m")
+    sent = "\n".join(m.content for call in provider.calls for m in call["messages"])
+    assert "app.py" in sent
+    assert "README.md" not in sent
+
+
+def test_audit_diff_docs_only_diff_is_clean_without_a_model_call():
+    reply = _reply([{"file": "README.md", "line": 1, "severity": "HIGH",
+                     "description": "x", "confidence": 0.9}])
+    provider = MockProvider(default=reply)
+    kept, dropped, degraded = audit_diff(_DOC + _LOCK, provider=provider, model="m")
+    assert kept == [] and dropped == [] and degraded is False
+    assert provider.calls == []
