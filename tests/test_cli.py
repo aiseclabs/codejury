@@ -1,8 +1,8 @@
 """Diff-audit orchestration plus the thin CLI surface.
 
-A diff over the size budget is split per file and audited one file at a time so a
-big PR does not overflow the model context and silently truncate the reply. The
-per-file findings are then de-duplicated.
+A diff over the size budget is packed into size-bounded batches and audited batch by
+batch so a big PR does not overflow the model context and silently truncate the reply.
+The findings are then de-duplicated.
 """
 
 import os
@@ -12,7 +12,7 @@ import pytest
 
 import codejury.cli as climod
 from codejury.cli import main
-from codejury.review.diff.engine import audit_diff, dedup_findings, split_diff_by_file
+from codejury.review.diff.engine import audit_diff, dedup_findings, pack_diff_chunks, split_diff_by_file
 from codejury.finding import Finding
 from codejury.providers.mock import MockProvider
 
@@ -46,6 +46,21 @@ def test_split_diff_by_file():
 def test_split_diff_empty_and_unbounded():
     assert split_diff_by_file("") == []
     assert split_diff_by_file("just text\n") == ["just text\n"]
+
+
+def test_pack_diff_chunks_greedily_combines_files():
+    # files that fit under the budget share one batch, so cross-file context survives instead
+    # of each file being audited alone
+    batches = pack_diff_chunks(_FILE_A + _FILE_B, max_chars=len(_FILE_A) + len(_FILE_B))
+    assert batches == [_FILE_A + _FILE_B]
+    batches = pack_diff_chunks(_FILE_A + _FILE_B, max_chars=len(_FILE_A))
+    assert batches == [_FILE_A, _FILE_B]
+
+
+def test_pack_diff_chunks_isolates_an_oversized_file():
+    big = "diff --git a/big.py b/big.py\n@@ -0,0 +1 @@\n+" + "z" * 200 + "\n"
+    batches = pack_diff_chunks(_FILE_A + big, max_chars=len(_FILE_A) + 5)
+    assert batches == [_FILE_A, big]
 
 
 def test_dedup_findings_collapses_identical():

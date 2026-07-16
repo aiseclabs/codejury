@@ -1,7 +1,7 @@
 """Diff-audit orchestration: run a diff through the engine and clean the result.
 
 The library entry point behind `review diff`. Picks the standard or adversarial
-engine, audits a large diff one file at a time so a big PR does not overflow the
+engine, audits a large diff in size-bounded batches so a big PR does not overflow the
 model context, normalizes finding categories onto the rule-id set, and applies
 the false-positive filter. Kept out of the CLI so it can be called as a library.
 """
@@ -19,7 +19,7 @@ from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.vulnerabilities import allowed_categories, normalize_category
 from codejury.finding import Finding
 
-# audit larger diffs one file at a time so context is not silently truncated
+# audit larger diffs in size-bounded batches so context is not silently truncated
 _MAX_DIFF_CHARS = 60_000
 
 
@@ -77,6 +77,26 @@ def strip_noise_files(diff: str, detection: Detection | None = None) -> tuple[st
     return "".join(kept), tuple(skipped)
 
 
+def pack_diff_chunks(diff: str, max_chars: int = _MAX_DIFF_CHARS) -> list[str]:
+    """Greedily pack the per-file chunks of a diff into batches no larger than `max_chars`,
+    so a large diff is reviewed in as few calls as possible and the files in one batch keep
+    their cross-file context, instead of each file being audited alone. A single file larger
+    than `max_chars` is its own batch, since a file is not split mid-hunk."""
+    batches: list[str] = []
+    cur: list[str] = []
+    cur_len = 0
+    for chunk in split_diff_by_file(diff):
+        if cur and cur_len + len(chunk) > max_chars:
+            batches.append("".join(cur))
+            cur = []
+            cur_len = 0
+        cur.append(chunk)
+        cur_len += len(chunk)
+    if cur:
+        batches.append("".join(cur))
+    return batches
+
+
 def dedup_findings(findings: list[Finding]) -> list[Finding]:
     seen: set = set()
     out: list[Finding] = []
@@ -108,7 +128,7 @@ def audit_diff(
     """Audit a diff and return the kept findings, the dropped finding-reason pairs, and
     a degraded flag.
 
-    A diff over the size budget is audited one file at a time so it does not
+    A diff over the size budget is audited in size-bounded batches so it does not
     overflow the context. Finding categories are normalized to the rule-id set.
     ``exclude_paths`` are operator-supplied path substrings to drop. ``degraded`` is
     True when adversarial mode fell back on an unusable judge, so the caller can
@@ -139,8 +159,8 @@ def audit_diff(
                            focus=focus, do_not_report=do_not_report).run(d)
 
     if len(diff) > _MAX_DIFF_CHARS:
-        chunks = split_diff_by_file(diff)
-        findings = dedup_findings([f for c in chunks for f in _run_one(c)])
+        batches = pack_diff_chunks(diff, _MAX_DIFF_CHARS)
+        findings = dedup_findings([f for b in batches for f in _run_one(b)])
     else:
         findings = _run_one(diff)
 
