@@ -1,6 +1,4 @@
-# File and path classification across ecosystems, loaded by detection.py.
-
-skip_dirs: [".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", ".pytest_cache", "build", "dist", "target", "out", ".tox", ".eggs", ".next", ".nuxt"]
+skip_dirs: [".git", ".venv", "venv", "node_modules", "vendor", "__pycache__", ".mypy_cache", ".pytest_cache", ".tox", ".eggs", ".gradle", "build", "dist", "target", "out", ".next", ".nuxt", "coverage", "htmlcov"]
 
 source_extensions: [".py", ".js", ".ts", ".tsx", ".jsx", ".mjs", ".go", ".rb", ".java", ".kt", ".php", ".cs", ".scala", ".rs"]
 
@@ -12,6 +10,6 @@ test_dirs: ["test", "tests", "__tests__", "__mocks__", "mocks", "fixtures", "tes
 
 test_name_patterns: ["test_*", "*_test.*", "*.test.*", "*.spec.*"]
 
-doc_extensions: [".md", ".markdown", ".rst", ".txt", ".adoc"]
+doc_extensions: [".md", ".markdown", ".mdx", ".rst", ".txt", ".adoc"]
 
-lockfiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "poetry.lock", "Pipfile.lock", "Cargo.lock", "Gemfile.lock", "go.sum", "composer.lock"]
+lockfiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "bun.lockb", "bun.lock", "deno.lock", "poetry.lock", "Pipfile.lock", "uv.lock", "pdm.lock", "Cargo.lock", "Gemfile.lock", "go.sum", "composer.lock", "packages.lock.json", "gradle.lockfile"]

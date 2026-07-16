@@ -1,6 +1,4 @@
-# File and path classification for Solidity / EVM projects. Loaded by detection.py.
-
-skip_dirs: [".git", "node_modules", "lib", "out", "cache", "artifacts", "broadcast", "typechain", "typechain-types", "coverage", "forge-cache", ".deps"]
+skip_dirs: [".git", "node_modules", "lib", ".deps", "out", "cache", "forge-cache", "artifacts", "broadcast", "typechain", "typechain-types", "coverage"]
 
 source_extensions: [".sol"]
 
@@ -12,6 +10,6 @@ test_dirs: ["test", "tests"]
 
 test_name_patterns: ["*.t.sol", "*.test.sol", "test_*", "*.spec.sol"]
 
-doc_extensions: [".md", ".markdown", ".rst", ".txt", ".adoc"]
+doc_extensions: [".md", ".markdown", ".mdx", ".rst", ".txt", ".adoc"]
 
-lockfiles: ["package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "Cargo.lock", "composer.lock"]
+lockfiles: ["soldeer.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "bun.lockb", "bun.lock", "deno.lock", "Cargo.lock", "composer.lock"]

@@ -37,10 +37,12 @@ def test_is_test_path_keeps_production_sampleish_names():
 
 def test_is_noise_path_drops_docs_lockfiles_tests_and_vendored():
     d = load_detection()
-    for f in ("README.md", "docs/guide.rst", "NOTES.txt",
+    for f in ("README.md", "docs/guide.rst", "NOTES.txt", "site/intro.mdx",
               "package-lock.json", "frontend/yarn.lock", "go.sum",
+              "uv.lock", "bun.lock", "deno.lock", "gradle.lockfile",
               "app/tests/test_views.py", "app/views_test.go",
-              "node_modules/left-pad/index.js", "dist/bundle.js"):
+              "node_modules/left-pad/index.js", "dist/bundle.js",
+              "vendor/github.com/pkg/errors.go", "coverage/lcov.info"):
         assert d.is_noise_path(f), f
 
 
