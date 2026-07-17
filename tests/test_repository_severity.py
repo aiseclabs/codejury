@@ -21,3 +21,9 @@ def test_median_of_one_vote_keeps_the_model_grade():
     # severity is the model's, the median only converges repeats, it never overrides a grade
     assert median(["LOW"]) == "LOW"
     assert median(["CRITICAL"]) == "CRITICAL"
+
+
+def test_median_of_an_even_count_takes_the_upper_middle():
+    # an evenly split vote rounds toward the higher severity, so ranking never understates risk
+    assert median(["MEDIUM", "HIGH"]) == "HIGH"
+    assert median(["LOW", "MEDIUM"]) == "MEDIUM"

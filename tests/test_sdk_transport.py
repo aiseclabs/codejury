@@ -101,7 +101,7 @@ def test_result_from_messages_raises_on_an_error_result():
 
 
 def test_result_from_messages_raises_on_an_error_status():
-    msgs = [SimpleNamespace(subtype="success", is_error=False, api_error_status="rate_limited", result="")]
+    msgs = [SimpleNamespace(subtype="success", is_error=False, api_error_status=429, result="")]
     with pytest.raises(RuntimeError):
         _result_from_messages(msgs)
 

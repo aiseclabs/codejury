@@ -149,6 +149,30 @@ def test_non_rate_limit_keeps_linear_backoff():
     assert slept == [1.0, 2.0]
 
 
+def test_is_rate_limit_matches_by_status_class_name_and_message():
+    from codejury.providers.retry import _is_rate_limit
+
+    class RateLimitError(Exception):
+        pass
+
+    assert _is_rate_limit(RateLimitError("boom"))                      # class name carries ratelimit
+    assert _is_rate_limit(RuntimeError("429 Too Many Requests"))       # message substrings, no status_code
+    assert _is_rate_limit(RuntimeError("hit the rate limit"))
+    assert not _is_rate_limit(RuntimeError("connection reset by peer"))
+
+
+def test_retry_after_reads_the_exception_attribute_and_tolerates_garbage():
+    from codejury.providers.retry import _retry_after
+
+    exc = RuntimeError("x")
+    exc.retry_after = "7"
+    assert _retry_after(exc) == 7.0
+    bad = RuntimeError("y")
+    bad.retry_after = "soon"
+    assert _retry_after(bad) is None
+    assert _retry_after(RuntimeError("no attr")) is None
+
+
 class _Hang(Provider):
     """Blocks on `complete` until released, the proxy-holds-the-connection failure an SDK
     timeout does not catch."""

@@ -619,7 +619,7 @@ def test_explicit_shots_or_votes_overrides_effort():
 
 
 def test_auto_concurrency_holds_the_subscription_agent_to_two():
-    # the subscription agent shares one rate cap, so a wide fan-out trips it, invariant 4. A keyed
+    # the subscription agent shares one rate cap, so a wide fan-out trips it. A keyed
     # API path runs wider, and an explicit --concurrency always wins over either default.
     assert climod._auto_concurrency(None, "agent") == 2
     assert climod._auto_concurrency(None, "anthropic") == 6
@@ -672,7 +672,7 @@ def test_explicit_concurrency_overrides_the_backend_default(monkeypatch, tmp_pat
 
 def test_retries_and_timeout_reach_the_subscription_agent_finder(monkeypatch, tmp_path):
     # --retries and --timeout must reach the agent backend on the subscription path, so a
-    # documented flag does not silently keep the _ClaudeBackend defaults there, invariant 4.
+    # documented flag does not silently keep the _ClaudeBackend defaults there.
     from codejury.review.repository.agent import AgentReviewer
     captured = _capture_run(monkeypatch)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)

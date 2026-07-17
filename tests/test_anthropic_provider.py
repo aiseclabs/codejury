@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from codejury.providers.anthropic import AnthropicProvider
 from codejury.providers.base import Message
 
@@ -99,10 +101,6 @@ def test_non_temperature_bad_request_still_fails_loud():
 
     client = _OtherBadRequest(reject_temperature=False)
     provider = AnthropicProvider(client=client)
-    try:
+    with pytest.raises(_BadRequest):
         _run(provider)
-        raised = False
-    except _BadRequest:
-        raised = True
-    assert raised
     assert len(client.calls) == 1

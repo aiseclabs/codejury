@@ -4,7 +4,7 @@ an unavailable domain fails loud rather than silently falling back."""
 import shutil
 import pytest
 
-from codejury.domains.base import Domain, content_paths
+from codejury.domains.base import content_paths
 from codejury.domains.evm import EVM
 from codejury.domains.registry import detect_domain, get_domain, resolve_domain
 from codejury.domains.web import WEB

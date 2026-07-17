@@ -95,7 +95,7 @@ def test_investigate_items_are_carried():
         [_finder([]), _challenger(), _judge([], investigate=[{"target": "y", "reason": "needs a runtime check"}])],
         max_rounds=1,
     )
-    assert out.investigate
+    assert [(i["target"], i["reason"]) for i in out.investigate] == [("y", "needs a runtime check")]
 
 
 def test_converges_when_confirmed_set_stable():

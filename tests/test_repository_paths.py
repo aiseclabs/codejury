@@ -2,8 +2,6 @@
 outside the reviewed repository. is_unsafe_rel drops it before it becomes a finding, safe_repository_path
 refuses it before a workspace-to-source read."""
 
-from pathlib import Path
-
 from codejury.review.repository.paths import is_unsafe_rel, safe_repository_path
 
 

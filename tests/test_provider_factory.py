@@ -24,6 +24,12 @@ def test_no_retries_leaves_the_provider_unwrapped():
     assert isinstance(provider, OpenAIProvider)
 
 
+def test_openai_wire_api_reaches_the_built_provider():
+    # the factory is the seam production uses, so wire_api must arrive on the provider, or a
+    # gpt-5 reasoning model would silently fall back to chat completions
+    assert make_provider("openai", wire_api="responses")._wire_api == "responses"
+
+
 def test_retries_wrap_in_retry_provider_with_one_extra_attempt():
     provider = make_provider("litellm", retries=2)
     assert isinstance(provider, RetryProvider)

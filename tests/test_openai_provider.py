@@ -106,3 +106,14 @@ def test_responses_wire_api_maps_system_to_instructions_and_returns_output_text(
     assert client.kwargs["input"] == "audit this"
     # the budget covers reasoning plus output, so a small request still leaves room to answer
     assert client.kwargs["max_output_tokens"] >= 8000
+    # a reasoning model rejects a fixed temperature, so the responses path must not send one
+    assert "temperature" not in client.kwargs
+
+
+def test_responses_empty_output_comes_back_as_an_empty_string_not_an_error():
+    # too small a budget yields empty output, which must return "" so the retry and JSON layers
+    # read it as an unusable reply, rather than raising here on a missing output_text
+    result = OpenAIProvider(client=_FakeResponsesClient(output_text=""), wire_api="responses").complete(
+        system="s", messages=[Message(role="user", content="c")], model="gpt-5.5", max_tokens=1024,
+    )
+    assert result.text == ""
