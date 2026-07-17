@@ -1,3 +1,6 @@
+"""RetryProvider with injected sleep and rand, so backoff and rate-limit handling are
+deterministic and do not actually sleep."""
+
 import threading
 
 import pytest

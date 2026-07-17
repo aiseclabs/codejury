@@ -1,3 +1,6 @@
+"""AnthropicProvider with a faked SDK client, no key. Covers text extraction and the retry
+that drops temperature when the model rejects a fixed one."""
+
 from types import SimpleNamespace
 
 import pytest

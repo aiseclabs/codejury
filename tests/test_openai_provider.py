@@ -1,3 +1,6 @@
+"""OpenAIProvider with a faked SDK client, no key. Covers both wires: Chat Completions and
+the Responses API path the GPT-5 reasoning models use."""
+
 import sys
 from types import SimpleNamespace
 

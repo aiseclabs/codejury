@@ -55,7 +55,8 @@ def test_three_roles_run_in_order_one_round():
 def test_judge_dismissal_drops_a_finding():
     second = {**_VULN, "line": 5, "category": "xss"}
     _, out = _run(
-        [_finder([_VULN, second]), _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "escaped"}]),
+        [_finder([_VULN, second]),
+         _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "escaped"}]),
          _judge([_VULN], dismissed=[{"target": "app.py:5", "reason": "output is escaped"}])],
         max_rounds=1,
     )
@@ -86,7 +87,10 @@ def test_converged_flag_ignored_while_investigate_pending():
 
 def test_judge_downgrade_lowers_finding_severity():
     dg = [{"target": "app.py:3", "from": "CRITICAL", "to": "MEDIUM", "reason": "needs an unlikely precondition"}]
-    _, out = _run([_finder([_VULN]), _challenger(), _judge([{**_VULN, "severity": "MEDIUM"}], downgraded=dg)], max_rounds=1)
+    _, out = _run(
+        [_finder([_VULN]), _challenger(), _judge([{**_VULN, "severity": "MEDIUM"}], downgraded=dg)],
+        max_rounds=1,
+    )
     assert out.findings[0].severity == "MEDIUM"
 
 

@@ -88,8 +88,10 @@ def _key(tmp_path, body: str) -> Path:
 
 
 def test_load_answer_key_accepts_legacy_issues_alias(tmp_path):
-    new = load_answer_key(_key(tmp_path, "target: t\nplanted:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n"))
-    legacy = load_answer_key(_key(tmp_path, "target: t\nissues:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n"))
+    new = load_answer_key(
+        _key(tmp_path, "target: t\nplanted:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n"))
+    legacy = load_answer_key(
+        _key(tmp_path, "target: t\nissues:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n"))
     assert len(new.planted) == 1 and len(legacy.planted) == 1
     assert new.planted[0].id == legacy.planted[0].id == "a"
 
@@ -355,7 +357,8 @@ def test_endpoint_keyed_planted_ignores_file_so_a_sibling_is_not_credited(tmp_pa
     # an entry with an endpoint matches only by endpoint, so a report on another route is not
     # credited even when it cites the same file, the looseness the strict matcher guards
     key = load_answer_key(_key(tmp_path,
-        "target: t\nplanted:\n  - id: idor\n    category: idor\n    entry: GET /tasks/<t>/items/<i>\n    file: models/item.go\n"))
+        "target: t\nplanted:\n  - id: idor\n    category: idor\n"
+        "    entry: GET /tasks/<t>/items/<i>\n    file: models/item.go\n"))
     sibling = score(key, [Report.make("r", "GET /labels/<id>", "idor", ["models/item.go"])])
     assert sibling.missed == ["idor"]
 
@@ -725,7 +728,8 @@ def test_coverage_problems_flags_a_class_with_no_repository_target():
         return KnowledgeItem(ref=ref, kind="vulnerability", path=Path(f"{ref}.md"))
     cov = {
         "vuln:diffonly": Coverage(item=item("vuln:diffonly"), diff_positive=1, diff_safe=1),
-        "vuln:hasrepository": Coverage(item=item("vuln:hasrepository"), diff_positive=1, diff_safe=1, repository_planted=1),
+        "vuln:hasrepository": Coverage(
+            item=item("vuln:hasrepository"), diff_positive=1, diff_safe=1, repository_planted=1),
     }
     kinds = {(p.ref, p.kind) for p in coverage_problems(cov)}
     assert ("vuln:diffonly", "missing-repository-target") in kinds

@@ -10,7 +10,13 @@ from codejury.providers.mock import MockProvider
 from codejury.review.repository.gate import check_gate
 from codejury.review.repository.reviewer import ModelReviewer, UnitReviewer
 from codejury.review.repository.shapes import Unit, gather
-from codejury.review.repository.engine import _parse_candidate, _spans, build_units, finalize_repository_review, run_repository_review
+from codejury.review.repository.engine import (
+    _parse_candidate,
+    _spans,
+    build_units,
+    finalize_repository_review,
+    run_repository_review,
+)
 from codejury.review.repository.scaffold import unit_slug
 from codejury.review.repository.union import Candidate
 from codejury.review.repository.verifier import RefutationChecker, Verdict, Verifier
@@ -302,10 +308,18 @@ def test_parse_candidate_drops_a_cleared_or_refuted_record(tmp_path):
 
 def test_finalize_dedups_verifies_and_reports(tmp_path):
     target, ws, candidates = _finalize_ws(tmp_path)
-    (candidates / "a.md").write_text("# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
-    (candidates / "a2.md").write_text("# idor again\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/{id}`\n## Analysis\napp/v.py:10\n")
-    (candidates / "b.md").write_text("# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n")
-    (candidates / "fp.md").write_text("# race fp\n- Risk: HIGH\n- Type: race\n- Source: `POST /r`\n## Analysis\napp/d.py:3\n")
+    (candidates / "a.md").write_text(
+        "# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n"
+    )
+    (candidates / "a2.md").write_text(
+        "# idor again\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/{id}`\n## Analysis\napp/v.py:10\n"
+    )
+    (candidates / "b.md").write_text(
+        "# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n"
+    )
+    (candidates / "fp.md").write_text(
+        "# race fp\n- Risk: HIGH\n- Type: race\n- Source: `POST /r`\n## Analysis\napp/d.py:3\n"
+    )
 
     class _V(Verifier):
         def verify(self, c, root):
@@ -470,7 +484,9 @@ def test_corrupt_union_on_resume_raises_loud_and_keeps_report(custody_repository
 
 def test_corrupt_verified_on_finalize_raises_loud(tmp_path):
     target, ws, candidates = _finalize_ws(tmp_path)
-    (candidates / "a.md").write_text("# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
+    (candidates / "a.md").write_text(
+        "# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n"
+    )
     (ws / "proj" / "_verified.json").write_text("{corrupt", encoding="utf-8")
 
     class _V(Verifier):

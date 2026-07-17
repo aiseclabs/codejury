@@ -1,3 +1,6 @@
+"""choice_text: pull the assistant text out of the Chat Completions response shapes, and
+return empty on a missing or malformed choice rather than raising."""
+
 from types import SimpleNamespace
 
 from codejury.providers.chat_format import choice_text

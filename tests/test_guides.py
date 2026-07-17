@@ -25,7 +25,8 @@ def test_protocol_guide_selected_by_protocol_token():
 
 
 def test_mcp_guide_selected_by_protocol_token():
-    matched = {g.id for g in select_guides(["server.py"], source_text="from mcp.server import Server\n@mcp.tool\ndef call_tool(): ...\n")}
+    src = "from mcp.server import Server\n@mcp.tool\ndef call_tool(): ...\n"
+    matched = {g.id for g in select_guides(["server.py"], source_text=src)}
     assert "mcp" in matched
 
 
@@ -33,8 +34,8 @@ def test_evm_token_launch_guide_selected_by_content_token():
     from codejury.domains.registry import get_domain
     paths = get_domain("evm").paths
     pool = load_guides(paths.languages_dir, paths.frameworks_dir, paths.protocols_dir)
-    matched = {g.id for g in select_guides(
-        ["Token.sol"], source_text="function enableTrading() external onlyOwner { tradingEnabled = true; }\n", guides=pool)}
+    src = "function enableTrading() external onlyOwner { tradingEnabled = true; }\n"
+    matched = {g.id for g in select_guides(["Token.sol"], source_text=src, guides=pool)}
     assert "token-launches" in matched
 
 

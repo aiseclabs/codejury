@@ -1,3 +1,6 @@
+"""The shared JSON-object extraction: require_json_object fails loud for callers that must
+not pass an unusable reply, optional_json_object degrades for the ones that fall back."""
+
 import pytest
 
 from codejury.json_parse import extract_json_object, optional_json_object, require_json_object
@@ -46,7 +49,8 @@ def test_truncated_object_is_repaired():
 
 
 def test_require_json_object_returns_the_object_when_the_key_is_present():
-    assert require_json_object('{"findings": []}', required_key="findings", error=_Boom, message="x") == {"findings": []}
+    result = require_json_object('{"findings": []}', required_key="findings", error=_Boom, message="x")
+    assert result == {"findings": []}
 
 
 def test_require_json_object_raises_when_no_object_is_found():

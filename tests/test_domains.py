@@ -92,7 +92,8 @@ def test_lens_naming_is_uniform(domain):
         members.setdefault(meta["lens"], []).append(meta["id"])
     for lens, claimed in members.items():
         if len(claimed) == 1:
-            assert lens == claimed[0], f"{domain.name} single-class lens {lens!r} must equal its class id {claimed[0]!r}"
+            assert lens == claimed[0], (
+                f"{domain.name} single-class lens {lens!r} must equal its class id {claimed[0]!r}")
         else:
             assert lens not in class_ids, f"{domain.name} umbrella lens {lens!r} collides with a class id"
 
@@ -172,6 +173,8 @@ def test_evm_poc_backend_fails_loud_without_forge(monkeypatch):
 
 
 def test_forge_poc_repairs_its_test_after_a_failure(monkeypatch, tmp_path):
+    # the first source fails to compile, the error is fed back, and the second attempt from the
+    # provider's next output passes, so runs holds both tries in order
     from contextlib import contextmanager
 
     from codejury.domains.evm.poc import ForgePoC
