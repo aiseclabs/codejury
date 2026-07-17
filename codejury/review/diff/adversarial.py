@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass, field
 
 from codejury.domains.base import ContentPaths
-from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, category_block
+from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, category_block, rubric_block, severity_rubric_text
 from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.finding import Finding, findings_from_list
 from codejury.json_parse import optional_json_object
@@ -54,7 +54,8 @@ def _diff_block(diff: str, vulnerabilities: str, context: str) -> str:
 
 
 def finder_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", prior: list | None = None,
-                  vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT) -> str:
+                  vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT,
+                  severity_rubric: str = "") -> str:
     prior_block = ""
     if prior:
         prior_block = (
@@ -66,12 +67,14 @@ def finder_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", pr
         "Find every exploitable vulnerability in this code change.\n\n"
         f"{focus}\n{do_not_report}\n{category_block(vulnerabilities_dir)}"
         f"{_diff_block(diff, vulnerabilities, context)}{prior_block}"
+        f"{rubric_block(severity_rubric)}"
         'Respond with a single JSON object exactly like: {"findings": [' + _FINDING_FIELDS + "]}"
     )
 
 
 def challenger_prompt(diff: str, finder_findings: list, *, vulnerabilities: str = "", context: str = "",
-                      vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT) -> str:
+                      vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT,
+                      severity_rubric: str = "") -> str:
     return (
         "Two tasks on the code change below.\n"
         "1. Rebut a finding when the diff SHOWS the value is handled safely: a parameterized "
@@ -85,13 +88,15 @@ def challenger_prompt(diff: str, finder_findings: list, *, vulnerabilities: str 
         f"{focus}\n{do_not_report}\n{category_block(vulnerabilities_dir)}"
         f"{_diff_block(diff, vulnerabilities, context)}"
         f"Reported findings:\n{json.dumps(finder_findings, ensure_ascii=False)}\n\n"
+        f"{rubric_block(severity_rubric)}"
         'Respond with a single JSON object exactly like: '
         '{"rebuttals": [{"target": "finding description or file:line", "verdict": "dismiss|downgrade", '
         '"reason": "..."}], "new_findings": [' + _FINDING_FIELDS + "]}"
     )
 
 
-def judge_prompt(diff: str, finder_findings: list, rebuttals: list, new_findings: list, *, context: str = "") -> str:
+def judge_prompt(diff: str, finder_findings: list, rebuttals: list, new_findings: list, *, context: str = "",
+                 severity_rubric: str = "") -> str:
     context_block = f"Surrounding code (not under review):\n```\n{context}\n```\n\n" if context else ""
     return (
         "Rule on each candidate finding from the two independent reviews below, assigning one verdict:\n"
@@ -111,6 +116,7 @@ def judge_prompt(diff: str, finder_findings: list, rebuttals: list, new_findings
         f"Finder findings:\n{json.dumps(finder_findings, ensure_ascii=False)}\n\n"
         f"Challenger rebuttals:\n{json.dumps(rebuttals, ensure_ascii=False)}\n\n"
         f"Challenger independent findings:\n{json.dumps(new_findings, ensure_ascii=False)}\n\n"
+        f"{rubric_block(severity_rubric)}"
         'Respond with a single JSON object exactly like: {"findings": [' + _FINDING_FIELDS + "], "
         '"downgraded": [{"target": "...", "from": "HIGH", "to": "MEDIUM", "reason": "..."}], '
         '"dismissed": [{"target": "...", "reason": "..."}], '
@@ -224,6 +230,7 @@ class AdversarialAuditRunner:
                 vulnerabilities_for_diff(diff, directory=vuln_dir) if vuln_dir is not None
                 else vulnerabilities_for_diff(diff)
             )
+        rubric = severity_rubric_text(self._content)
         prior: list[dict] = []
         prev_keys: set | None = None
         judged = AdversarialResult(findings=[])
@@ -232,7 +239,8 @@ class AdversarialAuditRunner:
         degraded = False
         for rounds in range(1, max_rounds + 1):
             fp = finder_prompt(diff, vulnerabilities=vulnerabilities, context=context, prior=prior,
-                               vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report)
+                               vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report,
+                               severity_rubric=rubric)
             finder, finder_ok = self._ask(FINDER_SYSTEM, fp, self._finder)
             if not finder_ok:
                 finder, finder_ok = self._ask(FINDER_SYSTEM, fp, self._finder)
@@ -244,7 +252,8 @@ class AdversarialAuditRunner:
             finder_findings = _dicts(finder.get("findings"))
 
             cp = challenger_prompt(diff, finder_findings, vulnerabilities=vulnerabilities, context=context,
-                                   vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report)
+                                   vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report,
+                                   severity_rubric=rubric)
             challenger, challenger_ok = self._ask(CHALLENGER_SYSTEM, cp, self._challenger)
             if not challenger_ok:
                 challenger, challenger_ok = self._ask(CHALLENGER_SYSTEM, cp, self._challenger)
@@ -254,7 +263,7 @@ class AdversarialAuditRunner:
             rebuttals = _dicts(challenger.get("rebuttals"))
             new_findings = _dicts(challenger.get("new_findings"))
 
-            jp = judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context)
+            jp = judge_prompt(diff, finder_findings, rebuttals, new_findings, context=context, severity_rubric=rubric)
             verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge)
             if not judge_ok:
                 verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge)

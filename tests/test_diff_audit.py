@@ -170,3 +170,11 @@ def test_audit_diff_docs_only_diff_is_clean_without_a_model_call():
     kept, dropped, degraded = audit_diff(_DOC + _LOCK, provider=provider, model="m")
     assert kept == [] and dropped == [] and degraded is False
     assert provider.calls == []
+
+
+def test_audit_runner_sends_the_severity_rubric():
+    provider = MockProvider(default='{"findings": []}')
+    AuditRunner(provider=provider, model="m").run(_DIFF)
+    sent = provider.calls[0]["messages"][0].content
+    assert "Grade each finding's severity on this rubric" in sent
+    assert "Severity Rubric" in sent

@@ -12,7 +12,7 @@ import re
 
 from codejury.domains.base import ContentPaths
 from codejury.finding import Finding, findings_from_list
-from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, SYSTEM, standard_audit_prompt
+from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, SYSTEM, severity_rubric_text, standard_audit_prompt
 from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.guides import load_guides, select_guides
 from codejury.json_parse import require_json_object
@@ -66,7 +66,8 @@ class AuditRunner:
             system=SYSTEM,
             messages=[Message(role="user", content=standard_audit_prompt(
                 diff, vulnerabilities=vulnerabilities, context=context, stack=stack, vulnerabilities_dir=vuln_dir,
-                focus=self._focus, do_not_report=self._do_not_report))],
+                focus=self._focus, do_not_report=self._do_not_report,
+                severity_rubric=severity_rubric_text(self._content)))],
             model=self._model,
             max_tokens=self._max_tokens,
         )

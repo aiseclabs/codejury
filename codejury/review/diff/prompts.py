@@ -1,7 +1,8 @@
 """Standard diff audit prompt: the security knowledge lives in data, in a rich
-prompt, not in a rendered schema. The focus and do-not-report blocks are the
-selected domain's, the default domain's when a caller names none, naming the high-value
-classes to hunt and the noise to skip, and the prompt asks for findings as a single JSON object."""
+prompt, not in a rendered schema. The focus, do-not-report, and severity-rubric blocks
+are the selected domain's, the default domain's when a caller names none, naming the
+high-value classes to hunt, the noise to skip, and how to grade what is found, and the
+prompt asks for findings as a single JSON object."""
 
 from __future__ import annotations
 
@@ -39,8 +40,22 @@ def category_block(vulnerabilities_dir=None) -> str:
     )
 
 
+def severity_rubric_text(content=None) -> str:
+    """The domain's severity rubric, defaulting to the web domain, so a diff finding is
+    graded on the same calibrated levels and firm rules the repository path applies."""
+    from codejury.resources import SEVERITY_RUBRIC_FILE
+
+    path = content.severity_rubric_file if content is not None else SEVERITY_RUBRIC_FILE
+    return path.read_text(encoding="utf-8")
+
+
+def rubric_block(severity_rubric: str) -> str:
+    return f"Grade each finding's severity on this rubric:\n{severity_rubric}\n\n" if severity_rubric else ""
+
+
 def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", stack: str = "",
-                          vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT) -> str:
+                          vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT,
+                          severity_rubric: str = "") -> str:
     stack_block = f"Conventions of the target's language/framework:\n{stack}\n\n" if stack else ""
     vulnerabilities_block = f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
     context_block = (
@@ -57,6 +72,7 @@ def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str 
         f"{vulnerabilities_block}"
         f"Code change (unified diff):\n```diff\n{diff}\n```\n\n"
         f"{context_block}"
+        f"{rubric_block(severity_rubric)}"
         "Report each real vulnerability with a precise file and line, a concrete "
         "exploit scenario, and a calibrated confidence. If there are none, return an "
         "empty findings list.\n\n"
