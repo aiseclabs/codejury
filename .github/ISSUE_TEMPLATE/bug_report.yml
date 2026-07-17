@@ -105,7 +105,7 @@ body:
     attributes:
       label: Version
       description: Output of `codejury --version`.
-      placeholder: codejury 1.5.7
+      placeholder: codejury 1.5.8
   - type: input
     id: environment
     attributes:
