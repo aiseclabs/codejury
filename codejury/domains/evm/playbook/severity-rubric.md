@@ -20,9 +20,10 @@ Severity is anchored on funds. Grade by impact times exploitability, on the code
   delays, a manipulation needing capital out of proportion to the gain, an issue gated by
   a trusted role misbehaving. A real defect that looks limited lands here, reported, not
   refuted.
-- **LOW**: hardening and defense in depth. A missing zero-address or zero-amount check
-  with no concrete exploit, a missing event, a weakened but not broken control, a best
-  practice with no exploit path today.
+- **LOW**: a real issue with a narrow or weak exploit path, such as a bypassable control
+  or a concrete but low-impact defect. A pure hardening gap, a missing event, or a
+  missing zero-address check with no concrete exploit is not a LOW, it is not reported,
+  see the out-of-scope list.
 
 Firm rules, these override a cautious instinct to downgrade to nothing:
 

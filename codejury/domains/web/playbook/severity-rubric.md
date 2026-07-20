@@ -23,9 +23,10 @@ Grade by impact times exploitability, on the code you read:
   limited impact, an idempotent state trigger reachable without auth. A real
   missing-auth or enumerable defect that looks low impact lands here, reported, not
   refuted.
-- **LOW**: hardening and defense in depth. A weakened but not broken control, a
-  non-constant-time compare, an env-gated or dev-only bypass, a missing best
-  practice with no concrete exploit path today.
+- **LOW**: a real issue with a narrow or weak exploit path. A bypassable control, a
+  token compared in non-constant time, or a low-impact missing-auth or enumerable
+  defect. A pure hardening or best-practice gap with no concrete exploit path is not a
+  LOW, it is not reported at all, see the do-not-report list.
 
 Firm rules, these override a cautious instinct to downgrade to nothing:
 
