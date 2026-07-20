@@ -42,8 +42,10 @@ Firm rules, these override a cautious instinct to downgrade to nothing:
 
 ## Out of Scope vs LOW
 
-Recall comes first, so almost nothing is dropped. Out of scope and not reported: dependency
-or compiler-version advisories, gas-optimization and style notes with no security impact,
-and a candidate the facts refute. Everything else real is reported, graded. A weak signal
-is LOW, not dropped. Noise is managed by sorting on severity, never by suppressing a
-finding. A missed real finding is worse than a LOW the reader skips.
+Recall comes first, so a real finding is almost never dropped. Out of scope and not
+reported: dependency or compiler-version advisories, gas-optimization and style notes with
+no security impact, a missing event or a missing zero-address check with no concrete
+exploit, a pure hardening gap, and a candidate the facts refute. Everything else real is
+reported, graded. A weak signal is LOW, not dropped. Noise is managed by sorting on
+severity, never by suppressing a real finding. A missed real finding is worse than a LOW
+the reader skips.

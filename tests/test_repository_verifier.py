@@ -149,13 +149,13 @@ def test_model_verifier_parses_a_refutation():
 
 
 def test_model_verifier_raises_on_unparseable_reply():
-    # an unparsable verifier reply is a failed step, not a clean confirmation, invariant 4
+    # an unparseable verifier reply is a failed step, not a clean confirmation, invariant 4
     prov = MockProvider(default="no json here")
     with pytest.raises(VerifyError):
         ModelVerifier(provider=prov, model="mock").verify(Candidate(title="x"), ".")
 
 
-def test_verify_findings_keeps_but_flags_an_unparsable_verification():
+def test_verify_findings_keeps_but_flags_an_unparseable_verification():
     # a verifier that cannot parse its reply keeps the finding for recall but marks it incomplete and
     # counts an error, so a resume re-attempts it instead of freezing an unverified confirmation
     prov = MockProvider(default="no json here")

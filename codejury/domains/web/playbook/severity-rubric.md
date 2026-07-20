@@ -47,13 +47,13 @@ Firm rules, these override a cautious instinct to downgrade to nothing:
 
 ## Out of Scope vs LOW
 
-Recall comes first, so almost nothing is dropped. Only two things are out of scope and
-not reported: dependency or component CVEs, since this tool does not do dependency
-scanning, and a candidate the facts refute, where the controlling fact holds when you
-read the code, the verifier's job.
+Recall comes first, so a real finding is almost never dropped. Out of scope and not
+reported: dependency or component CVEs, since this tool does not do dependency scanning,
+a candidate the facts refute where the controlling fact holds when you read the code, and
+a pure best-practice or hardening gap, a config default, or a config-leak-only risk with
+no concrete exploit path, see the do-not-report list.
 
 Everything else real is reported, graded. A weak signal is LOW, not dropped: a
-best-practice or hardening gap, a config default, a debug or env-gated path, and a
-bounded-impact finding are graded LOW or MEDIUM and surfaced. Noise is managed by
-sorting on severity, never by suppressing a finding. A missed real finding is worse
-than a LOW the reader skips.
+bounded-impact finding with a real exploit path is graded LOW or MEDIUM and surfaced.
+Noise is managed by sorting on severity, never by suppressing a real finding. A missed
+real finding is worse than a LOW the reader skips.

@@ -98,7 +98,7 @@ class AgentVerifier(_ClaudeBackend, Verifier):
         )
         obj, ok = optional_json_object(_result_text(self._ask(prompt, root)), required_key="real")
         if not ok:
-            raise VerifyError("unparsable verification reply")
+            raise VerifyError("unparseable verification reply")
         return Verdict(real=bool(obj.get("real")), reason=str(obj.get("reason", "")))
 
 
