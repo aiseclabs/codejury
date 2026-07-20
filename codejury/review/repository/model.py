@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import fnmatch
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -49,7 +50,7 @@ def build_repository_model_from_dir(root: str | Path, detection: Detection | Non
     return RepositoryModel(root=str(root), files=_read_files(Path(root), detection))
 
 
-def build_repository_model(root: str | Path, files) -> RepositoryModel:
+def build_repository_model(root: str | Path, files: Sequence[str]) -> RepositoryModel:
     """Build a RepositoryModel from an iterable of relative paths, for tests or callers
     that already have the file list."""
     return RepositoryModel(root=str(root), files=tuple(sorted(files)))
@@ -67,7 +68,10 @@ def _read_text(path: Path) -> str:
         return ""
 
 
-def candidate_entrypoint_files(files, *, root=None, globs=(), markers=(), detection: Detection | None = None) -> list[str]:
+def candidate_entrypoint_files(
+    files: Sequence[str], *, root: str | Path | None = None, globs: Sequence[str] = (),
+    markers: Sequence[str] = (), detection: Detection | None = None,
+) -> list[str]:
     """Files likely to define entrypoints. A file is a candidate when its path
     matches one of `globs`, or when `root` is given and its content contains one
     of `markers` the guide declares, such as a handler class or a route
@@ -92,7 +96,10 @@ def candidate_entrypoint_files(files, *, root=None, globs=(), markers=(), detect
     return sorted(dict.fromkeys(out))
 
 
-def public_api_files(files, *, root=None, patterns=(), detection: Detection | None = None) -> list[str]:
+def public_api_files(
+    files: Sequence[str], *, root: str | Path | None = None, patterns: Sequence[str] = (),
+    detection: Detection | None = None,
+) -> list[str]:
     """Non-test source files that define public or exported API. A library has no application
     entrypoint, so its exported symbols are the attack surface: a consumer passes
     attacker-influenced data into them. Used as the fallback denominator when no application
@@ -177,7 +184,7 @@ def span_line_range(text: str, span: tuple[int, int]) -> tuple[int, int]:
     return first, last
 
 
-def logic_layer_files(files, *, globs=(), detection: Detection | None = None) -> list[str]:
+def logic_layer_files(files: Sequence[str], *, globs: Sequence[str] = (), detection: Detection | None = None) -> list[str]:
     """Non-test files whose path matches one of the downstream logic-layer globs,
     for example managers, controllers, dao, or services. These are not entrypoints
     but the call targets to trace into from an entrypoint, so a review does not

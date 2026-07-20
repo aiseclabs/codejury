@@ -38,4 +38,3 @@ containment is done:
 This holds as long as the base directory itself is not attacker-controlled. For example
 `open(os.path.join(BASE, os.path.basename(name)))` and `send_from_directory(BASE, name)` are
 both safe. Report only when a user-controlled segment can still escape the base.
-

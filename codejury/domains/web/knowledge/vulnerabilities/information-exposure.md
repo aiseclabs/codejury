@@ -33,4 +33,3 @@ This is about leaking secrets/PII or internal detail. It is not a finding to:
 Reaching a file or returning a record is only information exposure when the data
 returned is itself sensitive, for example a secret or another user's PII, or internal such as a stack
 trace or a query. A plain `open(...)` or response is not this weakness.
-

@@ -29,10 +29,9 @@ from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
 from codejury.review.diff.vulnerabilities import canonical_category, category_aliases
 from codejury.review.repository.model import char_spans
-from codejury.review.repository.paths import is_unsafe_rel, safe_repository_path
 from codejury.review.repository.pass_loop import run_passes
+from codejury.review.repository.paths import is_unsafe_rel, safe_repository_path
 from codejury.review.repository.reviewer import ModelReviewer, UnitReviewer
-from codejury.sources.metadata import SourceMeta, read_source_meta_file
 from codejury.review.repository.scaffold import (
     _AUTH_MODEL_TEMPLATE,
     _INVARIANTS_TEMPLATE,
@@ -41,8 +40,8 @@ from codejury.review.repository.scaffold import (
     scaffold,
     unit_slug,
 )
-from codejury.review.repository.shapes import Unit
 from codejury.review.repository.severity import median
+from codejury.review.repository.shapes import Unit
 from codejury.review.repository.union import Accumulator, Candidate, collapse_colocated, merge
 from codejury.review.repository.verifier import (
     ModelVerifier,
@@ -51,6 +50,7 @@ from codejury.review.repository.verifier import (
     Verifier,
     verify_findings,
 )
+from codejury.sources.metadata import SourceMeta, read_source_meta_file
 
 _MAX_RELATED = 20
 

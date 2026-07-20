@@ -27,7 +27,10 @@ class FindingsFilter:
         dropped: list[tuple[object, str]] = []
         for f in findings:
             reason = self._drop_reason(f)
-            (dropped.append((f, reason)) if reason else kept.append(f))
+            if reason:
+                dropped.append((f, reason))
+            else:
+                kept.append(f)
         return kept, dropped
 
     def _drop_reason(self, f) -> str:

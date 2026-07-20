@@ -32,6 +32,8 @@ def _hermetic_seat_env(monkeypatch):
     for name in list(os.environ):
         if name.startswith(("CODEJURY_", "ANTHROPIC_", "OPENAI_")):
             monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(climod, "DEFAULT_PROVIDER", "anthropic")
+    monkeypatch.setattr(climod, "DEFAULT_MODEL", "claude-opus-4-8")
     monkeypatch.setattr(climod, "DEFAULT_API_KEY", None)
     monkeypatch.setattr(climod, "DEFAULT_API_BASE", None)
     monkeypatch.setattr(climod, "DEFAULT_ROLE_BACKENDS",
@@ -148,7 +150,8 @@ def test_review_repository_facts_flag_is_a_noop_without_a_backend(tmp_path):
 
 
 def test_python_dash_m_codejury_runs():
-    import subprocess, sys
+    import subprocess
+    import sys
     r = subprocess.run([sys.executable, "-m", "codejury", "--version"], capture_output=True, text=True)
     assert r.returncode == 0 and "codejury" in r.stdout.lower()
 

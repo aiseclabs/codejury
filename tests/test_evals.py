@@ -482,6 +482,12 @@ def test_gate_fails_on_errors_but_not_on_extra_alone():
                 structural=False) == []
 
 
+def _run(target, found, missed, fps, n_planted, n_reports=0, errors=0):
+    from evals.results import Result
+    return Result(target=target, found=list(found), missed=list(missed),
+                  false_positives=list(fps), n_planted=n_planted, n_reports=n_reports, errors=errors)
+
+
 def test_suite_result_to_markdown_shows_runs_and_flaky():
     sr = SuiteResult.from_runs("diff", [
         _run("diff", ["a"], ["b"], [], 2),
@@ -563,12 +569,6 @@ def test_shipped_diff_library_covers_every_vulnerability_class(tmp_path, monkeyp
     assert gaps == [], f"uncovered vulnerability classes: {gaps}"
 
 
-def _run(target, found, missed, fps, n_planted, n_reports=0, errors=0):
-    from evals.results import Result
-    return Result(target=target, found=list(found), missed=list(missed),
-                  false_positives=list(fps), n_planted=n_planted, n_reports=n_reports, errors=errors)
-
-
 def test_suite_result_folds_runs_by_strict_majority():
     from evals.results import SuiteResult
     # three runs, a is found every time, b in two of three, c once, so a and b clear the
@@ -601,7 +601,6 @@ def test_suite_result_to_dict_is_compare_compatible():
 
 
 def test_load_suite_selects_cases_by_tag_and_fails_loud_on_unknown():
-    import pytest
     from evals.diff_cases import default_cases
     from evals.suites import load_suite, select_cases
     smoke = load_suite("public-smoke")

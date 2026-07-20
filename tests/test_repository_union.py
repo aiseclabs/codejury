@@ -89,7 +89,7 @@ def test_dedup_falls_back_to_file_plus_category():
 
 def test_by_file_keeps_distinct_functions_in_one_file():
     # two distinct reentrancies in one contract, one in _cleanupLoan and one in transform,
-    # are two findings. Collapsing them by file and class drops a real one, invariant 3.
+    # are two findings. Collapsing them by file and class drops a real one, invariant 2.
     cands = [
         _c("reentry in cleanup", category="reentrancy", endpoint="_cleanupLoan", file="V3Vault.sol"),
         _c("reentry in transform", category="reentrancy", endpoint="transform", file="V3Vault.sol"),

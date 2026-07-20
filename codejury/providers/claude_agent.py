@@ -236,7 +236,7 @@ async def _collect(client, prompt: str, timeout: int) -> str:
     return _result_from_messages(await asyncio.wait_for(go(), timeout))
 
 
-def _sdk_options(sdk, *, cwd: str, allowed_tools: tuple[str, ...], cli_path: str, env: dict):
+def _sdk_options(sdk, *, cwd: str, allowed_tools: tuple[str, ...], cli_path: str, env: dict[str, str]):
     """The SDK options for one session. `allowed_tools` is the guarded allowlist, so the SDK
     session grants exactly the tools the process path would, no more. `env` is the scrubbed
     environment, so the nested Claude Code authenticates the subscription, not a stale key."""
@@ -332,7 +332,7 @@ class SdkClaudeTransport(ClaudeTransport):
     the process transport. `close` shuts every session down, releasing the managed processes."""
 
     def __init__(self, *, pool_size: int | None = None, max_turns: int | None = None,
-                 cli_path: str | None = None, env: dict | None = None, make_client=None) -> None:
+                 cli_path: str | None = None, env: dict[str, str] | None = None, make_client=None) -> None:
         self._cli_path = cli_path or os.environ.get("CODEJURY_CLAUDE_BIN") or shutil.which("claude") or "claude"
         self._env = env if env is not None else _subscription_env()
         self._pool_size = pool_size if pool_size is not None else _int_env(_SDK_POOL_ENV, 6)

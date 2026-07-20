@@ -353,7 +353,10 @@ def _clear_prior_run(ws: Path) -> list[str]:
         )
     removed: list[str] = []
     for child in ws.iterdir():
-        shutil.rmtree(child) if child.is_dir() else child.unlink()
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
         removed.append(str(child))
     return removed
 
