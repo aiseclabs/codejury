@@ -33,7 +33,7 @@ from codejury.envfile import load_env_file
 _ENV_LOADED = load_env_file()
 
 from codejury.detection import load_detection
-from codejury.telemetry import progress, stage_timer
+from codejury.telemetry import progress, read_timeline, stage_timer
 from codejury.domains.registry import available_domains, resolve_domain
 from codejury.sources.explorer import CHAINS
 from codejury.report import gate, render
@@ -651,6 +651,13 @@ def _cmd_repository_gate(args) -> int:
     project_dir = _repo_ws(args)
     result = check_gate(project_dir, root=Path(args.directory).resolve(),
                         detection=detection, strict_coverage=args.strict_coverage)
+    timeline = read_timeline(project_dir)
+    if timeline:
+        # gate usually runs last, so sum the recorded stages for a whole-pipeline cost, gate's own
+        # record is written after this by stage_timer so it is not yet counted
+        total = round(sum(r.get("seconds", 0) for r in timeline), 1)
+        progress(f"pipeline {total}s so far: "
+                 + ", ".join(f"{r.get('stage', '?')} {r.get('seconds', '?')}s" for r in timeline))
     for note in result.notes:
         print(f"NOTE: {note}", file=sys.stderr)
     if result.passed:

@@ -111,7 +111,11 @@ def check_gate(project_dir: Path, *, root: Path | None = None,
             data = json.loads(run_status.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             data = {}
-        if not data.get("converged", True):
+        if data.get("state") == "running":
+            failures.append(
+                "_run.json state is running, the coded run was killed mid-pass and never finished, "
+                "re-run it to completion, invariant 4")
+        elif not data.get("converged", True):
             failures.append(
                 "_run.json shows the coded run did not converge, some units still failing, "
                 "run another round, invariant 4")

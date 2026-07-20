@@ -3,6 +3,8 @@ refuses to call a review complete while the surface is not enumerated, a unit is
 left open, or a finding is parked below HIGH. It reads structured cells, a table
 row, a Status line, a Risk line, not free prose."""
 
+import json
+
 from codejury.review.repository.gate import check_gate
 
 _SURFACE = (
@@ -151,3 +153,14 @@ def test_run_status_errors_surface_as_a_note_not_a_failure(tmp_path):
     result = check_gate(ws)
     assert result.passed
     assert any("3 failed model call" in n for n in result.notes)
+
+
+def test_run_state_running_fails_the_gate_without_double_reporting(tmp_path):
+    # a killed run leaves _run.json state=running, which the gate must treat as unfinished, and it
+    # reports that one clear reason rather than also complaining the run did not converge
+    ws = _complete_ws(tmp_path)
+    (ws / "_run.json").write_text(json.dumps({"converged": False, "state": "running"}))
+    result = check_gate(ws)
+    assert not result.passed
+    assert any("state is running" in f for f in result.failures)
+    assert not any("did not converge" in f for f in result.failures)

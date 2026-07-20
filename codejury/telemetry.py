@@ -46,6 +46,16 @@ def _append_timeline(workspace: Path, record: dict, reset: bool = False) -> None
         pass
 
 
+def read_timeline(workspace: Path | str) -> list[dict]:
+    """The recorded stage timeline for a workspace, or empty when none was written or it is
+    unreadable, so a caller summarizing the whole-pipeline cost never fails on a missing file."""
+    try:
+        data = json.loads((Path(workspace) / TIMELINE_FILE).read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
 @contextmanager
 def stage_timer(name: str, workspace: Path | str | None = None, *, reset: bool = False):
     """Time a stage, print its elapsed to stderr on exit, and, when a workspace is given, append

@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from codejury.telemetry import TIMELINE_FILE, progress, stage_timer
+from codejury.telemetry import TIMELINE_FILE, progress, read_timeline, stage_timer
 
 
 def test_progress_writes_to_stderr_not_stdout(capsys):
@@ -50,3 +50,10 @@ def test_a_corrupt_timeline_is_rebuilt_not_raised(tmp_path):
         pass
     timeline = json.loads((tmp_path / TIMELINE_FILE).read_text())
     assert [r["stage"] for r in timeline] == ["gate"]
+
+
+def test_read_timeline_returns_records_and_empty_when_missing(tmp_path):
+    assert read_timeline(tmp_path) == []
+    with stage_timer("run", tmp_path):
+        pass
+    assert [r["stage"] for r in read_timeline(tmp_path)] == ["run"]
