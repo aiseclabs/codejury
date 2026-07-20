@@ -293,8 +293,8 @@ def _entrypoints_md(candidates: list[str], layers: list[str], *, fallback_note: 
 def unit_slug(path: str) -> str:
     """The slug a unit file is named by, derived from the path it owns. Public so the
     engine can recompute the same name when resuming, instead of reaching for a private."""
-    # the .py strip is a legacy nicety, other extensions stay in the slug. The slug only has to
-    # be unique and stable per path, so the inconsistency is cosmetic, not a collision risk
+    # the .py suffix is stripped but other extensions stay in the slug. The slug only has to be
+    # unique and stable per path, so the inconsistency is cosmetic, not a collision risk
     s = path.replace("\\", "/").removesuffix(".py")
     return "".join(c if c.isalnum() else "-" for c in s).strip("-").lower() or "unit"
 
@@ -464,9 +464,10 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
 
     # A library has no application entrypoint, so when none seed, fall back to its public API
     # as the entry surface, invariant 2: reviewing a library from its exported symbols inward
-    # beats reviewing nothing. Only files that expose public API are seeded, so unreachable
-    # internal code stays out. Over max_units it fails loud rather than silently reviewing too
-    # little or launching an unbounded run, invariant 4, the operator narrows scope or raises the cap.
+    # beats reviewing nothing. Only files matching the public-API patterns are seeded, a pattern
+    # approximation of the exported surface, not a proof that internal code is unreachable. Over
+    # max_units it fails loud rather than silently reviewing too little or launching an unbounded
+    # run, invariant 4, the operator narrows scope or raises the cap.
     fallback_note = ""
     if not candidates:
         api = public_api_files(

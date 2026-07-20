@@ -20,9 +20,8 @@ from __future__ import annotations
 # getter or math helper needs none, the file units already cover it
 _RISK_FLAGS = ("external_call", "sends_eth", "can_reenter")
 
-# a unit's code stays small, so the model focuses rather than diluting across a large window,
-# the failure mode the whole-file probe showed. Set above one large function plus a few
-# callees, below the file size that loses the path
+# a unit's code stays small, so the model focuses rather than diluting across a large window.
+# Set above one large function plus a few callees, below the file size that loses the path
 _UNIT_CHAR_CAP = 16_000
 
 
