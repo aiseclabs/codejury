@@ -98,7 +98,7 @@ def run_passes(
         else:
             per_unit = [review_unit(u, lens, rv) for u in units]
         # tag each finding with the model that produced it, so two models reaching the same
-        # finding fold to a consensus a later stage can trust without re-checking
+        # finding fold to a consensus, a stronger signal a later stage can weight
         candidates = [replace(c, found_by=(labels[mi],)) for cands, _err in per_unit for c in cands]
         pass_errors = sum(1 for _cands, err in per_unit if err is not None)
         acc.errors += pass_errors

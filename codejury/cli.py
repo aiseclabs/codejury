@@ -355,7 +355,7 @@ def _add_audit_args(p) -> None:
     p.add_argument("--rounds", type=int, default=3, help="adversarial only: debate rounds")
     _add_executor_arg(p)
     _add_backend_args(p)
-    # adversarial only: finder scans, challenger refutes, judge decides, each defaults to --model
+    # adversarial only: finder scans, challenger refutes, judge decides, each on --model unless a per-role flag or env overrides
     for role in ROLES:
         _add_role_backend_args(p, role)
     p.add_argument("--format", choices=_FORMATS, default="text", dest="fmt")
@@ -613,8 +613,9 @@ def _cmd_review_diff(args) -> int:
             )
         print(render(args.fmt, kept, _diff_source_meta(args)))
         if degraded:
-            # the adversarial judge was unusable and the result fell back to the
-            # unjudged set, so this is a failed audit, not a clean pass, invariant 4
+            # the adversarial judge was unusable and the result fell back to the finder set minus
+            # the challenger's dismissals plus its new findings, unjudged, a failed audit not a
+            # clean pass, invariant 4
             print("error: the adversarial audit degraded on an unusable judge reply, "
                   "the result is incomplete and not a clean pass", file=sys.stderr)
         return 1 if degraded or gate(kept, args.fail_on) else 0

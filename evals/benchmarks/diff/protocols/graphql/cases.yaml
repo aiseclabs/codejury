@@ -5,7 +5,6 @@
 # carries none and must stay clean. The loader concatenates every cases.yaml under
 # benchmarks/diff, so this file joins the library without any wiring.
 cases:
-  # GraphQL protocol cases, protocols/graphql, NestJS
   - name: graphql-resolver-idor
     category: insecure-direct-object-reference
     knowledge:

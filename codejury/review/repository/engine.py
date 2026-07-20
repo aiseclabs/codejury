@@ -464,8 +464,8 @@ def apply_verification(
         verifier = ModelVerifier(provider=provider, model=model, content=content)
     verified = {} if fresh else _load_verified(ws)
     pending = [c for c in findings if _keystr(c, by_file) not in verified]
-    # consensus skips the route: two models surfacing the same finding independently is a stronger
-    # signal than a re-check, which would only risk a wrong drop while spending calls
+    # consensus skips the verify route: two models surfacing the same finding independently is a
+    # strong signal, so verifying it spends calls for little gain and risks a wrong drop
     consensus = [c for c in pending if len(set(c.found_by)) >= 2]
     for c in consensus:
         verified[_keystr(c, by_file)] = {"real": True, "reason": "consensus of models"}

@@ -905,5 +905,5 @@ def test_run_writes_timing_and_state_to_run_json(tmp_path):
     assert isinstance(timing["total_seconds"], (int, float))
     assert timing["per_pass"] and all("seconds" in p for p in timing["per_pass"])
     names = [u["unit"] for u in timing["slowest_units"]]
-    assert names and len(names) == len(set(names))          # distinct units, none repeated
+    assert names and len(names) == len(set(names))
     assert set(names) <= {"a.py", "b.py"}

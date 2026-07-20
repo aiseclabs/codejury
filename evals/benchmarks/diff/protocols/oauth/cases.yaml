@@ -5,7 +5,6 @@
 # carries none and must stay clean. The loader concatenates every cases.yaml under
 # benchmarks/diff, so this file joins the library without any wiring.
 cases:
-  # OAuth protocol cases, protocols/oauth, Flask
   - name: oauth-missing-state
     category: cross-site-request-forgery
     knowledge:

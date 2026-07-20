@@ -270,10 +270,10 @@ class AdversarialAuditRunner:
             if not judge_ok:
                 verdict, judge_ok = self._ask(JUDGE_SYSTEM, jp, self._judge)
             if not judge_ok:
-                # judge still unusable: degrade, but apply the recall-safe
-                # challenger dismissals so a transient judge outage does not pass
-                # through findings the challenger already showed are safe. without
-                # this the degraded fallback inflates false positives
+                # judge still unusable: degrade, and apply the challenger's dismissals so a
+                # transient judge outage does not pass through the findings it dismissed. this
+                # trusts the challenger without the judge, a false-positive tradeoff, which is
+                # why the result is marked degraded
                 fallback = _dedup(_apply_dismissals(finder_findings, rebuttals) + new_findings)
                 judged = AdversarialResult(findings=findings_from_list(fallback), rounds=rounds, degraded=True)
                 degraded = True

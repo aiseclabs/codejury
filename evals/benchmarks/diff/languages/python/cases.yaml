@@ -4,7 +4,6 @@
 # coverage matrix attributes it. The loader concatenates every cases.yaml under
 # benchmarks/diff, so a language file joins the library without any wiring.
 cases:
-  # Python, injection positives
   - name: sqli
     category: sql-injection
     knowledge:
@@ -105,7 +104,6 @@ cases:
       +    import pickle
       +    return pickle.loads(req.get_data())
 
-  # Python, web positives
   - name: xss
     category: cross-site-scripting
     knowledge:
@@ -178,7 +176,6 @@ cases:
       +def transfer(request):
            move_funds(request.user, request.POST["to"], request.POST["amount"])
 
-  # Python, auth and logic positives
   - name: idor
     category: insecure-direct-object-reference
     knowledge:
@@ -312,7 +309,6 @@ cases:
       +        account.save()
       +        return True
 
-  # Python, exposure positives
   - name: information-exposure
     category: information-exposure
     knowledge:
@@ -756,7 +752,6 @@ cases:
        import os, stripe
       +stripe.api_key = os.environ["STRIPE_API_KEY"]
 
-  # FastAPI framework cases, frameworks/python/fastapi
   - name: fastapi-idor
     category: insecure-direct-object-reference
     knowledge:
@@ -972,7 +967,6 @@ cases:
       +    safe = os.path.basename(name)
       +    return FileResponse(os.path.join("/srv/files", safe))
 
-  # Django framework cases, frameworks/python/django
   - name: django-sqli-raw
     category: sql-injection
     knowledge:
@@ -1155,7 +1149,6 @@ cases:
       +        nxt = "/"
       +    return redirect(nxt)
 
-  # Flask framework cases, frameworks/python/flask
   - name: flask-sqli
     category: sql-injection
     knowledge:
@@ -1350,7 +1343,6 @@ cases:
       +        abort(400)
       +    return requests.get(request.args["url"]).text
 
-  # Celery framework cases, frameworks/python/celery
   - name: celery-pickle-serializer
     category: insecure-deserialization
     knowledge:

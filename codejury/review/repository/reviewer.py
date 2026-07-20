@@ -35,8 +35,8 @@ class RepositoryReviewError(RuntimeError):
 
 # a cap on the per-unit facts block, so a unit owning many files still leads with code, not
 # a flood of facts. Per-unit facts are already scoped to the unit's files, so this is a
-# guard against a unit that owns many files, set above the largest single contract's facts
-# so a unit of one file is never truncated, not the head truncation a global dump needs
+# guard against a unit that owns many files, set above a typical single contract's facts so a
+# one-file unit rarely hits the cap, not the head truncation a global dump needs
 _FACTS_PER_UNIT = 16_000
 
 

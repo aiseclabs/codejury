@@ -4,7 +4,6 @@
 # coverage matrix attributes it. The loader concatenates every cases.yaml under
 # benchmarks/diff, so a language file joins the library without any wiring.
 cases:
-  # JavaScript core
   - name: cmdi-js
     category: command-injection
     knowledge:
@@ -19,7 +18,6 @@ cases:
       +  const { exec } = require('child_process')
       +  exec('ping -c 1 ' + req.query.host, cb)
 
-  # Express framework cases, frameworks/javascript/express
   - name: sqli-js
     category: sql-injection
     knowledge:

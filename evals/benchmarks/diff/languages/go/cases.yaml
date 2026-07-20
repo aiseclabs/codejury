@@ -4,7 +4,6 @@
 # coverage matrix attributes it. The loader concatenates every cases.yaml under
 # benchmarks/diff, so a language file joins the library without any wiring.
 cases:
-  # Go core
   - name: path-traversal-go
     category: path-traversal
     knowledge:
@@ -33,7 +32,6 @@ cases:
       +    f, _ := os.Open(filepath.Join("/srv/public", name))
       +    io.Copy(w, f)
 
-  # Gin framework cases, frameworks/go/gin
   - name: gin-sqli
     category: sql-injection
     knowledge:
@@ -216,7 +214,6 @@ cases:
       +    c.ShouldBindJSON(&in)
       +    db.Model(&current).Update("display_name", in.DisplayName)
 
-  # Echo framework cases, frameworks/go/echo
   - name: echo-sqli
     category: sql-injection
     knowledge:

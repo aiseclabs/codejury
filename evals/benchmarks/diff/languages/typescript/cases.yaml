@@ -4,7 +4,6 @@
 # coverage matrix attributes it. The loader concatenates every cases.yaml under
 # benchmarks/diff, so a language file joins the library without any wiring.
 cases:
-  # NestJS framework cases, frameworks/javascript/nestjs, TypeScript
   - name: nest-sqli
     category: sql-injection
     knowledge:
