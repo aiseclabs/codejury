@@ -181,7 +181,6 @@ def test_audit_runner_sends_the_severity_rubric():
 
 
 def test_audit_diff_reports_one_progress_call_per_batch(monkeypatch):
-    # a batched diff fires on_batch once per batch with a rising counter, so a long run shows movement
     monkeypatch.setattr("codejury.review.diff.engine._MAX_DIFF_CHARS", 1)
     two = _SRC + "diff --git a/other.py b/other.py\n@@ -0,0 +1 @@\n+y = 2\n"
     seen = []

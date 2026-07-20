@@ -19,6 +19,7 @@ import subprocess
 from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
+from time import perf_counter
 
 from codejury.detection import load_detection
 from codejury.domains.base import BackendUnavailable, ContentPaths, Domain
@@ -368,11 +369,14 @@ def _save_union(ws: Path, cands: list[Candidate]) -> None:
         encoding="utf-8")
 
 
-def _save_run_status(ws: Path, *, units_total: int, acc, verify) -> None:
+def _save_run_status(ws: Path, *, units_total: int, acc, verify, timing: dict | None = None,
+                     state: str = "converged") -> None:
     """Persist the coded run's coverage and failure state, which otherwise lives only in the
     accumulator in memory and is lost when the process exits. A later finalize or gate can then
     read whether the run converged and how many reviews failed, so a failed run stays visible
-    across steps and is never resumed as if it were clean, invariant 4."""
+    across steps and is never resumed as if it were clean, invariant 4. Written once per pass with
+    `state` "running" so a kill mid-run leaves a progress snapshot, and once at the end with the
+    final state and `timing`."""
     status = {
         "units_total": units_total,
         "units_reviewed": units_total - len(acc.failed_units),
@@ -380,7 +384,10 @@ def _save_run_status(ws: Path, *, units_total: int, acc, verify) -> None:
         "errors": acc.errors,
         "verify_errors": verify.errors if verify else 0,
         "converged": acc.converged,
+        "state": state,
     }
+    if timing is not None:
+        status["timing"] = timing
     (ws / "_run.json").write_text(json.dumps(status, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
@@ -866,10 +873,27 @@ def run_repository_review(
     for p, m in extra_finder_backends:
         reviewers.append(_make_reviewer(p, m))
 
+    run_started = perf_counter()
+    pass_records: list[dict] = []
+    unit_times: list[tuple[str, float]] = []
+    last_pass_end = run_started
+
+    def _timed_on_pass(pass_no, lens, new, union_size):
+        nonlocal last_pass_end
+        now = perf_counter()
+        pass_records.append({"pass": pass_no, "lens": lens, "new": new, "seconds": round(now - last_pass_end, 1)})
+        last_pass_end = now
+        # a snapshot each pass so a kill mid-run leaves progress, state marks it not yet final
+        _save_run_status(ws, units_total=len(units), acc=acc, verify=None, state="running",
+                         timing={"total_seconds": round(now - run_started, 1), "per_pass": pass_records})
+        if on_pass is not None:
+            on_pass(pass_no, lens, new, union_size)
+
     run_passes(
         open_units, reviewers, lenses=domain.lenses,
         converge_after=converge_after, min_lens_shots=min_lens_shots, max_passes=max_passes,
-        shared_context=shared, concurrency=concurrency, on_pass=on_pass,
+        shared_context=shared, concurrency=concurrency, on_pass=_timed_on_pass,
+        on_unit=lambda name, secs: unit_times.append((name, secs)),
         persist=lambda f: _save_union(ws, f), accumulator=acc,
     )
     _save_union(ws, acc.findings)
@@ -892,7 +916,19 @@ def run_repository_review(
         )
 
     _write_surface(ws, units, acc.failed_units)
-    _save_run_status(ws, units_total=len(units), acc=acc, verify=vr)
+    # sum a unit's time across the passes that reviewed it, so slowest names distinct units, not
+    # one unit repeated per pass
+    unit_totals: dict[str, float] = {}
+    for name, secs in unit_times:
+        unit_totals[name] = round(unit_totals.get(name, 0.0) + secs, 1)
+    slowest = sorted(unit_totals.items(), key=lambda t: t[1], reverse=True)[:5]
+    timing = {
+        "total_seconds": round(perf_counter() - run_started, 1),  # the whole coded run, passes and verify
+        "per_pass": pass_records,
+        "slowest_units": [{"unit": name, "seconds": secs} for name, secs in slowest],
+    }
+    state = "converged" if acc.converged and not acc.failed_units else "incomplete"
+    _save_run_status(ws, units_total=len(units), acc=acc, verify=vr, timing=timing, state=state)
     _write_findings(ws, findings, root)
     _write_pocs_report(ws, findings)
     return RunResult(scaffold=res, accumulator=acc, units=len(units), verify=vr)

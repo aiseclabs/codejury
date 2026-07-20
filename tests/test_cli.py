@@ -704,8 +704,7 @@ def test_facts_default_is_on_for_a_backend_domain_but_off_at_low_effort():
 
 
 def test_repository_stages_record_a_whole_pipeline_timeline(tmp_path):
-    # each stage command appends its elapsed to one workspace timeline, so the whole-pipeline
-    # cost is readable across the separate commands; a re-scaffold starts the timeline fresh
+    # one timeline spans the separate stage commands, and a re-scaffold starts it fresh
     from codejury.telemetry import TIMELINE_FILE
     repo = tmp_path / "svc"
     repo.mkdir()

@@ -11,8 +11,10 @@ comprehensive and does not vary run to run.
 
 from __future__ import annotations
 
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from time import perf_counter
 from typing import Callable
 
 from codejury.domains.registry import default_domain
@@ -36,6 +38,7 @@ def run_passes(
     shared_context: str = "",
     concurrency: int = 6,
     on_pass: Callable[[int, str, int, int], None] | None = None,
+    on_unit: Callable[[str, float], None] | None = None,
     persist: Callable[[list], None] | None = None,
     accumulator: Accumulator | None = None,
 ) -> Accumulator:
@@ -48,7 +51,8 @@ def run_passes(
     ceiling. Passes run in order, but the units within a pass are independent, so they run
     concurrently up to `concurrency`, since each is a network bound model call. Results are
     merged in unit order, so the converged finding set is the same as a serial run.
-    The pass callback is called after each pass.
+    The pass callback is called after each pass. The unit callback is called as each unit review
+    completes, with its name and elapsed seconds, serialized since the units run concurrently.
 
     Convergence needs two signals, not one. The union must have saturated, the last
     `converge_after` passes added nothing, and every lens must have fired at least
@@ -69,11 +73,18 @@ def run_passes(
     reviewed_ok: set[str] = set()
     lens_shots: dict[str, int] = {}
 
+    unit_lock = threading.Lock()  # serialize on_unit, since units in a pass run concurrently
+
     def review_unit(unit: Unit, lens: str, rv: UnitReviewer):
+        started = perf_counter()
         try:
-            return rv.review(unit, lens, shared_context=shared_context), None
+            result = rv.review(unit, lens, shared_context=shared_context), None
         except Exception as exc:
-            return [], exc
+            result = [], exc
+        if on_unit is not None:
+            with unit_lock:
+                on_unit(unit.name, round(perf_counter() - started, 1))
+        return result
 
     for i in range(max_passes):
         lens = lenses[i % len(lenses)]

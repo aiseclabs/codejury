@@ -886,3 +886,24 @@ def test_seed_run_units_seeds_split_units_and_prunes_orphan(tmp_path):
     _seed_run_units(tmp_path, units, default_domain().paths)
     got = {p.name for p in (tmp_path / "units").glob("*.md")}
     assert got == {"foo-py-1.md", "foo-py-2.md"}
+
+
+def test_run_writes_timing_and_state_to_run_json(tmp_path):
+    # slowest_units aggregates distinct units, not one entry per pass that reviewed the same unit
+    from codejury.review.repository.scaffold import scaffold
+    repo = tmp_path / "svc"
+    repo.mkdir()
+    (repo / "a.py").write_text("def get(request, id):\n    return M.objects.get(id=id)\n")
+    (repo / "b.py").write_text("def other():\n    return 1\n")
+    ws = tmp_path / "ws"
+    scaffold(str(repo), str(ws))
+    run_repository_review(str(repo), str(ws), provider=MockProvider(default='{"findings": []}'),
+                          model="mock", verify=False)
+    run = json.loads((ws / "svc" / "_run.json").read_text())
+    assert run["state"] == "converged"
+    timing = run["timing"]
+    assert isinstance(timing["total_seconds"], (int, float))
+    assert timing["per_pass"] and all("seconds" in p for p in timing["per_pass"])
+    names = [u["unit"] for u in timing["slowest_units"]]
+    assert names and len(names) == len(set(names))          # distinct units, none repeated
+    assert set(names) <= {"a.py", "b.py"}
