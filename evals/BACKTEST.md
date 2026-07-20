@@ -32,8 +32,9 @@ Pick a persistent location, a data volume or a home subdirectory.
 ## Targets and Order
 
 Do not hardcode a target list, derive it. The targets are every `benchmark.yaml` under
-`benchmarks/repository/`. For each, read `target.url`, `target.ref`, and `target.path`, the review
-scope, and read the sibling `answer-key.yaml` for the `planted` count and the categories.
+`benchmarks/repository/`. For each, read its pointer, a git `target.url` with `ref` and `path`
+or an explorer `target.chain` and `address`, the review scope, and read the sibling
+`answer-key.yaml` for the `planted` count and the categories.
 
 Order by information value over token cost, the same rule each run so the order is reproducible
 from the data:

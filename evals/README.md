@@ -64,7 +64,7 @@ target sits at `repository/frameworks/<language>/<framework>/<name>`, for exampl
 also sit flat at `repository/<name>`, the id is the leaf directory name either way, so the grouping
 path never renames a benchmark.
 
-A `benchmark.yaml` is the manifest, the clone pointer, never vendored code, plus the
+A `benchmark.yaml` is the manifest, a git or explorer pointer, never vendored code, plus the
 stack and the knowledge the target exercises, so the coverage matrix can attribute it. The
 legacy `target.yaml` carrying only the pointer is still read, so a private benchmark need
 not be reshaped.
@@ -134,8 +134,8 @@ codejury review repository /tmp/owui/backend/apps/webui --workspace /tmp/cj-owui
 #    anything. --run needs detectable entrypoints, a no-entrypoint scope such as a plain library
 #    or a frontend-template-only directory must take the agent path, which enumerates them by reading.
 
-# 2. score it, prefer --findings-json, findings/ collapses findings on one endpoint of
-#    different classes into a single file, so --findings-dir can undercount the reports
+# 2. score it, prefer --findings-json for the ranked list, findings/ names each file by
+#    candidate and category so two classes on one endpoint stay distinct, not collapsed
 python -m evals repository open-webui --findings-json /tmp/cj-owui/webui/findings.json --json after.json
 
 # 3. compare two versions, --by groups the flips by an axis to see where a move landed

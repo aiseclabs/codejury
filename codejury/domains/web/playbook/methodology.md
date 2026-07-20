@@ -124,7 +124,8 @@ A unit looked at in passing by the orchestrator is the shallow whole-repository 
 method exists to replace, and it is the single thing that drops recall.
 
 Give each sub-review only its slice plus the shared artifacts: `_stack.md`, the
-inventory's auth model, the seeded `inventory/_invariants.md`, and `_vulnerabilities.md`.
+inventory's auth model, the seeded `inventory/_invariants.md`, `_vulnerabilities.md`,
+`_false_positive_traps.md`, and the severity inventory `inventory/_severity.md`.
 Each sub-review follows the full mandate below:
 
 1. **Traces** every entrypoint in its unit out of the view into the managers,

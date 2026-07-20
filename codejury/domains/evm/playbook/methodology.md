@@ -33,7 +33,8 @@ Finalize confirms them into `findings/`.
 ## On Start
 
 1. Read `_stack.md`, the Solidity review notes, so you know where contract entrypoints,
-   value, and sinks live.
+   value, and sinks live. Read `_facts.md` when it is present, the Slither-derived call
+   graph and storage facts the scaffold extracted.
 2. Read the relevant classes in `_vulnerabilities.md` and `_false_positive_traps.md`. You
    apply both per unit, not from memory.
 
