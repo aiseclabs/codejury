@@ -1,8 +1,9 @@
-"""Diff-audit orchestration plus the thin CLI surface.
+"""The CLI surface: diff and repository command parsing, backend seat resolution, and dispatch,
+plus the shared diff-audit helpers.
 
-A diff over the size budget is packed into size-bounded batches and audited batch by
-batch so a big PR does not overflow the model context and silently truncate the reply.
-The findings are then de-duplicated.
+A diff over the size budget is packed into size-bounded batches and audited batch by batch so a
+big PR does not overflow the model context and silently truncate the reply. The findings are then
+de-duplicated.
 """
 
 import json

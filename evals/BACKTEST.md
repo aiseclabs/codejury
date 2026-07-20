@@ -3,7 +3,7 @@
 A self-contained runbook for scoring whole-repository recall across the committed public suite. A
 fresh session reads this file and drives the whole batch, no extra explanation. It reproduces
 on any machine from the repository alone, no private data, since every target and its answer key are
-committed under `benchmarks/`.
+committed under `evals/benchmarks/`.
 
 Read this together with the `Run` section of `README.md`, which scores one target and states
 the two product paths. This file is the batch layer over that, the order, the resume, and the

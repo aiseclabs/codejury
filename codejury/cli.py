@@ -1,4 +1,4 @@
-"""Command line interface: thin argument parsing and dispatch.
+"""Command line interface: argument parsing, backend seat resolution, and command dispatch.
 
 Two paths matched to their nature:
 
@@ -596,31 +596,32 @@ def _cmd_review_diff(args) -> int:
         domain = resolve_domain(args.domain, _diff_paths(diff))
         (provider, model, finder_provider, finder_model,
          challenger_provider, challenger_model, judge_provider, judge_model) = build_diff_providers(args)
-    _, skipped_noise = strip_noise_files(diff, load_detection(domain.paths.detection_file))
-    if skipped_noise:
-        shown = ", ".join(skipped_noise[:5])
-        more = f", and {len(skipped_noise) - 5} more" if len(skipped_noise) > 5 else ""
-        progress(f"skipped {len(skipped_noise)} non-source file(s): {shown}{more}")
-    with stage_timer("diff review"):
-        kept, _, degraded = audit_diff(
-            diff, provider=provider, model=model,
-            mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
-            finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
-            finder_provider=finder_provider, challenger_provider=challenger_provider, judge_provider=judge_provider,
-            exclude_paths=tuple(args.exclude or ()), domain=domain,
-            on_batch=lambda done, total, secs: progress(f"batch {done}/{total} ({secs}s)"),
-        )
-    print(render(args.fmt, kept, _diff_source_meta(args)))
-    if degraded:
-        # the adversarial judge was unusable and the result fell back to the
-        # unjudged set, so this is a failed audit, not a clean pass, invariant 4
-        print("error: the adversarial audit degraded on an unusable judge reply, "
-              "the result is incomplete and not a clean pass", file=sys.stderr)
-    rc = 1 if degraded or gate(kept, args.fail_on) else 0
-    # a diff seat on the subscription may hold a persistent SDK session, close it like the
-    # repository paths do so its pooled Claude Code processes do not leak past the run
-    _close_backends(provider, finder_provider, challenger_provider, judge_provider)
-    return rc
+    # close the seats in finally so a failure mid-audit does not leak a subscription seat's pooled
+    # Claude Code processes past the run
+    try:
+        _, skipped_noise = strip_noise_files(diff, load_detection(domain.paths.detection_file))
+        if skipped_noise:
+            shown = ", ".join(skipped_noise[:5])
+            more = f", and {len(skipped_noise) - 5} more" if len(skipped_noise) > 5 else ""
+            progress(f"skipped {len(skipped_noise)} non-source file(s): {shown}{more}")
+        with stage_timer("diff review"):
+            kept, _, degraded = audit_diff(
+                diff, provider=provider, model=model,
+                mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
+                finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
+                finder_provider=finder_provider, challenger_provider=challenger_provider, judge_provider=judge_provider,
+                exclude_paths=tuple(args.exclude or ()), domain=domain,
+                on_batch=lambda done, total, secs: progress(f"batch {done}/{total} ({secs}s)"),
+            )
+        print(render(args.fmt, kept, _diff_source_meta(args)))
+        if degraded:
+            # the adversarial judge was unusable and the result fell back to the
+            # unjudged set, so this is a failed audit, not a clean pass, invariant 4
+            print("error: the adversarial audit degraded on an unusable judge reply, "
+                  "the result is incomplete and not a clean pass", file=sys.stderr)
+        return 1 if degraded or gate(kept, args.fail_on) else 0
+    finally:
+        _close_backends(provider, finder_provider, challenger_provider, judge_provider)
 
 
 def _repo_ws(args) -> Path:
@@ -717,24 +718,26 @@ def _cmd_repository_finalize(args) -> int:
                 gen_provider = _role_provider(args, base)
             poc_backend_obj = domain.poc_backend(provider=gen_provider, model=base["model"])
     print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
-    fr = finalize_repository_review(
-        args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
-        provider=provider, model=args.model, verify=args.verify, votes=args.votes,
-        concurrency=args.concurrency, domain=domain, poc_backend=poc_backend_obj,
-        on_verify=_verify_progress,
-    )
-    kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
-    refuted = len(fr.verify.refuted) if fr.verify else 0
-    print(f"Finalize done: parsed {fr.parsed} candidates -> {fr.deduped} after dedup -> "
-          f"{kept} confirmed, {refuted} refuted, see {fr.workspace}/_refuted.md.")
-    print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json")
-    if (Path(fr.workspace) / "_pocs.md").exists():
-        print(f"PoC reconciliation in {fr.workspace}/_pocs.md")
-    _close_backends(verifier_obj, *(chk for _label, chk in confirmers))
-    if fr.verify and fr.verify.errors:
-        print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
-        return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 4
-    return 0
+    try:
+        fr = finalize_repository_review(
+            args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
+            provider=provider, model=args.model, verify=args.verify, votes=args.votes,
+            concurrency=args.concurrency, domain=domain, poc_backend=poc_backend_obj,
+            on_verify=_verify_progress,
+        )
+        kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
+        refuted = len(fr.verify.refuted) if fr.verify else 0
+        print(f"Finalize done: parsed {fr.parsed} candidates -> {fr.deduped} after dedup -> "
+              f"{kept} confirmed, {refuted} refuted, see {fr.workspace}/_refuted.md.")
+        print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json")
+        if (Path(fr.workspace) / "_pocs.md").exists():
+            print(f"PoC reconciliation in {fr.workspace}/_pocs.md")
+        if fr.verify and fr.verify.errors:
+            print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
+            return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 4
+        return 0
+    finally:
+        _close_backends(verifier_obj, *(chk for _label, chk in confirmers))
 
 
 def _facts_enabled(args, domain) -> bool:
@@ -803,48 +806,50 @@ def _cmd_repository_run(args) -> int:
 
     _note_verify_route(args, confirmers)
     print(f"Running the coded multi-pass engine over {args.directory} ...", file=sys.stderr)
-    res = run_repository_review(
-        args.directory, args.workspace, provider=provider, model=model,
-        reviewer=reviewer_obj, verifier=verifier_obj, confirmers=confirmers,
-        verify=args.verify, votes=args.votes,
-        max_passes=args.max_passes, converge_after=args.converge_after,
-        min_lens_shots=args.min_lens_shots,
-        concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress, on_verify=_verify_progress,
-        domain=domain,
-        facts=_facts_enabled(args, domain),
-        max_units=args.max_units,
-        invariants=args.invariants,
-    )
-    if res.scaffold.fallback_note:
-        print(f"NOTE: {res.scaffold.fallback_note}.", file=sys.stderr)
-    if res.scaffold.invariants_note:
-        print(f"NOTE: {res.scaffold.invariants_note}.", file=sys.stderr)
-    acc = res.accumulator
-    reported = res.verify.confirmed if res.verify else acc.findings
-    by_sev: dict[str, int] = {}
-    for c in reported:
-        by_sev[c.severity] = by_sev.get(c.severity, 0) + 1
-    print(f"Engine done: {res.units} units, {len(acc.new_per_pass)} passes, converged={acc.converged}.")
-    if res.verify is not None:
-        print(f"Union {len(acc.findings)} -> verified {len(reported)} confirmed, "
-              f"{len(res.verify.refuted)} refuted, see {res.scaffold.workspace}/_refuted.md.")
-    print(f"{len(reported)} findings: " + ", ".join(
-        f"{by_sev.get(s, 0)} {s}" for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")))
-    failures = acc.errors + (res.verify.errors if res.verify else 0)
-    if failures:
-        print(f"WARNING: {failures} model calls failed, e.g. provider errors or rate limits. "
-              "Results may be understated. Lower --concurrency or raise --retries and re-run.",
-              file=sys.stderr)
-    if not acc.converged:
-        print(f"WARNING: the union did not converge within {args.max_passes} passes, it was "
-              "still finding new issues when the cap stopped it. Coverage is incomplete and "
-              "recall is not guaranteed. Raise --max-passes or narrow the scope and re-run.",
-              file=sys.stderr)
-    print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
-    _close_backends(reviewer_obj, verifier_obj, *(chk for _label, chk in confirmers))
-    # fail loud: a partial run or a run still finding issues at the cap must not exit clean,
-    # invariant 4 and the stability red line, so a non-converged run is not reported as done
-    return 1 if failures or not acc.converged else 0
+    try:
+        res = run_repository_review(
+            args.directory, args.workspace, provider=provider, model=model,
+            reviewer=reviewer_obj, verifier=verifier_obj, confirmers=confirmers,
+            verify=args.verify, votes=args.votes,
+            max_passes=args.max_passes, converge_after=args.converge_after,
+            min_lens_shots=args.min_lens_shots,
+            concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress, on_verify=_verify_progress,
+            domain=domain,
+            facts=_facts_enabled(args, domain),
+            max_units=args.max_units,
+            invariants=args.invariants,
+        )
+        if res.scaffold.fallback_note:
+            print(f"NOTE: {res.scaffold.fallback_note}.", file=sys.stderr)
+        if res.scaffold.invariants_note:
+            print(f"NOTE: {res.scaffold.invariants_note}.", file=sys.stderr)
+        acc = res.accumulator
+        reported = res.verify.confirmed if res.verify else acc.findings
+        by_sev: dict[str, int] = {}
+        for c in reported:
+            by_sev[c.severity] = by_sev.get(c.severity, 0) + 1
+        print(f"Engine done: {res.units} units, {len(acc.new_per_pass)} passes, converged={acc.converged}.")
+        if res.verify is not None:
+            print(f"Union {len(acc.findings)} -> verified {len(reported)} confirmed, "
+                  f"{len(res.verify.refuted)} refuted, see {res.scaffold.workspace}/_refuted.md.")
+        print(f"{len(reported)} findings: " + ", ".join(
+            f"{by_sev.get(s, 0)} {s}" for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW")))
+        failures = acc.errors + (res.verify.errors if res.verify else 0)
+        if failures:
+            print(f"WARNING: {failures} model calls failed, e.g. provider errors or rate limits. "
+                  "Results may be understated. Lower --concurrency or raise --retries and re-run.",
+                  file=sys.stderr)
+        if not acc.converged:
+            print(f"WARNING: the union did not converge within {args.max_passes} passes, it was "
+                  "still finding new issues when the cap stopped it. Coverage is incomplete and "
+                  "recall is not guaranteed. Raise --max-passes or narrow the scope and re-run.",
+                  file=sys.stderr)
+        print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
+        # fail loud: a partial run or a run still finding issues at the cap must not exit clean,
+        # invariant 4 and the stability red line, so a non-converged run is not reported as done
+        return 1 if failures or not acc.converged else 0
+    finally:
+        _close_backends(reviewer_obj, verifier_obj, *(chk for _label, chk in confirmers))
 
 
 @_timed_stage("scaffold", reset=True)

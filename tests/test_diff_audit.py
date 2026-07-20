@@ -187,3 +187,15 @@ def test_audit_diff_reports_one_progress_call_per_batch(monkeypatch):
     audit_diff(two, provider=MockProvider(default='{"findings": []}'), model="m",
                on_batch=lambda done, total, secs: seen.append((done, total)))
     assert seen == [(1, 2), (2, 2)]
+
+
+def test_findings_filter_uses_the_passed_detection():
+    # a .t.sol test file at the repo root is a test path under evm conventions but not the web
+    # default, so the filter must use the selected domain's detection, not the global default
+    from codejury.detection import load_detection
+    from codejury.domains.registry import resolve_domain
+    evm = load_detection(resolve_domain("evm").paths.detection_file)
+    f = _f("Counter.t.sol")
+    assert FindingsFilter().filter([f])[0] == [f]
+    kept, dropped = FindingsFilter(detection=evm).filter([f])
+    assert kept == [] and dropped and "test path" in dropped[0][1]

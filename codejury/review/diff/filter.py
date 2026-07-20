@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from codejury.detection import load_detection
+from codejury.detection import Detection, load_detection
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -21,6 +21,8 @@ class FindingsFilter:
     min_confidence: float = 0.5
     drop_test_paths: bool = True
     exclude_paths: tuple[str, ...] = field(default_factory=tuple)
+    # the selected domain's detection, so an evm diff uses solidity test conventions, not the web default
+    detection: Detection | None = None
 
     def filter(self, findings: list) -> tuple[list, list[tuple[object, str]]]:
         kept: list = []
@@ -37,7 +39,7 @@ class FindingsFilter:
         if f.confidence < self.min_confidence:
             return f"confidence {f.confidence:.2f} below floor {self.min_confidence:.2f}"
         path = f.file or ""
-        if self.drop_test_paths and load_detection().is_test_path(path):
+        if self.drop_test_paths and (self.detection or load_detection()).is_test_path(path):
             return "test path (test/mock/fixture directory or test-file naming)"
         match = next((e for e in self.exclude_paths if e and e in path), None)
         if match:

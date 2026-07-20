@@ -140,7 +140,8 @@ def audit_diff(
     domain = domain or default_domain()
     content = domain.paths
     focus, do_not_report = domain.diff_focus, domain.diff_do_not_report
-    diff, _ = strip_noise_files(diff, load_detection(content.detection_file))
+    detection = load_detection(content.detection_file)
+    diff, _ = strip_noise_files(diff, detection)
     if not diff.strip():
         # nothing but noise survived the strip, so there is no source to review, a clean
         # result rather than a failed one, invariant 4
@@ -177,6 +178,6 @@ def audit_diff(
     allowed = set(allowed_categories(content.vulnerabilities_dir))
     findings = [dataclasses.replace(f, category=normalize_category(f.category, allowed)) for f in findings]
     if filter_findings:
-        kept, dropped = FindingsFilter(exclude_paths=exclude_paths).filter(findings)
+        kept, dropped = FindingsFilter(exclude_paths=exclude_paths, detection=detection).filter(findings)
         return kept, dropped, degraded
     return findings, [], degraded
