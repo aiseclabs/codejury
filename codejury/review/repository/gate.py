@@ -1,12 +1,12 @@
 """The Completeness Gate over a fan-out review workspace.
 
-The whole-repository review is agent-driven, not a coded pipeline, so this does not run
-or judge the review. It reads the workspace's own bookkeeping and refuses to call a
-review complete while it is unfinished: the attack surface not enumerated, a unit
-left un-reviewed, or a finding parked below HIGH. It is a structural floor, not a
-recall guarantee: it verifies the inventory denominator is built and every unit
-carries a verdict, never that every real issue was found. Recall is a property the
-fan-out and the re-runs carry, not something a checker can assert.
+The whole-repository review runs as a coded pass or an agent fan-out, and either way this
+does not run or judge the review. It reads the workspace's own bookkeeping and refuses to
+call a review complete while it is unfinished: the attack surface not enumerated, a unit
+left un-reviewed, or a candidate left ungraded by the rubric. It is a structural floor, not
+a recall guarantee: it verifies the inventory denominator is built and every unit carries a
+verdict, never that every real issue was found. Recall is a property the passes and the
+re-runs carry, not something a checker can assert.
 
 Each check reads a structured cell, a table row, a Status line, a Risk line, never a
 free-prose claim, so the agent cannot clear it by writing a word.

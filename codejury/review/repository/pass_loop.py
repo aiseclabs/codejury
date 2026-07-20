@@ -5,8 +5,8 @@ code, not prose. It runs the whole unit worklist every pass, cycles a different 
 each pass so the passes' blind spots land in different places, folds every pass into
 the running union, and stops only when the union has converged. The per-unit
 judgment is delegated to an injected `UnitReviewer`. Everything here, coverage,
-diversity, accumulation, and the stop condition, is fixed by code so the result is
-comprehensive and does not vary run to run.
+diversity, accumulation, and the stop condition, is fixed by code, so the orchestration
+does not vary run to run, even though the model's per-unit findings do.
 """
 
 from __future__ import annotations

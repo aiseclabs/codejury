@@ -1,7 +1,7 @@
 """The Completeness Gate check over a fan-out workspace: a structural floor that
 refuses to call a review complete while the surface is not enumerated, a unit is
-left open, or a finding is parked below HIGH. It reads structured cells, a table
-row, a Status line, a Risk line, not free prose."""
+left open, or a candidate is left ungraded by the rubric. It reads structured cells, a
+table row, a Status line, a Risk line, not free prose."""
 
 import json
 

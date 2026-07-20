@@ -165,10 +165,12 @@ def _loc(d: dict) -> str:
 
 
 def _apply_dismissals(findings: list[dict], rebuttals: list[dict]) -> list[dict]:
-    """Drop findings the challenger dismissed. The challenger is recall-safe: it
-    dismisses only when the diff shows a safe pattern such as a parameterized query,
-    a basename, an allowlist, or shell=False, so honoring its dismissals is sound even
-    when the judge is unavailable."""
+    """Drop the findings the challenger dismissed. Used only on the degraded path when the
+    judge is unusable. The challenger dismisses when the diff shows a safe pattern such as a
+    parameterized query, a basename, an allowlist, or shell=False, so applying its dismissals
+    holds down false positives instead of passing the whole finder set through. A wrong
+    dismissal is possible, so the fallback that uses this is marked degraded, not a clean
+    pass, invariant 4."""
     dismissed = {
         str(r.get("target")) for r in rebuttals
         if str(r.get("verdict", "")).strip().lower() in _DISMISS_VERDICTS
