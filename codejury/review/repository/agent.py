@@ -33,7 +33,7 @@ from codejury.review.repository.reviewer import (
 )
 from codejury.review.repository.shapes import JSON_SHAPE, Unit, lens_line
 from codejury.review.repository.union import Candidate
-from codejury.review.repository.verifier import RefutationChecker, Verdict, Verifier
+from codejury.review.repository.verifier import RefutationChecker, Verdict, Verifier, VerifyError
 
 __all__ = [
     "DEFAULT_CLAUDE_ARGS", "READ_ONLY_TOOLS", "Runner", "_ClaudeBackend", "_compose_claude_args",
@@ -98,7 +98,7 @@ class AgentVerifier(_ClaudeBackend, Verifier):
         )
         obj, ok = optional_json_object(_result_text(self._ask(prompt, root)), required_key="real")
         if not ok:
-            return Verdict(real=True, reason="unparseable verification, kept")
+            raise VerifyError("unparsable verification reply")
         return Verdict(real=bool(obj.get("real")), reason=str(obj.get("reason", "")))
 
 

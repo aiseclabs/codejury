@@ -111,10 +111,10 @@ These are not findings here, do not report them:
 
 Write a runnable proof when you can, a Foundry test that reproduces the exploit strengthens
 a finding. When you cannot run one, still report it, marking `Status: blocked` with the
-exact `Needs:`, for example a deployed address to fork, or citing the traced controlling
+exact `Needs:`, for example a deployed address or live state, or citing the traced controlling
 fact in Analysis. Lack of a proof lowers confidence, it does not drop a real finding. Never
-broadcast a transaction, never hold a private key, run a proof only against a local fork or
-a fresh local deploy.
+broadcast a transaction, never hold a private key, run a proof only as a local Foundry test
+or a fresh local deploy.
 
 Grade every real finding by the severity rubric in `inventory/_severity.md` and report all
 of them. There is no refuting a real exploitable finding for low impact. Do not talk a real

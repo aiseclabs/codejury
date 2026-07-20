@@ -130,10 +130,12 @@ _MOCK_REPLY = (
     '"confidence": 0.9}]}'
 )
 
+# One canned reply serves both roles the dry-run exercises: the finder reads `findings`, the
+# verifier reads `real`, so the keyless smoke path confirms rather than counting a parse failure.
 _REPOSITORY_MOCK_REPLY = (
-    '{"findings": [{"title": "[mock] no backend called", "category": "other", '
-    '"endpoint": "GET /mock", "file": "mock.py", "line": 1, "severity": "MEDIUM", '
-    '"evidence": "mock.py:1", "status": "confirmed"}]}'
+    '{"real": true, "reason": "mock", "findings": [{"title": "[mock] no backend called", '
+    '"category": "other", "endpoint": "GET /mock", "file": "mock.py", "line": 1, '
+    '"severity": "MEDIUM", "evidence": "mock.py:1", "status": "confirmed"}]}'
 )
 
 

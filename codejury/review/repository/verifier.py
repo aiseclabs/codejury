@@ -53,6 +53,12 @@ class Verdict:
     reason: str = ""
 
 
+class VerifyError(RuntimeError):
+    """A verifier produced no usable verdict, an unparsable or unusable model reply. It is a failed
+    verification step, not a keep vote, so the caller counts it and re-attempts it on resume rather
+    than freezing an unparsed reply as a confirmation, invariant 4."""
+
+
 class Verifier(ABC):
     @abstractmethod
     def verify(self, candidate: Candidate, root: str) -> Verdict:
@@ -138,7 +144,7 @@ class ModelVerifier(Verifier):
         )
         obj, ok = optional_json_object(result.text, required_key="real")
         if not ok:
-            return Verdict(real=True, reason="unparseable verification, kept")
+            raise VerifyError("unparsable verification reply")
         if obj.get("real"):
             return Verdict(real=True, reason=str(obj.get("reason", "")))
         control = _control_basename(str(obj.get("control_file", "")))

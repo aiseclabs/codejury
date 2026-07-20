@@ -4,6 +4,8 @@ and the engine runs end to end with no provider."""
 
 import json
 
+import pytest
+
 from codejury.review.repository.agent import (
     AgentRefutationChecker,
     AgentReviewer,
@@ -16,6 +18,7 @@ from codejury.review.repository.agent import (
 from codejury.review.repository.engine import run_repository_review
 from codejury.review.repository.shapes import Unit
 from codejury.review.repository.union import Candidate
+from codejury.review.repository.verifier import VerifyError
 
 
 def _envelope(result_text: str) -> str:
@@ -49,7 +52,8 @@ def test_agent_verifier_parses_refutation_and_keeps_on_garbage():
     assert v.real is False and "lock holds" in v.reason
 
     garbage = AgentVerifier(runner=lambda p, **k: _envelope("no json"))
-    assert garbage.verify(Candidate(title="x"), "/repository").real is True
+    with pytest.raises(VerifyError):
+        garbage.verify(Candidate(title="x"), "/repository")
 
 
 def test_envelope_error_is_detected_not_treated_as_empty():

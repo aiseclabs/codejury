@@ -151,8 +151,8 @@ When a finding needs a fact you cannot read, which oracle is wired in, a deploye
 live state, mark it `blocked` with the exact `Needs:`, grade it on the conservative
 assumption, and keep going. Gather every operator need into one list at the end.
 
-Proof execution is fork-only and human-in-the-loop. Run a proof only against a local
-`anvil` fork or a fresh local deploy, never against mainnet or a live deployment. Never
+Proof execution is local and human-in-the-loop. Run a proof only as a local Foundry test or a
+fresh local deploy, never against mainnet, a live deployment, or a fork. Never
 broadcast a transaction, never hold or use a private key, never run a destructive action
 without the operator's explicit go-ahead. The tool finds and proves, the operator
 discloses.

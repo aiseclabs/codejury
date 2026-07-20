@@ -2,6 +2,8 @@
 confirmer upholds the refutation, never drop a finding on a failed call, decide by majority
 when multiple votes are cast."""
 
+import pytest
+
 from codejury.providers.mock import MockProvider
 from codejury.review.repository.union import Candidate
 from codejury.review.repository.verifier import (
@@ -10,6 +12,7 @@ from codejury.review.repository.verifier import (
     RefutationChecker,
     Verdict,
     Verifier,
+    VerifyError,
     _read_file,
     verify_findings,
 )
@@ -145,10 +148,22 @@ def test_model_verifier_parses_a_refutation():
     assert verdict.real is False and "lock holds" in verdict.reason
 
 
-def test_model_verifier_keeps_on_unparseable_reply():
+def test_model_verifier_raises_on_unparseable_reply():
+    # an unparsable verifier reply is a failed step, not a clean confirmation, invariant 4
     prov = MockProvider(default="no json here")
-    verdict = ModelVerifier(provider=prov, model="mock").verify(Candidate(title="x"), ".")
-    assert verdict.real is True
+    with pytest.raises(VerifyError):
+        ModelVerifier(provider=prov, model="mock").verify(Candidate(title="x"), ".")
+
+
+def test_verify_findings_keeps_but_flags_an_unparsable_verification():
+    # a verifier that cannot parse its reply keeps the finding for recall but marks it incomplete and
+    # counts an error, so a resume re-attempts it instead of freezing an unverified confirmation
+    prov = MockProvider(default="no json here")
+    vr = verify_findings([Candidate(title="x", endpoint="GET /a")],
+                         ModelVerifier(provider=prov, model="mock"), ".")
+    assert [c.title for c in vr.confirmed] == ["x"]
+    assert [c.title for c in vr.incomplete] == ["x"]
+    assert vr.errors == 1
 
 
 def test_model_verifier_keeps_a_refutation_that_rests_on_an_unshown_file():
