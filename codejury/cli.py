@@ -32,6 +32,7 @@ from codejury.envfile import load_env_file
 _ENV_LOADED = load_env_file()
 
 from codejury.detection import load_detection
+from codejury.telemetry import progress, stage_timer
 from codejury.domains.registry import available_domains, resolve_domain
 from codejury.sources.explorer import CHAINS
 from codejury.report import gate, render
@@ -596,14 +597,16 @@ def _cmd_review_diff(args) -> int:
     if skipped_noise:
         shown = ", ".join(skipped_noise[:5])
         more = f", and {len(skipped_noise) - 5} more" if len(skipped_noise) > 5 else ""
-        print(f"skipped {len(skipped_noise)} non-source file(s): {shown}{more}", file=sys.stderr)
-    kept, _, degraded = audit_diff(
-        diff, provider=provider, model=model,
-        mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
-        finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
-        finder_provider=finder_provider, challenger_provider=challenger_provider, judge_provider=judge_provider,
-        exclude_paths=tuple(args.exclude or ()), domain=domain,
-    )
+        progress(f"skipped {len(skipped_noise)} non-source file(s): {shown}{more}")
+    with stage_timer("diff review"):
+        kept, _, degraded = audit_diff(
+            diff, provider=provider, model=model,
+            mode=args.mode, max_rounds=args.rounds, filter_findings=not args.no_filter,
+            finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
+            finder_provider=finder_provider, challenger_provider=challenger_provider, judge_provider=judge_provider,
+            exclude_paths=tuple(args.exclude or ()), domain=domain,
+            on_batch=lambda done, total, secs: progress(f"batch {done}/{total} ({secs}s)"),
+        )
     print(render(args.fmt, kept, _diff_source_meta(args)))
     if degraded:
         # the adversarial judge was unusable and the result fell back to the

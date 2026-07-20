@@ -9,6 +9,8 @@ the false-positive filter. Kept out of the CLI so it can be called as a library.
 from __future__ import annotations
 
 import dataclasses
+from time import perf_counter
+from typing import Callable
 
 from codejury.detection import Detection, load_detection
 from codejury.domains.base import Domain
@@ -124,6 +126,7 @@ def audit_diff(
     judge_provider=None,
     exclude_paths: tuple[str, ...] = (),
     domain: Domain | None = None,
+    on_batch: Callable[[int, int, float], None] | None = None,
 ) -> tuple[list[Finding], list[tuple[Finding, str]], bool]:
     """Audit a diff and return the kept findings, the dropped finding-reason pairs, and
     a degraded flag.
@@ -160,7 +163,14 @@ def audit_diff(
 
     if len(diff) > _MAX_DIFF_CHARS:
         batches = pack_diff_chunks(diff, _MAX_DIFF_CHARS)
-        findings = dedup_findings([f for b in batches for f in _run_one(b)])
+        collected: list[Finding] = []
+        for i, batch in enumerate(batches, 1):
+            started = perf_counter()
+            batch_findings = _run_one(batch)
+            if on_batch is not None:
+                on_batch(i, len(batches), round(perf_counter() - started, 1))
+            collected.extend(batch_findings)
+        findings = dedup_findings(collected)
     else:
         findings = _run_one(diff)
 
