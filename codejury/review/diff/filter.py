@@ -21,7 +21,6 @@ class FindingsFilter:
     min_confidence: float = 0.5
     drop_test_paths: bool = True
     exclude_paths: tuple[str, ...] = field(default_factory=tuple)
-    # the selected domain's detection, so an evm diff uses solidity test conventions, not the web default
     detection: Detection | None = None
 
     def filter(self, findings: list) -> tuple[list, list[tuple[object, str]]]:

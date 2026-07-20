@@ -596,8 +596,6 @@ def _cmd_review_diff(args) -> int:
         domain = resolve_domain(args.domain, _diff_paths(diff))
         (provider, model, finder_provider, finder_model,
          challenger_provider, challenger_model, judge_provider, judge_model) = build_diff_providers(args)
-    # close the seats in finally so a failure mid-audit does not leak a subscription seat's pooled
-    # Claude Code processes past the run
     try:
         _, skipped_noise = strip_noise_files(diff, load_detection(domain.paths.detection_file))
         if skipped_noise:
