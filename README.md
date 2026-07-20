@@ -178,8 +178,10 @@ run only against sandbox or dev environments, never production.
 
 ### From the CLI
 
-The slash command runs these four steps for you. Run them yourself for a headless or CI review,
-or to drive the coded engine without an agent:
+The slash command runs these four steps for you. Only the second, the find step, changes: `--run`
+drives the coded engine below, or an agent fans out over the units, the default when the slash
+command runs it. Scaffold, finalize, and gate are the same either way. Run them yourself for a
+headless or CI review, or to drive the coded engine without an agent:
 
 ```bash
 codejury review repository /path/to/repository --scaffold     # build the workspace and unit worklist
