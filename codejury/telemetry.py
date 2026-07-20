@@ -25,17 +25,20 @@ def progress(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
-def _append_timeline(workspace: Path, record: dict) -> None:
+def _append_timeline(workspace: Path, record: dict, reset: bool = False) -> None:
     """Append one stage record to the workspace timeline, best effort. A read or write error on
     this observability file must never fail the review, so a missing or corrupt timeline is
-    started fresh rather than raised."""
+    started fresh rather than raised. `reset` starts a new timeline, for the stage that begins a
+    pipeline, so a re-scaffold does not carry a prior run's stages forward."""
     path = workspace / TIMELINE_FILE
-    try:
-        existing = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(existing, list):
+    existing: list = []
+    if not reset:
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(existing, list):
+                existing = []
+        except (OSError, json.JSONDecodeError):
             existing = []
-    except (OSError, json.JSONDecodeError):
-        existing = []
     existing.append(record)
     try:
         path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -44,10 +47,11 @@ def _append_timeline(workspace: Path, record: dict) -> None:
 
 
 @contextmanager
-def stage_timer(name: str, workspace: Path | str | None = None):
+def stage_timer(name: str, workspace: Path | str | None = None, *, reset: bool = False):
     """Time a stage, print its elapsed to stderr on exit, and, when a workspace is given, append
     a record to its timeline so the whole-pipeline cost is readable across the separate review
-    commands. The stage is recorded even when it raises, marked not ok, and the error propagates."""
+    commands. The stage is recorded even when it raises, marked not ok, and the error propagates.
+    `reset` starts a fresh timeline, for the stage that begins a pipeline such as scaffold."""
     started = perf_counter()
     started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     ok = False
@@ -61,4 +65,5 @@ def stage_timer(name: str, workspace: Path | str | None = None):
             _append_timeline(
                 Path(workspace),
                 {"stage": name, "started_at": started_at, "seconds": seconds, "ok": ok},
+                reset=reset,
             )

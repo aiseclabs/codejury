@@ -17,6 +17,7 @@ The audit orchestration itself lives in ``codejury.review.diff.engine``.
 from __future__ import annotations
 
 import argparse
+import functools
 import os
 import re
 import subprocess
@@ -620,11 +621,29 @@ def _cmd_review_diff(args) -> int:
     return rc
 
 
+def _repo_ws(args) -> Path:
+    """The per-target workspace directory, where the run artifacts and the timeline live."""
+    return Path(args.workspace) / Path(args.directory).resolve().name
+
+
+def _timed_stage(name: str, *, reset: bool = False):
+    """Wrap a repository stage command so it records its elapsed to the workspace timeline and
+    prints it to stderr, giving a whole-pipeline cost readable across the separate commands."""
+    def decorate(fn):
+        @functools.wraps(fn)
+        def wrapper(args):
+            with stage_timer(name, _repo_ws(args), reset=reset):
+                return fn(args)
+        return wrapper
+    return decorate
+
+
+@_timed_stage("gate")
 def _cmd_repository_gate(args) -> int:
     from codejury.review.repository.gate import check_gate
     domain = resolve_domain(args.domain, _repository_file_names(args.directory))
     detection = load_detection(domain.paths.detection_file)
-    project_dir = Path(args.workspace) / Path(args.directory).resolve().name
+    project_dir = _repo_ws(args)
     result = check_gate(project_dir, root=Path(args.directory).resolve(),
                         detection=detection, strict_coverage=args.strict_coverage)
     for note in result.notes:
@@ -640,6 +659,7 @@ def _cmd_repository_gate(args) -> int:
     return 1
 
 
+@_timed_stage("finalize")
 def _cmd_repository_finalize(args) -> int:
     from codejury.review.repository.engine import finalize_repository_review
     from codejury.review.repository.verifier import ModelVerifier
@@ -712,6 +732,7 @@ def _facts_enabled(args, domain) -> bool:
     return domain.facts_backend is not None and args.effort != "low"
 
 
+@_timed_stage("run")
 def _cmd_repository_run(args) -> int:
     from codejury.review.repository.engine import run_repository_review
     from codejury.review.repository.verifier import ModelVerifier
@@ -811,6 +832,7 @@ def _cmd_repository_run(args) -> int:
     return 1 if failures or not acc.converged else 0
 
 
+@_timed_stage("scaffold", reset=True)
 def _cmd_repository_scaffold(args) -> int:
     # a bare scaffold consumes none of the run-only options, so flag the common mistake
     # of setting one without --run rather than silently doing nothing with it

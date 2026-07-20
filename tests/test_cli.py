@@ -5,6 +5,7 @@ batch so a big PR does not overflow the model context and silently truncate the 
 The findings are then de-duplicated.
 """
 
+import json
 import os
 from pathlib import Path
 
@@ -700,3 +701,25 @@ def test_facts_default_is_on_for_a_backend_domain_but_off_at_low_effort():
     # an explicit flag wins over both the default and the low tier
     assert climod._facts_enabled(args(True, "low"), evm) is True
     assert climod._facts_enabled(args(False, "medium"), evm) is False
+
+
+def test_repository_stages_record_a_whole_pipeline_timeline(tmp_path):
+    # each stage command appends its elapsed to one workspace timeline, so the whole-pipeline
+    # cost is readable across the separate commands; a re-scaffold starts the timeline fresh
+    from codejury.telemetry import TIMELINE_FILE
+    repo = tmp_path / "svc"
+    repo.mkdir()
+    (repo / "app.py").write_text("x = 1\n")
+    ws = tmp_path / "ws"
+    timeline = ws / "svc" / TIMELINE_FILE
+
+    main(["review", "repository", str(repo), "--workspace", str(ws), "--scaffold"])
+    assert [r["stage"] for r in json.loads(timeline.read_text())] == ["scaffold"]
+
+    main(["review", "repository", str(repo), "--workspace", str(ws), "--gate"])
+    stages = json.loads(timeline.read_text())
+    assert [r["stage"] for r in stages] == ["scaffold", "gate"]
+    assert all(r["ok"] and isinstance(r["seconds"], (int, float)) for r in stages)
+
+    main(["review", "repository", str(repo), "--workspace", str(ws), "--scaffold"])
+    assert [r["stage"] for r in json.loads(timeline.read_text())] == ["scaffold"]
