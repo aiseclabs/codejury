@@ -20,6 +20,7 @@ from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from time import perf_counter
+from typing import Callable
 
 from codejury.detection import load_detection
 from codejury.domains.base import BackendUnavailable, ContentPaths, Domain
@@ -449,6 +450,7 @@ def apply_verification(
     content: ContentPaths | None = None,
     confirmers: list[tuple[str, RefutationChecker]] | None = None,
     by_file: bool = False,
+    on_verify: Callable[[int, int, float], None] | None = None,
 ) -> tuple[list[Candidate], VerifyResult]:
     """Verify a finding list, resumable via `_verified.json`, and record the refuted. The single
     home and the single route the coded run and the finalize pass both share. A finding two models
@@ -471,7 +473,8 @@ def apply_verification(
     # a finding kept only because a verify call could not complete is kept for this run but never
     # written to _verified.json, so a resume re-attempts it rather than freezing the failure as
     # confirmed, the resume-integrity rule of invariant 4
-    vr = verify_findings(singletons, verifier, root, confirmers=confirmers, votes=votes, concurrency=concurrency)
+    vr = verify_findings(singletons, verifier, root, confirmers=confirmers, votes=votes,
+                         concurrency=concurrency, on_verify=on_verify)
     incomplete = {_keystr(c, by_file) for c in vr.incomplete}
     for c in vr.confirmed:
         if _keystr(c, by_file) not in incomplete:
@@ -586,6 +589,7 @@ def finalize_repository_review(
     concurrency: int = 6,
     domain: Domain | None = None,
     poc_backend: object | None = None,
+    on_verify: Callable[[int, int, float], None] | None = None,
 ) -> FinalizeResult:
     """The coded post-fan-out pipeline: dedup, verify, report over the candidates.
 
@@ -623,7 +627,7 @@ def finalize_repository_review(
     if verify and deduped:
         deduped, vr = apply_verification(
             ws, deduped, root=root, verifier=verifier, confirmers=confirmers, provider=provider, model=model,
-            votes=votes, concurrency=concurrency, fresh=False, content=paths, by_file=by_file,
+            votes=votes, concurrency=concurrency, fresh=False, content=paths, by_file=by_file, on_verify=on_verify,
         )
 
     if poc_backend is not None and deduped:
@@ -816,6 +820,7 @@ def run_repository_review(
     concurrency: int = 6,
     fresh: bool = False,
     on_pass=None,
+    on_verify: Callable[[int, int, float], None] | None = None,
     domain: Domain | None = None,
     facts: bool = False,
     extra_finder_backends: tuple = (),
@@ -912,7 +917,7 @@ def run_repository_review(
         findings, vr = apply_verification(
             ws, findings, root=root, verifier=verifier, confirmers=confirmers, provider=provider, model=model,
             votes=votes, concurrency=concurrency, fresh=fresh, content=paths,
-            by_file=domain.dedup_by_file,
+            by_file=domain.dedup_by_file, on_verify=on_verify,
         )
 
     _write_surface(ws, units, acc.failed_units)

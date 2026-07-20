@@ -30,9 +30,12 @@ failed call is the worst outcome for recall.
 
 from __future__ import annotations
 
+import threading
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from time import perf_counter
+from typing import Callable
 
 from codejury.domains.base import ContentPaths
 from codejury.json_parse import optional_json_object
@@ -224,6 +227,7 @@ def verify_findings(
     confirmers: list[Confirmer] | None = None,
     votes: int = 1,
     concurrency: int = 6,
+    on_verify: Callable[[int, int, float], None] | None = None,
 ) -> VerifyResult:
     """Verify every candidate through one route. A finding is dropped only when every completed
     skeptic vote refutes it AND every applicable confirmer independently agrees the refutation holds.
@@ -265,11 +269,27 @@ def verify_findings(
             return candidate, False, reason, errors, False
         return candidate, True, "", errors, False
 
+    fn = verify_one
+    if on_verify is not None:
+        total = len(candidates)
+        lock = threading.Lock()  # serialize the completion count, since candidates verify concurrently
+        done = 0
+
+        def timed(candidate):
+            nonlocal done
+            started = perf_counter()
+            result = verify_one(candidate)
+            with lock:
+                done += 1
+                on_verify(done, total, round(perf_counter() - started, 1))
+            return result
+
+        fn = timed
     if concurrency > 1 and len(candidates) > 1:
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
-            results = list(pool.map(verify_one, candidates))
+            results = list(pool.map(fn, candidates))
     else:
-        results = [verify_one(c) for c in candidates]
+        results = [fn(c) for c in candidates]
 
     confirmed = [c for c, real, _r, _e, _i in results if real]
     refuted = [(c, reason) for c, real, reason, _e, _i in results if not real]

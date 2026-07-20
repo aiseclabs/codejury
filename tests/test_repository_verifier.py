@@ -190,3 +190,13 @@ def test_read_file_returns_empty_for_an_out_of_root_path(tmp_path):
     root.mkdir()
     assert _read_file(str(root), "../secret.py") == ""
     assert _read_file(str(root), str(secret)) == ""
+
+
+def test_verify_findings_reports_progress_per_candidate():
+    # on_verify fires once per candidate with a rising completion count, so the finalize
+    # verify fan-out shows movement instead of hanging silent
+    cands = [Candidate(title=f"c{i}", endpoint="GET /x") for i in range(4)]
+    seen = []
+    verify_findings(cands, StubVerifier([]), ".", concurrency=2,
+                    on_verify=lambda done, total, secs: seen.append((done, total)))
+    assert sorted(seen) == [(1, 4), (2, 4), (3, 4), (4, 4)]

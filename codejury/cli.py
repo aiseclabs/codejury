@@ -626,6 +626,11 @@ def _repo_ws(args) -> Path:
     return Path(args.workspace) / Path(args.directory).resolve().name
 
 
+def _verify_progress(done: int, total: int, secs: float) -> None:
+    """Per-candidate heartbeat for the verify fan-out, shared by the run and finalize commands."""
+    progress(f"verified {done}/{total} ({secs}s)")
+
+
 def _timed_stage(name: str, *, reset: bool = False):
     """Wrap a repository stage command so it records its elapsed to the workspace timeline and
     prints it to stderr, giving a whole-pipeline cost readable across the separate commands."""
@@ -707,6 +712,7 @@ def _cmd_repository_finalize(args) -> int:
         args.directory, args.workspace, verifier=verifier_obj, confirmers=confirmers,
         provider=provider, model=args.model, verify=args.verify, votes=args.votes,
         concurrency=args.concurrency, domain=domain, poc_backend=poc_backend_obj,
+        on_verify=_verify_progress,
     )
     kept = len(fr.verify.confirmed) if fr.verify else fr.deduped
     refuted = len(fr.verify.refuted) if fr.verify else 0
@@ -794,7 +800,7 @@ def _cmd_repository_run(args) -> int:
         verify=args.verify, votes=args.votes,
         max_passes=args.max_passes, converge_after=args.converge_after,
         min_lens_shots=args.min_lens_shots,
-        concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress,
+        concurrency=args.concurrency, fresh=args.fresh, on_pass=_progress, on_verify=_verify_progress,
         domain=domain,
         facts=_facts_enabled(args, domain),
         max_units=args.max_units,
