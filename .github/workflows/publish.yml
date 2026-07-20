@@ -28,7 +28,7 @@ jobs:
           python -m build
       - name: Check metadata
         run: python -m twine check --strict dist/*
-      - name: Smoke-test the built wheel in a clean venv
+      - name: Smoke test the built wheel in a clean venv
         run: |
           python -m venv /tmp/smoke
           /tmp/smoke/bin/python -m pip install dist/*.whl

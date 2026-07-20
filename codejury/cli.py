@@ -433,7 +433,7 @@ def main(argv: list[str] | None = None) -> int:
                       help="post-process an existing workspace's candidates in code: dedup, "
                            "adversarially verify, and write the ranked report, resumable")
     repository.add_argument("--dry-run", action="store_true",
-                      help="run only: drive the engine with a mock provider and no key, to smoke-test the pipeline")
+                      help="run only: drive the engine with a mock provider and no key, to smoke test the pipeline")
 
     _add_backend_args(repository.add_argument_group("model backend"))
 
