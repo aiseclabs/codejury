@@ -190,10 +190,11 @@ codejury review repository /path/to/repository --finalize     # dedup candidates
 codejury review repository /path/to/repository --gate         # check coverage, non-zero until it is met
 ```
 
-`--run` reviews every unit each pass and cycles lenses until convergence, see Review Strategy for
-how each unit is reviewed. `--finalize` deduplicates candidate files, verifies survivors, writes
-the confirmed `findings/`, records refuted candidates in `_refuted.md` and PoC reconciliation in
-`_pocs.md`, and writes ranked `findings.json`. `--gate` fails until the workspace has an enumerated
+`--run` reviews every unit each pass, cycles lenses until convergence, verifies inline, and writes
+the confirmed `findings/`, so on the coded path `--finalize` is optional. See Review Strategy for
+how each unit is reviewed. `--finalize` deduplicates and verifies the candidates an agent fan-out
+proposed, the step the agent path needs, records refuted candidates in `_refuted.md` and PoC
+reconciliation in `_pocs.md`, and writes the confirmed `findings/` and the ranked `findings.json`. `--gate` fails until the workspace has an enumerated
 surface, reviewed units, and calibrated candidates. Add `--strict-coverage` to also fail when a
 source file is owned by no unit, instead of noting it. Add `--poc` on finalize to generate and run
 an executable PoC for each confirmed finding when the domain binds a PoC backend, such as the EVM
@@ -209,7 +210,7 @@ Scaffold creates a private workspace holding:
 inventory/      attack surface, authorization model, seeded entrypoints, severity rubric
 units/          one review unit per candidate entrypoint
 candidates/     agent proposals, one write-up per candidate finding
-findings/       confirmed findings, written by finalize
+findings/       confirmed findings, written by --run or finalize
 pocs/           runnable PoCs, when available
 findings.json   ranked machine-readable findings
 METHODOLOGY.md  full review process

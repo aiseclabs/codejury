@@ -2,8 +2,8 @@ name: Publish to PyPI
 
 # Publishes on GitHub Release. Uses PyPI Trusted Publishing via OIDC, so no API
 # token is stored anywhere, PyPI verifies this repository and environment instead.
-# The build job verifies the artifact before publish runs, so a release cannot
-# ship failing tests, broken metadata, or a wheel that cannot load its core bundled resources.
+# The build job verifies the artifact before publish runs. It blocks a release on failing
+# tests, broken metadata, or a wheel that cannot load its core bundled resources.
 on:
   release:
     types: [published]
@@ -36,7 +36,15 @@ jobs:
           /tmp/smoke/bin/codejury --version
           /tmp/smoke/bin/python -m codejury --version
           /tmp/smoke/bin/codejury review diff --dry-run --format json
-          /tmp/smoke/bin/python -c "from codejury.resources import SLASH_COMMAND_FILE, DETECTION_FILE; from codejury.review.diff.vulnerabilities import load_vulnerabilities; from codejury.guides import load_guides; assert SLASH_COMMAND_FILE.is_file(); assert DETECTION_FILE.is_file(); assert len(load_vulnerabilities()) >= 20; assert len(load_guides()) >= 1"
+          /tmp/smoke/bin/python - <<'PY'
+          from codejury.resources import SLASH_COMMAND_FILE, DETECTION_FILE
+          from codejury.review.diff.vulnerabilities import load_vulnerabilities
+          from codejury.guides import load_guides
+          assert SLASH_COMMAND_FILE.is_file()
+          assert DETECTION_FILE.is_file()
+          assert len(load_vulnerabilities()) >= 20
+          assert len(load_guides()) >= 1
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -47,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
-      id-token: write  # required for Trusted Publishing
+      id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:
