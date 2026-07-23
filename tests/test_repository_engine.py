@@ -444,7 +444,7 @@ def _two_entrypoint_repository(root):
 
 
 def test_failed_unit_stays_open_and_fails_the_gate(tmp_path):
-    # invariant 4: a unit that raises on every pass is a failed review, not a clean unit.
+    # a unit that raises on every pass is a failed review, not a clean unit, invariant 4.
     # It must stay open, the surface must not claim it reviewed, and the gate must fail.
     repository = _two_entrypoint_repository(tmp_path / "twop")
     ws = tmp_path / "ws"
@@ -467,8 +467,8 @@ def test_failed_unit_stays_open_and_fails_the_gate(tmp_path):
 
 
 def test_corrupt_union_on_resume_raises_loud_and_keeps_report(custody_repository, tmp_path):
-    # invariant 4: a corrupt checkpoint on resume must fail loud, never overwrite the
-    # prior report with a clean-looking empty run.
+    # a corrupt checkpoint on resume must fail loud, never overwrite the prior report
+    # with a clean-looking empty run, invariant 4.
     ws = tmp_path / "ws"
     run_repository_review(custody_repository, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
                     converge_after=1, max_passes=4)
@@ -498,8 +498,8 @@ def test_corrupt_verified_on_finalize_raises_loud(tmp_path):
 
 
 def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_path):
-    # invariant 4 resume integrity: a finding kept only because the skeptic call failed is kept in
-    # this run yet left out of _verified.json, so a resume re-attempts it, never reads it as final
+    # a finding kept only because the skeptic call failed is kept in this run yet left out of
+    # _verified.json, so a resume re-attempts it, never reads it as final, invariant 4
     from codejury.review.repository.engine import apply_verification
 
     class _Boom(Verifier):
@@ -516,8 +516,8 @@ def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_p
 
 
 def test_finalize_drops_issue_with_no_file_location(tmp_path):
-    # invariant 3: no file location means not reportable, so the issue is dropped, not
-    # carried into the report with an empty location.
+    # no file location means not reportable, so the issue is dropped, not carried
+    # into the report with an empty location, invariant 3.
     target, ws, candidates = _finalize_ws(tmp_path)
     (candidates / "noloc.md").write_text(
         "# missing location\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n"

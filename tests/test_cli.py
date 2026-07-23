@@ -333,7 +333,7 @@ def test_diff_adversarial_resolves_each_seat_independently(monkeypatch):
 
 
 def test_diff_degraded_audit_exits_nonzero_and_surfaces_the_error(monkeypatch, capsys):
-    # invariant 4: a degraded adversarial audit is a failed step, not a clean pass
+    # a degraded adversarial audit is a failed step, not a clean pass, invariant 4
     monkeypatch.setattr(climod, "audit_diff", lambda *a, **k: ([], [], True))
     monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
     rc = main(["review", "diff", "--executor", "subscription", "--mode", "adversarial"])
@@ -557,7 +557,7 @@ def _patch_run(monkeypatch, tmp_path, *, converged, errors):
 
 
 def test_run_with_failed_calls_exits_nonzero_and_warns(monkeypatch, tmp_path, capsys):
-    # invariant 4: a converged run with failed model calls is still a partial run, not done.
+    # a converged run with failed model calls is still a partial run, not done, invariant 4.
     # Isolated from the non-convergence branch so each return condition is caught on its own.
     _patch_run(monkeypatch, tmp_path, converged=True, errors=2)
     rc = main(["review", "repository", str(tmp_path), "--run", "--no-verify"])
@@ -567,7 +567,7 @@ def test_run_with_failed_calls_exits_nonzero_and_warns(monkeypatch, tmp_path, ca
 
 
 def test_run_that_did_not_converge_exits_nonzero_and_warns(monkeypatch, tmp_path, capsys):
-    # the stability red line: a run still finding issues at the pass cap has incomplete coverage.
+    # a run still finding issues at the pass cap has incomplete coverage, the stability red line.
     # Isolated from the failed-calls branch, so a regression to either return condition is caught.
     _patch_run(monkeypatch, tmp_path, converged=False, errors=0)
     rc = main(["review", "repository", str(tmp_path), "--run", "--no-verify"])
@@ -577,7 +577,7 @@ def test_run_that_did_not_converge_exits_nonzero_and_warns(monkeypatch, tmp_path
 
 
 def test_finalize_verify_errors_exit_nonzero_and_ask_to_resume(monkeypatch, tmp_path, capsys):
-    # invariant 4: an incomplete verification is not a clean finalize
+    # an incomplete verification is not a clean finalize, invariant 4
     import codejury.review.repository.engine as eng
     from types import SimpleNamespace
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")

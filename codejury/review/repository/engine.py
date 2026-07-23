@@ -542,7 +542,7 @@ def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None
     severity = next((s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if s in sev_raw), "MEDIUM")
     fm = _location_re(source_extensions).search(text)
     if fm is None or is_unsafe_rel(fm.group(1)):
-        # invariant 3: with no file location the issue is not reportable. An absolute or
+        # with no file location the issue is not reportable, invariant 3. An absolute or
         # parent-traversing path is not a location inside the repository, a tampered or
         # hallucinated issue file, so it is dropped, not read.
         return None
