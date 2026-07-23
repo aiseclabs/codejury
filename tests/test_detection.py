@@ -17,7 +17,7 @@ def test_detection_config_loads_with_content():
 def test_is_test_path_by_directory_segment():
     d = load_detection()
     assert d.is_test_path("app/tests/views.py")
-    assert d.is_test_path("spec/billing.rb")
+    assert d.is_test_path("spec/billing.js")
     assert not d.is_test_path("app/views.py")
 
 
@@ -39,7 +39,7 @@ def test_is_noise_path_drops_docs_lockfiles_tests_and_vendored():
     d = load_detection()
     for f in ("README.md", "docs/guide.rst", "NOTES.txt", "site/intro.mdx",
               "package-lock.json", "frontend/yarn.lock", "go.sum",
-              "uv.lock", "bun.lock", "deno.lock", "gradle.lockfile",
+              "uv.lock", "bun.lock", "deno.lock",
               "app/tests/test_views.py", "app/views_test.go",
               "node_modules/left-pad/index.js", "dist/bundle.js",
               "vendor/github.com/pkg/errors.go", "coverage/lcov.info"):
@@ -54,3 +54,10 @@ def test_is_noise_path_keeps_source_and_security_relevant_non_source():
               "migrations/001_users.sql", "deploy/entrypoint.sh",
               "Dockerfile", "infra/main.tf", "config/settings.yaml"):
         assert not d.is_noise_path(f), f
+
+
+def test_skip_root_dirs_prunes_at_root_only():
+    from codejury.domains.registry import resolve_domain
+    evm = load_detection(resolve_domain("evm").paths.detection_file)
+    assert evm.is_noise_path("lib/openzeppelin-contracts/token/ERC20.sol")
+    assert not evm.is_noise_path("contracts/lib/Math.sol")

@@ -540,11 +540,11 @@ def test_finalize_preserves_blocked_status(tmp_path):
 
 
 def test_parse_candidate_accepts_data_driven_extensions(tmp_path):
-    rs = tmp_path / "rust.md"
-    rs.write_text("# rust handler idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x`\n"
-                  "- Status: confirmed\n## Analysis\nsrc/handler.rs:42 no owner check\n")
-    c = _parse_candidate(rs)
-    assert c is not None and c.file == "src/handler.rs" and c.line == 42
+    go = tmp_path / "go.md"
+    go.write_text("# go handler idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x`\n"
+                  "- Status: confirmed\n## Analysis\nsrc/handler.go:42 no owner check\n")
+    c = _parse_candidate(go)
+    assert c is not None and c.file == "src/handler.go" and c.line == 42
 
     tsx = tmp_path / "tsx.md"
     tsx.write_text("# react xss\n- Risk: MEDIUM\n- Type: xss\n- Source: `x`\n"

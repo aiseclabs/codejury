@@ -28,14 +28,14 @@ class RepositoryModel:
 def _read_files(root: Path, detection: Detection | None = None) -> tuple[str, ...]:
     """Relative paths of the files under root, skipping noise dirs and symlinks
     that escape the tree."""
-    skip_dirs = (detection or load_detection()).skip_dirs
+    det = detection or load_detection()
     root = root.resolve()
     out: list[str] = []
     for path in root.rglob("*"):
         if not path.is_file():
             continue
         rel = path.relative_to(root)
-        if any(part in skip_dirs for part in rel.parts):
+        if det.is_skipped_dir(rel.parts[:-1]):
             continue
         try:
             if not path.resolve().is_relative_to(root):

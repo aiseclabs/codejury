@@ -10,6 +10,7 @@ decides which language, framework, or protocol applies.
 from __future__ import annotations
 
 import fnmatch
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -29,11 +30,21 @@ class Detection:
     test_name_patterns: tuple[str, ...]
     doc_extensions: frozenset[str]
     lockfiles: frozenset[str]
+    skip_root_dirs: frozenset[str] = frozenset()
 
     @property
     def detection_extensions(self) -> frozenset[str]:
         """Source plus config, the files sampled when detecting the stack."""
         return self.source_extensions | self.config_extensions
+
+    def is_skipped_dir(self, dir_parts: Sequence[str]) -> bool:
+        """True when a path's directory segments fall under a skipped directory. A name in
+        skip_dirs matches at any depth. A name in skip_root_dirs matches only as the top
+        segment, so a dependency dir such as Foundry's root lib/ is pruned without suppressing a
+        real source dir named lib deeper in the tree, invariant 2."""
+        if any(p in self.skip_dirs for p in dir_parts):
+            return True
+        return bool(dir_parts) and dir_parts[0] in self.skip_root_dirs
 
     def is_test_path(self, path: str) -> bool:
         """True when a path is test code, by a test directory segment or a
@@ -53,7 +64,7 @@ class Detection:
         a security-relevant non-source file such as a `.sql` migration, a shell
         script, or a Dockerfile is kept, invariant 2."""
         parts = path.replace("\\", "/").split("/")
-        if any(p in self.skip_dirs for p in parts[:-1]):
+        if self.is_skipped_dir(parts[:-1]):
             return True
         if self.is_test_path(path):
             return True
@@ -77,4 +88,5 @@ def load_detection(detection_file: Path = DETECTION_FILE) -> Detection:
         test_name_patterns=tuple(data.get("test_name_patterns", [])),
         doc_extensions=frozenset(data.get("doc_extensions", [])),
         lockfiles=frozenset(data.get("lockfiles", [])),
+        skip_root_dirs=frozenset(data.get("skip_root_dirs", [])),
     )

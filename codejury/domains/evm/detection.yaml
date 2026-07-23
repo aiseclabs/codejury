@@ -1,15 +1,17 @@
-skip_dirs: [".git", "node_modules", "lib", ".deps", "out", "cache", "forge-cache", "artifacts", "broadcast", "typechain", "typechain-types", "coverage"]
+skip_dirs: [".git", "node_modules", "artifacts", "cache", "out", "broadcast", "typechain", "typechain-types", "coverage"]
+
+skip_root_dirs: ["dependencies", "lib"]
 
 source_extensions: [".sol"]
 
-config_extensions: [".toml", ".json", ".yaml", ".yml"]
+config_extensions: [".json", ".toml", ".yaml", ".yml"]
 
-manifests: ["foundry.toml", "hardhat.config.js", "hardhat.config.ts", "remappings.txt", "package.json", "truffle-config.js"]
+manifests: ["foundry.toml", "remappings.txt", "hardhat.config.js", "hardhat.config.ts", "package.json", "truffle-config.js"]
 
 test_dirs: ["test", "tests"]
 
-test_name_patterns: ["*.t.sol", "*.test.sol", "test_*", "*.spec.sol"]
+test_name_patterns: ["*.t.sol", "*.test.sol", "*.spec.sol", "test_*"]
 
-doc_extensions: [".md", ".markdown", ".mdx", ".rst", ".txt", ".adoc"]
+doc_extensions: [".adoc", ".markdown", ".md", ".mdx", ".rst", ".txt"]
 
-lockfiles: ["soldeer.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json", "bun.lockb", "bun.lock", "deno.lock", "Cargo.lock", "composer.lock"]
+lockfiles: ["soldeer.lock", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb", "deno.lock"]
