@@ -120,8 +120,8 @@ def test_default_runner_scrubs_anthropic_auth_from_the_nested_claude_env(monkeyp
 
     def fake_run(cmd, **kw):
         captured["env"] = kw["env"]
-        import subprocess as sp
-        return sp.CompletedProcess(cmd, 0, stdout=_envelope("ok"), stderr="")
+        import subprocess
+        return subprocess.CompletedProcess(cmd, 0, stdout=_envelope("ok"), stderr="")
 
     monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)
     _default_runner("prompt", cwd="", claude_bin="claude", args=(), timeout=10)

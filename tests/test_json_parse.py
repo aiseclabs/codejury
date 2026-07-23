@@ -10,21 +10,21 @@ class _Boom(RuntimeError):
     pass
 
 
-def test_direct_object():
+def test_extracts_a_direct_object():
     assert extract_json_object('{"a": 1}') == {"a": 1}
 
 
-def test_fenced_block():
+def test_extracts_from_a_fenced_block():
     text = 'here you go:\n```json\n{"a": 1, "b": [2, 3]}\n```\nthanks'
     assert extract_json_object(text) == {"a": 1, "b": [2, 3]}
 
 
-def test_object_amid_prose():
+def test_extracts_an_object_amid_prose():
     text = 'The verdict is {"status": "SECURE"} as shown.'
     assert extract_json_object(text) == {"status": "SECURE"}
 
 
-def test_nested_braces():
+def test_extracts_nested_braces():
     text = 'noise {"outer": {"inner": {"x": 1}}} trailing'
     assert extract_json_object(text) == {"outer": {"inner": {"x": 1}}}
 

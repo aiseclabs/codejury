@@ -187,8 +187,8 @@ def test_explicit_transport_is_used_and_closed():
 
 def test_process_transport_ask_delegates_to_the_default_runner(monkeypatch):
     def fake_run(cmd, **kw):
-        import subprocess as sp
-        return sp.CompletedProcess(cmd, 0, stdout=_envelope("hello"), stderr="")
+        import subprocess
+        return subprocess.CompletedProcess(cmd, 0, stdout=_envelope("hello"), stderr="")
 
     monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)
     out = ProcessClaudeTransport().ask("p", cwd="", claude_bin="claude", args=(), timeout=10)

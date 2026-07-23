@@ -28,6 +28,6 @@ def test_none_content_returns_empty():
     assert choice_text(resp) == ""
 
 
-def test_dict_message_without_content():
+def test_dict_message_without_content_returns_empty():
     resp = SimpleNamespace(choices=[SimpleNamespace(message={})])
     assert choice_text(resp) == ""

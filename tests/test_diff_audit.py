@@ -1,5 +1,5 @@
-"""The standard diff audit engine, the Finding domain, and the
-false-positive filter. Deterministic with a MockProvider, no key."""
+"""The standard diff audit engine and the false-positive filter. Deterministic with a
+MockProvider, no key."""
 
 import json
 
@@ -7,7 +7,7 @@ from codejury.review.diff.audit import AuditRunner
 from codejury.review.diff.engine import audit_diff, strip_noise_files
 from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.prompts import standard_audit_prompt
-from codejury.finding import Finding, finding_from_dict, findings_from_list
+from codejury.finding import Finding
 from codejury.providers.mock import MockProvider
 
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
@@ -15,32 +15,6 @@ _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n='
 
 def _reply(findings):
     return json.dumps({"findings": findings})
-
-
-def test_finding_from_dict_maps_fields():
-    f = finding_from_dict({
-        "file": "app.py", "line": 3, "severity": "high", "category": "sql_injection",
-        "description": "concat", "exploit_scenario": "send ' OR 1=1", "confidence": 0.9,
-    })
-    assert f.file == "app.py" and f.line == 3
-    assert f.severity == "HIGH"
-    assert f.category == "sql_injection" and f.confidence == 0.9
-
-
-def test_finding_without_file_is_dropped():
-    assert finding_from_dict({"severity": "HIGH", "description": "x"}) is None
-
-
-def test_finding_coerces_bad_values():
-    f = finding_from_dict({"file": "a.py", "line": 0, "severity": "SCARY", "confidence": 5})
-    assert f.line is None
-    assert f.severity == "MEDIUM"
-    assert f.confidence == 0.5
-
-
-def test_findings_from_list_filters_bad_entries():
-    out = findings_from_list([{"file": "a.py"}, "not a dict", {"no": "file"}])
-    assert len(out) == 1 and out[0].file == "a.py"
 
 
 def test_engine_parses_findings():

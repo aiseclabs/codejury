@@ -30,7 +30,7 @@ _FINDINGS = [
 ]
 
 
-def test_breakdown_and_sort():
+def test_breakdown_counts_findings_by_severity():
     assert severity_breakdown(_FINDINGS) == {"CRITICAL": 1, "HIGH": 0, "MEDIUM": 1, "LOW": 0}
 
 
@@ -46,7 +46,7 @@ def test_markdown_has_summary_and_sections():
     assert "`app/payment.py:42`" in out
 
 
-def test_json_shape():
+def test_json_has_findings_and_summary_keys():
     doc = json.loads(to_json(_FINDINGS))
     assert set(doc) == {"findings", "summary"}
     assert doc["findings"][0]["severity"] == "CRITICAL"
@@ -60,12 +60,12 @@ def test_sarif_validates_against_schema():
     assert res[0]["properties"]["confidence"] == 0.95
 
 
-def test_empty_render():
+def test_empty_findings_render_to_no_findings_text():
     assert render("text", []) == "no findings"
     jsonschema.validate(json.loads(to_sarif([])), _SCHEMA)
 
 
-def test_gate():
+def test_gate_trips_at_or_above_threshold():
     assert gate(_FINDINGS, "high") is True
     assert gate(_FINDINGS, "critical") is True
     assert gate([_FINDINGS[1]], "high") is False

@@ -2,6 +2,7 @@
 findings, and pocs directories plus seeded entrypoints, and returns the methodology. It
 does not run an LLM pipeline."""
 
+import json
 import stat
 from dataclasses import replace
 
@@ -305,7 +306,6 @@ def test_scaffold_notes_the_degrade_when_facts_enabled_but_backend_unavailable(t
 def test_scaffold_persists_the_per_file_facts_map(tmp_path):
     # the engine grounds each unit per file, so the by_file map is persisted as JSON beside
     # the human-readable _facts.md
-    import json
 
     backend = _CountingBackend()
     res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend), facts=True)
@@ -314,7 +314,6 @@ def test_scaffold_persists_the_per_file_facts_map(tmp_path):
 
 
 def test_scaffold_persists_the_call_path_units(tmp_path):
-    import json
 
     backend = _CountingBackend()
     res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend), facts=True)
@@ -326,7 +325,6 @@ def test_scaffold_persists_the_call_path_units(tmp_path):
 def test_scaffold_drops_call_path_units_packed_from_test_code(tmp_path):
     # the facts backend compiles the whole project, tests included, but the call-path units
     # must not pull the review into test code, the same exclusion the candidate selection makes
-    import json
 
     backend = _CountingBackend()
     res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(backend), facts=True)
@@ -335,7 +333,6 @@ def test_scaffold_drops_call_path_units_packed_from_test_code(tmp_path):
 
 
 def test_scaffold_reuses_the_cached_per_file_facts_map(tmp_path):
-    import json
 
     backend = _CountingBackend()
     dom = _facts_domain(backend)
@@ -387,7 +384,6 @@ def test_scaffold_persists_facts_for_the_evm_domain(tmp_path):
     assert "contract Vault" in text and "reenter" in text
     # the per-file map keys Vault's facts on its source path, so a unit owning that file is
     # grounded with its call graph no matter which slice it reviews
-    import json
 
     by_file = json.loads((res.workspace / "_facts_by_file.json").read_text())
     vault_key = next(k for k in by_file if k.endswith("Vault.sol"))

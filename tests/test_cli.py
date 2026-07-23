@@ -6,6 +6,7 @@ big PR does not overflow the model context and silently truncate the reply. The 
 de-duplicated.
 """
 
+import io
 import json
 import os
 from pathlib import Path
@@ -113,7 +114,7 @@ def test_review_diff_dry_run_respects_exclude(capsys):
     assert "no findings" in capsys.readouterr().out
 
 
-def test_old_audit_command_is_gone(capsys):
+def test_old_audit_command_is_gone():
     with pytest.raises(SystemExit):
         main(["audit", "--dry-run"])
 
@@ -237,7 +238,7 @@ def test_review_diff_closes_its_backends(monkeypatch, tmp_path):
     assert closed == [True]
 
 
-def test_repository_gate_exit_codes(tmp_path):
+def test_repository_gate_exits_nonzero_until_a_run_completes(tmp_path):
     repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
     assert main(["review", "repository", str(repository), "--workspace", str(ws), "--gate"]) == 1
@@ -252,7 +253,6 @@ def test_review_diff_bad_file_exits_nonzero(capsys):
 
 
 def test_review_diff_empty_stdin_is_clean(monkeypatch, capsys):
-    import io
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
     monkeypatch.setattr("codejury.cli.make_provider",
                         lambda *a, **k: MockProvider(default='{"findings": []}'))
@@ -263,9 +263,7 @@ def test_review_diff_empty_stdin_is_clean(monkeypatch, capsys):
     assert "no findings" in capsys.readouterr().out.lower()
 
 
-def test_diff_executor_subscription_uses_the_agent_provider(monkeypatch, capsys):
-    import io
-    import codejury.cli as climod
+def test_diff_executor_subscription_uses_the_agent_provider(monkeypatch):
     from codejury.providers.claude_agent import ClaudeAgentProvider
     captured = {}
 
@@ -281,7 +279,6 @@ def test_diff_executor_subscription_uses_the_agent_provider(monkeypatch, capsys)
 
 
 def test_diff_executor_api_without_key_errors_loud(monkeypatch):
-    import io
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
@@ -290,8 +287,6 @@ def test_diff_executor_api_without_key_errors_loud(monkeypatch):
 
 
 def test_diff_executor_auto_keyless_anthropic_falls_back_to_agent(monkeypatch, capsys):
-    import io
-    import codejury.cli as climod
     from codejury.providers.claude_agent import ClaudeAgentProvider
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
@@ -310,16 +305,13 @@ def test_diff_executor_auto_keyless_anthropic_falls_back_to_agent(monkeypatch, c
 
 
 def test_diff_executor_auto_keyless_non_anthropic_errors_loud(monkeypatch):
-    import io
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
     with pytest.raises(SystemExit, match="no reachable API key"):
         main(["review", "diff", "--provider", "openai"])
 
 
-def test_diff_adversarial_resolves_each_seat_independently(monkeypatch, capsys):
-    import io
-    import codejury.cli as climod
+def test_diff_adversarial_resolves_each_seat_independently(monkeypatch):
     from codejury.providers.claude_agent import ClaudeAgentProvider
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
@@ -338,6 +330,15 @@ def test_diff_adversarial_resolves_each_seat_independently(monkeypatch, capsys):
     assert isinstance(captured["finder"], ClaudeAgentProvider)
     assert isinstance(captured["judge"], ClaudeAgentProvider)
     assert not isinstance(captured["challenger"], ClaudeAgentProvider)
+
+
+def test_diff_degraded_audit_exits_nonzero_and_surfaces_the_error(monkeypatch, capsys):
+    # invariant 4: a degraded adversarial audit is a failed step, not a clean pass
+    monkeypatch.setattr(climod, "audit_diff", lambda *a, **k: ([], [], True))
+    monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
+    rc = main(["review", "diff", "--executor", "subscription", "--mode", "adversarial"])
+    assert rc == 1
+    assert "degraded" in capsys.readouterr().err
 
 
 def test_repository_mode_flags_are_mutually_exclusive(tmp_path):
@@ -540,6 +541,55 @@ def test_finalize_mentions_pocs_only_when_the_file_exists(monkeypatch, tmp_path,
     (tmp_path / "_pocs.md").write_text("# PoC Reconciliation\n", encoding="utf-8")
     main(["review", "repository", str(tmp_path), "--finalize"])
     assert f"PoC reconciliation in {tmp_path}/_pocs.md" in capsys.readouterr().out
+
+
+def _patch_run(monkeypatch, tmp_path, *, converged, errors):
+    import codejury.review.repository.engine as eng
+    from types import SimpleNamespace
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+
+    def fake_run(target, workspace, **kw):
+        scaffold = SimpleNamespace(fallback_note="", invariants_note="", workspace=str(tmp_path))
+        acc = SimpleNamespace(findings=[], new_per_pass=[[]], converged=converged, errors=errors)
+        return SimpleNamespace(scaffold=scaffold, accumulator=acc, verify=None, units=1)
+
+    monkeypatch.setattr(eng, "run_repository_review", fake_run)
+
+
+def test_run_with_failed_calls_exits_nonzero_and_warns(monkeypatch, tmp_path, capsys):
+    # invariant 4: a converged run with failed model calls is still a partial run, not done.
+    # Isolated from the non-convergence branch so each return condition is caught on its own.
+    _patch_run(monkeypatch, tmp_path, converged=True, errors=2)
+    rc = main(["review", "repository", str(tmp_path), "--run", "--no-verify"])
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "model calls failed" in err and "did not converge" not in err
+
+
+def test_run_that_did_not_converge_exits_nonzero_and_warns(monkeypatch, tmp_path, capsys):
+    # the stability red line: a run still finding issues at the pass cap has incomplete coverage.
+    # Isolated from the failed-calls branch, so a regression to either return condition is caught.
+    _patch_run(monkeypatch, tmp_path, converged=False, errors=0)
+    rc = main(["review", "repository", str(tmp_path), "--run", "--no-verify"])
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "did not converge" in err and "model calls failed" not in err
+
+
+def test_finalize_verify_errors_exit_nonzero_and_ask_to_resume(monkeypatch, tmp_path, capsys):
+    # invariant 4: an incomplete verification is not a clean finalize
+    import codejury.review.repository.engine as eng
+    from types import SimpleNamespace
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+
+    def fake_finalize(target, workspace, **kw):
+        verify = SimpleNamespace(confirmed=[], refuted=[], errors=1)
+        return SimpleNamespace(parsed=0, deduped=0, workspace=str(tmp_path), verify=verify)
+
+    monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
+    rc = main(["review", "repository", str(tmp_path), "--finalize"])
+    assert rc == 1
+    assert "Re-run to resume" in capsys.readouterr().err
 
 
 def test_run_passes_confirmers_and_no_extra_finders(monkeypatch, tmp_path):
