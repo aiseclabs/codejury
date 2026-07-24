@@ -23,7 +23,7 @@ from time import perf_counter
 from typing import Callable
 
 from codejury.detection import load_detection
-from codejury.domains.base import BackendUnavailable, ContentPaths, Domain
+from codejury.domains.base import ContentPaths, Domain
 from codejury.domains.registry import default_domain
 from codejury.markdown_docs import md_field
 from codejury.providers.base import Provider
@@ -642,15 +642,14 @@ def finalize_repository_review(
 
 def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[Candidate]:
     """Write a PoC for each confirmed finding, and run it where the domain runs its PoC
-    automatically, then write `pocs/<name>.<ext>` so the reconciliation links it. Adds evidence,
-    never drops a finding, invariant 2, so a PoC that fails to reproduce, or one a human must run,
-    is recorded and never treated as safe. A domain that executes but whose toolchain is missing
-    fails loud up front, invariant 4."""
+    automatically and its toolchain is present, then write `pocs/<name>.<ext>` so the reconciliation
+    links it. Adds evidence, never drops a finding, invariant 2, so a PoC that fails to reproduce, or
+    one a human must run, is recorded and never treated as safe. An executing domain whose toolchain
+    is absent degrades to write-only with an install hint, so a missing toolchain never aborts
+    finalize and never hides a finding, invariant 4."""
     executes = getattr(backend, "executes", True)
-    if executes and not backend.available():
-        raise BackendUnavailable(
-            "the PoC backend was requested but its toolchain is unavailable, re-run without --poc "
-            "or install the toolchain")
+    runnable = executes and backend.available()
+    install_hint = getattr(backend, "install_hint", "")
     ext = getattr(backend, "ext", "t.sol")
     pocs = ws / "pocs"
     pocs.mkdir(exist_ok=True)
@@ -658,7 +657,7 @@ def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[C
     for c in findings:
         name = _finding_name(c)
         try:
-            if executes:
+            if runnable:
                 res = backend.reproduce(
                     title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root)
                 source = res.test_source
@@ -667,9 +666,11 @@ def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[C
                 art = backend.generate(
                     title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root)
                 source = art.source
-                note = f"PoC written, run it manually: {art.run_hint}"
-        except BackendUnavailable:
-            raise
+                if executes:
+                    # recorded not hidden, so a missing toolchain never reads as a clean finding, invariant 4
+                    note = f"PoC written, not run, toolchain absent. To run it: {install_hint}. Then: {art.run_hint}"
+                else:
+                    note = f"PoC written, run it manually: {art.run_hint}"
         except Exception as exc:
             # a failed PoC call is not a safe verdict, keep the finding and record the failure, invariant 4
             source = ""

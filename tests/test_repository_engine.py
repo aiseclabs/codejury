@@ -713,7 +713,6 @@ def test_run_pocs_writes_the_poc_annotates_and_never_drops(tmp_path):
 
 
 def test_run_pocs_keeps_finding_when_the_poc_fails_or_backend_errors(tmp_path):
-    from codejury.domains.base import BackendUnavailable
     from codejury.review.repository.engine import _run_pocs
 
     ws = tmp_path / "proj"
@@ -731,15 +730,35 @@ def test_run_pocs_keeps_finding_when_the_poc_fails_or_backend_errors(tmp_path):
     assert len(out) == 1
     assert "PoC failed to run" in out[0].evidence
 
+
+def test_run_pocs_degrades_to_write_only_when_an_executing_toolchain_is_absent(tmp_path):
+    from types import SimpleNamespace
+
+    from codejury.review.repository.engine import _finding_name, _run_pocs
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    findings = [Candidate(title="x", category="idor", file="A.sol", line=1, symbol="f",
+                          evidence="unchecked")]
+
     class Unavailable:
+        ext = "t.sol"
+        install_hint = "install the toolchain from https://example.test"
+
         def available(self):
             return False
 
         def reproduce(self, **kw):
-            raise AssertionError("must not be called when unavailable")
+            raise AssertionError("must not run when the toolchain is absent")
 
-    with pytest.raises(BackendUnavailable):
-        _run_pocs(ws, findings, Unavailable(), root=str(tmp_path))
+        def generate(self, **kw):
+            return SimpleNamespace(source="contract T {}", ext="t.sol", run_hint="forge test")
+
+    out = _run_pocs(ws, findings, Unavailable(), root=str(tmp_path))
+    assert len(out) == 1
+    assert (ws / "pocs" / f"{_finding_name(findings[0])}.t.sol").read_text() == "contract T {}"
+    assert "not run" in out[0].evidence
+    assert "install the toolchain from https://example.test" in out[0].evidence
 
 
 def test_run_pocs_writes_only_for_a_backend_that_does_not_execute(tmp_path):

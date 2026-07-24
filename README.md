@@ -199,9 +199,10 @@ reconciliation in `_pocs.md`, and writes the confirmed `findings/` and the ranke
 surface, reviewed units, and calibrated candidates. Add `--strict-coverage` to also fail when a
 source file is owned by no unit, instead of noting it. Add `--poc` on finalize to generate and run
 an executable PoC for each confirmed finding when the domain binds a PoC backend, such as the EVM
-Foundry reproducer. It is off by default since it calls a model and a compiler per finding. A PoC
-runs locally only, it never forks a network, broadcasts, or holds a key, and it only adds evidence,
-so a finding is kept whether or not its PoC reproduces.
+Foundry reproducer. It is off by default since it calls a model and a compiler per finding. When the
+run toolchain is absent the PoC is written but not run, with a note on how to run it by hand, rather
+than failing. A PoC runs locally only, it never forks a network, broadcasts, or holds a key, and it
+only adds evidence, so a finding is kept whether or not its PoC reproduces.
 
 ### The Workspace
 

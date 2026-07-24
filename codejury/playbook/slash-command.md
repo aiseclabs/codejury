@@ -130,6 +130,12 @@ on the same `EXEC` you announced:
 codejury review repository <target> --finalize --executor $EXEC
 ```
 
+On the coded path append `--poc`, so the coded engine writes a runnable PoC per finding just as the
+fan-out units do, keeping the two paths consistent. It writes for every finding and runs it only
+where the domain runs locally and safely, such as evm under Foundry. When the toolchain is absent it
+writes the PoC and notes how to run it by hand, and it never drops a finding. Do not add `--poc` on
+the fan-out path, its units already wrote a PoC each during FAN OUT.
+
 It dedups by location and class, adversarially verifies each survivor, drops the refuted into
 `_refuted.md`, and writes the ranked `findings.json`. Re-run to resume, settled findings are
 skipped. On `--executor api` the challenger seat reads your `.env`, so a distinct vendor there

@@ -455,9 +455,11 @@ def main(argv: list[str] | None = None) -> int:
     strategy.add_argument("--poc", action="store_true", default=False,
                           help="on finalize, generate and run an executable PoC per confirmed finding "
                                "when the domain binds a PoC backend such as the EVM Foundry reproducer. "
-                               "Off by default since it calls a model and a compiler per finding. Local "
-                               "only, it never forks, broadcasts, or holds a key. It only adds evidence, "
-                               "a finding is kept whether or not its PoC reproduces")
+                               "When the run toolchain is absent the PoC is written but not run, with a "
+                               "note on how to run it, never a failure. Off by default since it calls a "
+                               "model and a compiler per finding. Local only, it never forks, broadcasts, "
+                               "or holds a key. It only adds evidence, a finding is kept whether or not "
+                               "its PoC reproduces")
 
     roles = repository.add_argument_group(
         "model roles (advanced)",
@@ -716,6 +718,11 @@ def _cmd_repository_finalize(args) -> int:
             else:
                 gen_provider = _role_provider(args, base)
             poc_backend_obj = domain.poc_backend(provider=gen_provider, model=base["model"])
+            if getattr(poc_backend_obj, "executes", True) and not poc_backend_obj.available():
+                # write-only degrade, not an abort, so the operator learns how to enable the run
+                hint = getattr(poc_backend_obj, "install_hint", "")
+                print(f"NOTE: PoC toolchain not found, PoCs will be written but not run here. {hint}".rstrip(),
+                      file=sys.stderr)
     print(f"Finalizing {args.directory}: dedup + verify + report ...", file=sys.stderr)
     try:
         fr = finalize_repository_review(

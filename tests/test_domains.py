@@ -266,6 +266,13 @@ def test_web_poc_generate_needs_a_provider(tmp_path):
         WebPoC().generate(title="t", analysis="a", symbol="s", file="v.py", line=1, root=str(tmp_path))
 
 
+def test_forge_poc_exposes_one_install_hint_source():
+    from codejury.domains.evm.poc import _FOUNDRY_URL, _INSTALL_HINT, ForgePoC
+
+    assert _FOUNDRY_URL in ForgePoC.install_hint
+    assert _FOUNDRY_URL in _INSTALL_HINT
+
+
 _POC_TEST = """\
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;

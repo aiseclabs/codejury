@@ -27,9 +27,11 @@ from shutil import which
 from codejury.domains.base import BackendUnavailable, PoCArtifact, PoCExecResult
 from codejury.providers.base import Message, Provider
 
+_FOUNDRY_URL = "https://getfoundry.sh"
+
 _INSTALL_HINT = (
     "Foundry is not installed. The evm PoC backend needs forge on PATH: install Foundry "
-    "from https://getfoundry.sh, then re-run."
+    f"from {_FOUNDRY_URL}, then re-run."
 )
 
 _SYSTEM = (
@@ -66,6 +68,7 @@ class ForgePoC:
     Local only, invariant 6. Adds evidence, never refutes, invariant 2."""
 
     ext = "t.sol"
+    install_hint = f"install Foundry from {_FOUNDRY_URL}"
 
     def __init__(self, *, provider: Provider | None = None, model: str | None = None,
                  timeout: int = 180, max_tokens: int = 4096, attempts: int = 2) -> None:
