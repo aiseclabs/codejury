@@ -139,11 +139,50 @@ def test_majority_vote_keeps_when_only_a_minority_refutes():
     assert [c.title for c in vr.confirmed] == ["x"]
 
 
+def test_every_vote_refuting_and_an_upholding_confirmer_drops_at_votes_above_one():
+    vr = verify_findings([Candidate(title="fp", endpoint="GET /b")],
+                         StubVerifier(["fp"]), ".", votes=3,
+                         confirmers=_judge(StubChecker(["fp"])), concurrency=1)
+    assert [c.title for c, _ in vr.refuted] == ["fp"] and not vr.confirmed
+
+
+class RefuteThenKeepVerifier(Verifier):
+    """Refutes the first two votes then keeps on the third, so one keep sits among three votes."""
+    def __init__(self):
+        self.i = 0
+
+    def verify(self, candidate, root):
+        self.i += 1
+        return Verdict(real=(self.i == 3))
+
+
+def test_one_keep_vote_saves_the_finding_even_with_an_upholding_confirmer():
+    vr = verify_findings([Candidate(title="x", endpoint="GET /a")],
+                         RefuteThenKeepVerifier(), ".", votes=3,
+                         confirmers=_judge(StubChecker(["x"])), concurrency=1)
+    assert [c.title for c in vr.confirmed] == ["x"] and not vr.refuted
+
+
 def test_model_verifier_parses_a_refutation():
     prov = MockProvider(default='{"real": false, "reason": "the lock holds on a real RDBMS"}')
     verdict = ModelVerifier(provider=prov, model="mock").verify(
         Candidate(title="race", endpoint="POST /t", file=""), ".")
     assert verdict.real is False and "lock holds" in verdict.reason
+    assert prov.calls[0]["cache"] is True
+
+
+def test_model_verifier_keeps_a_refutation_citing_a_same_named_file_in_another_dir():
+    prov = MockProvider(default='{"real": false, "control_file": "services/config.py"}')
+    verdict = ModelVerifier(provider=prov, model="mock").verify(
+        Candidate(title="x", endpoint="GET /a", file="models/config.py"), ".")
+    assert verdict.real is True
+
+
+def test_model_verifier_treats_a_bare_filename_control_as_on_file():
+    prov = MockProvider(default='{"real": false, "control_file": "config.py"}')
+    verdict = ModelVerifier(provider=prov, model="mock").verify(
+        Candidate(title="x", endpoint="GET /a", file="models/config.py"), ".")
+    assert verdict.real is False
 
 
 def test_model_verifier_raises_on_unparseable_reply():

@@ -93,11 +93,19 @@ _JSON_SHAPE = (
 )
 
 
-def _control_basename(ref: str) -> str:
-    """The file name a controlling fact cites, without its directory or a trailing line,
-    empty when the skeptic named none."""
-    ref = ref.strip().strip("`").split(":", 1)[0].strip()
-    return ref.rsplit("/", 1)[-1] if ref else ""
+def _control_ref(ref: str) -> str:
+    """The file a controlling fact cites, without a trailing line, empty when the skeptic named none."""
+    return ref.strip().strip("`").split(":", 1)[0].strip()
+
+
+def _control_is_on_file(control: str, candidate_file: str) -> bool:
+    """Whether the cited control is the file the skeptic was actually shown. A control that names a
+    directory must match the candidate's full path, so a same-named file in another directory is not
+    read as on-file, invariant 2. A bare filename still matches on name, since the skeptic often cites
+    the shown file loosely."""
+    if "/" in control:
+        return control == candidate_file
+    return control == candidate_file.rsplit("/", 1)[-1]
 
 
 def _read_file(root: str, rel: str) -> str:
@@ -147,8 +155,8 @@ class ModelVerifier(Verifier):
             raise VerifyError("unparseable verification reply")
         if obj.get("real"):
             return Verdict(real=True, reason=str(obj.get("reason", "")))
-        control = _control_basename(str(obj.get("control_file", "")))
-        if control and control != _control_basename(candidate.file):
+        control = _control_ref(str(obj.get("control_file", "")))
+        if control and not _control_is_on_file(control, candidate.file):
             # the refutation rests on a file the skeptic was not shown, so it is an
             # assumption, not a refutation: keep the finding for cross-file confirmation
             return Verdict(real=True, reason=f"refuted on unshown {control}, kept for cross-file check")
