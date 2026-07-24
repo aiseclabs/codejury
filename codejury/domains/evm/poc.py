@@ -89,8 +89,10 @@ class ForgePoC:
         return which("forge") is not None
 
     def generate(self, *, title: str, analysis: str, symbol: str, file: str,
-                 line: int | None, root: str) -> PoCArtifact:
-        """Write the Foundry test that proves the exploit, without running it."""
+                 line: int | None, root: str, endpoint: str = "") -> PoCArtifact:
+        """Write the Foundry test that proves the exploit, without running it. `endpoint` is part of
+        the shared finding context the engine passes every backend, a contract has none, so it is
+        unused here."""
         import_line, note = self._import_note(Path(root), file)
         target = _read(Path(root) / file) if file else ""
         prompt = _prompt(title=title, analysis=analysis, symbol=symbol, file=file, line=line,

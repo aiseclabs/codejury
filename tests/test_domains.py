@@ -277,6 +277,55 @@ def test_web_poc_flags_a_script_that_does_not_parse(tmp_path):
     assert "does not parse" in art.note
 
 
+class _RecordingProvider:
+    """A provider that records the user prompt it was sent, so a test can assert what grounded it."""
+
+    def __init__(self, text: str):
+        self._text = text
+        self.last_user = ""
+
+    def complete(self, *, system, messages, model, max_tokens, cache):
+        from types import SimpleNamespace
+
+        self.last_user = messages[-1].content
+        return SimpleNamespace(text=self._text)
+
+
+def test_web_poc_feeds_the_endpoint_and_handler_source_into_the_prompt(tmp_path):
+    from codejury.domains.web.poc import WebPoC
+
+    src = tmp_path / "models" / "memories.py"
+    src.parent.mkdir(parents=True)
+    src.write_text("def update_memory_by_id(id, form):\n    return db.query(Memory).filter(Memory.id == id)\n",
+                   encoding="utf-8")
+    rec = _RecordingProvider("import requests\n")
+    WebPoC(provider=rec, model="m").generate(
+        title="idor", analysis="a", symbol="update_memory_by_id", file="models/memories.py",
+        line=None, root=str(tmp_path), endpoint="POST /memories/{id}/update")
+    assert "POST /memories/{id}/update" in rec.last_user
+    assert "filter(Memory.id == id)" in rec.last_user
+
+
+def test_web_poc_prompt_drops_the_read_from_above_line_with_no_endpoint_or_source():
+    from codejury.domains.web.poc import _prompt
+
+    grounded = _prompt(title="t", analysis="a", symbol="s", file="v.py", line=1,
+                       endpoint="POST /x", source="def h(): ...")
+    bare = _prompt(title="t", analysis="a", symbol="s", file="v.py", line=1, endpoint="", source="")
+    assert "do not guess" in grounded
+    assert "do not guess" not in bare
+
+
+def test_web_poc_marks_a_truncated_handler_source(tmp_path):
+    from codejury.domains.web.poc import _SOURCE_CAP, _read_source
+
+    big = tmp_path / "big.py"
+    big.write_text("x = 1\n" * _SOURCE_CAP, encoding="utf-8")
+    out = _read_source(big)
+    assert "source truncated" in out
+    assert len(out) < _SOURCE_CAP + 100
+
+
 def test_forge_poc_exposes_one_install_hint_source():
     from codejury.domains.evm.poc import _FOUNDRY_URL, _INSTALL_HINT, ForgePoC
 

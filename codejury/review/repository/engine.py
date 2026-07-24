@@ -664,7 +664,8 @@ def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[C
                 note = f"PoC reproduced: {res.detail}" if res.reproduced else f"PoC inconclusive: {res.detail}"
             else:
                 art = backend.generate(
-                    title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root)
+                    title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line,
+                    endpoint=c.endpoint, root=root)
                 source = art.source
                 if executes:
                     # recorded not hidden, so a missing toolchain never reads as a clean finding, invariant 4
