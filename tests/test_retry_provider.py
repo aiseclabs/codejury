@@ -114,7 +114,6 @@ def test_rate_limit_backs_off_exponentially_with_jitter():
 
 
 def test_rate_limit_honors_retry_after_header():
-    # when the server sends Retry-After, that wait wins over the computed backoff
     class _Resp:
         headers = {"retry-after": "5"}
 
@@ -144,7 +143,6 @@ def test_rate_limit_caps_at_max_delay():
 
 
 def test_non_rate_limit_keeps_linear_backoff():
-    # a plain transient error is not a rate limit, so the simple linear backoff is unchanged
     slept = []
     inner = _RateLimited(fail_times=2, exc=RuntimeError("transient network blip"))
     provider = RetryProvider(inner, max_attempts=3, base_delay=1.0, sleep=slept.append)
@@ -191,8 +189,6 @@ class _Hang(Provider):
 
 
 def test_hard_timeout_aborts_a_hung_call():
-    # a call that never returns is abandoned as a TimeoutError once the deadline passes,
-    # instead of hanging forever, so the run survives a stalled provider
     inner = _Hang()
     provider = RetryProvider(inner, max_attempts=1, hard_timeout=0.2, sleep=lambda _: None)
     try:
@@ -204,7 +200,6 @@ def test_hard_timeout_aborts_a_hung_call():
 
 
 def test_hard_timeout_retries_then_recovers():
-    # the deadline failure feeds the retry loop, so a one-off stall is retried and recovers
     inner = _Hang()
     inner.release.set()
     provider = RetryProvider(inner, max_attempts=2, hard_timeout=5.0, sleep=lambda _: None)
@@ -212,7 +207,6 @@ def test_hard_timeout_retries_then_recovers():
 
 
 def test_no_hard_timeout_leaves_call_unbounded():
-    # without a deadline the inner call runs to completion, unbounded
     inner = _Flaky(fail_times=0)
     provider = RetryProvider(inner)
     assert _call(provider).text == "ok"

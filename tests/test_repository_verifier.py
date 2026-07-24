@@ -43,8 +43,6 @@ def _judge(checker):
 
 
 def test_a_refutation_alone_never_drops_a_finding_without_a_confirmer():
-    # with no independent confirmer a refutation cannot delete a finding, it is kept
-    # pending evidence.
     cands = [Candidate(title="real1", endpoint="GET /a"),
              Candidate(title="fp", endpoint="GET /b")]
     vr = verify_findings(cands, StubVerifier(["fp"]), ".", concurrency=2)
@@ -192,7 +190,6 @@ def test_model_checker_confirms_a_holding_refutation():
 
 
 def test_model_checker_keeps_the_finding_on_an_unparseable_audit():
-    # an audit that cannot be read cannot confirm the refutation, so the finding stays
     prov = MockProvider(default="not json")
     checker = ModelRefutationChecker(provider=prov, model="mock")
     assert checker.holds(Candidate(title="x", file=""), "some reason", ".") is False

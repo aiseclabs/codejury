@@ -401,7 +401,6 @@ def test_finalize_adds_target_metadata_without_changing_findings(tmp_path):
     withmeta = finalize_repository_review(meta_t, meta_ws, verifier=_AllReal(), confirmers=[], concurrency=1)
     meta_report = json.loads((withmeta.workspace / "findings.json").read_text())
 
-    # provenance annotates the report, it never changes the finding decisions, invariants 2 and 3
     assert meta_report["findings"] == plain_report["findings"]
     assert "target" not in plain_report
     assert meta_report["target"]["chain"] == "bsc"
@@ -516,8 +515,6 @@ def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_p
 
 
 def test_finalize_drops_issue_with_no_file_location(tmp_path):
-    # no file location means not reportable, so the issue is dropped, not carried
-    # into the report with an empty location, invariant 3.
     target, ws, candidates = _finalize_ws(tmp_path)
     (candidates / "noloc.md").write_text(
         "# missing location\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n"
@@ -617,7 +614,6 @@ def test_shared_context_feeds_the_finder_the_phase1_inventory(tmp_path):
     # an unfilled auth-model or invariants template is skipped, blank seeds nothing
     assert "## Operator-seeded intent invariants" not in ctx
     assert "## Authorization model" not in ctx
-    # once the operator fills the invariants, the finder sees it
     (ws / "inventory" / "_invariants.md").write_text(
         "# Intent Invariants\n\nonly the owner moves the balance\n", encoding="utf-8")
     assert "only the owner moves the balance" in _shared_context(ws)
@@ -864,7 +860,6 @@ def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
 
 
 def test_keystr_respects_by_file_for_cross_file_findings():
-    # by_file keeps cross-file findings distinct in the verified store.
     from codejury.review.repository.engine import _keystr
     from codejury.review.repository.union import Candidate
     a = Candidate(title="t", category="reentrancy", endpoint="withdraw", file="A.sol")

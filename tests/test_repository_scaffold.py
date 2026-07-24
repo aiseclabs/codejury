@@ -193,7 +193,6 @@ def test_scaffold_splits_a_large_candidate_into_slice_units(tmp_path):
     (d / "requirements.txt").write_text("Flask==3.0\n")
     res = scaffold(d, tmp_path / "work")
     slugs = sorted(p.stem for p in (res.workspace / "units").glob("*.md"))
-    # the file split, so the whole-file unit is gone and slice units cover it
     assert "views" not in slugs
     assert "views-py-1" in slugs and "views-py-2" in slugs
     first = (res.workspace / "units" / "views-py-1.md").read_text()

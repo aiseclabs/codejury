@@ -149,7 +149,6 @@ def test_fetch_does_not_write_on_failure(tmp_path):
     out = tmp_path / "target"
     with pytest.raises(SourceError):
         _fetch(tmp_path, out=out, payload=_payload(""))
-    # a failed fetch leaves no half-written tree passed off as complete, invariant 4
     assert not (out / "codejury-source.json").exists()
 
 

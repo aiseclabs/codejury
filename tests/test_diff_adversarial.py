@@ -239,7 +239,6 @@ class _RoleProvider:
 
 
 def test_adversarial_routes_each_role_to_its_own_provider():
-    # a different provider in each seat lets the finder, challenger, and judge be different vendors
     finder_p = _RoleProvider(_finder([_VULN]))
     challenger_p = _RoleProvider(_challenger())
     judge_p = _RoleProvider(_judge([_VULN], converged=True))

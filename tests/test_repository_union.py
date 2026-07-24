@@ -52,7 +52,6 @@ def test_canonical_categories_collapse_one_defect_under_label_variants():
 
 
 def test_canonical_categories_keep_distinct_classes_at_one_line():
-    # two genuinely different classes at one line stay separate after canonicalization
     aliases = category_aliases(EVM.paths.vulnerabilities_dir)
     cands = [
         _c("reentry", category="reentrancy", file="src/V3Vault.sol", line=44871),
@@ -260,7 +259,6 @@ def test_failed_passes_do_not_count_as_convergence():
     acc.add_pass([], clean=False)
     acc.add_pass([], clean=False)
     assert not acc.converged
-    # once a clean quiet streak follows, convergence holds again
     acc.add_pass([])
     acc.add_pass([])
     assert acc.converged

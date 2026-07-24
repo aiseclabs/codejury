@@ -17,7 +17,6 @@ def test_web_domain_resolves_shipped_content():
     assert paths.detection_file.is_file()
     assert paths.methodology_file.is_file()
     assert paths.severity_rubric_file.is_file()
-    # the knowledge index and the vulnerabilities directory share a parent
     assert paths.knowledge_index.parent == paths.vulnerabilities_dir.parent
 
 
@@ -254,7 +253,6 @@ def test_web_poc_writes_a_python_script_and_never_runs_it(tmp_path):
     assert art.ext == "py"
     assert "requests" in art.source
     assert art.run_hint
-    # a web PoC is written but never executed automatically, invariant 6
     assert poc.available() is False
     assert poc.executes is False
     res = poc.execute(source=art.source, root=str(tmp_path))
