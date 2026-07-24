@@ -1,13 +1,9 @@
 """The eval ruler: answer-key loading and the legacy alias, report matching, recall and
 precision scoring, private-source discovery, and the compare flips."""
 
-import sys
 from pathlib import Path
 
 import pytest
-
-# evals is a root-level dev tool, not an installed package, so make it importable
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from evals import registry
 from evals.compare import compare, compare_by
@@ -395,7 +391,7 @@ def test_registry_finds_public_openwebui_benchmark(tmp_path, monkeypatch):
     assert "insecure-direct-object-reference" in bench.knowledge["vulnerabilities"]
     key = load_answer_key(bench.answer_key)
     assert key.target == "open-webui"
-    assert any(p.id == "idor-memory-update" for p in key.planted)
+    assert any(p.category == "insecure-direct-object-reference" for p in key.planted)
 
 
 def test_registry_resolves_a_private_path_source_legacy_layout(tmp_path, monkeypatch):

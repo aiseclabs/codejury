@@ -25,12 +25,14 @@ _DIFF = _FILE_A
 
 
 @pytest.fixture(autouse=True)
-def _hermetic_seat_env(monkeypatch):
+def _hermetic_seat_env(monkeypatch, tmp_path_factory):
     """Seat resolution reads credentials from the environment and from defaults frozen at import,
     so a developer shell that sourced a .env would make a keyless seat look key-reachable and flip
     the executor tests. Every CLI test starts from the clean keyless baseline CI has, and a test
     that needs a key sets it after this fixture runs. Clearing os.environ is not enough on its own,
-    the defaults were already frozen at import, so they are reset here too."""
+    the defaults were already frozen at import, so they are reset here too. The default workspace is
+    pinned under a tmp dir so a command that omits --workspace never writes to the real user state dir."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path_factory.mktemp("xdg-state")))
     for name in list(os.environ):
         if name.startswith(("CODEJURY_", "ANTHROPIC_", "OPENAI_")):
             monkeypatch.delenv(name, raising=False)
@@ -51,6 +53,10 @@ def test_split_diff_by_file():
 def test_split_diff_empty_and_unbounded():
     assert split_diff_by_file("") == []
     assert split_diff_by_file("just text\n") == ["just text\n"]
+
+
+def test_pack_diff_chunks_empty_is_no_batches():
+    assert pack_diff_chunks("") == []
 
 
 def test_pack_diff_chunks_greedily_combines_files():
@@ -74,6 +80,14 @@ def test_dedup_findings_collapses_identical():
     g = Finding(file="a.py", line=2, severity="HIGH", category="sql-injection",
                 description="d", confidence=0.9)
     assert dedup_findings([f, f, g]) == [f, g]
+
+
+def test_dedup_findings_keeps_the_first_when_only_severity_differs():
+    a = Finding(file="a.py", line=1, severity="HIGH", category="sql-injection",
+                description="d", confidence=0.9)
+    b = Finding(file="a.py", line=1, severity="CRITICAL", category="sql-injection",
+                description="d", confidence=0.9)
+    assert dedup_findings([a, b]) == [a]
 
 
 def test_large_diff_is_audited_per_file(monkeypatch):

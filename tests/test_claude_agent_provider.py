@@ -197,4 +197,5 @@ def test_process_transport_ask_delegates_to_the_default_runner(monkeypatch):
 
 def test_close_does_not_dereference_a_none_transport_for_an_injected_runner():
     prov = ClaudeAgentProvider(runner=lambda p, **k: _envelope('{"findings": []}'))
+    assert prov._transport is None
     prov.close()

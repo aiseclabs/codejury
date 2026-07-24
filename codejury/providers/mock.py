@@ -25,6 +25,7 @@ class MockProvider(Provider):
         max_tokens: int,
         cache: bool = False,
     ) -> CompletionResult:
-        self.calls.append({"system": system, "messages": messages, "model": model})
+        self.calls.append({"system": system, "messages": messages, "model": model,
+                           "cache": cache, "max_tokens": max_tokens})
         text = self._responses.pop(0) if self._responses else self._default
         return CompletionResult(text=text)

@@ -57,3 +57,4 @@ codejury = ["playbook/*.md", "domains/*/knowledge/**/*.md", "domains/*/playbook/
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]

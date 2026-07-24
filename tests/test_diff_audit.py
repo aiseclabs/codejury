@@ -4,7 +4,7 @@ MockProvider, no key."""
 import json
 
 from codejury.review.diff.audit import AuditRunner
-from codejury.review.diff.engine import audit_diff, strip_noise_files
+from codejury.review.diff.engine import _chunk_path, audit_diff, strip_noise_files
 from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.prompts import standard_audit_prompt
 from codejury.finding import Finding
@@ -107,6 +107,11 @@ def test_filter_drops_low_confidence():
     assert kept == [] and "confidence" in dropped[0][1]
 
 
+def test_filter_keeps_confidence_exactly_at_the_floor():
+    kept, dropped = FindingsFilter(min_confidence=0.5).filter([_f("a.py", conf=0.5)])
+    assert [f.file for f in kept] == ["a.py"] and dropped == []
+
+
 def test_filter_keeps_real_high_confidence_prod_finding():
     kept, dropped = FindingsFilter().filter([_f("app/payment.py", conf=0.95)])
     assert len(kept) == 1 and dropped == []
@@ -127,6 +132,20 @@ def test_strip_noise_files_keeps_a_chunk_whose_path_cannot_be_read():
     headerless = "@@ -0,0 +1 @@\n+x = 1\n"
     kept, skipped = strip_noise_files(headerless)
     assert kept == headerless and skipped == ()
+
+
+def test_chunk_path_reads_the_deletion_and_git_header_fallbacks():
+    deletion = "diff --git a/README.md b/README.md\n--- a/README.md\n+++ /dev/null\n@@ -1 +0,0 @@\n-# Title\n"
+    assert _chunk_path(deletion) == "README.md"
+    header_only = "diff --git a/app/x.py b/app/x.py\nBinary files differ\n"
+    assert _chunk_path(header_only) == "app/x.py"
+
+
+def test_audit_diff_whitespace_only_diff_is_clean_without_a_model_call():
+    provider = MockProvider(default='{"findings": []}')
+    kept, dropped, degraded = audit_diff("   \n", provider=provider, model="m")
+    assert kept == [] and dropped == [] and degraded is False
+    assert provider.calls == []
 
 
 def test_audit_diff_does_not_send_noise_files_to_the_model():

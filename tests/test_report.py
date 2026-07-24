@@ -69,6 +69,8 @@ def test_gate_trips_at_or_above_threshold():
     assert gate(_FINDINGS, "high") is True
     assert gate(_FINDINGS, "critical") is True
     assert gate([_FINDINGS[1]], "high") is False
+    assert gate([_FINDINGS[1]], "medium") is True
+    assert gate([], "critical") is False
     assert gate(_FINDINGS, None) is False
 
 

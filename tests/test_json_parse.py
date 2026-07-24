@@ -29,6 +29,14 @@ def test_extracts_nested_braces():
     assert extract_json_object(text) == {"outer": {"inner": {"x": 1}}}
 
 
+def test_extracts_the_next_object_when_the_first_is_invalid():
+    assert extract_json_object('note {not: json} then {"findings": []}') == {"findings": []}
+
+
+def test_extracts_an_object_at_the_start_of_a_very_large_input():
+    assert extract_json_object('{"findings": []}' + " noise" * 300_000) == {"findings": []}
+
+
 @pytest.mark.parametrize("text", ["", "no json here", "{not valid}", "[1, 2, 3]"])
 def test_no_object_returns_none(text):
     assert extract_json_object(text) is None
