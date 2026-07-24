@@ -15,7 +15,6 @@ SYSTEM = (
     "style notes or speculation. Respond with a single JSON object and nothing else."
 )
 
-# the default domain's prompt blocks, used when a caller selects no domain
 FOCUS = default_domain().diff_focus
 DO_NOT_REPORT = default_domain().diff_do_not_report
 

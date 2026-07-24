@@ -18,7 +18,6 @@ DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
 DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
 # the OpenAI wire is env-backed because GPT-5 reasoning models answer on Responses.
 DEFAULT_WIRE_API = os.environ.get("CODEJURY_WIRE_API", "chat")
-# retry count follows the same env-backed backend config as the timeout.
 DEFAULT_RETRIES = int(os.environ.get("CODEJURY_RETRIES", "2"))
 
 # finder, challenger, and judge can inherit the base backend or name their own.
