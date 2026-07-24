@@ -109,10 +109,13 @@ class PoCArtifact:
     carries a concrete reproduction recipe, not only a prose scenario. `source` is the runnable
     text, `ext` is its file suffix so it lands as `pocs/<name>.<ext>`, and `run_hint` states how a
     human runs it. Writing is separate from running: a domain writes for every finding, and only a
-    domain that runs safely and locally, such as evm under Foundry, also executes."""
+    domain that runs safely and locally, such as evm under Foundry, also executes. `note` is an
+    optional writer-side check result, such as a syntax warning, that the engine folds into the
+    evidence. It never refutes the finding, invariant 2."""
     source: str
     ext: str
     run_hint: str = ""
+    note: str = ""
 
 
 @dataclass(frozen=True, kw_only=True)

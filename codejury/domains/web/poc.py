@@ -12,6 +12,7 @@ later runs the script, so a written but unrun PoC lowers nothing and drops nothi
 
 from __future__ import annotations
 
+import ast
 import re
 
 from codejury.domains.base import PoCArtifact, PoCExecResult
@@ -35,6 +36,16 @@ def _extract_python(text: str) -> str:
     """The Python body from a model reply, tolerating a fenced block or bare source."""
     fence = re.search(r"```(?:python)?\s*(.*?)```", text, re.DOTALL)
     return (fence.group(1) if fence else text).strip()
+
+
+def _parse_note(source: str) -> str:
+    """A warning when the written script is not valid Python, empty when it parses. It flags the
+    artifact, it never refutes the finding, invariant 2."""
+    try:
+        ast.parse(source)
+    except SyntaxError as exc:
+        return f"PoC does not parse as Python: {exc}"
+    return ""
 
 
 class WebPoC:
@@ -65,7 +76,8 @@ class WebPoC:
         reply = self._provider.complete(
             system=_SYSTEM, messages=[Message(role="user", content=prompt)],
             model=self._model, max_tokens=self._max_tokens, cache=False)
-        return PoCArtifact(source=_extract_python(reply.text), ext=self.ext, run_hint=_RUN_HINT)
+        source = _extract_python(reply.text)
+        return PoCArtifact(source=source, ext=self.ext, run_hint=_RUN_HINT, note=_parse_note(source))
 
     def execute(self, *, source: str, root: str) -> PoCExecResult:
         """Report the web PoC as unrun. Running it hits a live server, so a human does that against

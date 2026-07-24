@@ -787,6 +787,32 @@ def test_run_pocs_writes_only_for_a_backend_that_does_not_execute(tmp_path):
     assert "run it manually" in out[0].evidence
 
 
+def test_run_pocs_folds_a_writer_side_note_into_the_evidence(tmp_path):
+    from types import SimpleNamespace
+
+    from codejury.review.repository.engine import _run_pocs
+
+    ws = tmp_path / "proj"
+    (ws / "pocs").mkdir(parents=True)
+    findings = [Candidate(title="idor", category="idor", file="v.py", line=3, symbol="g",
+                          evidence="no owner check")]
+
+    class WriteOnly:
+        executes = False
+        ext = "py"
+
+        def available(self):
+            return False
+
+        def generate(self, **kw):
+            return SimpleNamespace(source="def broken(:", ext="py", run_hint="python it",
+                                   note="PoC does not parse as Python: invalid syntax")
+
+    out = _run_pocs(ws, findings, WriteOnly(), root=str(tmp_path))
+    assert "does not parse" in out[0].evidence
+    assert len(out) == 1
+
+
 def test_execute_present_pocs_runs_an_agent_written_poc(tmp_path):
     from types import SimpleNamespace
 

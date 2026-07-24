@@ -671,6 +671,8 @@ def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[C
                     note = f"PoC written, not run, toolchain absent. To run it: {install_hint}. Then: {art.run_hint}"
                 else:
                     note = f"PoC written, run it manually: {art.run_hint}"
+                if getattr(art, "note", ""):
+                    note = f"{note}. {art.note}"
         except Exception as exc:
             # a failed PoC call is not a safe verdict, keep the finding and record the failure, invariant 4
             source = ""

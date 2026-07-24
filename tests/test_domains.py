@@ -253,6 +253,7 @@ def test_web_poc_writes_a_python_script_and_never_runs_it(tmp_path):
     assert art.ext == "py"
     assert "requests" in art.source
     assert art.run_hint
+    assert art.note == ""
     assert poc.available() is False
     assert poc.executes is False
     res = poc.execute(source=art.source, root=str(tmp_path))
@@ -264,6 +265,16 @@ def test_web_poc_generate_needs_a_provider(tmp_path):
 
     with pytest.raises(ValueError, match="needs a provider"):
         WebPoC().generate(title="t", analysis="a", symbol="s", file="v.py", line=1, root=str(tmp_path))
+
+
+def test_web_poc_flags_a_script_that_does_not_parse(tmp_path):
+    from codejury.domains.web.poc import WebPoC
+    from codejury.providers.mock import MockProvider
+
+    poc = WebPoC(provider=MockProvider(default="def broken(:\n"), model="m")
+    art = poc.generate(title="idor", analysis="a", symbol="s", file="v.py", line=1, root=str(tmp_path))
+    assert art.source == "def broken(:"
+    assert "does not parse" in art.note
 
 
 def test_forge_poc_exposes_one_install_hint_source():
