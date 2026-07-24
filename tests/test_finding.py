@@ -18,6 +18,13 @@ def test_finding_without_file_is_dropped():
     assert finding_from_dict({"severity": "HIGH", "description": "x"}) is None
 
 
+def test_finding_with_a_non_location_file_is_dropped():
+    assert finding_from_dict({"file": ["a.py"], "severity": "HIGH"}) is None
+    assert finding_from_dict({"file": {"path": "a.py"}}) is None
+    assert finding_from_dict({"file": 123}) is None
+    assert finding_from_dict({"file": "   "}) is None
+
+
 def test_finding_coerces_bad_values():
     f = finding_from_dict({"file": "a.py", "line": 0, "severity": "SCARY", "confidence": 5})
     assert f.line is None

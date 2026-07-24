@@ -49,9 +49,10 @@ def finding_from_dict(data: dict[str, Any]) -> Finding | None:
     location, since every finding carries a file, that is the invariant."""
     if not isinstance(data, dict):
         return None
-    file = str(data.get("file", "")).strip()
-    if not file:
+    file = data.get("file")
+    if not isinstance(file, str) or not file.strip():
         return None
+    file = file.strip()
     severity = str(data.get("severity", "MEDIUM")).upper()
     return Finding(
         file=file,
