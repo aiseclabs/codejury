@@ -197,12 +197,14 @@ how each unit is reviewed. `--finalize` deduplicates and verifies the candidates
 proposed, the step the agent path needs, records refuted candidates in `_refuted.md` and PoC
 reconciliation in `_pocs.md`, and writes the confirmed `findings/` and the ranked `findings.json`. `--gate` fails until the workspace has an enumerated
 surface, reviewed units, and calibrated candidates. Add `--strict-coverage` to also fail when a
-source file is owned by no unit, instead of noting it. Add `--poc` on finalize to generate and run
-an executable PoC for each confirmed finding when the domain binds a PoC backend, such as the EVM
-Foundry reproducer. It is off by default since it calls a model and a compiler per finding. When the
-run toolchain is absent the PoC is written but not run, with a note on how to run it by hand, rather
-than failing. A PoC runs locally only, it never forks a network, broadcasts, or holds a key, and it
-only adds evidence, so a finding is kept whether or not its PoC reproduces.
+source file is owned by no unit, instead of noting it. Add `--poc` on finalize to write a runnable
+PoC for each confirmed finding when the domain binds a PoC backend. Where the domain runs safely and
+locally it also runs the PoC, such as the EVM Foundry reproducer, which compiles and runs the test
+with no fork, no broadcast, and no key. A web PoC is written for a human to run against a sandbox or
+dev host, never automatically, since it needs a live server and credentials. It is off by default
+since it calls a model per finding, and for EVM also compiles and runs one. When the run toolchain
+is absent the PoC is written but not run, with a note on how to run it by hand, rather than failing.
+It only adds evidence, so a finding is kept whether or not its PoC reproduces.
 
 ### The Workspace
 

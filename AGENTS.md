@@ -141,6 +141,10 @@ orchestration and agents or model calls provide per-unit judgment.
 - Set the review depth, low is one lens shot, medium is the default two, high is three
   shots plus a stricter majority of two skeptics to drop a candidate:
   `codejury review repository <dir> --run --effort high`
+- Write a runnable PoC per confirmed finding on finalize, off by default since it calls a model
+  per finding. The evm domain compiles and runs it locally under Foundry, the web domain writes it
+  for a human to run against a sandbox:
+  `codejury review repository <dir> --finalize --poc`
 - Install slash command:
   `codejury install-slash-command`
 - Provider configuration comes from flags or environment, and the CLI loads a
