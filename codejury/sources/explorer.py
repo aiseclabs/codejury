@@ -29,6 +29,7 @@ class Chain:
 
 
 CHAINS: dict[str, Chain] = {
+    "arbitrum": Chain("arbitrum", 42161, "https://arbiscan.io/address/{address}#code", "arbiscan"),
     "bsc": Chain("bsc", 56, "https://bscscan.com/address/{address}#code", "bscscan"),
     "eth": Chain("eth", 1, "https://etherscan.io/address/{address}#code", "etherscan"),
     "polygon": Chain("polygon", 137, "https://polygonscan.com/address/{address}#code", "polygonscan"),

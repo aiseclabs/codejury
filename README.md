@@ -321,8 +321,9 @@ codejury review repository ./target --domain evm --run
 ```
 
 `fetch source` queries the Etherscan V2 API, which serves every supported chain from one
-endpoint with one key, so a single `CODEJURY_ETHERSCAN_API_KEY` covers `eth`, `bsc`, and
-`polygon`, chosen with `--chain`. Pass the key with `--api-key` or that environment variable.
+endpoint with one key, so a single `CODEJURY_ETHERSCAN_API_KEY` covers `arbitrum`, `bsc`,
+`eth`, and `polygon`, chosen with `--chain`. Pass the key with `--api-key` or that
+environment variable.
 It writes the reconstructed source tree and a `codejury-source.json` recording the chain,
 address, compiler, and source URL, and it fails loud on an unverified or malformed response.
 It never runs a review on its own. Point Diff Review at that metadata file with
