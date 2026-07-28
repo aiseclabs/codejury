@@ -127,6 +127,8 @@ orchestration and agents or model calls provide per-unit judgment.
   `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`
 - Lint and format with Ruff, the configured line length and rule set live in `pyproject.toml`:
   `ruff check . && ruff format .`
+- Enable the commit hook once per clone, so a commit auto-formats and lints before CI checks it:
+  `pre-commit install`
 - Diff Review:
   `codejury review diff --file changes.diff`
 - Repository Review scaffold:
