@@ -34,7 +34,7 @@ dependencies = [
 [project.optional-dependencies]
 # LiteLLM proxies other providers behind one API, a heavy dependency tree, so it stays opt-in
 litellm = ["litellm>=1.0"]
-dev = ["pytest>=8.0", "jsonschema>=4.0"]
+dev = ["pytest>=8.0", "jsonschema>=4.0", "ruff>=0.16"]
 
 [project.scripts]
 codejury = "codejury.cli:main"
@@ -58,3 +58,10 @@ codejury = ["playbook/*.md", "domains/*/knowledge/**/*.md", "domains/*/playbook/
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF"]

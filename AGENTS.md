@@ -125,6 +125,8 @@ orchestration and agents or model calls provide per-unit judgment.
 
 - Run tests in a venv:
   `python -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && pytest`
+- Lint and format with Ruff, the configured line length and rule set live in `pyproject.toml`:
+  `ruff check . && ruff format .`
 - Diff Review:
   `codejury review diff --file changes.diff`
 - Repository Review scaffold:
