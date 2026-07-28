@@ -21,7 +21,7 @@ class Result:
     extra: list[str] = field(default_factory=list)
     n_planted: int = 0
     n_reports: int = 0
-    errors: int = 0   # review or engine calls that failed, counted not hidden, invariant 4
+    errors: int = 0  # review or engine calls that failed, counted not hidden, invariant 4
 
     @property
     def recall(self) -> float:
@@ -41,9 +41,11 @@ class Result:
         return d
 
     def to_markdown(self) -> str:
-        rows = [f"### {self.target}",
-                f"- recall: {len(self.found)}/{self.n_planted} = {self.recall:.0%}",
-                f"- precision: {self.precision_known:.0%}"]
+        rows = [
+            f"### {self.target}",
+            f"- recall: {len(self.found)}/{self.n_planted} = {self.recall:.0%}",
+            f"- precision: {self.precision_known:.0%}",
+        ]
         if self.missed:
             rows.append(f"- missed: {', '.join(self.missed)}")
         if self.false_positives:
@@ -60,16 +62,17 @@ class SuiteResult:
     verdict. The frequencies are kept, not just the verdict, so compare can read the spread.
     The read surface mirrors Result, found and missed and recall, so the same formatter and
     compare serve both."""
+
     target: str
     runs: int
-    found_freq: dict[str, int]      # planted id to the count of runs that found it
-    fp_freq: dict[str, int]         # safe id to the count of runs that flagged it
+    found_freq: dict[str, int]  # planted id to the count of runs that found it
+    fp_freq: dict[str, int]  # safe id to the count of runs that flagged it
     n_planted: int = 0
-    errors: int = 0                 # failed case runs summed across all runs, invariant 4
+    errors: int = 0  # failed case runs summed across all runs, invariant 4
     reports_total: int = 0
 
     @classmethod
-    def from_runs(cls, target: str, runs: list[Result]) -> "SuiteResult":
+    def from_runs(cls, target: str, runs: list[Result]) -> SuiteResult:
         """Fold a list of single-run Results for one target into frequency counts. Every
         planted id seen in any run is kept, so an id found in no run still reads as missed
         rather than vanishing."""
@@ -146,10 +149,12 @@ class SuiteResult:
         }
 
     def to_markdown(self) -> str:
-        rows = [f"### {self.target}",
-                f"- runs: {self.runs}, found by strict majority",
-                f"- recall: {len(self.found)}/{self.n_planted} = {self.recall:.0%}",
-                f"- precision: {self.precision_known:.0%}"]
+        rows = [
+            f"### {self.target}",
+            f"- runs: {self.runs}, found by strict majority",
+            f"- recall: {len(self.found)}/{self.n_planted} = {self.recall:.0%}",
+            f"- precision: {self.precision_known:.0%}",
+        ]
         flaky = {i: c for i, c in self.found_freq.items() if 0 < c < self.runs}
         if flaky:
             rows.append("- flaky: " + ", ".join(f"{i} {c}/{self.runs}" for i, c in sorted(flaky.items())))

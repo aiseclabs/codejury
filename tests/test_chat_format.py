@@ -12,9 +12,7 @@ def test_extracts_plain_string_content():
 
 
 def test_extracts_content_block_list():
-    resp = SimpleNamespace(
-        choices=[SimpleNamespace(message={"content": [{"text": "a"}, {"text": "b"}, "c"]})]
-    )
+    resp = SimpleNamespace(choices=[SimpleNamespace(message={"content": [{"text": "a"}, {"text": "b"}, "c"]})])
     assert choice_text(resp) == "abc"
 
 

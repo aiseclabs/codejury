@@ -9,17 +9,17 @@ the false-positive filter. Kept out of the CLI so it can be called as a library.
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Callable
 from time import perf_counter
-from typing import Callable
 
 from codejury.detection import Detection, load_detection
 from codejury.domains.base import Domain
 from codejury.domains.registry import default_domain
+from codejury.finding import Finding
 from codejury.review.diff.adversarial import AdversarialAuditRunner
 from codejury.review.diff.audit import AuditRunner
 from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.vulnerabilities import allowed_categories, normalize_category
-from codejury.finding import Finding
 
 # audit larger diffs in size-bounded batches so context is not silently truncated
 _MAX_DIFF_CHARS = 60_000
@@ -151,16 +151,23 @@ def audit_diff(
         nonlocal degraded
         if mode == "adversarial":
             result = AdversarialAuditRunner(
-                provider=provider, model=model,
-                finder_model=finder_model, challenger_model=challenger_model, judge_model=judge_model,
-                finder_provider=finder_provider, challenger_provider=challenger_provider,
+                provider=provider,
+                model=model,
+                finder_model=finder_model,
+                challenger_model=challenger_model,
+                judge_model=judge_model,
+                finder_provider=finder_provider,
+                challenger_provider=challenger_provider,
                 judge_provider=judge_provider,
-                content=content, focus=focus, do_not_report=do_not_report,
+                content=content,
+                focus=focus,
+                do_not_report=do_not_report,
             ).run(d, max_rounds=max_rounds)
             degraded = degraded or result.degraded
             return result.findings
-        return AuditRunner(provider=provider, model=model, content=content,
-                           focus=focus, do_not_report=do_not_report).run(d)
+        return AuditRunner(
+            provider=provider, model=model, content=content, focus=focus, do_not_report=do_not_report
+        ).run(d)
 
     if len(diff) > _MAX_DIFF_CHARS:
         batches = pack_diff_chunks(diff, _MAX_DIFF_CHARS)

@@ -31,8 +31,10 @@ def test_result_text_unwraps_json_envelope_and_passes_plain_through():
 
 
 def test_agent_reviewer_parses_findings_from_claude_output():
-    findings = ('{"findings": [{"title": "idor", "category": "idor", '
-                '"endpoint": "GET /x/<id>", "file": "a.py", "severity": "high", "status": "confirmed"}]}')
+    findings = (
+        '{"findings": [{"title": "idor", "category": "idor", '
+        '"endpoint": "GET /x/<id>", "file": "a.py", "severity": "high", "status": "confirmed"}]}'
+    )
     captured = {}
 
     def fake_runner(prompt, *, cwd, claude_bin, args, timeout):
@@ -121,6 +123,7 @@ def test_default_runner_scrubs_anthropic_auth_from_the_nested_claude_env(monkeyp
     def fake_run(cmd, **kw):
         captured["env"] = kw["env"]
         import subprocess
+
         return subprocess.CompletedProcess(cmd, 0, stdout=_envelope("ok"), stderr="")
 
     monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)
@@ -131,14 +134,23 @@ def test_default_runner_scrubs_anthropic_auth_from_the_nested_claude_env(monkeyp
 
 
 def test_run_with_agent_backends_needs_no_provider(custody_repository, tmp_path):
-    finding = _envelope('{"findings": [{"title": "wallet idor", "category": "idor", '
-                        '"endpoint": "GET /wallets/<id>", "file": "app/services/wallet.py", '
-                        '"severity": "HIGH", "status": "confirmed"}]}')
+    finding = _envelope(
+        '{"findings": [{"title": "wallet idor", "category": "idor", '
+        '"endpoint": "GET /wallets/<id>", "file": "app/services/wallet.py", '
+        '"severity": "HIGH", "status": "confirmed"}]}'
+    )
     reviewer = AgentReviewer(runner=lambda p, **k: finding)
     verifier = AgentVerifier(runner=lambda p, **k: _envelope('{"real": true, "reason": "real"}'))
 
-    res = run_repository_review(custody_repository, tmp_path / "ws", reviewer=reviewer, verifier=verifier,
-                          converge_after=2, max_passes=8, concurrency=2)
+    res = run_repository_review(
+        custody_repository,
+        tmp_path / "ws",
+        reviewer=reviewer,
+        verifier=verifier,
+        converge_after=2,
+        max_passes=8,
+        concurrency=2,
+    )
 
     assert res.verify is not None and res.verify.confirmed
     data = json.loads((res.scaffold.workspace / "findings.json").read_text())

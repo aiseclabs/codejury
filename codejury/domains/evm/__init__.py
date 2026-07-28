@@ -18,7 +18,9 @@ def _forge_poc(**kw):
     """Build the Foundry PoC backend lazily, so importing the domain never pulls forge or a
     provider, only building a backend does, and selecting the domain stays free of the extra."""
     from codejury.domains.evm.poc import ForgePoC
+
     return ForgePoC(**kw)
+
 
 # named lenses give each shipped contract class a focused pass. The empty catch-all reviews
 # every class but is less reliable, so it is a backstop, not the primary coverage.

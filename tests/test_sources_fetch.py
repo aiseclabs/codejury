@@ -21,10 +21,16 @@ _PLAIN = "pragma solidity ^0.8.20;\ncontract Token {}\n"
 
 def _payload(source_code: str = _PLAIN, **overrides: object) -> dict:
     entry = {
-        "SourceCode": source_code, "ContractName": "Token",
-        "CompilerVersion": "v0.8.20+commit.a1b79de6", "OptimizationUsed": "1",
-        "Runs": "200", "ConstructorArguments": "", "EVMVersion": "Default",
-        "LicenseType": "MIT", "Proxy": "0", "Implementation": "",
+        "SourceCode": source_code,
+        "ContractName": "Token",
+        "CompilerVersion": "v0.8.20+commit.a1b79de6",
+        "OptimizationUsed": "1",
+        "Runs": "200",
+        "ConstructorArguments": "",
+        "EVMVersion": "Default",
+        "LicenseType": "MIT",
+        "Proxy": "0",
+        "Implementation": "",
     }
     entry.update(overrides)
     return {"status": "1", "message": "OK", "result": [entry]}
@@ -48,12 +54,14 @@ def _opener(payload: dict):
     def opener(url, timeout=None):
         assert "getsourcecode" in url
         return _FakeResponse(json.dumps(payload))
+
     return opener
 
 
 def _raising_opener(error: Exception):
     def opener(url, timeout=None):
         raise error
+
     return opener
 
 
@@ -90,7 +98,10 @@ def test_getsourcecode_uses_etherscan_v2_endpoint_with_chainid():
 
 def test_fetch_getsourcecode_fails_loud_on_non_json():
     chain = chain_for("bsc")
-    opener = lambda url, timeout=None: _FakeResponse("<html>rate limited</html>")
+
+    def opener(url, timeout=None):
+        return _FakeResponse("<html>rate limited</html>")
+
     with pytest.raises(SourceError):
         fetch_getsourcecode(chain, _ADDR, "KEY", opener=opener)
 
@@ -153,11 +164,9 @@ def test_fetch_does_not_write_on_failure(tmp_path):
 
 
 def test_cli_fetch_source_writes_tree(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr("urllib.request.urlopen",
-                        lambda url, timeout=None: _FakeResponse(json.dumps(_payload())))
+    monkeypatch.setattr("urllib.request.urlopen", lambda url, timeout=None: _FakeResponse(json.dumps(_payload())))
     out = tmp_path / "target"
-    rc = main(["fetch", "source", "--chain", "bsc", "--address", _ADDR,
-               "--out", str(out), "--api-key", "KEY"])
+    rc = main(["fetch", "source", "--chain", "bsc", "--address", _ADDR, "--out", str(out), "--api-key", "KEY"])
     assert rc == 0
     assert (out / "Token.sol").exists()
     assert (out / "codejury-source.json").exists()
@@ -165,10 +174,8 @@ def test_cli_fetch_source_writes_tree(tmp_path, monkeypatch, capsys):
 
 
 def test_cli_fetch_source_fails_loud_on_unverified(tmp_path, monkeypatch):
-    monkeypatch.setattr("urllib.request.urlopen",
-                        lambda url, timeout=None: _FakeResponse(json.dumps(_payload(""))))
-    rc = main(["fetch", "source", "--address", _ADDR,
-               "--out", str(tmp_path / "target"), "--api-key", "KEY"])
+    monkeypatch.setattr("urllib.request.urlopen", lambda url, timeout=None: _FakeResponse(json.dumps(_payload(""))))
+    rc = main(["fetch", "source", "--address", _ADDR, "--out", str(tmp_path / "target"), "--api-key", "KEY"])
     assert rc == 1
 
 

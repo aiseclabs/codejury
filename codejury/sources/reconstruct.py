@@ -101,21 +101,23 @@ def parse_getsourcecode(
         raise SourceError("explorer response has no source result")
     entry = result[0]
     files = parse_source_code(str(entry.get("SourceCode", "")), str(entry.get("ContractName", "")))
-    meta = source_meta_from_dict({
-        "source": source,
-        "chain": chain,
-        "chain_id": chain_id,
-        "address": address,
-        "source_url": source_url,
-        "contract_name": entry.get("ContractName", ""),
-        "compiler_version": entry.get("CompilerVersion", ""),
-        "optimization_used": entry.get("OptimizationUsed", ""),
-        "runs": entry.get("Runs", ""),
-        "constructor_arguments": entry.get("ConstructorArguments", ""),
-        "evm_version": entry.get("EVMVersion", ""),
-        "license_type": entry.get("LicenseType", ""),
-        "proxy": entry.get("Proxy", ""),
-        "implementation_address": entry.get("Implementation", ""),
-        "fetched_at": fetched_at,
-    })
+    meta = source_meta_from_dict(
+        {
+            "source": source,
+            "chain": chain,
+            "chain_id": chain_id,
+            "address": address,
+            "source_url": source_url,
+            "contract_name": entry.get("ContractName", ""),
+            "compiler_version": entry.get("CompilerVersion", ""),
+            "optimization_used": entry.get("OptimizationUsed", ""),
+            "runs": entry.get("Runs", ""),
+            "constructor_arguments": entry.get("ConstructorArguments", ""),
+            "evm_version": entry.get("EVMVersion", ""),
+            "license_type": entry.get("LicenseType", ""),
+            "proxy": entry.get("Proxy", ""),
+            "implementation_address": entry.get("Implementation", ""),
+            "fetched_at": fetched_at,
+        }
+    )
     return meta, files

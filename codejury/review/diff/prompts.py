@@ -52,14 +52,23 @@ def rubric_block(severity_rubric: str) -> str:
     return f"Grade each finding's severity on this rubric:\n{severity_rubric}\n\n" if severity_rubric else ""
 
 
-def standard_audit_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", stack: str = "",
-                          vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT,
-                          severity_rubric: str = "") -> str:
+def standard_audit_prompt(
+    diff: str,
+    *,
+    vulnerabilities: str = "",
+    context: str = "",
+    stack: str = "",
+    vulnerabilities_dir=None,
+    focus: str = FOCUS,
+    do_not_report: str = DO_NOT_REPORT,
+    severity_rubric: str = "",
+) -> str:
     stack_block = f"Conventions of the target's language/framework:\n{stack}\n\n" if stack else ""
-    vulnerabilities_block = f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
+    vulnerabilities_block = (
+        f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
+    )
     context_block = (
-        f"Surrounding code for tracing where values come from (not under review):\n"
-        f"```\n{context}\n```\n\n"
+        f"Surrounding code for tracing where values come from (not under review):\n```\n{context}\n```\n\n"
         if context
         else ""
     )

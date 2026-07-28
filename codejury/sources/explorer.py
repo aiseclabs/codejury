@@ -50,13 +50,15 @@ def fetch_getsourcecode(chain: Chain, address: str, api_key: str, *, opener=None
     urllib takes effect."""
     if opener is None:
         opener = urllib.request.urlopen
-    query = urllib.parse.urlencode({
-        "chainid": chain.chain_id,
-        "module": "contract",
-        "action": "getsourcecode",
-        "address": address,
-        "apikey": api_key,
-    })
+    query = urllib.parse.urlencode(
+        {
+            "chainid": chain.chain_id,
+            "module": "contract",
+            "action": "getsourcecode",
+            "address": address,
+            "apikey": api_key,
+        }
+    )
     url = f"{_API_BASE}?{query}"
     try:
         with opener(url, timeout=_TIMEOUT) as response:

@@ -54,8 +54,9 @@ def _line_value(text: str, key: str) -> str | None:
     return v.lower() if v is not None else None
 
 
-def check_gate(project_dir: Path, *, root: Path | None = None,
-               detection: Detection | None = None, strict_coverage: bool = False) -> GateResult:
+def check_gate(
+    project_dir: Path, *, root: Path | None = None, detection: Detection | None = None, strict_coverage: bool = False
+) -> GateResult:
     """Check the fan-out review workspace `<workspace>/<project>` against the gate.
 
     This is the one enforcement point that holds a coded run and an agent run to the same
@@ -86,12 +87,13 @@ def check_gate(project_dir: Path, *, root: Path | None = None,
         failures.append("units/ has no unit files, the surface was not decomposed into units to fan out over")
     else:
         open_units = [
-            f.name for f in unit_files
-            if (_line_value(f.read_text(encoding="utf-8"), "status") or "open") != "reviewed"
+            f.name for f in unit_files if (_line_value(f.read_text(encoding="utf-8"), "status") or "open") != "reviewed"
         ]
         if open_units:
             shown = ", ".join(open_units[:5]) + (" ..." if len(open_units) > 5 else "")
-            failures.append(f"{len(open_units)} unit(s) in units/ are not Status: reviewed, run their sub-review: {shown}")
+            failures.append(
+                f"{len(open_units)} unit(s) in units/ are not Status: reviewed, run their sub-review: {shown}"
+            )
 
     checked.append("candidates graded by the rubric")
     _LEVELS = tuple(s.lower() for s in SEVERITIES)
@@ -102,7 +104,8 @@ def check_gate(project_dir: Path, *, root: Path | None = None,
             if risk is None or not any(lvl in risk for lvl in _LEVELS):
                 failures.append(
                     f"candidates/{f.name} has no calibrated Risk line, grade it CRITICAL, HIGH, "
-                    "MEDIUM, or LOW per inventory/_severity.md")
+                    "MEDIUM, or LOW per inventory/_severity.md"
+                )
 
     run_status = project_dir / "_run.json"
     if run_status.is_file():
@@ -114,17 +117,21 @@ def check_gate(project_dir: Path, *, root: Path | None = None,
         if data.get("state") == "running":
             failures.append(
                 "_run.json state is running, the coded run was killed mid-pass and never finished, "
-                "re-run it to completion, invariant 4")
+                "re-run it to completion, invariant 4"
+            )
         elif not data.get("converged", True):
             failures.append(
                 "_run.json shows the coded run did not converge, some units still failing, "
-                "run another round, invariant 4")
+                "run another round, invariant 4"
+            )
         errs = int(data.get("errors", 0)) + int(data.get("verify_errors", 0))
         if errs:
             # the run recovered enough to converge, so this is not a hard fail, but a failed call is
             # surfaced never hidden, invariant 4
-            notes.append(f"_run.json records {errs} failed model call(s) during the run, "
-                         "a failed step is not silently a clean pass")
+            notes.append(
+                f"_run.json records {errs} failed model call(s) during the run, "
+                "a failed step is not silently a clean pass"
+            )
 
     if root is not None:
         checked.append("source inventory covered")
@@ -134,8 +141,10 @@ def check_gate(project_dir: Path, *, root: Path | None = None,
             unowned = sorted(inventory - _owned_files(project_dir, inventory))
             if unowned:
                 shown = ", ".join(unowned[:8]) + (" ..." if len(unowned) > 8 else "")
-                msg = (f"{len(unowned)} of {len(inventory)} source file(s) are owned by no unit or "
-                       f"surface row, they sit outside the coverage denominator: {shown}")
+                msg = (
+                    f"{len(unowned)} of {len(inventory)} source file(s) are owned by no unit or "
+                    f"surface row, they sit outside the coverage denominator: {shown}"
+                )
                 (failures if strict_coverage else notes).append(msg)
 
     return GateResult(not failures, failures, checked, notes)
@@ -145,11 +154,9 @@ def _source_inventory(root: Path, detection: Detection) -> set[str]:
     """The source files under the target that are not tests, the true coverage denominator, so a
     file that no unit ever listed is still counted as surface that could have been missed."""
     from codejury.review.repository.model import build_repository_model_from_dir
+
     model = build_repository_model_from_dir(root, detection)
-    return {
-        f for f in model.files
-        if Path(f).suffix in detection.source_extensions and not detection.is_test_path(f)
-    }
+    return {f for f in model.files if Path(f).suffix in detection.source_extensions and not detection.is_test_path(f)}
 
 
 def _owned_files(project_dir: Path, inventory: set[str]) -> set[str]:

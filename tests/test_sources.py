@@ -54,8 +54,14 @@ def _response(source_code: str, **overrides: object) -> dict:
 
 def test_source_meta_round_trips_through_json():
     meta = SourceMeta(
-        source="bscscan", chain="bsc", chain_id=56, address="0xabc",
-        contract_name="Token", optimization_used=True, runs=200, proxy=False,
+        source="bscscan",
+        chain="bsc",
+        chain_id=56,
+        address="0xabc",
+        contract_name="Token",
+        optimization_used=True,
+        runs=200,
+        proxy=False,
     )
     back = source_meta_from_dict(json.loads(meta.to_json()))
     assert back == meta
@@ -126,8 +132,12 @@ def test_parse_rejects_source_without_inline_content():
 
 def _parse(payload: dict) -> tuple[SourceMeta, dict[str, str]]:
     return parse_getsourcecode(
-        payload, source="bscscan", chain="bsc", chain_id=56,
-        address="0xabc", source_url="https://bscscan.com/address/0xabc#code",
+        payload,
+        source="bscscan",
+        chain="bsc",
+        chain_id=56,
+        address="0xabc",
+        source_url="https://bscscan.com/address/0xabc#code",
         fetched_at="2026-07-07T00:00:00Z",
     )
 

@@ -30,9 +30,11 @@ from evals.schema import load_answer_key
 
 def _format_result(res) -> str:
     known = len(res.found) + len(res.false_positives)
-    lines = [f"=== {res.target} ===",
-             f"  recall    {len(res.found)}/{res.n_planted} = {res.recall:.0%}",
-             f"  precision {res.precision_known:.0%}  over {known} known-matched of {res.n_reports} reports"]
+    lines = [
+        f"=== {res.target} ===",
+        f"  recall    {len(res.found)}/{res.n_planted} = {res.recall:.0%}",
+        f"  precision {res.precision_known:.0%}  over {known} known-matched of {res.n_reports} reports",
+    ]
     runs = getattr(res, "runs", None)
     if runs:
         lines.insert(1, f"  runs      {runs}, found by strict majority")
@@ -101,10 +103,19 @@ def _run_diff(cases, args, target: str = "diff"):
     n = max(1, args.runs)
     runs = []
     for _ in range(n):
-        r = run_diff_cases(cases, provider=provider, model=model, mode=args.mode, rounds=dargs.rounds,
-                           finder_provider=fp, finder_model=fm,
-                           challenger_provider=cp, challenger_model=cm,
-                           judge_provider=jp, judge_model=jm)
+        r = run_diff_cases(
+            cases,
+            provider=provider,
+            model=model,
+            mode=args.mode,
+            rounds=dargs.rounds,
+            finder_provider=fp,
+            finder_model=fm,
+            challenger_provider=cp,
+            challenger_model=cm,
+            judge_provider=jp,
+            judge_model=jm,
+        )
         r.target = target
         runs.append(r)
     return SuiteResult.from_runs(target, runs) if n > 1 else runs[0]
@@ -185,10 +196,13 @@ def main(argv=None) -> int:
     r.add_argument("--workspace", default=None, help="review workspace root, reads <workspace>/<name>/findings")
     r.add_argument("--findings-dir", default=None, help="a findings/ directory directly")
     r.add_argument("--findings-json", default=None, help="a findings.json or a json list of reports")
-    r.add_argument("--source", default=None,
-                   help="repository source root, lets a symbol anchor credit a report that pins the bug "
-                        "by line inside the symbol without naming it, auto-discovered from a "
-                        "CODEJURY_BACKTEST_DIR clone when unset")
+    r.add_argument(
+        "--source",
+        default=None,
+        help="repository source root, lets a symbol anchor credit a report that pins the bug "
+        "by line inside the symbol without naming it, auto-discovered from a "
+        "CODEJURY_BACKTEST_DIR clone when unset",
+    )
     r.add_argument("--json", default=None, help="write the structured result here for compare")
     r.set_defaults(func=_cmd_repository)
 
@@ -213,9 +227,12 @@ def main(argv=None) -> int:
     c = sub.add_parser("compare", help="compare two result JSON files")
     c.add_argument("before")
     c.add_argument("after")
-    c.add_argument("--by", default=None,
-                   choices=["vulnerability", "language", "framework", "protocol", "tag"],
-                   help="group the flips by an axis")
+    c.add_argument(
+        "--by",
+        default=None,
+        choices=["vulnerability", "language", "framework", "protocol", "tag"],
+        help="group the flips by an axis",
+    )
     c.set_defaults(func=_cmd_compare)
 
     g = sub.add_parser("gate", help="fail loud on a regression against a baseline")

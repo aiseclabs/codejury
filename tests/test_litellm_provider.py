@@ -98,6 +98,4 @@ def test_empty_content_yields_empty_text():
 def test_missing_sdk_raises_a_clear_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "litellm", None)
     with pytest.raises(RuntimeError, match="pip install"):
-        LiteLLMProvider().complete(
-            system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
-        )
+        LiteLLMProvider().complete(system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8)

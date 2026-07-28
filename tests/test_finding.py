@@ -5,10 +5,17 @@ from codejury.finding import finding_from_dict, findings_from_list
 
 
 def test_finding_from_dict_maps_fields():
-    f = finding_from_dict({
-        "file": "app.py", "line": 3, "severity": "high", "category": "sql_injection",
-        "description": "concat", "exploit_scenario": "send ' OR 1=1", "confidence": 0.9,
-    })
+    f = finding_from_dict(
+        {
+            "file": "app.py",
+            "line": 3,
+            "severity": "high",
+            "category": "sql_injection",
+            "description": "concat",
+            "exploit_scenario": "send ' OR 1=1",
+            "confidence": 0.9,
+        }
+    )
     assert f.file == "app.py" and f.line == 3
     assert f.severity == "HIGH"
     assert f.category == "sql_injection" and f.confidence == 0.9

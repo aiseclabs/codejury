@@ -62,6 +62,7 @@ def test_category_of_unifies_spaces_and_hyphens():
     # scorer on one form, since the pipeline runs category_of on both before matching, so a
     # real server-side request forgery finding is not scored a miss on the separator alone
     from evals.scorers.match import category_match, category_of
+
     assert category_of("server-side request forgery") == category_of("server-side-request-forgery")
     assert category_match(category_of("server-side request forgery"), category_of("server-side-request-forgery"))
     assert not category_match(category_of("server-side request forgery"), category_of("cross-site-request-forgery"))
@@ -71,6 +72,7 @@ def test_category_of_folds_an_abbreviation_onto_its_class():
     # category_of normalizes at load, so a report tagged xxe and a key tagged
     # xml-external-entity reach the scorer as one form and match
     from evals.scorers.match import category_of
+
     assert category_of("xxe") == category_of("xml-external-entity")
     assert category_of("csrf") == category_of("cross-site-request-forgery")
     # a different class is left on its own form, not folded together
@@ -85,9 +87,11 @@ def _key(tmp_path, body: str) -> Path:
 
 def test_load_answer_key_accepts_legacy_issues_alias(tmp_path):
     new = load_answer_key(
-        _key(tmp_path, "target: t\nplanted:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n"))
+        _key(tmp_path, "target: t\nplanted:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n")
+    )
     legacy = load_answer_key(
-        _key(tmp_path, "target: t\nissues:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n"))
+        _key(tmp_path, "target: t\nissues:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n")
+    )
     assert len(new.planted) == 1 and len(legacy.planted) == 1
     assert new.planted[0].id == legacy.planted[0].id == "a"
 
@@ -104,6 +108,7 @@ def test_load_answer_key_rejects_unlocatable_entry(tmp_path):
 
 def test_category_match_credits_a_broader_label_but_not_a_sibling():
     from evals.scorers.match import category_match
+
     assert category_match("code-injection", "code-injection")
     assert category_match("injection", "code-injection")
     assert category_match("code-injection", "injection")
@@ -112,13 +117,17 @@ def test_category_match_credits_a_broader_label_but_not_a_sibling():
 
 
 def test_score_counts_found_missed_fp_and_extra(tmp_path):
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: hit\n    category: idor\n    entry: GET /x/<id>\n"
-        "  - id: miss\n    category: replay\n    entry: POST /t\n"
-        "safe:\n"
-        "  - id: lookalike\n    category: idor\n    entry: GET /safe/<id>\n"))
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: hit\n    category: idor\n    entry: GET /x/<id>\n"
+            "  - id: miss\n    category: replay\n    entry: POST /t\n"
+            "safe:\n"
+            "  - id: lookalike\n    category: idor\n    entry: GET /safe/<id>\n",
+        )
+    )
     reports = [
         Report.make("r-hit", "GET /x/9", "idor", []),
         Report.make("r-fp", "GET /safe/9", "idor", []),
@@ -135,13 +144,17 @@ def test_score_counts_found_missed_fp_and_extra(tmp_path):
 def test_one_report_on_several_safe_anchors_counts_as_one_false_positive(tmp_path):
     # a report matching more than one safe lookalike is a single false positive, not several,
     # which would understate precision by inflating the denominator
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: real\n    category: idor\n    entry: GET /x/<id>\n"
-        "safe:\n"
-        "  - id: look1\n    category: idor\n    files: [svc/a.py]\n"
-        "  - id: look2\n    category: idor\n    files: [svc/a.py]\n"))
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: real\n    category: idor\n    entry: GET /x/<id>\n"
+            "safe:\n"
+            "  - id: look1\n    category: idor\n    files: [svc/a.py]\n"
+            "  - id: look2\n    category: idor\n    files: [svc/a.py]\n",
+        )
+    )
     reports = [
         Report.make("r-hit", "GET /x/9", "idor", []),
         Report.make("r-dup", "", "idor", ["svc/a.py"]),
@@ -157,12 +170,16 @@ def test_safe_anchor_on_an_endpoint_requires_the_class_it_certifies(tmp_path):
     # that endpoint is an adjacent finding, not the false positive the anchor guards. Planted
     # matching stays class-blind on the endpoint, the finder's label is noisy and the anchor pins
     # the bug, so a class mismatch there must not drop the recall credit.
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: real\n    category: idor\n    entry: GET /x/<id>\n"
-        "safe:\n"
-        "  - id: authz-ok\n    category: business-logic\n    entry: GET /users/list\n"))
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: real\n    category: idor\n    entry: GET /x/<id>\n"
+            "safe:\n"
+            "  - id: authz-ok\n    category: business-logic\n    entry: GET /users/list\n",
+        )
+    )
     reports = [
         Report.make("r-hit", "GET /x/9", "missing authorization", []),
         Report.make("r-adjacent", "GET /users/list", "information exposure", []),
@@ -180,15 +197,29 @@ def test_planted_with_endpoint_is_credited_by_its_exact_file_and_symbol_anchor(t
     # a planted that also pins a file and a symbol is credited by a report that traces that exact
     # sink, even when the report writes the endpoint a little differently, a version prefix or an
     # extra path segment. A report on a sibling function in the same file still does not credit it.
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: sink\n    category: prototype-pollution\n    entry: POST /api/v2/x/test\n"
-        "    files: [utils/dataUtils.ts]\n    symbols: [deepMerge]\n"))
-    hit = Report.make("r-hit", "POST /api/v1/db/x/test", "prototype pollution",
-                      ["utils/dataUtils.ts"], text="deepMerge writes attacker keys")
-    wrong_symbol = Report.make("r-wrong", "POST /api/v1/db/x/test", "prototype pollution",
-                               ["utils/dataUtils.ts"], text="shallowCopy is fine here")
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: sink\n    category: prototype-pollution\n    entry: POST /api/v2/x/test\n"
+            "    files: [utils/dataUtils.ts]\n    symbols: [deepMerge]\n",
+        )
+    )
+    hit = Report.make(
+        "r-hit",
+        "POST /api/v1/db/x/test",
+        "prototype pollution",
+        ["utils/dataUtils.ts"],
+        text="deepMerge writes attacker keys",
+    )
+    wrong_symbol = Report.make(
+        "r-wrong",
+        "POST /api/v1/db/x/test",
+        "prototype pollution",
+        ["utils/dataUtils.ts"],
+        text="shallowCopy is fine here",
+    )
     assert score(key, [hit]).found == ["sink"]
     assert score(key, [wrong_symbol]).found == []
 
@@ -209,16 +240,28 @@ def test_symbol_anchor_credits_a_report_that_pins_the_line_without_naming_the_sy
         "function other() {\n"
         "    return 2;\n"
         "}\n",
-        encoding="utf-8")
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: gen\n    category: missing-authorization\n"
-        "    files: [src/mod.ts]\n    symbols: [createGen]\n"))
-    inside = Report.make("r-in", "", "missing authorization", ["src/mod.ts"],
-                         text="new ItemsService built with no accountability", lines=[3])
-    sibling = Report.make("r-sib", "", "missing authorization", ["src/mod.ts"],
-                          text="something in the other function", lines=[7])
+        encoding="utf-8",
+    )
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: gen\n    category: missing-authorization\n"
+            "    files: [src/mod.ts]\n    symbols: [createGen]\n",
+        )
+    )
+    inside = Report.make(
+        "r-in",
+        "",
+        "missing authorization",
+        ["src/mod.ts"],
+        text="new ItemsService built with no accountability",
+        lines=[3],
+    )
+    sibling = Report.make(
+        "r-sib", "", "missing authorization", ["src/mod.ts"], text="something in the other function", lines=[7]
+    )
     assert score(key, [inside], source_root=str(tmp_path)).found == ["gen"]
     assert score(key, [inside]).found == []
     assert score(key, [sibling], source_root=str(tmp_path)).found == []
@@ -237,18 +280,23 @@ def test_safe_symbol_anchor_without_endpoint_requires_the_class_it_certifies(tmp
         "class Body:\n"
         "    def readline(self):\n"
         "        return 1\n",
-        encoding="utf-8")
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: real\n    category: idor\n    files: [src/other.py]\n"
-        "safe:\n"
-        "  - id: bounded-reader\n    category: http-request-smuggling\n"
-        "    files: [src/body.py]\n    symbols: [LengthReader]\n"))
-    off_class = Report.make("r-oc", "", "uncontrolled resource consumption", ["src/body.py"],
-                            text="reads too much", lines=[3])
-    same_class = Report.make("r-sc", "", "http request smuggling", ["src/body.py"],
-                             text="framing desync", lines=[3])
+        encoding="utf-8",
+    )
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: real\n    category: idor\n    files: [src/other.py]\n"
+            "safe:\n"
+            "  - id: bounded-reader\n    category: http-request-smuggling\n"
+            "    files: [src/body.py]\n    symbols: [LengthReader]\n",
+        )
+    )
+    off_class = Report.make(
+        "r-oc", "", "uncontrolled resource consumption", ["src/body.py"], text="reads too much", lines=[3]
+    )
+    same_class = Report.make("r-sc", "", "http request smuggling", ["src/body.py"], text="framing desync", lines=[3])
     assert score(key, [off_class], source_root=str(tmp_path)).false_positives == []
     assert score(key, [same_class], source_root=str(tmp_path)).false_positives == ["r-sc"]
 
@@ -256,15 +304,19 @@ def test_safe_symbol_anchor_without_endpoint_requires_the_class_it_certifies(tmp
 def test_symbol_anchor_matches_a_whole_word_not_a_substring(tmp_path):
     # a symbol like approve must match the function approve, not the word approved in an unrelated
     # allowance finding on the same file, so two distinct bugs are not conflated by a shared prefix
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: approve-skips\n    category: access-control\n"
-        "    files: [Token.sol]\n    symbols: [approve]\n"))
-    fee = Report.make("r-fee", "", "accounting-precision", ["Token.sol"],
-                      text="the fee is charged beyond the approved allowance")
-    real = Report.make("r-real", "", "access control", ["Token.sol"],
-                       text="approve skips the blacklist sanity check")
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: approve-skips\n    category: access-control\n"
+            "    files: [Token.sol]\n    symbols: [approve]\n",
+        )
+    )
+    fee = Report.make(
+        "r-fee", "", "accounting-precision", ["Token.sol"], text="the fee is charged beyond the approved allowance"
+    )
+    real = Report.make("r-real", "", "access control", ["Token.sol"], text="approve skips the blacklist sanity check")
     assert score(key, [fee]).found == []
     assert score(key, [real]).found == ["approve-skips"]
 
@@ -273,18 +325,32 @@ def test_a_duplicate_report_of_a_planted_bug_is_not_a_false_positive(tmp_path):
     # a bug spanning two functions is planted with both symbols and written by the finder as two
     # findings. One credits the planted, the other also matches the planted and must not be scored
     # a false positive just because it also matches the safe sibling on the same file
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: proxy-takeover\n    category: proxy-delegatecall\n"
-        "    file: VaultProxy.sol\n    symbols: [initialise, fallback]\n"
-        "safe:\n"
-        "  - id: safe-guarded-update\n    category: proxy-delegatecall\n"
-        "    file: VaultProxy.sol\n    symbols: [updateConfig]\n"))
-    init = Report.make("r-init", "", "proxy-delegatecall", ["VaultProxy.sol"],
-                       text="initialise is unprotected and installs a malicious updateConfig target")
-    fb = Report.make("r-fb", "", "proxy-delegatecall", ["VaultProxy.sol"],
-                     text="fallback delegatecalls to the config-derived implementation")
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: proxy-takeover\n    category: proxy-delegatecall\n"
+            "    file: VaultProxy.sol\n    symbols: [initialise, fallback]\n"
+            "safe:\n"
+            "  - id: safe-guarded-update\n    category: proxy-delegatecall\n"
+            "    file: VaultProxy.sol\n    symbols: [updateConfig]\n",
+        )
+    )
+    init = Report.make(
+        "r-init",
+        "",
+        "proxy-delegatecall",
+        ["VaultProxy.sol"],
+        text="initialise is unprotected and installs a malicious updateConfig target",
+    )
+    fb = Report.make(
+        "r-fb",
+        "",
+        "proxy-delegatecall",
+        ["VaultProxy.sol"],
+        text="fallback delegatecalls to the config-derived implementation",
+    )
     res = score(key, [init, fb])
     assert res.found == ["proxy-takeover"]
     assert res.false_positives == []
@@ -295,17 +361,21 @@ def test_accounting_shape_folds_to_the_accounting_class():
     # a finding names a specific accounting shape where the key names the class, they must reach
     # the scorer as one form so an unbounded-amount report credits an accounting-precision key
     from evals.scorers.match import category_match, category_of
-    assert category_match(category_of("accounting flaw, one-sided numeric bound"),
-                          category_of("accounting-precision"))
+
+    assert category_match(category_of("accounting flaw, one-sided numeric bound"), category_of("accounting-precision"))
 
 
 def test_file_keyed_planted_credits_a_report_at_any_accepted_anchor(tmp_path):
     # a code injection sink with no endpoint, reported at a call site that feeds it, a real
     # detection the scorer used to miss when it pinned only the single sink file
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: rce\n    category: code-injection\n    files:\n      - lib/sink.js\n      - lib/routes/doc.js\n"))
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: rce\n    category: code-injection\n    files:\n      - lib/sink.js\n      - lib/routes/doc.js\n",
+        )
+    )
     at_sink = score(key, [Report.make("r", "", "code-injection", ["lib/sink.js"])])
     at_call = score(key, [Report.make("r", "", "code-injection", ["lib/routes/doc.js"])])
     elsewhere = score(key, [Report.make("r", "", "code-injection", ["lib/routes/other.js"])])
@@ -319,13 +389,23 @@ def test_symbols_credit_the_real_framing_not_a_same_class_sibling(tmp_path):
     # path is the planted bug. symbols pin that path, so a report of the same class on a
     # sibling function in the same file is no longer credited, the framing level recall the
     # coarse match by class and file could not measure
-    key = load_answer_key(_key(tmp_path,
-        "target: t\nplanted:\n  - id: reent\n    category: reentrancy\n    file: src/V3Vault.sol\n"
-        "    symbols:\n      - _cleanupLoan\n      - onERC721Received\n"))
-    real = Report.make("r", "", "reentrancy", ["src/V3Vault.sol"],
-                       text="_cleanupLoan runs safeTransferFrom, the receiver re-enters via onERC721Received")
-    sibling = Report.make("r", "", "reentrancy", ["src/V3Vault.sol"],
-                          text="decreaseLiquidityAndCollect lacks a nonReentrant guard")
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\nplanted:\n  - id: reent\n    category: reentrancy\n    file: src/V3Vault.sol\n"
+            "    symbols:\n      - _cleanupLoan\n      - onERC721Received\n",
+        )
+    )
+    real = Report.make(
+        "r",
+        "",
+        "reentrancy",
+        ["src/V3Vault.sol"],
+        text="_cleanupLoan runs safeTransferFrom, the receiver re-enters via onERC721Received",
+    )
+    sibling = Report.make(
+        "r", "", "reentrancy", ["src/V3Vault.sol"], text="decreaseLiquidityAndCollect lacks a nonReentrant guard"
+    )
     assert score(key, [real]).found == ["reent"]
     assert score(key, [sibling]).missed == ["reent"]
 
@@ -333,9 +413,13 @@ def test_symbols_credit_the_real_framing_not_a_same_class_sibling(tmp_path):
 def test_symbols_match_the_source_line_too_when_the_body_is_thin(tmp_path):
     # the engine sometimes cites the function only on the Source line, which lands in the
     # report endpoint, so a symbol there counts the same as one in the body
-    key = load_answer_key(_key(tmp_path,
-        "target: t\nplanted:\n  - id: ac\n    category: access-control\n    file: src/V3Utils.sol\n"
-        "    symbols:\n      - execute\n"))
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\nplanted:\n  - id: ac\n    category: access-control\n    file: src/V3Utils.sol\n"
+            "    symbols:\n      - execute\n",
+        )
+    )
     on_source = Report.make("r", "V3Utils.execute", "access-control", ["src/V3Utils.sol"])
     assert score(key, [on_source]).found == ["ac"]
 
@@ -343,8 +427,9 @@ def test_symbols_match_the_source_line_too_when_the_body_is_thin(tmp_path):
 def test_no_symbols_keeps_the_coarse_class_and_file_match(tmp_path):
     # an entry without symbols must score exactly as before, the behavior every web key and
     # the oracle bundle rely on
-    key = load_answer_key(_key(tmp_path,
-        "target: t\nplanted:\n  - id: rce\n    category: code-injection\n    file: lib/sink.js\n"))
+    key = load_answer_key(
+        _key(tmp_path, "target: t\nplanted:\n  - id: rce\n    category: code-injection\n    file: lib/sink.js\n")
+    )
     bare = Report.make("r", "", "code-injection", ["lib/sink.js"])
     assert score(key, [bare]).found == ["rce"]
 
@@ -352,9 +437,13 @@ def test_no_symbols_keeps_the_coarse_class_and_file_match(tmp_path):
 def test_endpoint_keyed_planted_ignores_file_so_a_sibling_is_not_credited(tmp_path):
     # an entry with an endpoint matches only by endpoint, so a report on another route is not
     # credited even when it cites the same file, the looseness the strict matcher guards
-    key = load_answer_key(_key(tmp_path,
-        "target: t\nplanted:\n  - id: idor\n    category: idor\n"
-        "    entry: GET /tasks/<t>/items/<i>\n    file: models/item.go\n"))
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\nplanted:\n  - id: idor\n    category: idor\n"
+            "    entry: GET /tasks/<t>/items/<i>\n    file: models/item.go\n",
+        )
+    )
     sibling = score(key, [Report.make("r", "GET /labels/<id>", "idor", ["models/item.go"])])
     assert sibling.missed == ["idor"]
 
@@ -364,13 +453,15 @@ def test_parse_finding_md_and_score_repository(tmp_path):
     findings.mkdir()
     (findings / "f1.md").write_text(
         "# wallet idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /wallets/<id>`\n"
-        "## Analysis\napp/services/wallet.py:11 no owner check\n")
+        "## Analysis\napp/services/wallet.py:11 no owner check\n"
+    )
     rep = parse_finding_md((findings / "f1.md").read_text(), "f1")
     assert rep.endpoint == "get /wallets/*" and rep.category == "insecure-direct-object-reference"
     assert "app/services/wallet.py" in rep.files
 
-    key = load_answer_key(_key(tmp_path,
-        "target: t\nplanted:\n  - id: w\n    category: idor\n    entry: GET /wallets/<id>\n"))
+    key = load_answer_key(
+        _key(tmp_path, "target: t\nplanted:\n  - id: w\n    category: idor\n    entry: GET /wallets/<id>\n")
+    )
     res = score_repository(key, reports_from_findings_dir(findings))
     assert res.found == ["w"]
 
@@ -398,7 +489,8 @@ def test_registry_resolves_a_private_path_source_legacy_layout(tmp_path, monkeyp
     src = tmp_path / "private"
     (src / "groundtruth").mkdir(parents=True)
     (src / "groundtruth" / "secret.yaml").write_text(
-        "target: secret\nissues:\n  - id: s1\n    category: idor\n    entry: GET /s/<id>\n", encoding="utf-8")
+        "target: secret\nissues:\n  - id: s1\n    category: idor\n    entry: GET /s/<id>\n", encoding="utf-8"
+    )
     cfg = tmp_path / "local.yaml"
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
@@ -421,7 +513,8 @@ def test_registry_duplicate_name_across_roots_fails_loud(tmp_path, monkeypatch):
     src = tmp_path / "private"
     (src / "repository" / "open-webui").mkdir(parents=True)
     (src / "repository" / "open-webui" / "answer_key.yaml").write_text(
-        "target: open-webui\nplanted:\n  - id: x\n    category: idor\n    entry: GET /x/<id>\n", encoding="utf-8")
+        "target: open-webui\nplanted:\n  - id: x\n    category: idor\n    entry: GET /x/<id>\n", encoding="utf-8"
+    )
     cfg = tmp_path / "local.yaml"
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
@@ -458,6 +551,7 @@ def test_compare_by_axis_groups_flips_by_vulnerability():
 
 def test_gate_passes_clean_and_fails_on_regression():
     from evals.gate import gate
+
     base = {"target": "t", "found": ["a", "b"], "false_positives": [], "precision_known": 1.0, "errors": 0}
     good = {"target": "t", "found": ["a", "b"], "false_positives": [], "precision_known": 1.0, "errors": 0}
     assert gate(good, base, structural=False) == []
@@ -471,24 +565,38 @@ def test_gate_passes_clean_and_fails_on_regression():
 
 def test_gate_fails_on_errors_but_not_on_extra_alone():
     from evals.gate import gate
+
     # a failed review step is not a clean pass, invariant 4
     assert gate({"target": "t", "errors": 2}, structural=False)
     # an extra unkeyed report alone is not a failure, the key cannot grade it
-    assert gate({"target": "t", "found": ["a"], "false_positives": [], "errors": 0, "extra": ["x", "y"]},
-                structural=False) == []
+    assert (
+        gate({"target": "t", "found": ["a"], "false_positives": [], "errors": 0, "extra": ["x", "y"]}, structural=False)
+        == []
+    )
 
 
 def _run(target, found, missed, fps, n_planted, n_reports=0, errors=0):
     from evals.results import Result
-    return Result(target=target, found=list(found), missed=list(missed),
-                  false_positives=list(fps), n_planted=n_planted, n_reports=n_reports, errors=errors)
+
+    return Result(
+        target=target,
+        found=list(found),
+        missed=list(missed),
+        false_positives=list(fps),
+        n_planted=n_planted,
+        n_reports=n_reports,
+        errors=errors,
+    )
 
 
 def test_suite_result_to_markdown_shows_runs_and_flaky():
-    sr = SuiteResult.from_runs("diff", [
-        _run("diff", ["a"], ["b"], [], 2),
-        _run("diff", ["a", "b"], [], [], 2),
-    ])
+    sr = SuiteResult.from_runs(
+        "diff",
+        [
+            _run("diff", ["a"], ["b"], [], 2),
+            _run("diff", ["a", "b"], [], [], 2),
+        ],
+    )
     md = sr.to_markdown()
     assert "runs: 2" in md and "flaky: b 1/2" in md
 
@@ -523,6 +631,7 @@ def test_run_diff_cases_handles_the_audit_three_tuple_and_degraded(monkeypatch):
 
 def test_default_diff_cases_split_positive_and_safe():
     from evals.runners.diff import default_cases
+
     cases = default_cases()
     assert any(c.is_positive for c in cases)
     assert any(not c.is_positive for c in cases)
@@ -532,6 +641,7 @@ def test_default_diff_cases_split_positive_and_safe():
 def test_coverage_matrix_attributes_repository_entries_to_knowledge(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
     from evals.coverage import coverage_matrix
+
     cov = coverage_matrix()
     # the open-webui benchmark plants three IDORs and guards two safe siblings, so the vuln
     # attributes to its repository entries. Assert a lower bound, another target adding an IDOR,
@@ -548,6 +658,7 @@ def test_coverage_matrix_attributes_repository_entries_to_knowledge(tmp_path, mo
 def test_coverage_problems_flag_a_vulnerability_missing_a_safe_case(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
     from evals.coverage import Coverage, KnowledgeItem, coverage_problems
+
     # a class with a positive but no safe case must surface as missing-safe, not missing-positive
     item = KnowledgeItem(ref="vuln:demo", kind="vulnerability", path=Path("demo.md"))
     cov = {"vuln:demo": Coverage(item=item, diff_positive=1)}
@@ -559,6 +670,7 @@ def test_coverage_problems_flag_a_vulnerability_missing_a_safe_case(tmp_path, mo
 def test_shipped_diff_library_covers_every_vulnerability_class(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
     from evals.coverage import coverage_problems
+
     # the case library should leave no vulnerability class without a positive and a safe
     # diff case, the goal of the filled library, so the matrix reports no such gap
     gaps = [(p.kind, p.ref) for p in coverage_problems() if p.kind in {"missing-positive", "missing-safe"}]
@@ -567,6 +679,7 @@ def test_shipped_diff_library_covers_every_vulnerability_class(tmp_path, monkeyp
 
 def test_suite_result_folds_runs_by_strict_majority():
     from evals.results import SuiteResult
+
     # three runs, a is found every time, b in two of three, c once, so a and b clear the
     # strict majority and c does not, the anti-noise verdict
     runs = [
@@ -590,6 +703,7 @@ def test_suite_result_folds_runs_by_strict_majority():
 def test_suite_result_to_dict_is_compare_compatible():
     from evals.compare import compare
     from evals.results import SuiteResult
+
     before = SuiteResult.from_runs("diff", [_run("diff", ["a"], ["b"], [], 2)]).to_dict()
     after = SuiteResult.from_runs("diff", [_run("diff", ["a", "b"], [], [], 2)]).to_dict()
     d = compare(before, after)
@@ -599,6 +713,7 @@ def test_suite_result_to_dict_is_compare_compatible():
 def test_load_suite_selects_cases_by_tag_and_fails_loud_on_unknown():
     from evals.diff_cases import default_cases
     from evals.suites import load_suite, select_cases
+
     smoke = load_suite("public-smoke")
     cases = select_cases(smoke, default_cases())
     names = {c.name for c in cases}
@@ -618,17 +733,21 @@ def test_coverage_problems_flag_unresolved_reference(tmp_path, monkeypatch):
     (src / "repository" / "ghost").mkdir(parents=True)
     (src / "repository" / "ghost" / "answer_key.yaml").write_text(
         "target: ghost\nplanted:\n  - id: g1\n    category: idor\n    entry: GET /g/<id>\n"
-        "    knowledge:\n      vulnerabilities:\n        - no-such-class\n", encoding="utf-8")
+        "    knowledge:\n      vulnerabilities:\n        - no-such-class\n",
+        encoding="utf-8",
+    )
     cfg = tmp_path / "local.yaml"
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
     from evals.coverage import coverage_problems
+
     problems = coverage_problems()
     assert any(p.kind == "unresolved-reference" and p.ref == "vuln:no-such-class" for p in problems)
 
 
 def test_shipped_solidity_cases_run_under_the_evm_domain():
     from evals.runners.diff import default_cases
+
     sol = [c for c in default_cases() if "solidity" in c.tags]
     assert sol, "no Solidity diff cases shipped"
     assert all(c.domain == "evm" for c in sol)
@@ -639,6 +758,7 @@ def test_shipped_solidity_cases_run_under_the_evm_domain():
 def test_scan_knowledge_spans_domains(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
     from evals.coverage import scan_knowledge
+
     items = scan_knowledge()
     # web and evm knowledge resolve under the same flat ref space, the form a case references
     assert items["vuln:sql-injection"].kind == "vulnerability"
@@ -649,6 +769,7 @@ def test_scan_knowledge_spans_domains(tmp_path, monkeypatch):
 def test_solidity_cases_resolve_to_evm_knowledge_no_unresolved(tmp_path, monkeypatch):
     _public_only(tmp_path, monkeypatch)
     from evals.coverage import coverage_matrix, coverage_problems
+
     cov = coverage_matrix()
     # the shipped Solidity pairs attribute to the EVM classes, a positive and a safe each
     assert cov["vuln:reentrancy"].diff_positive >= 1 and cov["vuln:reentrancy"].diff_safe >= 1
@@ -681,11 +802,13 @@ def test_coverage_problems_flag_entry_without_knowledge(tmp_path, monkeypatch):
     src = tmp_path / "private"
     (src / "groundtruth").mkdir(parents=True)
     (src / "groundtruth" / "bare.yaml").write_text(
-        "target: bare\nissues:\n  - id: b1\n    category: idor\n    entry: GET /b/<id>\n", encoding="utf-8")
+        "target: bare\nissues:\n  - id: b1\n    category: idor\n    entry: GET /b/<id>\n", encoding="utf-8"
+    )
     cfg = tmp_path / "local.yaml"
     cfg.write_text(f"benchmark_sources:\n  - path: {src}\n", encoding="utf-8")
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
     from evals.coverage import coverage_problems
+
     problems = coverage_problems()
     assert any(p.kind == "entry-without-knowledge" and p.ref == "b1" for p in problems)
 
@@ -693,12 +816,16 @@ def test_coverage_problems_flag_entry_without_knowledge(tmp_path, monkeypatch):
 def test_one_report_cannot_satisfy_two_planted_entries(tmp_path):
     # two planted entries sharing a loose file and class anchor must not both be credited by a
     # single report, that would inflate recall
-    key = load_answer_key(_key(tmp_path,
-        "target: t\n"
-        "planted:\n"
-        "  - id: p1\n    category: idor\n    files: [svc/a.py]\n"
-        "  - id: p2\n    category: idor\n    files: [svc/a.py]\n"
-        "safe: []\n"))
+    key = load_answer_key(
+        _key(
+            tmp_path,
+            "target: t\n"
+            "planted:\n"
+            "  - id: p1\n    category: idor\n    files: [svc/a.py]\n"
+            "  - id: p2\n    category: idor\n    files: [svc/a.py]\n"
+            "safe: []\n",
+        )
+    )
     reports = [Report.make("r-one", "", "idor", ["svc/a.py"])]
     res = score(key, reports)
     assert len(res.found) == 1
@@ -708,6 +835,7 @@ def test_one_report_cannot_satisfy_two_planted_entries(tmp_path):
 
 def test_coverage_splits_diff_and_repository_dimensions():
     from evals.coverage import Coverage, KnowledgeItem
+
     it = KnowledgeItem(ref="vuln:x", kind="vulnerability", path=Path("x.md"))
     diff_only = Coverage(item=it, diff_positive=1, diff_safe=1)
     assert diff_only.diff_covered and not diff_only.repository_covered and diff_only.covered
@@ -719,12 +847,15 @@ def test_coverage_splits_diff_and_repository_dimensions():
 def test_coverage_problems_flags_a_class_with_no_repository_target():
     # the integration gap, a class a diff case exercises but no whole-repository benchmark plants
     from evals.coverage import Coverage, KnowledgeItem, coverage_problems
+
     def item(ref):
         return KnowledgeItem(ref=ref, kind="vulnerability", path=Path(f"{ref}.md"))
+
     cov = {
         "vuln:diffonly": Coverage(item=item("vuln:diffonly"), diff_positive=1, diff_safe=1),
         "vuln:hasrepository": Coverage(
-            item=item("vuln:hasrepository"), diff_positive=1, diff_safe=1, repository_planted=1),
+            item=item("vuln:hasrepository"), diff_positive=1, diff_safe=1, repository_planted=1
+        ),
     }
     kinds = {(p.ref, p.kind) for p in coverage_problems(cov)}
     assert ("vuln:diffonly", "missing-repository-target") in kinds

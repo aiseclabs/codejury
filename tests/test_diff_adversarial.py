@@ -3,6 +3,7 @@ a MockProvider whose responses are consumed in role order per round."""
 
 import json
 
+from codejury.providers.mock import MockProvider
 from codejury.review.diff.adversarial import (
     CHALLENGER_SYSTEM,
     FINDER_SYSTEM,
@@ -13,7 +14,6 @@ from codejury.review.diff.adversarial import (
     judge_prompt,
 )
 from codejury.review.diff.engine import audit_diff
-from codejury.providers.mock import MockProvider
 
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
 
@@ -27,15 +27,26 @@ def _challenger(rebuttals=None, new_findings=None):
 
 
 def _judge(findings, dismissed=None, unresolved=None, investigate=None, downgraded=None, converged=False):
-    return json.dumps({
-        "findings": findings, "dismissed": dismissed or [],
-        "unresolved": unresolved or [], "investigate": investigate or [],
-        "downgraded": downgraded or [], "converged": converged,
-    })
+    return json.dumps(
+        {
+            "findings": findings,
+            "dismissed": dismissed or [],
+            "unresolved": unresolved or [],
+            "investigate": investigate or [],
+            "downgraded": downgraded or [],
+            "converged": converged,
+        }
+    )
 
 
-_VULN = {"file": "app.py", "line": 3, "severity": "CRITICAL", "category": "sql_injection",
-         "description": "concat", "confidence": 0.95}
+_VULN = {
+    "file": "app.py",
+    "line": 3,
+    "severity": "CRITICAL",
+    "category": "sql_injection",
+    "description": "concat",
+    "confidence": 0.95,
+}
 
 
 def _run(responses, **kw):
@@ -55,9 +66,11 @@ def test_three_roles_run_in_order_one_round():
 def test_judge_dismissal_drops_a_finding():
     second = {**_VULN, "line": 5, "category": "xss"}
     _, out = _run(
-        [_finder([_VULN, second]),
-         _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "escaped"}]),
-         _judge([_VULN], dismissed=[{"target": "app.py:5", "reason": "output is escaped"}])],
+        [
+            _finder([_VULN, second]),
+            _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "escaped"}]),
+            _judge([_VULN], dismissed=[{"target": "app.py:5", "reason": "output is escaped"}]),
+        ],
         max_rounds=1,
     )
     assert [f.category for f in out.findings] == ["sql_injection"]
@@ -79,8 +92,11 @@ def test_judge_converged_flag_stops_early():
 
 
 def test_converged_flag_ignored_while_investigate_pending():
-    r1 = [_finder([_VULN]), _challenger(), _judge([_VULN], converged=True,
-                                                  investigate=[{"target": "x", "reason": "runtime check"}])]
+    r1 = [
+        _finder([_VULN]),
+        _challenger(),
+        _judge([_VULN], converged=True, investigate=[{"target": "x", "reason": "runtime check"}]),
+    ]
     provider, out = _run(r1 + r1, max_rounds=2)
     assert out.rounds == 2 and len(provider.calls) == 6
 
@@ -189,9 +205,12 @@ def test_degraded_fallback_drops_challenger_dismissed_findings():
     # every finder finding through, which is what inflates false positives
     second = {**_VULN, "line": 5, "category": "xss"}
     _, out = _run(
-        [_finder([_VULN, second]),
-         _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "output is escaped"}]),
-         "blocked", "blocked"],
+        [
+            _finder([_VULN, second]),
+            _challenger(rebuttals=[{"target": "app.py:5", "verdict": "dismiss", "reason": "output is escaped"}]),
+            "blocked",
+            "blocked",
+        ],
         max_rounds=1,
     )
     assert out.degraded is True
@@ -201,8 +220,11 @@ def test_degraded_fallback_drops_challenger_dismissed_findings():
 def test_per_role_models_are_used():
     provider = MockProvider(responses=[_finder([]), _challenger(), _judge([])], default="{}")
     AdversarialAuditRunner(
-        provider=provider, model="base",
-        finder_model="finder-m", challenger_model="challenger-m", judge_model="judge-m",
+        provider=provider,
+        model="base",
+        finder_model="finder-m",
+        challenger_model="challenger-m",
+        judge_model="judge-m",
     ).run(_DIFF, max_rounds=1)
     assert [c["model"] for c in provider.calls] == ["finder-m", "challenger-m", "judge-m"]
 
@@ -233,6 +255,7 @@ class _RoleProvider:
 
     def complete(self, *, system, messages, model, max_tokens):
         import types
+
         self.systems.append(system)
         self.models.append(model)
         return types.SimpleNamespace(text=self._reply)
@@ -244,10 +267,14 @@ def test_adversarial_routes_each_role_to_its_own_provider():
     judge_p = _RoleProvider(_judge([_VULN], converged=True))
     base = MockProvider(default="{}")
     runner = AdversarialAuditRunner(
-        provider=base, model="base-model",
-        finder_provider=finder_p, finder_model="finder-m",
-        challenger_provider=challenger_p, challenger_model="challenger-m",
-        judge_provider=judge_p, judge_model="judge-m",
+        provider=base,
+        model="base-model",
+        finder_provider=finder_p,
+        finder_model="finder-m",
+        challenger_provider=challenger_p,
+        challenger_model="challenger-m",
+        judge_provider=judge_p,
+        judge_model="judge-m",
     )
     runner.run(_DIFF, max_rounds=1)
     assert finder_p.systems == [FINDER_SYSTEM] and finder_p.models == ["finder-m"]
@@ -265,10 +292,14 @@ def test_finder_unparseable_reply_degrades_not_clean_pass():
 def test_challenger_unparseable_reply_degrades():
     # finder parses, challenger does not: the round is still a degraded, not a clean, result
     runner = AdversarialAuditRunner(
-        provider=MockProvider(default="{}"), model="m",
-        finder_provider=_RoleProvider(_finder([_VULN])), finder_model="f",
-        challenger_provider=_RoleProvider("not json"), challenger_model="c",
-        judge_provider=_RoleProvider(_judge([_VULN], converged=True)), judge_model="j",
+        provider=MockProvider(default="{}"),
+        model="m",
+        finder_provider=_RoleProvider(_finder([_VULN])),
+        finder_model="f",
+        challenger_provider=_RoleProvider("not json"),
+        challenger_model="c",
+        judge_provider=_RoleProvider(_judge([_VULN], converged=True)),
+        judge_model="j",
     )
     res = runner.run(_DIFF, max_rounds=1)
     assert res.degraded is True

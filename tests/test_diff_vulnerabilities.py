@@ -4,6 +4,7 @@ picks the relevant classes for a diff to inject into the audit prompt."""
 import re
 
 from codejury.domains.evm import EVM
+from codejury.resources import KNOWLEDGE_INDEX, VULNERABILITIES_DIR
 from codejury.review.diff.vulnerabilities import (
     allowed_categories,
     canonical_category,
@@ -13,20 +14,40 @@ from codejury.review.diff.vulnerabilities import (
     select_vulnerabilities,
     vulnerabilities_for_diff,
 )
-from codejury.resources import KNOWLEDGE_INDEX, VULNERABILITIES_DIR
 
 _EXPECTED_IDS = {
-    "missing-authorization", "insecure-direct-object-reference", "cross-site-request-forgery",
-    "path-traversal", "open-redirect", "insecure-cryptography", "insecure-transport",
-    "hardcoded-secrets", "information-exposure", "sql-injection", "command-injection",
-    "code-injection", "cross-site-scripting", "xml-external-entity",
-    "server-side-template-injection", "http-response-splitting", "http-request-smuggling",
+    "missing-authorization",
+    "insecure-direct-object-reference",
+    "cross-site-request-forgery",
+    "path-traversal",
+    "open-redirect",
+    "insecure-cryptography",
+    "insecure-transport",
+    "hardcoded-secrets",
+    "information-exposure",
+    "sql-injection",
+    "command-injection",
+    "code-injection",
+    "cross-site-scripting",
+    "xml-external-entity",
+    "server-side-template-injection",
+    "http-response-splitting",
+    "http-request-smuggling",
     "business-logic",
-    "replay-attack", "race-condition", "mass-assignment", "resource-exhaustion",
+    "replay-attack",
+    "race-condition",
+    "mass-assignment",
+    "resource-exhaustion",
     "improper-authentication",
-    "jwt-validation", "insecure-session-management", "insecure-deserialization",
-    "server-side-request-forgery", "cors-misconfiguration", "prototype-pollution",
-    "unrestricted-file-upload", "nosql-injection", "security-misconfiguration",
+    "jwt-validation",
+    "insecure-session-management",
+    "insecure-deserialization",
+    "server-side-request-forgery",
+    "cors-misconfiguration",
+    "prototype-pollution",
+    "unrestricted-file-upload",
+    "nosql-injection",
+    "security-misconfiguration",
     "prompt-injection",
 }
 

@@ -75,8 +75,7 @@ class WebPoC:
     # step reports it as manual rather than expecting a toolchain, unlike the evm forge backend
     executes = False
 
-    def __init__(self, *, provider: Provider | None = None, model: str | None = None,
-                 max_tokens: int = 4096) -> None:
+    def __init__(self, *, provider: Provider | None = None, model: str | None = None, max_tokens: int = 4096) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
@@ -85,17 +84,23 @@ class WebPoC:
         """A web PoC is never executed automatically, so nothing here runs it, invariant 6."""
         return False
 
-    def generate(self, *, title: str, analysis: str, symbol: str, file: str,
-                 line: int | None, root: str, endpoint: str = "") -> PoCArtifact:
+    def generate(
+        self, *, title: str, analysis: str, symbol: str, file: str, line: int | None, root: str, endpoint: str = ""
+    ) -> PoCArtifact:
         """Write the Python script that proves the exploit, without running it."""
         if self._provider is None:
             raise ValueError("generating a PoC needs a provider, this backend was built to run only")
         source = _read_source(Path(root) / file) if file else ""
-        prompt = _prompt(title=title, analysis=analysis, symbol=symbol, file=file, line=line,
-                         endpoint=endpoint, source=source)
+        prompt = _prompt(
+            title=title, analysis=analysis, symbol=symbol, file=file, line=line, endpoint=endpoint, source=source
+        )
         reply = self._provider.complete(
-            system=_SYSTEM, messages=[Message(role="user", content=prompt)],
-            model=self._model, max_tokens=self._max_tokens, cache=False)
+            system=_SYSTEM,
+            messages=[Message(role="user", content=prompt)],
+            model=self._model,
+            max_tokens=self._max_tokens,
+            cache=False,
+        )
         source = _extract_python(reply.text)
         return PoCArtifact(source=source, ext=self.ext, run_hint=_RUN_HINT, note=_parse_note(source))
 
@@ -103,12 +108,11 @@ class WebPoC:
         """Report the web PoC as unrun. Running it hits a live server, so a human does that against
         a sandbox, this never sends a request, invariant 6."""
         return PoCExecResult(
-            ran=False, ok=False,
-            detail="a web PoC runs by hand against a sandbox, never automatically, invariant 6")
+            ran=False, ok=False, detail="a web PoC runs by hand against a sandbox, never automatically, invariant 6"
+        )
 
 
-def _prompt(*, title: str, analysis: str, symbol: str, file: str, line: int | None,
-            endpoint: str, source: str) -> str:
+def _prompt(*, title: str, analysis: str, symbol: str, file: str, line: int | None, endpoint: str, source: str) -> str:
     loc = f"{file}:{line}" if line else file
     parts = [
         f"Vulnerability: {title}",
@@ -122,8 +126,7 @@ def _prompt(*, title: str, analysis: str, symbol: str, file: str, line: int | No
         parts.append(f"\nSource of the handler file ({file}):\n{source}")
     guide = "\nWrite the script that reproduces this vulnerability against a running instance."
     if endpoint or source:
-        guide += (" Read the route and the request fields from the endpoint and source above, "
-                  "do not guess them.")
+        guide += " Read the route and the request fields from the endpoint and source above, do not guess them."
     guide += " It passes only when the exploit succeeds."
     parts.append(guide)
     return "\n".join(parts)

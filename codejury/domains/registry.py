@@ -36,8 +36,7 @@ def get_domain(name: str) -> Domain:
         return _DOMAINS[name]
     except KeyError:
         raise ValueError(
-            f"unknown or unavailable review domain {name!r}, available: "
-            f"{', '.join(available_domains())}"
+            f"unknown or unavailable review domain {name!r}, available: {', '.join(available_domains())}"
         ) from None
 
 

@@ -99,17 +99,23 @@ def _source_sample(target: Path, files: list[str], detection: Detection) -> str:
 
 def _stack_md(guides: list[Guide]) -> str:
     if not guides:
-        return ("# Detected stack\n\n"
-                "No language or framework guide matched. Rely on the methodology and "
-                "your own knowledge of the stack.\n")
+        return (
+            "# Detected stack\n\n"
+            "No language or framework guide matched. Rely on the methodology and "
+            "your own knowledge of the stack.\n"
+        )
     langs = [g.id for g in guides if g.kind == "language"]
     fws = [g for g in guides if g.kind == "framework"]
     protocols = [g.id for g in guides if g.kind == "protocol"]
     fw_labels = [f"{g.id} ({g.language})" if g.language else g.id for g in fws]
-    lines = ["# Detected stack", "",
-             f"Languages: {', '.join(langs) or '-'}",
-             f"Frameworks: {', '.join(fw_labels) or '-'}",
-             f"Protocols: {', '.join(protocols) or '-'}", ""]
+    lines = [
+        "# Detected stack",
+        "",
+        f"Languages: {', '.join(langs) or '-'}",
+        f"Frameworks: {', '.join(fw_labels) or '-'}",
+        f"Protocols: {', '.join(protocols) or '-'}",
+        "",
+    ]
     for g in guides:
         lines += ["---", "", g.body, ""]
     return "\n".join(lines) + "\n"
@@ -136,8 +142,16 @@ def _facts_cache_key(target: Path, files: tuple[str, ...], domain: Domain) -> st
     return h.hexdigest()
 
 
-def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...], *,
-                 enabled: bool, cache_root: Path, detection: Detection) -> str:
+def _write_facts(
+    ws: Path,
+    target: Path,
+    domain: Domain,
+    files: tuple[str, ...],
+    *,
+    enabled: bool,
+    cache_root: Path,
+    detection: Detection,
+) -> str:
     """Extract deterministic facts and persist them to `_facts.md`, the way `_stack.md`
     persists the stack, so the run, resume, and finalize steps read the same grounding
     from the workspace. Facts are opt-in since extraction is heavy, the caller passes
@@ -157,7 +171,8 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
         return (
             "the facts backend is unavailable, the review ran file-slice-only without "
             "call-path units so cross-function coverage is reduced, install a Solidity compiler "
-            "such as solc or Foundry to enable it")
+            "such as solc or Foundry to enable it"
+        )
     dest = ws / "_facts.md"
     dest_by_file = ws / "_facts_by_file.json"
     dest_units = ws / "_facts_units.json"
@@ -181,11 +196,8 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
     try:
         facts = backend.extract(target)
     except Exception as exc:
-        error.write_text(f"facts extraction failed, the run falls back to heuristics: {exc}\n",
-                         encoding="utf-8")
-        return (
-            "facts extraction failed so the review ran file-slice-only, cross-function coverage "
-            f"is reduced: {exc}")
+        error.write_text(f"facts extraction failed, the run falls back to heuristics: {exc}\n", encoding="utf-8")
+        return f"facts extraction failed so the review ran file-slice-only, cross-function coverage is reduced: {exc}"
     if not facts.empty:
         dest.write_text(facts.summary, encoding="utf-8")
         cache_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -203,8 +215,7 @@ def _write_facts(ws: Path, target: Path, domain: Domain, files: tuple[str, ...],
         # so the call-path units never pull the review into test code
         units = facts.data.get("units") if isinstance(facts.data, dict) else None
         if units:
-            units = [u for u in units
-                     if not any(detection.is_test_path(str(f[0])) for f in u.get("fragments", []))]
+            units = [u for u in units if not any(detection.is_test_path(str(f[0])) for f in u.get("fragments", []))]
         if units:
             payload = json.dumps(units)
             dest_units.write_text(payload, encoding="utf-8")
@@ -275,12 +286,14 @@ English only.
 
 
 def _entrypoints_md(candidates: list[str], layers: list[str], *, fallback_note: str = "") -> str:
-    lines = ["# Seeded Entrypoints, a Starting Subset",
-             "",
-             "Files the detected stack flags as likely to define entrypoints, and the",
-             "downstream logic-layer files to trace into. A starting point for the",
-             "Phase 1 surface map and the Phase 2 traces, not the whole surface.",
-             ""]
+    lines = [
+        "# Seeded Entrypoints, a Starting Subset",
+        "",
+        "Files the detected stack flags as likely to define entrypoints, and the",
+        "downstream logic-layer files to trace into. A starting point for the",
+        "Phase 1 surface map and the Phase 2 traces, not the whole surface.",
+        "",
+    ]
     if fallback_note:
         lines += [f"NOTE: {fallback_note}.", ""]
     lines += ["## Candidate entrypoint files", ""]
@@ -299,8 +312,9 @@ def unit_slug(path: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in s).strip("-").lower() or "unit"
 
 
-def _unit_md(name: str, mandate: str, *, owned_path: str | None = None,
-             line_range: tuple[int, int] | None = None) -> str:
+def _unit_md(
+    name: str, mandate: str, *, owned_path: str | None = None, line_range: tuple[int, int] | None = None
+) -> str:
     """A seeded unit: the code it owns plus the fixed deep-review mandate, the same
     mandate for every unit so per-unit depth does not vary with the agent's mood. The
     orchestrator spawns one sub-review per unit file, it does not decide the units or the
@@ -310,15 +324,19 @@ def _unit_md(name: str, mandate: str, *, owned_path: str | None = None,
     `name` carries a `#n` suffix, and `line_range` names the slice by line."""
     path = owned_path or name
     if line_range is not None:
-        owns = (f"`{path}` lines {line_range[0]} to {line_range[1]}, deep-review this slice, "
-                f"the file is split so each slice gets full attention")
+        owns = (
+            f"`{path}` lines {line_range[0]} to {line_range[1]}, deep-review this slice, "
+            f"the file is split so each slice gets full attention"
+        )
     else:
         owns = f"`{path}`"
-    return (f"# Unit: {name}\n\n"
-            f"- Status: open\n"
-            f"- Owns: {owns}\n"
-            f"- Trace into: the managers, controllers, dao, and libraries this file "
-            f"calls, see `inventory/_entrypoints.md`\n\n---\n\n{mandate}")
+    return (
+        f"# Unit: {name}\n\n"
+        f"- Status: open\n"
+        f"- Owns: {owns}\n"
+        f"- Trace into: the managers, controllers, dao, and libraries this file "
+        f"calls, see `inventory/_entrypoints.md`\n\n---\n\n{mandate}"
+    )
 
 
 def _has_prior_run(ws: Path) -> bool:
@@ -332,9 +350,7 @@ def _has_prior_run(ws: Path) -> bool:
         if d.is_dir() and any(d.iterdir()):
             return True
     units = ws / "units"
-    if units.is_dir() and any(
-        "status: reviewed" in u.read_text(encoding="utf-8").lower() for u in units.glob("*.md")
-    ):
+    if units.is_dir() and any("status: reviewed" in u.read_text(encoding="utf-8").lower() for u in units.glob("*.md")):
         return True
     surface = ws / "inventory" / "_surface.md"
     return surface.exists() and surface.read_text(encoding="utf-8") != _SURFACE_TEMPLATE
@@ -380,9 +396,13 @@ def _vulnerabilities_md(vulnerabilities_dir: Path) -> str:
     """Concatenate the shipped vulnerability class definitions into one seeded file, so the
     workspace carries the knowledge the methodology has each unit apply, rather than the
     agent working from memory. Same shape as the seeded stack notes."""
-    parts = ["# Vulnerability Classes", "",
-             "The shipped class definitions, each with vulnerable and secure examples. A unit "
-             "applies the relevant ones to the code it reads, not from memory.", ""]
+    parts = [
+        "# Vulnerability Classes",
+        "",
+        "The shipped class definitions, each with vulnerable and secure examples. A unit "
+        "applies the relevant ones to the code it reads, not from memory.",
+        "",
+    ]
     for _path, _meta, body in iter_md_docs(vulnerabilities_dir):
         parts += ["---", "", body, ""]
     return "\n".join(parts) + "\n"
@@ -409,17 +429,25 @@ def _seed_invariants(ws: Path, source: str | Path | None, created: list[str]) ->
     if existing is not None and existing != _INVARIANTS_TEMPLATE:
         if existing == imported:
             return f"inventory/_invariants.md already matches {src}"
-        return (f"kept the edited inventory/_invariants.md and ignored --invariants {src}, "
-                f"clear the workspace with --fresh to replace it")
+        return (
+            f"kept the edited inventory/_invariants.md and ignored --invariants {src}, "
+            f"clear the workspace with --fresh to replace it"
+        )
     dest.write_text(imported, encoding="utf-8")
     created.append(str(dest))
     return f"seeded inventory/_invariants.md from {src}"
 
 
-def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
-             domain: Domain | None = None, facts: bool = False,
-             max_units: int | None = None,
-             invariants: str | Path | None = None) -> ScaffoldResult:
+def scaffold(
+    target: str | Path,
+    workspace: str | Path,
+    *,
+    fresh: bool = False,
+    domain: Domain | None = None,
+    facts: bool = False,
+    max_units: int | None = None,
+    invariants: str | Path | None = None,
+) -> ScaffoldResult:
     dom = domain or default_domain()
     paths = dom.paths
     detection = load_detection(paths.detection_file)
@@ -453,12 +481,16 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         guides=load_guides(paths.languages_dir, paths.frameworks_dir, paths.protocols_dir),
     )
     (ws / "_stack.md").write_text(_stack_md(guides), encoding="utf-8")
-    facts_note = _write_facts(ws, target, dom, model.files, enabled=facts,
-                              cache_root=Path(workspace) / ".facts-cache", detection=detection)
+    facts_note = _write_facts(
+        ws, target, dom, model.files, enabled=facts, cache_root=Path(workspace) / ".facts-cache", detection=detection
+    )
 
     candidates = candidate_entrypoint_files(
-        model.files, root=target,
-        globs=entrypoint_globs(guides), markers=entrypoint_markers(guides), detection=detection,
+        model.files,
+        root=target,
+        globs=entrypoint_globs(guides),
+        markers=entrypoint_markers(guides),
+        detection=detection,
     )
     layers = logic_layer_files(model.files, globs=logic_layer_globs(guides), detection=detection)
 
@@ -470,8 +502,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
     # run, invariant 4, the operator narrows scope or raises the cap.
     fallback_note = ""
     if not candidates:
-        api = public_api_files(
-            model.files, root=target, patterns=api_patterns(guides), detection=detection)
+        api = public_api_files(model.files, root=target, patterns=api_patterns(guides), detection=detection)
         if api and max_units is not None and len(api) > max_units:
             raise ValueError(
                 f"no application entrypoints under {target}, and its public API surface of "
@@ -485,7 +516,8 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
                 "the library entry surface, coverage is by public API not by entrypoint"
             )
     (ws / "inventory" / "_entrypoints.md").write_text(
-        _entrypoints_md(candidates, layers, fallback_note=fallback_note), encoding="utf-8")
+        _entrypoints_md(candidates, layers, fallback_note=fallback_note), encoding="utf-8"
+    )
 
     # generate the deterministic unit worklist, each unit carrying the same fixed
     # deep-review mandate. Code owns the worklist and the depth mandate. The agent fans
@@ -501,10 +533,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         except (OSError, UnicodeDecodeError):
             text = ""
         spans = char_spans(text)
-        if len(spans) == 1:
-            seeds = [(cand, None)]
-        else:
-            seeds = [(f"{cand}#{i + 1}", span) for i, span in enumerate(spans)]
+        seeds = [(cand, None)] if len(spans) == 1 else [(f"{cand}#{i + 1}", span) for i, span in enumerate(spans)]
         for name, span in seeds:
             up = ws / "units" / f"{unit_slug(name)}.md"
             if up.exists():
@@ -512,8 +541,7 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
             if span is None:
                 body = _unit_md(name, mandate)
             else:
-                body = _unit_md(name, mandate, owned_path=cand,
-                                line_range=span_line_range(text, span))
+                body = _unit_md(name, mandate, owned_path=cand, line_range=span_line_range(text, span))
             up.write_text(body, encoding="utf-8")
             created.append(str(up))
 
@@ -533,7 +561,8 @@ def scaffold(target: str | Path, workspace: str | Path, *, fresh: bool = False,
         created.append(str(sev))
 
     (ws / "_false_positive_traps.md").write_text(
-        paths.false_positive_traps_file.read_text(encoding="utf-8"), encoding="utf-8")
+        paths.false_positive_traps_file.read_text(encoding="utf-8"), encoding="utf-8"
+    )
 
     (ws / "_vulnerabilities.md").write_text(_vulnerabilities_md(paths.vulnerabilities_dir), encoding="utf-8")
 

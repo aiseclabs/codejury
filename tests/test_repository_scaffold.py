@@ -12,7 +12,7 @@ from codejury.domains.base import Domain, Facts, FactsBackend
 from codejury.domains.web import WEB
 from codejury.review.repository.scaffold import scaffold
 
-APP = '''
+APP = """
 from flask import Flask
 app = Flask(__name__)
 
@@ -23,7 +23,7 @@ def list_users():
 @app.route("/admin/users/<uid>", methods=["DELETE"])
 def delete_user(uid):
     return "", 204
-'''
+"""
 
 
 def _target(tmp_path):
@@ -33,13 +33,13 @@ def _target(tmp_path):
     return d
 
 
-GO_LIB = '''
+GO_LIB = """
 package matcher
 
 func Match(a, b string) bool {
     return a == b
 }
-'''
+"""
 
 
 def _go_lib(tmp_path):
@@ -231,7 +231,7 @@ contract Vault {
 def _foundry_project(tmp_path):
     d = tmp_path / "vault"
     (d / "src").mkdir(parents=True)
-    (d / "foundry.toml").write_text("[profile.default]\nsrc = \"src\"\nout = \"out\"\n")
+    (d / "foundry.toml").write_text('[profile.default]\nsrc = "src"\nout = "out"\n')
     (d / "src" / "Vault.sol").write_text(_VAULT_SOL)
     return d
 
@@ -255,13 +255,17 @@ class _CountingBackend(FactsBackend):
     def extract(self, root):
         self.calls += 1
         block = "contract Fake\n  external f()  ext-call"
-        return Facts(summary=block, data={
-            "contracts": {}, "by_file": {"app.py": block},
-            "units": [
-                {"name": "app.py#Fake.f", "files": ["app.py"], "fragments": [["app.py", 0, 12]]},
-                {"name": "tests/t.py#T.f", "files": ["tests/t.py"], "fragments": [["tests/t.py", 0, 9]]},
-            ],
-        })
+        return Facts(
+            summary=block,
+            data={
+                "contracts": {},
+                "by_file": {"app.py": block},
+                "units": [
+                    {"name": "app.py#Fake.f", "files": ["app.py"], "fragments": [["app.py", 0, 12]]},
+                    {"name": "tests/t.py#T.f", "files": ["tests/t.py"], "fragments": [["tests/t.py", 0, 9]]},
+                ],
+            },
+        )
 
 
 def _facts_domain(backend: FactsBackend) -> Domain:
@@ -296,8 +300,7 @@ class _UnavailableBackend(FactsBackend):
 def test_scaffold_notes_the_degrade_when_facts_enabled_but_backend_unavailable(tmp_path):
     # facts on, toolchain missing: degrade to file-slice review and say so, invariant 4, so a
     # facts-off result is never read as a facts-on one
-    res = scaffold(_target(tmp_path), tmp_path / "work",
-                   domain=_facts_domain(_UnavailableBackend()), facts=True)
+    res = scaffold(_target(tmp_path), tmp_path / "work", domain=_facts_domain(_UnavailableBackend()), facts=True)
     assert not (res.workspace / "_facts.md").exists()
     assert "facts backend is unavailable" in res.fallback_note
 

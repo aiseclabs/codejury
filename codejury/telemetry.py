@@ -9,10 +9,11 @@ missing or corrupt timeline is rebuilt, not raised, since observability must not
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 
@@ -40,10 +41,8 @@ def _append_timeline(workspace: Path, record: dict, reset: bool = False) -> None
         except (OSError, json.JSONDecodeError):
             existing = []
     existing.append(record)
-    try:
+    with contextlib.suppress(OSError):
         path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
-    except OSError:
-        pass
 
 
 def read_timeline(workspace: Path | str) -> list[dict]:
@@ -63,7 +62,7 @@ def stage_timer(name: str, workspace: Path | str | None = None, *, reset: bool =
     commands. The stage is recorded even when it raises, marked not ok, and the error propagates.
     `reset` starts a fresh timeline, for the stage that begins a pipeline such as scaffold."""
     started = perf_counter()
-    started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    started_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     ok = False
     try:
         yield

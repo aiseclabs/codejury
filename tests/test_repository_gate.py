@@ -26,8 +26,8 @@ def _complete_ws(root):
     (ws / "pocs").mkdir()
     (ws / "inventory" / "_surface.md").write_text(_SURFACE)
     (ws / "units" / "u1.md").write_text(
-        "# Unit u1: user endpoints\n- Status: reviewed\n"
-        "- Entrypoints: GET /users, DELETE /admin/users/<uid>\n")
+        "# Unit u1: user endpoints\n- Status: reviewed\n- Entrypoints: GET /users, DELETE /admin/users/<uid>\n"
+    )
     return ws
 
 
@@ -47,7 +47,8 @@ def test_missing_workspace_fails(tmp_path):
 def test_empty_surface_fails(tmp_path):
     ws = _complete_ws(tmp_path)
     (ws / "inventory" / "_surface.md").write_text(
-        "# Attack Surface Inventory\n\n| Module | Entrypoint | Auth method | Unit | Status |\n|---|---|---|---|---|\n")
+        "# Attack Surface Inventory\n\n| Module | Entrypoint | Auth method | Unit | Status |\n|---|---|---|---|---|\n"
+    )
     result = check_gate(ws)
     assert not result.passed
     assert any("surface" in f for f in result.failures)
@@ -81,14 +82,16 @@ def test_unit_without_status_counts_as_open(tmp_path):
 def test_medium_issue_passes(tmp_path):
     ws = _complete_ws(tmp_path)
     (ws / "candidates" / "bounded-finding.md").write_text(
-        "# Some finding\n\n- Risk: MEDIUM\n- Type: info disclosure\n- Status: confirmed\n")
+        "# Some finding\n\n- Risk: MEDIUM\n- Type: info disclosure\n- Status: confirmed\n"
+    )
     assert check_gate(ws).passed
 
 
 def test_high_issue_passes(tmp_path):
     ws = _complete_ws(tmp_path)
     (ws / "candidates" / "real-finding.md").write_text(
-        "# Some finding\n\n- Risk: HIGH\n- Type: idor\n- Status: confirmed\n")
+        "# Some finding\n\n- Risk: HIGH\n- Type: idor\n- Status: confirmed\n"
+    )
     assert check_gate(ws).passed
 
 
@@ -113,8 +116,7 @@ def _target_tree(root, files):
 def test_source_inventory_notes_a_file_owned_by_no_unit(tmp_path):
     ws = _complete_ws(tmp_path)
     target = _target_tree(tmp_path, ["owned.py", "orphan.py"])
-    (ws / "inventory" / "_surface.md").write_text(
-        _SURFACE + "| app | owned.py | none | u1 | assigned |\n")
+    (ws / "inventory" / "_surface.md").write_text(_SURFACE + "| app | owned.py | none | u1 | assigned |\n")
     result = check_gate(ws, root=target)
     assert result.passed
     assert any("orphan.py" in n for n in result.notes)
@@ -132,8 +134,7 @@ def test_strict_coverage_fails_on_an_unowned_source_file(tmp_path):
 def test_a_file_named_in_a_unit_counts_as_owned(tmp_path):
     ws = _complete_ws(tmp_path)
     target = _target_tree(tmp_path, ["handler.py"])
-    (ws / "units" / "u1.md").write_text(
-        "# Unit u1\n- Status: reviewed\n- Target: handler.py\n")
+    (ws / "units" / "u1.md").write_text("# Unit u1\n- Status: reviewed\n- Target: handler.py\n")
     result = check_gate(ws, root=target)
     assert result.passed
     assert not any("handler.py" in n for n in result.notes)

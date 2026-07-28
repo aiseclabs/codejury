@@ -18,6 +18,7 @@ _U = [Unit(name="u", root=".", files=())]
 
 class LensReviewer(UnitReviewer):
     """Returns a fixed candidate set per lens, so the union is what the lenses cover."""
+
     def __init__(self, by_lens):
         self.by_lens = by_lens
         self.lenses_seen = []
@@ -29,6 +30,7 @@ class LensReviewer(UnitReviewer):
 
 class NewEachPassReviewer(UnitReviewer):
     """Never converges: every call yields a brand-new finding."""
+
     def __init__(self):
         self.n = 0
 
@@ -41,6 +43,7 @@ class SecondShotReviewer(UnitReviewer):
     """The easy lens finds its issue at once, the hard lens generates only on its second
     firing, the way a hard class is a coin flip the first shot misses and the second catches.
     Used to prove the coverage gate holds the run open for that second shot."""
+
     def __init__(self):
         self.hard_shots = 0
         self.lenses_seen = []
@@ -81,8 +84,7 @@ def test_coverage_gate_keeps_a_hard_lens_from_one_shot():
     # second firing, so saturation alone would stop before that shot. The coverage gate holds
     # the run open until every lens fired min_lens_shots times, so the second shot lands
     reviewer = SecondShotReviewer()
-    acc = run_passes(_U, reviewer, lenses=("easy", "hard", ""),
-                     converge_after=2, min_lens_shots=2, max_passes=24)
+    acc = run_passes(_U, reviewer, lenses=("easy", "hard", ""), converge_after=2, min_lens_shots=2, max_passes=24)
     assert {c.title for c in acc.findings} == {"A", "B"}
     assert reviewer.lenses_seen.count("hard") >= 2
 
@@ -91,13 +93,13 @@ def test_one_shot_floor_stops_before_a_hard_lens_second_shot():
     # the contrast: lower the gate to one shot and saturation stops the run after the easy
     # finding, before the hard lens fires its catching second shot, so B is missed
     reviewer = SecondShotReviewer()
-    acc = run_passes(_U, reviewer, lenses=("easy", "hard", ""),
-                     converge_after=2, min_lens_shots=1, max_passes=24)
+    acc = run_passes(_U, reviewer, lenses=("easy", "hard", ""), converge_after=2, min_lens_shots=1, max_passes=24)
     assert {c.title for c in acc.findings} == {"A"}
 
 
 class PerUnitReviewer(UnitReviewer):
     """One distinct finding per unit, so merge order is observable."""
+
     def review(self, unit, lens, *, shared_context=""):
         return [Candidate(title=unit.name, endpoint=f"GET /{unit.name}")]
 
@@ -112,6 +114,7 @@ def test_concurrency_yields_same_union_as_serial():
 
 class FlakyReviewer(UnitReviewer):
     """Raises on one unit, like a rate-limited call, returns findings on the others."""
+
     def review(self, unit, lens, *, shared_context=""):
         if unit.name == "bad":
             raise RuntimeError("rate limited")
@@ -119,20 +122,24 @@ class FlakyReviewer(UnitReviewer):
 
 
 def test_unit_failures_are_counted_not_silent():
-    units = [Unit(name="ok1", root=".", files=()),
-             Unit(name="bad", root=".", files=()),
-             Unit(name="ok2", root=".", files=())]
+    units = [
+        Unit(name="ok1", root=".", files=()),
+        Unit(name="bad", root=".", files=()),
+        Unit(name="ok2", root=".", files=()),
+    ]
     acc = run_passes(units, FlakyReviewer(), lenses=("",), concurrency=2, max_passes=2)
     assert acc.errors >= 1
     assert {c.title for c in acc.findings} == {"ok1", "ok2"}
 
 
 def test_candidates_from_obj_is_tolerant():
-    obj = {"findings": [
-        {"title": "real", "severity": "CRITICAL", "endpoint": "POST /t", "category": "idor"},
-        {"no_title": 1},
-        "junk",
-    ]}
+    obj = {
+        "findings": [
+            {"title": "real", "severity": "CRITICAL", "endpoint": "POST /t", "category": "idor"},
+            {"no_title": 1},
+            "junk",
+        ]
+    }
     cands = candidates_from_obj(obj)
     assert len(cands) == 1
     assert cands[0].severity == "CRITICAL" and cands[0].endpoint == "POST /t"
@@ -145,9 +152,11 @@ def test_candidates_default_severity_is_medium_not_dropped():
 
 def test_model_reviewer_builds_prompt_and_parses(tmp_path):
     (tmp_path / "app.py").write_text("def handler():\n    return 'ok'\n")
-    reply = ('{"findings": [{"title": "idor", "category": "idor", '
-             '"endpoint": "GET /x/<id>", "file": "app.py", "line": 2, '
-             '"severity": "high", "status": "confirmed"}]}')
+    reply = (
+        '{"findings": [{"title": "idor", "category": "idor", '
+        '"endpoint": "GET /x/<id>", "file": "app.py", "line": 2, '
+        '"severity": "high", "status": "confirmed"}]}'
+    )
     prov = MockProvider(default=reply)
     reviewer = ModelReviewer(provider=prov, model="mock")
     unit = Unit(name="wallets", root=str(tmp_path), files=("app.py",))
@@ -189,6 +198,7 @@ def test_run_passes_counts_an_unparseable_reply_as_an_error():
 class OneFindingReviewer(UnitReviewer):
     """A model that only ever finds its own single issue, so two such models cover different
     issues and the union needs both, the recall ceiling a single model cannot reach alone."""
+
     def __init__(self, title):
         self.title = title
         self.calls = 0
@@ -211,6 +221,7 @@ def test_multi_model_fanout_unions_what_each_model_finds():
 
 class FixedReviewer(UnitReviewer):
     """A model that always returns the one finding it is given, labelled by its model name."""
+
     def __init__(self, label, cand):
         self._model = label
         self._cand = cand

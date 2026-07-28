@@ -16,11 +16,11 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, replace
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from time import perf_counter
-from typing import Callable
 
 from codejury.detection import load_detection
 from codejury.domains.base import ContentPaths, Domain
@@ -46,8 +46,8 @@ from codejury.review.repository.union import Accumulator, Candidate, collapse_co
 from codejury.review.repository.verifier import (
     ModelVerifier,
     RefutationChecker,
-    VerifyResult,
     Verifier,
+    VerifyResult,
     verify_findings,
 )
 from codejury.sources.metadata import SourceMeta, read_source_meta_file
@@ -122,13 +122,13 @@ def _call_path_units(root: str, facts_units) -> list[Unit]:
 
 def _finding_md(c: Candidate, owner: str = "") -> str:
     src = c.endpoint or c.file or "(no location)"
-    head = (f"# {c.title}\n\n"
-            f"- Risk: {c.severity}\n"
-            f"- Type: {c.category or 'other'}\n"
-            f"- Source: `{src}`\n"
-            f"- Status: {c.status}\n"
-            + (f"- Owner: {owner}\n" if owner else "")
-            + "\n")
+    head = (
+        f"# {c.title}\n\n"
+        f"- Risk: {c.severity}\n"
+        f"- Type: {c.category or 'other'}\n"
+        f"- Source: `{src}`\n"
+        f"- Status: {c.status}\n" + (f"- Owner: {owner}\n" if owner else "") + "\n"
+    )
     body = c.evidence.strip()
     # the agent body already carries its own ## Analysis and later sections, so emit it
     # whole, the coded run carries only a short fact, so wrap it under Analysis
@@ -182,7 +182,10 @@ def _git_blame_owner(root: str, file: str, line: int | None) -> str:
     try:
         out = subprocess.run(
             ["git", "-C", root, "blame", "-L", f"{line},{line}", "--porcelain", "--", file],
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return ""
@@ -192,9 +195,9 @@ def _git_blame_owner(root: str, file: str, line: int | None) -> str:
     email = ""
     for ln in out.stdout.splitlines():
         if ln.startswith("author ") and not name:
-            name = ln[len("author "):].strip()
+            name = ln[len("author ") :].strip()
         elif ln.startswith("author-mail "):
-            email = ln[len("author-mail "):].strip().strip("<>")
+            email = ln[len("author-mail ") :].strip().strip("<>")
         if name and email:
             break
     if name and email:
@@ -204,10 +207,21 @@ def _git_blame_owner(root: str, file: str, line: int | None) -> str:
 
 def _finding_entry(ws: Path, c: Candidate, owner: str = "") -> dict:
     candidate = f"candidates/{c.source}" if c.source.endswith(".md") else ""
-    return {"title": c.title, "category": c.category, "entry": c.endpoint,
-            "file": c.file, "line": c.line, "severity": c.severity, "status": c.status,
-            "analysis": c.evidence, "owner": owner, "found_by": list(c.found_by),
-            "models": _confidence(c), "candidate": candidate, "poc": _poc_for(ws, _finding_name(c))}
+    return {
+        "title": c.title,
+        "category": c.category,
+        "entry": c.endpoint,
+        "file": c.file,
+        "line": c.line,
+        "severity": c.severity,
+        "status": c.status,
+        "analysis": c.evidence,
+        "owner": owner,
+        "found_by": list(c.found_by),
+        "models": _confidence(c),
+        "candidate": candidate,
+        "poc": _poc_for(ws, _finding_name(c)),
+    }
 
 
 def _load_source_meta(root: str) -> SourceMeta | None:
@@ -276,11 +290,18 @@ def _write_pocs_report(ws: Path, findings: list[Candidate]) -> None:
     poc_names = {p.stem for p in poc_files}
     missing = [c for c in findings if _finding_name(c) not in poc_names]
     orphan = [p for p in poc_files if p.stem not in names]
-    lines = ["# PoC Reconciliation", "",
-             "Confirmed findings matched to PoCs by name. Recorded, not gated: a finding "
-             "may need a PoC only an operator can run, and a PoC may outlive a refuted candidate.",
-             "", "## Confirmed findings with no PoC", ""]
-    lines += [f"- **{c.title}** `{c.endpoint or c.file}`" for c in missing] or ["None, every confirmed finding has a PoC."]
+    lines = [
+        "# PoC Reconciliation",
+        "",
+        "Confirmed findings matched to PoCs by name. Recorded, not gated: a finding "
+        "may need a PoC only an operator can run, and a PoC may outlive a refuted candidate.",
+        "",
+        "## Confirmed findings with no PoC",
+        "",
+    ]
+    lines += [f"- **{c.title}** `{c.endpoint or c.file}`" for c in missing] or [
+        "None, every confirmed finding has a PoC."
+    ]
     lines += ["", "## PoC files with no confirmed finding", ""]
     lines += [f"- `pocs/{p.name}`" for p in orphan] or ["None, every PoC maps to a confirmed finding."]
     (ws / "_pocs.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -292,9 +313,14 @@ def _write_surface(ws: Path, units: list[Unit], failed: set) -> None:
     explicit and the gate's surface check is satisfied. A unit that never reviewed
     cleanly this run is marked open, not reviewed, so the surface does not claim a
     failed unit was covered."""
-    lines = ["# Attack Surface Inventory", "",
-             "Enumerated by the coded engine from the unit worklist, one row per unit.", "",
-             "| Package | Entrypoint file | Unit | Status |", "|---|---|---|---|"]
+    lines = [
+        "# Attack Surface Inventory",
+        "",
+        "Enumerated by the coded engine from the unit worklist, one row per unit.",
+        "",
+        "| Package | Entrypoint file | Unit | Status |",
+        "|---|---|---|---|",
+    ]
     for u in units:
         owned = u.files[0] if u.files else u.name
         pkg = Path(owned).parts[0] if Path(owned).parts else ""
@@ -305,9 +331,13 @@ def _write_surface(ws: Path, units: list[Unit], failed: set) -> None:
 
 def _write_refuted(ws: Path, refuted: list[tuple[Candidate, str]]) -> None:
     """Record what the verifier dropped, so a refutation is auditable, not invisible."""
-    lines = ["# Refuted candidates", "",
-             "Surfaced by a review pass, then refuted by the adversarial verifier on a "
-             "named controlling fact. Recorded so a wrong refutation is visible.", ""]
+    lines = [
+        "# Refuted candidates",
+        "",
+        "Surfaced by a review pass, then refuted by the adversarial verifier on a "
+        "named controlling fact. Recorded so a wrong refutation is visible.",
+        "",
+    ]
     for c, reason in refuted:
         lines.append(f"- **{c.title}** ({c.severity} {c.category}) `{c.endpoint or c.file}`: {reason}")
     (ws / "_refuted.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -344,18 +374,35 @@ def _mark_units_reviewed(ws: Path, reviewed_slugs: set) -> None:
 
 
 def _cand_to_dict(c: Candidate) -> dict:
-    return {"title": c.title, "category": c.category, "endpoint": c.endpoint, "symbol": c.symbol,
-            "file": c.file, "line": c.line, "severity": c.severity, "evidence": c.evidence,
-            "status": c.status, "source": c.source, "found_by": list(c.found_by)}
+    return {
+        "title": c.title,
+        "category": c.category,
+        "endpoint": c.endpoint,
+        "symbol": c.symbol,
+        "file": c.file,
+        "line": c.line,
+        "severity": c.severity,
+        "evidence": c.evidence,
+        "status": c.status,
+        "source": c.source,
+        "found_by": list(c.found_by),
+    }
 
 
 def _cand_from_dict(d: dict) -> Candidate:
-    return Candidate(title=d.get("title", ""), category=d.get("category", ""),
-                     endpoint=d.get("endpoint", ""), symbol=d.get("symbol", ""),
-                     file=d.get("file", ""), line=d.get("line"),
-                     severity=d.get("severity", "MEDIUM"), evidence=d.get("evidence", ""),
-                     status=d.get("status", "confirmed"), source=d.get("source", ""),
-                     found_by=tuple(d.get("found_by", ())))
+    return Candidate(
+        title=d.get("title", ""),
+        category=d.get("category", ""),
+        endpoint=d.get("endpoint", ""),
+        symbol=d.get("symbol", ""),
+        file=d.get("file", ""),
+        line=d.get("line"),
+        severity=d.get("severity", "MEDIUM"),
+        evidence=d.get("evidence", ""),
+        status=d.get("status", "confirmed"),
+        source=d.get("source", ""),
+        found_by=tuple(d.get("found_by", ())),
+    )
 
 
 def _keystr(c: Candidate, by_file: bool = False) -> str:
@@ -366,12 +413,13 @@ def _keystr(c: Candidate, by_file: bool = False) -> str:
 
 def _save_union(ws: Path, cands: list[Candidate]) -> None:
     (ws / "_union.json").write_text(
-        json.dumps({"findings": [_cand_to_dict(c) for c in cands]}, indent=2, ensure_ascii=False),
-        encoding="utf-8")
+        json.dumps({"findings": [_cand_to_dict(c) for c in cands]}, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
 
-def _save_run_status(ws: Path, *, units_total: int, acc, verify, timing: dict | None = None,
-                     state: str = "converged") -> None:
+def _save_run_status(
+    ws: Path, *, units_total: int, acc, verify, timing: dict | None = None, state: str = "converged"
+) -> None:
     """Persist the coded run's coverage and failure state, which otherwise lives only in the
     accumulator in memory and is lost when the process exits. A later finalize or gate can then
     read whether the run converged and how many reviews failed, so a failed run stays visible
@@ -432,8 +480,11 @@ def _save_verified(ws: Path, verified: dict) -> None:
 
 
 def _reviewed_slugs(ws: Path) -> set:
-    return {u.stem for u in (ws / "units").glob("*.md")
-            if re.search(r"(?im)^-\s*Status:\s*reviewed\s*$", u.read_text(encoding="utf-8"))}
+    return {
+        u.stem
+        for u in (ws / "units").glob("*.md")
+        if re.search(r"(?im)^-\s*Status:\s*reviewed\s*$", u.read_text(encoding="utf-8"))
+    }
 
 
 def apply_verification(
@@ -473,8 +524,9 @@ def apply_verification(
     # a finding kept only because a verify call could not complete is kept for this run but never
     # written to _verified.json, so a resume re-attempts it rather than freezing the failure as
     # confirmed, the resume-integrity rule of invariant 4
-    vr = verify_findings(singletons, verifier, root, confirmers=confirmers, votes=votes,
-                         concurrency=concurrency, on_verify=on_verify)
+    vr = verify_findings(
+        singletons, verifier, root, confirmers=confirmers, votes=votes, concurrency=concurrency, on_verify=on_verify
+    )
     incomplete = {_keystr(c, by_file) for c in vr.incomplete}
     for c in vr.confirmed:
         if _keystr(c, by_file) not in incomplete:
@@ -483,10 +535,12 @@ def apply_verification(
         verified[_keystr(c, by_file)] = {"real": False, "reason": reason}
     errors = vr.errors
     _save_verified(ws, verified)
-    confirmed = [c for c in findings
-                 if verified.get(_keystr(c, by_file), {"real": True})["real"]]
-    refuted = [(c, verified[_keystr(c, by_file)]["reason"]) for c in findings
-               if not verified.get(_keystr(c, by_file), {"real": True})["real"]]
+    confirmed = [c for c in findings if verified.get(_keystr(c, by_file), {"real": True})["real"]]
+    refuted = [
+        (c, verified[_keystr(c, by_file)]["reason"])
+        for c in findings
+        if not verified.get(_keystr(c, by_file), {"real": True})["real"]
+    ]
     _write_refuted(ws, refuted)
     return confirmed, VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors)
 
@@ -496,7 +550,7 @@ def _md_field(text: str, key: str) -> str:
     return v.strip("`").strip() if v is not None else ""
 
 
-@lru_cache(maxsize=None)
+@cache
 def _location_re(source_extensions: frozenset[str]) -> re.Pattern:
     """The location matcher, built from the data-driven source extensions so no
     language is named in code. Extensions are sorted longest first so a path like
@@ -511,7 +565,7 @@ def _candidate_body(text: str) -> str:
     """The prose body of an agent candidate, from its first section heading to the end, so
     a finding carries the agent's analysis rather than a bare pointer back to the file."""
     m = re.search(r"(?m)^##\s", text)
-    return text[m.start():].strip() if m else ""
+    return text[m.start() :].strip() if m else ""
 
 
 def _canonicalize_categories(cands: list[Candidate], vulnerabilities_dir: Path) -> list[Candidate]:
@@ -537,7 +591,7 @@ def _parse_candidate(path: Path, source_extensions: frozenset[str] | None = None
         return None
     title = next((ln[2:].strip() for ln in text.splitlines() if ln.startswith("# ")), path.stem)
     # agents write the H1 freely, some prefix "Finding:", so strip it for a uniform title
-    title = re.sub(r"(?i)^finding\s*[:：]\s*", "", title).strip() or path.stem
+    title = re.sub("(?i)^finding\\s*[:\uff1a]\\s*", "", title).strip() or path.stem
     sev_raw = _md_field(text, "(?:risk|severity)").upper()
     severity = next((s for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW") if s in sev_raw), "MEDIUM")
     fm = _location_re(source_extensions).search(text)
@@ -626,8 +680,19 @@ def finalize_repository_review(
     vr: VerifyResult | None = None
     if verify and deduped:
         deduped, vr = apply_verification(
-            ws, deduped, root=root, verifier=verifier, confirmers=confirmers, provider=provider, model=model,
-            votes=votes, concurrency=concurrency, fresh=False, content=paths, by_file=by_file, on_verify=on_verify,
+            ws,
+            deduped,
+            root=root,
+            verifier=verifier,
+            confirmers=confirmers,
+            provider=provider,
+            model=model,
+            votes=votes,
+            concurrency=concurrency,
+            fresh=False,
+            content=paths,
+            by_file=by_file,
+            on_verify=on_verify,
         )
 
     if poc_backend is not None and deduped:
@@ -659,13 +724,20 @@ def _run_pocs(ws: Path, findings: list[Candidate], backend, root: str) -> list[C
         try:
             if runnable:
                 res = backend.reproduce(
-                    title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root)
+                    title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line, root=root
+                )
                 source = res.test_source
                 note = f"PoC reproduced: {res.detail}" if res.reproduced else f"PoC inconclusive: {res.detail}"
             else:
                 art = backend.generate(
-                    title=c.title, analysis=c.evidence, symbol=c.symbol, file=c.file, line=c.line,
-                    endpoint=c.endpoint, root=root)
+                    title=c.title,
+                    analysis=c.evidence,
+                    symbol=c.symbol,
+                    file=c.file,
+                    line=c.line,
+                    endpoint=c.endpoint,
+                    root=root,
+                )
                 source = art.source
                 if executes:
                     # recorded not hidden, so a missing toolchain never reads as a clean finding, invariant 4
@@ -772,9 +844,7 @@ def _corrupt_facts(p: Path, exc: Exception) -> ValueError:
     # a facts artifact that exists but does not parse is corrupt, not absent. Silently treating
     # it as empty makes the review look more grounded than it was, so fail loud and let the
     # operator regenerate it. Invariant 4. A never-generated facts file is still optional.
-    return ValueError(
-        f"facts artifact {p} is corrupt: {exc}. Delete it or re-run with --fresh to regenerate."
-    )
+    return ValueError(f"facts artifact {p} is corrupt: {exc}. Delete it or re-run with --fresh to regenerate.")
 
 
 def _load_facts_by_file(ws: Path) -> dict[str, str]:
@@ -834,8 +904,9 @@ def run_repository_review(
     domain = domain or default_domain()
     paths = domain.paths
     root = str(Path(target).resolve())
-    res = scaffold(target, workspace, fresh=fresh, domain=domain, facts=facts, max_units=max_units,
-                   invariants=invariants)
+    res = scaffold(
+        target, workspace, fresh=fresh, domain=domain, facts=facts, max_units=max_units, invariants=invariants
+    )
     ws = res.workspace
     units = build_units(root, res.candidate_files, res.trace_targets, _load_facts_units(ws))
     if not units:
@@ -861,14 +932,18 @@ def run_repository_review(
             "findings are lost. Re-run with --fresh to discard the markers and start over."
         )
     open_units = [u for u in units if unit_slug(u.name) not in reviewed]
-    acc = Accumulator(converge_after=converge_after, pool=({} if fresh else _load_union(ws, domain.dedup_by_file)),
-                      dedup_by_file=domain.dedup_by_file)
+    acc = Accumulator(
+        converge_after=converge_after,
+        pool=({} if fresh else _load_union(ws, domain.dedup_by_file)),
+        dedup_by_file=domain.dedup_by_file,
+    )
 
     facts_by_file = _load_facts_by_file(ws)
     shared = _shared_context(ws)
     if not facts_by_file:
         # no per-file facts, fall back to the global fold for a backend that emits only a summary
         shared = _with_facts(shared, ws)
+
     def _make_reviewer(p: Provider, m: str) -> UnitReviewer:
         return ModelReviewer(provider=p, model=m, content=paths, facts_by_file=facts_by_file)
 
@@ -893,17 +968,30 @@ def run_repository_review(
         pass_records.append({"pass": pass_no, "lens": lens, "new": new, "seconds": round(now - last_pass_end, 1)})
         last_pass_end = now
         # a snapshot each pass so a kill mid-run leaves progress, state marks it not yet final
-        _save_run_status(ws, units_total=len(units), acc=acc, verify=None, state="running",
-                         timing={"total_seconds": round(now - run_started, 1), "per_pass": pass_records})
+        _save_run_status(
+            ws,
+            units_total=len(units),
+            acc=acc,
+            verify=None,
+            state="running",
+            timing={"total_seconds": round(now - run_started, 1), "per_pass": pass_records},
+        )
         if on_pass is not None:
             on_pass(pass_no, lens, new, union_size)
 
     run_passes(
-        open_units, reviewers, lenses=domain.lenses,
-        converge_after=converge_after, min_lens_shots=min_lens_shots, max_passes=max_passes,
-        shared_context=shared, concurrency=concurrency, on_pass=_timed_on_pass,
+        open_units,
+        reviewers,
+        lenses=domain.lenses,
+        converge_after=converge_after,
+        min_lens_shots=min_lens_shots,
+        max_passes=max_passes,
+        shared_context=shared,
+        concurrency=concurrency,
+        on_pass=_timed_on_pass,
         on_unit=lambda name, secs: unit_times.append((name, secs)),
-        persist=lambda f: _save_union(ws, f), accumulator=acc,
+        persist=lambda f: _save_union(ws, f),
+        accumulator=acc,
     )
     _save_union(ws, acc.findings)
     reviewed_slugs = {unit_slug(u.name) for u in open_units if u.name not in acc.failed_units}
@@ -919,9 +1007,19 @@ def run_repository_review(
     vr: VerifyResult | None = None
     if verify:
         findings, vr = apply_verification(
-            ws, findings, root=root, verifier=verifier, confirmers=confirmers, provider=provider, model=model,
-            votes=votes, concurrency=concurrency, fresh=fresh, content=paths,
-            by_file=domain.dedup_by_file, on_verify=on_verify,
+            ws,
+            findings,
+            root=root,
+            verifier=verifier,
+            confirmers=confirmers,
+            provider=provider,
+            model=model,
+            votes=votes,
+            concurrency=concurrency,
+            fresh=fresh,
+            content=paths,
+            by_file=domain.dedup_by_file,
+            on_verify=on_verify,
         )
 
     _write_surface(ws, units, acc.failed_units)

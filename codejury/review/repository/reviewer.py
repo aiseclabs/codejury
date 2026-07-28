@@ -55,18 +55,20 @@ def candidates_from_obj(obj: object) -> list[Candidate]:
         sev = str(d.get("severity", "")).strip().upper()
         rel = str(d.get("file", "")).strip()
         file = "" if is_unsafe_rel(rel) else rel
-        out.append(Candidate(
-            title=title,
-            category=str(d.get("category", "")).strip(),
-            endpoint=str(d.get("endpoint") or d.get("source") or "").strip(),
-            symbol=str(d.get("symbol") or "").strip(),
-            file=file,
-            # bool is an int subclass, so reject it or True would read as line 1
-            line=line if isinstance(line, int) and not isinstance(line, bool) and line >= 1 else None,
-            severity=sev if sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else "MEDIUM",
-            evidence=str(d.get("evidence", "")).strip(),
-            status="blocked" if str(d.get("status", "")).strip().lower() == "blocked" else "confirmed",
-        ))
+        out.append(
+            Candidate(
+                title=title,
+                category=str(d.get("category", "")).strip(),
+                endpoint=str(d.get("endpoint") or d.get("source") or "").strip(),
+                symbol=str(d.get("symbol") or "").strip(),
+                file=file,
+                # bool is an int subclass, so reject it or True would read as line 1
+                line=line if isinstance(line, int) and not isinstance(line, bool) and line >= 1 else None,
+                severity=sev if sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else "MEDIUM",
+                evidence=str(d.get("evidence", "")).strip(),
+                status="blocked" if str(d.get("status", "")).strip().lower() == "blocked" else "confirmed",
+            )
+        )
     return out
 
 
@@ -86,9 +88,15 @@ _SYSTEM = (
 class ModelReviewer(UnitReviewer):
     """Default reviewer: one grounded model call per unit per pass."""
 
-    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096,
-                 content: ContentPaths | None = None,
-                 facts_by_file: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        provider: Provider,
+        model: str,
+        max_tokens: int = 4096,
+        content: ContentPaths | None = None,
+        facts_by_file: dict[str, str] | None = None,
+    ) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
@@ -137,8 +145,12 @@ class ModelReviewer(UnitReviewer):
             cache_head
             + f"{lens_line(lens)}"
             + (f"Shared review context:\n{shared_context}\n\n" if shared_context else "")
-            + (f"Contract facts for this unit, tool-extracted, the call graph and storage "
-               f"the slice below may not show in full:\n{unit_facts}\n\n" if unit_facts else "")
+            + (
+                f"Contract facts for this unit, tool-extracted, the call graph and storage "
+                f"the slice below may not show in full:\n{unit_facts}\n\n"
+                if unit_facts
+                else ""
+            )
             + f"Unit `{unit.name}`, the code to review:\n```\n{gather(unit)}\n```\n\n"
             + f"Respond with a single JSON object exactly like:\n{JSON_SHAPE}"
         )
@@ -151,8 +163,10 @@ class ModelReviewer(UnitReviewer):
             cache_prefix=cache_head,
         )
         obj = require_json_object(
-            result.text, required_key="findings", error=RepositoryReviewError,
+            result.text,
+            required_key="findings",
+            error=RepositoryReviewError,
             message="the unit review reply had no JSON object, or a JSON object without a "
-                    "findings key, so it is a failed review rather than a clean unit",
+            "findings key, so it is a failed review rather than a clean unit",
         )
         return candidates_from_obj(obj)

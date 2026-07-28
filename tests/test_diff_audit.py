@@ -3,12 +3,12 @@ MockProvider, no key."""
 
 import json
 
+from codejury.finding import Finding
+from codejury.providers.mock import MockProvider
 from codejury.review.diff.audit import AuditRunner
 from codejury.review.diff.engine import _chunk_path, audit_diff, strip_noise_files
 from codejury.review.diff.filter import FindingsFilter
 from codejury.review.diff.prompts import standard_audit_prompt
-from codejury.finding import Finding
-from codejury.providers.mock import MockProvider
 
 _DIFF = "+++ b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
 
@@ -18,10 +18,18 @@ def _reply(findings):
 
 
 def test_engine_parses_findings():
-    reply = _reply([
-        {"file": "app.py", "line": 3, "severity": "CRITICAL", "category": "sql_injection",
-         "description": "string-concatenated query", "confidence": 0.95},
-    ])
+    reply = _reply(
+        [
+            {
+                "file": "app.py",
+                "line": 3,
+                "severity": "CRITICAL",
+                "category": "sql_injection",
+                "description": "string-concatenated query",
+                "confidence": 0.95,
+            },
+        ]
+    )
     out = AuditRunner(provider=MockProvider(default=reply), model="m").run(_DIFF)
     assert len(out) == 1
     assert out[0].severity == "CRITICAL" and out[0].category == "sql_injection"
@@ -56,8 +64,8 @@ def test_engine_raises_on_wrong_shape_json():
 
 def test_guides_for_diff_selects_by_path_and_content():
     from codejury.review.diff.audit import guides_for_diff
-    diff = ("diff --git a/app/urls.py b/app/urls.py\n"
-            "+from django.urls import path\n+urlpatterns = []\n")
+
+    diff = "diff --git a/app/urls.py b/app/urls.py\n+from django.urls import path\n+urlpatterns = []\n"
     notes = guides_for_diff(diff)
     assert "Django" in notes and "Python" in notes
     assert guides_for_diff("+++ b/README.md\n+hello\n") == ""
@@ -157,8 +165,7 @@ def test_audit_diff_does_not_send_noise_files_to_the_model():
 
 
 def test_audit_diff_docs_only_diff_is_clean_without_a_model_call():
-    reply = _reply([{"file": "README.md", "line": 1, "severity": "HIGH",
-                     "description": "x", "confidence": 0.9}])
+    reply = _reply([{"file": "README.md", "line": 1, "severity": "HIGH", "description": "x", "confidence": 0.9}])
     provider = MockProvider(default=reply)
     kept, dropped, degraded = audit_diff(_DOC + _LOCK, provider=provider, model="m")
     assert kept == [] and dropped == [] and degraded is False
@@ -177,8 +184,12 @@ def test_audit_diff_reports_one_progress_call_per_batch(monkeypatch):
     monkeypatch.setattr("codejury.review.diff.engine._MAX_DIFF_CHARS", 1)
     two = _SRC + "diff --git a/other.py b/other.py\n@@ -0,0 +1 @@\n+y = 2\n"
     seen = []
-    audit_diff(two, provider=MockProvider(default='{"findings": []}'), model="m",
-               on_batch=lambda done, total, secs: seen.append((done, total)))
+    audit_diff(
+        two,
+        provider=MockProvider(default='{"findings": []}'),
+        model="m",
+        on_batch=lambda done, total, secs: seen.append((done, total)),
+    )
     assert seen == [(1, 2), (2, 2)]
 
 
@@ -187,6 +198,7 @@ def test_findings_filter_uses_the_passed_detection():
     # default, so the filter must use the selected domain's detection, not the global default
     from codejury.detection import load_detection
     from codejury.domains.registry import resolve_domain
+
     evm = load_detection(resolve_domain("evm").paths.detection_file)
     f = _f("Counter.t.sol")
     assert FindingsFilter().filter([f])[0] == [f]

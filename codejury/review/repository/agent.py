@@ -36,9 +36,18 @@ from codejury.review.repository.union import Candidate
 from codejury.review.repository.verifier import RefutationChecker, Verdict, Verifier, VerifyError
 
 __all__ = [
-    "DEFAULT_CLAUDE_ARGS", "READ_ONLY_TOOLS", "Runner", "_ClaudeBackend", "_compose_claude_args",
-    "_default_runner", "_envelope_error", "_result_text", "_subscription_env",
-    "AgentReviewer", "AgentVerifier", "AgentRefutationChecker",
+    "DEFAULT_CLAUDE_ARGS",
+    "READ_ONLY_TOOLS",
+    "AgentRefutationChecker",
+    "AgentReviewer",
+    "AgentVerifier",
+    "Runner",
+    "_ClaudeBackend",
+    "_compose_claude_args",
+    "_default_runner",
+    "_envelope_error",
+    "_result_text",
+    "_subscription_env",
 ]
 
 
@@ -62,9 +71,11 @@ class AgentReviewer(_ClaudeBackend, UnitReviewer):
             f"Respond with a single JSON object exactly like:\n{JSON_SHAPE}"
         )
         obj = require_json_object(
-            _result_text(self._ask(prompt, unit.root)), required_key="findings", error=RepositoryReviewError,
+            _result_text(self._ask(prompt, unit.root)),
+            required_key="findings",
+            error=RepositoryReviewError,
             message="the unit review reply had no JSON object, or a JSON object without a "
-                    "findings key, so it is a failed review rather than a clean unit",
+            "findings key, so it is a failed review rather than a clean unit",
         )
         return candidates_from_obj(obj)
 

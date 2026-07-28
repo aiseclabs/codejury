@@ -21,13 +21,15 @@ allowlisted extension validated against the real content, and store outside the 
 @app.post("/upload")
 def upload():
     f = request.files["file"]
-    f.save(os.path.join(UPLOAD_DIR, f.filename))   # attacker sets name and extension
+    f.save(os.path.join(UPLOAD_DIR, f.filename))  # attacker sets name and extension
     return "ok"
 ```
 
 ## Secure
 ```python
 ALLOWED = {"png", "jpg", "pdf"}
+
+
 @app.post("/upload")
 def upload():
     f = request.files["file"]
@@ -35,7 +37,7 @@ def upload():
     if ext not in ALLOWED:
         abort(400)
     name = f"{uuid4()}.{ext}"
-    f.save(os.path.join(UPLOAD_DIR, name))   # generated name, allowlisted type, outside web root
+    f.save(os.path.join(UPLOAD_DIR, name))  # generated name, allowlisted type, outside web root
     return "ok"
 ```
 

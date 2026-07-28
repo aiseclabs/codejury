@@ -26,6 +26,7 @@ on it downward.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import queue
@@ -34,8 +35,8 @@ import shutil
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import Future
-from typing import Callable
 
 from codejury.providers.base import CompletionResult, Message, Provider
 
@@ -67,8 +68,9 @@ def _drop_flag(args: tuple[str, ...], flag: str) -> tuple[str, ...]:
     return tuple(out)
 
 
-def _compose_claude_args(extra: tuple[str, ...], *, unsafe: bool,
-                         allowed_tools: tuple[str, ...] = READ_ONLY_TOOLS) -> tuple[str, ...]:
+def _compose_claude_args(
+    extra: tuple[str, ...], *, unsafe: bool, allowed_tools: tuple[str, ...] = READ_ONLY_TOOLS
+) -> tuple[str, ...]:
     """The effective `claude -p` args. `allowed_tools` is mandatory and substituted by the caller,
     the repository backends read files so they pass the read-only set, the diff provider answers from the
     prompt so it passes none. Extra args from `CODEJURY_CLAUDE_ARGS` or the constructor are appended,
@@ -102,8 +104,12 @@ def _default_runner(prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, 
     """Run `claude -p` headless with the prompt on stdin, return stdout, raise on error."""
     proc = subprocess.run(
         [claude_bin, "-p", *args],
-        input=prompt, cwd=cwd or None, env=_subscription_env(),
-        capture_output=True, text=True, timeout=timeout,
+        input=prompt,
+        cwd=cwd or None,
+        env=_subscription_env(),
+        capture_output=True,
+        text=True,
+        timeout=timeout,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"claude exited {proc.returncode}: {proc.stderr.strip()[:300]}")
@@ -138,8 +144,7 @@ class ClaudeTransport:
     and guarded by `_compose_claude_args`, so a transport reads it rather than deriving it again.
     """
 
-    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...],
-            timeout: int) -> str:
+    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...], timeout: int) -> str:
         raise NotImplementedError
 
     def close(self) -> None:
@@ -149,8 +154,7 @@ class ClaudeTransport:
 class ProcessClaudeTransport(ClaudeTransport):
     """One `claude -p` process per call, opt-in via `CODEJURY_CLAUDE_TRANSPORT=process`."""
 
-    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...],
-            timeout: int) -> str:
+    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...], timeout: int) -> str:
         return _default_runner(prompt, cwd=cwd, claude_bin=claude_bin, args=args, timeout=timeout)
 
 
@@ -229,6 +233,7 @@ def _result_from_messages(messages: list) -> str:
 
 async def _collect(client, prompt: str, timeout: int) -> str:
     """Send one prompt on a connected client and gather the response, bounded by `timeout`."""
+
     async def go() -> list:
         await client.query(prompt)
         return [m async for m in client.receive_response()]
@@ -277,10 +282,8 @@ class _SdkSession:
     def shutdown(self) -> None:
         fut: Future = Future()
         self._jobs.put(("stop", "", "", (), 0, fut))
-        try:
+        with contextlib.suppress(Exception):
             fut.result(timeout=30)
-        except Exception:
-            pass
         self._thread.join(timeout=5)
 
     def _run(self) -> None:
@@ -305,8 +308,7 @@ class _SdkSession:
             self._loop.close()
 
     def _needs_restart(self, cwd: str, tools: tuple[str, ...]) -> bool:
-        return (self._client is None or cwd != self._cwd or tools != self._tools
-                or self._turns >= self._max_turns)
+        return self._client is None or cwd != self._cwd or tools != self._tools or self._turns >= self._max_turns
 
     async def _restart(self, cwd: str, tools: tuple[str, ...]) -> None:
         await self._close()
@@ -315,10 +317,8 @@ class _SdkSession:
 
     async def _close(self) -> None:
         if self._client is not None:
-            try:
+            with contextlib.suppress(Exception):
                 await self._client.disconnect()
-            except Exception:
-                pass
             self._client = None
 
 
@@ -331,8 +331,15 @@ class SdkClaudeTransport(ClaudeTransport):
     and no session is driven by two threads at once. The tool policy and the scrubbed auth match
     the process transport. `close` shuts every session down, releasing the managed processes."""
 
-    def __init__(self, *, pool_size: int | None = None, max_turns: int | None = None,
-                 cli_path: str | None = None, env: dict[str, str] | None = None, make_client=None) -> None:
+    def __init__(
+        self,
+        *,
+        pool_size: int | None = None,
+        max_turns: int | None = None,
+        cli_path: str | None = None,
+        env: dict[str, str] | None = None,
+        make_client=None,
+    ) -> None:
         self._cli_path = cli_path or os.environ.get("CODEJURY_CLAUDE_BIN") or shutil.which("claude") or "claude"
         self._env = env if env is not None else _subscription_env()
         self._pool_size = pool_size if pool_size is not None else _int_env(_SDK_POOL_ENV, 6)
@@ -349,13 +356,13 @@ class SdkClaudeTransport(ClaudeTransport):
 
     async def _make(self, *, cwd: str, allowed_tools: tuple[str, ...]):
         sdk = _import_sdk()
-        client = sdk.ClaudeSDKClient(options=_sdk_options(
-            sdk, cwd=cwd, allowed_tools=allowed_tools, cli_path=self._cli_path, env=self._env))
+        client = sdk.ClaudeSDKClient(
+            options=_sdk_options(sdk, cwd=cwd, allowed_tools=allowed_tools, cli_path=self._cli_path, env=self._env)
+        )
         await client.connect()
         return client
 
-    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...],
-            timeout: int) -> str:
+    def ask(self, prompt: str, *, cwd: str, claude_bin: str, args: tuple[str, ...], timeout: int) -> str:
         tools = _allowed_tools_from_args(args)
         session = self._acquire()
         try:
@@ -398,11 +405,18 @@ def _resolve_transport(name: str | None = None) -> ClaudeTransport:
 
 
 class _ClaudeBackend:
-    def __init__(self, *, claude_bin: str | None = None, args: tuple[str, ...] | None = None,
-                 timeout: int = 900, retries: int = 2, backoff: float = 10.0,
-                 runner: Runner | None = None,
-                 transport: ClaudeTransport | None = None,
-                 allowed_tools: tuple[str, ...] = READ_ONLY_TOOLS) -> None:
+    def __init__(
+        self,
+        *,
+        claude_bin: str | None = None,
+        args: tuple[str, ...] | None = None,
+        timeout: int = 900,
+        retries: int = 2,
+        backoff: float = 10.0,
+        runner: Runner | None = None,
+        transport: ClaudeTransport | None = None,
+        allowed_tools: tuple[str, ...] = READ_ONLY_TOOLS,
+    ) -> None:
         self._bin = claude_bin or os.environ.get("CODEJURY_CLAUDE_BIN", "claude")
         env_args = os.environ.get("CODEJURY_CLAUDE_ARGS")
         extra = tuple(shlex.split(env_args)) if env_args else (tuple(args) if args else ())
@@ -463,6 +477,14 @@ class ClaudeAgentProvider(_ClaudeBackend, Provider):
         super().__init__(allowed_tools=(), **kw)
         self._cwd = cwd
 
-    def complete(self, *, system: str, messages: list[Message], model: str, max_tokens: int,
-                 cache: bool = False, cache_prefix: str = "") -> CompletionResult:
+    def complete(
+        self,
+        *,
+        system: str,
+        messages: list[Message],
+        model: str,
+        max_tokens: int,
+        cache: bool = False,
+        cache_prefix: str = "",
+    ) -> CompletionResult:
         return CompletionResult(text=_result_text(self._ask(_fold_prompt(system, messages), self._cwd)))

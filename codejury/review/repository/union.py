@@ -27,17 +27,18 @@ from codejury.review.repository.severity import median
 @dataclass(frozen=True, kw_only=True)
 class Candidate:
     """One finding a pass proposed, before cross-pass dedup and verification."""
+
     title: str
     category: str = ""
     endpoint: str = ""
-    symbol: str = ""   # the function or method the finding lives in, the stable dedup anchor
+    symbol: str = ""  # the function or method the finding lives in, the stable dedup anchor
     file: str = ""
     line: int | None = None
     severity: str = "HIGH"
     evidence: str = ""
     status: str = "confirmed"
-    source: str = ""   # agent candidate file basename, links a finding to its candidate and poc, empty in the coded run
-    found_by: tuple[str, ...] = ()   # the models that independently surfaced this finding, the consensus signal
+    source: str = ""  # agent candidate file basename, links a finding to its candidate and poc, empty in the coded run
+    found_by: tuple[str, ...] = ()  # the models that independently surfaced this finding, the consensus signal
 
     def key(self, by_file: bool = False) -> tuple:
         """The dedup identity, a stable anchor plus the class. The anchor is the first of these
@@ -133,14 +134,17 @@ def collapse_colocated(cands: list[Candidate]) -> list[Candidate]:
 @dataclass
 class Accumulator:
     """The running union plus the convergence signal across passes."""
+
     converge_after: int = 2
     pool: dict[tuple, Candidate] = field(default_factory=dict)
     new_per_pass: list[int] = field(default_factory=list)
-    clean_per_pass: list[bool] = field(default_factory=list)   # was the pass fully reviewed, no failed calls, parallel to new_per_pass
-    errors: int = 0   # unit reviews that raised, counted not dropped, invariant 4
-    failed_units: set[str] = field(default_factory=set)   # never reviewed cleanly, left open so the gate catches them
+    clean_per_pass: list[bool] = field(
+        default_factory=list
+    )  # was the pass fully reviewed, no failed calls, parallel to new_per_pass
+    errors: int = 0  # unit reviews that raised, counted not dropped, invariant 4
+    failed_units: set[str] = field(default_factory=set)  # never reviewed cleanly, left open so the gate catches them
     sev_votes: dict[tuple, list[str]] = field(default_factory=dict)
-    dedup_by_file: bool = False   # the domain's dedup granularity, endpoint-aware when False
+    dedup_by_file: bool = False  # the domain's dedup granularity, endpoint-aware when False
 
     def add_pass(self, candidates: list[Candidate], *, clean: bool = True) -> int:
         for c in candidates:
@@ -159,8 +163,8 @@ class Accumulator:
         resets the streak, so the run keeps going to max_passes and reports converged False."""
         if len(self.new_per_pass) < self.converge_after:
             return False
-        recent_new = self.new_per_pass[-self.converge_after:]
-        recent_clean = self.clean_per_pass[-self.converge_after:]
+        recent_new = self.new_per_pass[-self.converge_after :]
+        recent_clean = self.clean_per_pass[-self.converge_after :]
         return all(n == 0 for n in recent_new) and all(recent_clean)
 
     @property

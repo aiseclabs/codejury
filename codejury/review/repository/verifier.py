@@ -32,10 +32,10 @@ from __future__ import annotations
 
 import threading
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from time import perf_counter
-from typing import Callable
 
 from codejury.domains.base import ContentPaths
 from codejury.json_parse import optional_json_object
@@ -121,8 +121,9 @@ def _read_file(root: str, rel: str) -> str:
 class ModelVerifier(Verifier):
     """Default skeptic: one grounded model call that tries to refute the candidate."""
 
-    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 2048,
-                 content: ContentPaths | None = None) -> None:
+    def __init__(
+        self, *, provider: Provider, model: str, max_tokens: int = 2048, content: ContentPaths | None = None
+    ) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
@@ -139,8 +140,7 @@ class ModelVerifier(Verifier):
             f"wrongly as confirming a safe one:\n{self._traps}\n\n"
         )
         prompt = (
-            cache_head
-            + f"Proposed finding:\n- {candidate.title}\n- category: {candidate.category}\n"
+            cache_head + f"Proposed finding:\n- {candidate.title}\n- category: {candidate.category}\n"
             f"- endpoint: {candidate.endpoint}\n- location: {candidate.file}:{candidate.line}\n"
             f"- claimed evidence: {candidate.evidence}\n\n"
             f"Code at {candidate.file}:\n```\n{code}\n```\n\n"

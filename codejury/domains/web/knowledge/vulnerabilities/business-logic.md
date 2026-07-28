@@ -14,11 +14,11 @@ A stateful workflow trusts client-supplied values or does not enforce its own ru
 ## Python
 Vulnerable:
 ```python
-total = request.json["price"] * request.json["qty"]   # client sets the price
+total = request.json["price"] * request.json["qty"]  # client sets the price
 order.charge(total)
 ```
 Secure:
 ```python
-price = Product.objects.get(id=pid).price             # price from the server
+price = Product.objects.get(id=pid).price  # price from the server
 total = price * validate_qty(request.json["qty"])
 ```

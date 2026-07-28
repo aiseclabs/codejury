@@ -51,18 +51,20 @@ def test_no_cache_keeps_system_as_plain_string():
 
 def test_cache_marks_system_with_ephemeral_cache_control():
     provider, client = _provider()
-    provider.complete(
-        system="sys", messages=[Message(role="user", content="x")], model="m", max_tokens=8, cache=True
-    )
-    assert client.create_kwargs["system"] == [
-        {"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}
-    ]
+    provider.complete(system="sys", messages=[Message(role="user", content="x")], model="m", max_tokens=8, cache=True)
+    assert client.create_kwargs["system"] == [{"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}]
 
 
 def test_cache_prefix_splits_the_first_user_message_and_marks_the_prefix():
     provider, client = _provider()
-    provider.complete(system="sys", messages=[Message(role="user", content="STABLEvariable")],
-                      model="m", max_tokens=8, cache=True, cache_prefix="STABLE")
+    provider.complete(
+        system="sys",
+        messages=[Message(role="user", content="STABLEvariable")],
+        model="m",
+        max_tokens=8,
+        cache=True,
+        cache_prefix="STABLE",
+    )
     assert client.create_kwargs["messages"][0]["content"] == [
         {"type": "text", "text": "STABLE", "cache_control": {"type": "ephemeral"}},
         {"type": "text", "text": "variable"},
@@ -72,8 +74,14 @@ def test_cache_prefix_splits_the_first_user_message_and_marks_the_prefix():
 
 def test_cache_prefix_equal_to_the_message_marks_a_single_block():
     provider, client = _provider()
-    provider.complete(system="sys", messages=[Message(role="user", content="STABLE")],
-                      model="m", max_tokens=8, cache=True, cache_prefix="STABLE")
+    provider.complete(
+        system="sys",
+        messages=[Message(role="user", content="STABLE")],
+        model="m",
+        max_tokens=8,
+        cache=True,
+        cache_prefix="STABLE",
+    )
     assert client.create_kwargs["messages"][0]["content"] == [
         {"type": "text", "text": "STABLE", "cache_control": {"type": "ephemeral"}},
     ]
@@ -81,19 +89,27 @@ def test_cache_prefix_equal_to_the_message_marks_a_single_block():
 
 def test_cache_prefix_that_does_not_lead_the_message_falls_back_to_system():
     provider, client = _provider()
-    provider.complete(system="sys", messages=[Message(role="user", content="other")],
-                      model="m", max_tokens=8, cache=True, cache_prefix="STABLE")
+    provider.complete(
+        system="sys",
+        messages=[Message(role="user", content="other")],
+        model="m",
+        max_tokens=8,
+        cache=True,
+        cache_prefix="STABLE",
+    )
     assert client.create_kwargs["messages"] == [{"role": "user", "content": "other"}]
-    assert client.create_kwargs["system"] == [
-        {"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}
-    ]
+    assert client.create_kwargs["system"] == [{"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}]
 
 
 def test_extract_usage_maps_cache_read_and_write_separately():
-    response = SimpleNamespace(usage=SimpleNamespace(
-        input_tokens=30, output_tokens=12, cache_creation_input_tokens=2600, cache_read_input_tokens=0))
+    response = SimpleNamespace(
+        usage=SimpleNamespace(
+            input_tokens=30, output_tokens=12, cache_creation_input_tokens=2600, cache_read_input_tokens=0
+        )
+    )
     assert _extract_usage(response) == Usage(
-        input_tokens=30, output_tokens=12, cache_write_tokens=2600, cache_read_tokens=0)
+        input_tokens=30, output_tokens=12, cache_write_tokens=2600, cache_read_tokens=0
+    )
 
 
 def test_extract_usage_defaults_to_zero_when_unreported():
@@ -121,9 +137,7 @@ class _RecordingClient:
 
 
 def _run(provider):
-    return provider.complete(
-        system="s", messages=[Message(role="user", content="x")], model="opus", max_tokens=8
-    )
+    return provider.complete(system="s", messages=[Message(role="user", content="x")], model="opus", max_tokens=8)
 
 
 def test_drops_temperature_when_model_rejects_it_then_skips_it():

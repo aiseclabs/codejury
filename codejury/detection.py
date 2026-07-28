@@ -12,7 +12,7 @@ from __future__ import annotations
 import fnmatch
 from collections.abc import Sequence
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 import yaml
@@ -74,7 +74,7 @@ class Detection:
         return Path(name).suffix.lower() in self.doc_extensions
 
 
-@lru_cache(maxsize=None)
+@cache
 def load_detection(detection_file: Path = DETECTION_FILE) -> Detection:
     """Load the file classification config, cached per file so each domain's
     `detection.yaml` is read and cached independently. Defaults to the web domain."""

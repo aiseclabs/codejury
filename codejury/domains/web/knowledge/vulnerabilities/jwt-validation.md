@@ -20,7 +20,11 @@ jwt.decode(token, key, algorithms=["none"])
 Secure:
 ```python
 claims = jwt.decode(
-    token, key, algorithms=["RS256"], audience=AUD, issuer=ISS,
+    token,
+    key,
+    algorithms=["RS256"],
+    audience=AUD,
+    issuer=ISS,
     options={"require": ["exp", "iat", "nbf"]},
 )
 ```

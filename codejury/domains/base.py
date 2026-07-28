@@ -31,6 +31,7 @@ class ContentPaths:
 
     The same fixed layout for every domain, so a caller given a `ContentPaths` reads the
     same files whether the domain is web or another."""
+
     knowledge: Path
     vulnerabilities_dir: Path
     languages_dir: Path
@@ -74,6 +75,7 @@ class Domain:
     domain rather than naming any of them itself, so a new domain is the data here plus a
     content root. Severity is the model's, graded against the domain's rubric markdown, so
     it lives in that rubric and the verifier, not in a field here."""
+
     name: str
     content_root: Path
     lenses: tuple[str, ...]
@@ -112,6 +114,7 @@ class PoCArtifact:
     domain that runs safely and locally, such as evm under Foundry, also executes. `note` is an
     optional writer-side check result, such as a syntax warning, that the engine folds into the
     evidence. It never refutes the finding, invariant 2."""
+
     source: str
     ext: str
     run_hint: str = ""
@@ -125,6 +128,7 @@ class PoCExecResult:
     only when the PoC ran and proved the exploit. A PoC that did not run or did not pass is never a
     safe verdict, it only fails to add positive evidence, so a finding is kept regardless,
     invariant 2."""
+
     ran: bool
     ok: bool
     detail: str
@@ -143,6 +147,7 @@ class Facts:
     split into slices still carries its whole call graph, the cross-slice signal a flat,
     truncated global dump loses. The map is data the domain fills, the engine names no
     contract or function, it only indexes by the unit's files."""
+
     summary: str = ""
     data: dict = field(default_factory=dict)
 

@@ -7,9 +7,6 @@ import json
 import pytest
 
 from codejury.providers.mock import MockProvider
-from codejury.review.repository.gate import check_gate
-from codejury.review.repository.reviewer import ModelReviewer, UnitReviewer
-from codejury.review.repository.shapes import Unit, gather
 from codejury.review.repository.engine import (
     _parse_candidate,
     _spans,
@@ -17,7 +14,10 @@ from codejury.review.repository.engine import (
     finalize_repository_review,
     run_repository_review,
 )
+from codejury.review.repository.gate import check_gate
+from codejury.review.repository.reviewer import ModelReviewer, UnitReviewer
 from codejury.review.repository.scaffold import unit_slug
+from codejury.review.repository.shapes import Unit, gather
 from codejury.review.repository.union import Candidate
 from codejury.review.repository.verifier import RefutationChecker, Verdict, Verifier
 from codejury.sources.metadata import SourceError
@@ -66,8 +66,7 @@ def test_reviewer_grounds_a_unit_with_only_its_own_files_facts(tmp_path):
 def test_reviewer_adds_no_facts_block_without_a_map(tmp_path):
     (tmp_path / "v.py").write_text("x = 1")
     prov = MockProvider(default='{"findings": []}')
-    ModelReviewer(provider=prov, model="mock").review(
-        Unit(name="v.py", root=str(tmp_path), files=("v.py",)), "general")
+    ModelReviewer(provider=prov, model="mock").review(Unit(name="v.py", root=str(tmp_path), files=("v.py",)), "general")
     assert "Contract facts for this unit" not in _prompt_of(prov)
 
 
@@ -76,8 +75,9 @@ def test_reviewer_matches_facts_on_basename_when_the_directory_differs(tmp_path)
     # still grounds the unit rather than silently dropping its facts
     (tmp_path / "V3Vault.sol").write_text("contract V3Vault {}")
     prov = MockProvider(default='{"findings": []}')
-    rev = ModelReviewer(provider=prov, model="mock",
-                        facts_by_file={"src/V3Vault.sol": "contract V3Vault\n  reenter-marker"})
+    rev = ModelReviewer(
+        provider=prov, model="mock", facts_by_file={"src/V3Vault.sol": "contract V3Vault\n  reenter-marker"}
+    )
     rev.review(Unit(name="x", root=str(tmp_path), files=("V3Vault.sol",)), "reentrancy")
     assert "reenter-marker" in _prompt_of(prov)
 
@@ -98,8 +98,7 @@ def test_gather_assembles_call_path_fragments(tmp_path):
     # a call-path unit reviews its source fragments, the packed function bodies, not whole
     # files, so the model sees the path co-located and not the rest of a large file
     (tmp_path / "V.sol").write_text("AAAA" + "B" * 100 + "CCCC_TWO" + "D" * 50)
-    u = Unit(name="cp", root=str(tmp_path), files=("V.sol",),
-             fragments=(("V.sol", 0, 4), ("V.sol", 104, 112)))
+    u = Unit(name="cp", root=str(tmp_path), files=("V.sol",), fragments=(("V.sol", 0, 4), ("V.sol", 104, 112)))
     g = gather(u)
     assert "AAAA" in g and "CCCC_TWO" in g
     assert "B" * 100 not in g
@@ -108,8 +107,7 @@ def test_gather_assembles_call_path_fragments(tmp_path):
 
 def test_build_units_appends_call_path_units_from_facts(tmp_path):
     (tmp_path / "V.sol").write_text("x" * 500)
-    specs = [{"name": "V.sol#V.liquidate", "files": ["V.sol"],
-              "fragments": [["V.sol", 10, 50], ["V.sol", 60, 120]]}]
+    specs = [{"name": "V.sol#V.liquidate", "files": ["V.sol"], "fragments": [["V.sol", 10, 50], ["V.sol", 60, 120]]}]
     units = build_units(str(tmp_path), ["V.sol"], [], specs)
     assert "V.sol" in [u.name for u in units]
     cp = [u for u in units if u.fragments]
@@ -160,7 +158,7 @@ def test_spans_snaps_a_window_to_a_top_level_construct_boundary():
     text = a + "def g():\n" + "    y = 2\n" * 2000
     spans = _spans(text)
     assert spans[0][0] == 0
-    assert text[spans[0][1]:].startswith("def g")
+    assert text[spans[0][1] :].startswith("def g")
 
 
 def test_build_units_keeps_a_small_file_whole(tmp_path):
@@ -178,8 +176,9 @@ def test_gather_reads_only_the_span_window_of_a_chunked_unit(tmp_path):
 
 def test_run_converges_writes_findings_and_marks_units(custody_repository, tmp_path):
     prov = MockProvider(default=_REPLY)
-    res = run_repository_review(custody_repository, tmp_path / "ws", provider=prov, model="mock",
-                          converge_after=2, max_passes=12)
+    res = run_repository_review(
+        custody_repository, tmp_path / "ws", provider=prov, model="mock", converge_after=2, max_passes=12
+    )
     ws = res.scaffold.workspace
 
     assert res.accumulator.converged
@@ -212,9 +211,15 @@ class _CountingReviewer(UnitReviewer):
 
     def review(self, unit, lens, *, shared_context=""):
         self.calls += 1
-        return [Candidate(title="wallet idor", category="idor",
-                          endpoint="GET /wallets/<id>", file="app/services/wallet.py",
-                          severity="HIGH")]
+        return [
+            Candidate(
+                title="wallet idor",
+                category="idor",
+                endpoint="GET /wallets/<id>",
+                file="app/services/wallet.py",
+                severity="HIGH",
+            )
+        ]
 
 
 class _CountingVerifier(Verifier):
@@ -229,15 +234,17 @@ class _CountingVerifier(Verifier):
 def test_resume_skips_reviewed_units_and_verified_findings(custody_repository, tmp_path):
     ws = tmp_path / "ws"
     r1v = _CountingVerifier()
-    run_repository_review(custody_repository, ws, reviewer=_CountingReviewer(), verifier=r1v,
-                    converge_after=1, max_passes=4)
+    run_repository_review(
+        custody_repository, ws, reviewer=_CountingReviewer(), verifier=r1v, converge_after=1, max_passes=4
+    )
     findings_after_1 = json.loads((ws / "custody" / "findings.json").read_text())["findings"]
     assert findings_after_1 and r1v.calls >= 1
 
     r2 = _CountingReviewer()
     r2v = _CountingVerifier()
-    run_repository_review(custody_repository, ws, reviewer=r2, verifier=r2v,
-                    converge_after=1, max_passes=4, fresh=False)
+    run_repository_review(
+        custody_repository, ws, reviewer=r2, verifier=r2v, converge_after=1, max_passes=4, fresh=False
+    )
     assert r2.calls == 0
     assert r2v.calls == 0
     findings_after_2 = json.loads((ws / "custody" / "findings.json").read_text())["findings"]
@@ -248,18 +255,33 @@ def test_resume_with_reviewed_units_but_missing_union_fails_loud(custody_reposit
     # the union checkpoint is gone but units are still marked reviewed, so a resume would re-skip
     # them and write a zero-finding clean report. That lost progress must fail loud, not pass.
     ws = tmp_path / "ws"
-    run_repository_review(custody_repository, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
-                    converge_after=1, max_passes=4)
+    run_repository_review(
+        custody_repository,
+        ws,
+        reviewer=_CountingReviewer(),
+        verifier=_CountingVerifier(),
+        converge_after=1,
+        max_passes=4,
+    )
     (ws / "custody" / "_union.json").unlink()
-    with pytest.raises(ValueError, match="no _union.json"):
-        run_repository_review(custody_repository, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
-                        converge_after=1, max_passes=4, fresh=False)
+    with pytest.raises(ValueError, match=r"no _union\.json"):
+        run_repository_review(
+            custody_repository,
+            ws,
+            reviewer=_CountingReviewer(),
+            verifier=_CountingVerifier(),
+            converge_after=1,
+            max_passes=4,
+            fresh=False,
+        )
 
 
 def test_parse_candidate_captures_file_and_line_from_a_range(tmp_path):
     p = tmp_path / "i.md"
-    p.write_text("# freshness gap\n- Risk: HIGH\n- Type: replay\n- Source: `POST /v1/check`\n"
-                 "## Analysis\n`authorizer/controllers/registrar.py:58-75` no nonce.\n")
+    p.write_text(
+        "# freshness gap\n- Risk: HIGH\n- Type: replay\n- Source: `POST /v1/check`\n"
+        "## Analysis\n`authorizer/controllers/registrar.py:58-75` no nonce.\n"
+    )
     c = _parse_candidate(p)
     assert c.file == "authorizer/controllers/registrar.py"
     assert c.line == 58
@@ -268,41 +290,48 @@ def test_parse_candidate_captures_file_and_line_from_a_range(tmp_path):
 
 def test_parse_candidate_strips_a_finding_title_prefix(tmp_path):
     p = tmp_path / "i.md"
-    p.write_text("# Finding: Signing Key Committed to Source\n- Risk: LOW\n- Type: secret\n"
-                 "- Source: `GET /v1/key`\n## Analysis\n`app/keys.py:3` hardcoded.\n")
+    p.write_text(
+        "# Finding: Signing Key Committed to Source\n- Risk: LOW\n- Type: secret\n"
+        "- Source: `GET /v1/key`\n## Analysis\n`app/keys.py:3` hardcoded.\n"
+    )
     c = _parse_candidate(p)
     assert c.title == "Signing Key Committed to Source"
 
 
 def test_parse_candidate_drops_an_out_of_root_cited_path(tmp_path):
     traversing = tmp_path / "t.md"
-    traversing.write_text("# leak\n- Risk: HIGH\n- Type: idor\n"
-                          "## Analysis\nsee `../../etc/secret.py:1` for the key.\n")
+    traversing.write_text("# leak\n- Risk: HIGH\n- Type: idor\n## Analysis\nsee `../../etc/secret.py:1` for the key.\n")
     assert _parse_candidate(traversing) is None
     absolute = tmp_path / "a.md"
-    absolute.write_text("# leak\n- Risk: HIGH\n- Type: idor\n"
-                        "## Analysis\nsee `/home/user/secret.py:1` for the key.\n")
+    absolute.write_text("# leak\n- Risk: HIGH\n- Type: idor\n## Analysis\nsee `/home/user/secret.py:1` for the key.\n")
     assert _parse_candidate(absolute) is None
 
 
 def test_parse_candidate_drops_a_cleared_or_refuted_record(tmp_path):
     refuted = tmp_path / "r.md"
-    refuted.write_text("# Attachment IDOR, refuted\n- Status: refuted (no finding)\n- Type: idor\n"
-                       "## Why\n`pkg/models/task_attachment.go:111` xorm scopes the fetch.\n")
+    refuted.write_text(
+        "# Attachment IDOR, refuted\n- Status: refuted (no finding)\n- Type: idor\n"
+        "## Why\n`pkg/models/task_attachment.go:111` xorm scopes the fetch.\n"
+    )
     assert _parse_candidate(refuted) is None
     cleared = tmp_path / "c.md"
-    cleared.write_text("# Permission methods cleared\n- Status: cleared\n- Type: idor\n"
-                       "## Scope\n`pkg/models/task_attachment_permissions.go:25` holds.\n")
+    cleared.write_text(
+        "# Permission methods cleared\n- Status: cleared\n- Type: idor\n"
+        "## Scope\n`pkg/models/task_attachment_permissions.go:25` holds.\n"
+    )
     assert _parse_candidate(cleared) is None
     # a reviewer records a Cleared controls list with no explicit status, the title marks it a
     # clearing record so it is not counted as a confirmed finding
     titled = tmp_path / "t.md"
-    titled.write_text("# Cleared controls and paths checked\n- Type:\n"
-                      "## Blacklist gate\n`contracts/Token.sol:82` adminSanity enforces it.\n")
+    titled.write_text(
+        "# Cleared controls and paths checked\n- Type:\n"
+        "## Blacklist gate\n`contracts/Token.sol:82` adminSanity enforces it.\n"
+    )
     assert _parse_candidate(titled) is None
     confirmed = tmp_path / "k.md"
-    confirmed.write_text("# real leak\n- Status: confirmed\n- Type: idor\n"
-                         "## Analysis\n`pkg/models/link_sharing.go:272` leaks hashes.\n")
+    confirmed.write_text(
+        "# real leak\n- Status: confirmed\n- Type: idor\n## Analysis\n`pkg/models/link_sharing.go:272` leaks hashes.\n"
+    )
     assert _parse_candidate(confirmed) is not None
 
 
@@ -379,12 +408,18 @@ def _seed_one_candidate(target, ws):
     candidates = ws / target.name / "candidates"
     candidates.mkdir(parents=True)
     (candidates / "a.md").write_text(
-        "# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
+        "# idor read\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n"
+    )
 
 
 def test_finalize_adds_target_metadata_without_changing_findings(tmp_path):
-    meta = {"chain": "bsc", "chain_id": 56, "address": "0x" + "ab" * 20,
-            "source_url": "https://bscscan.com/address/x#code", "contract_name": "Token"}
+    meta = {
+        "chain": "bsc",
+        "chain_id": 56,
+        "address": "0x" + "ab" * 20,
+        "source_url": "https://bscscan.com/address/x#code",
+        "contract_name": "Token",
+    }
 
     plain_t = tmp_path / "plain"
     plain_t.mkdir()
@@ -428,8 +463,11 @@ class _RaisingReviewer(UnitReviewer):
     def review(self, unit, lens, *, shared_context=""):
         if self.fail_substr in unit.name:
             raise RuntimeError("provider rate limited")
-        return [Candidate(title="ok", category="idor", endpoint=f"GET /{unit.name}",
-                          file=unit.name, line=1, severity="HIGH")]
+        return [
+            Candidate(
+                title="ok", category="idor", endpoint=f"GET /{unit.name}", file=unit.name, line=1, severity="HIGH"
+            )
+        ]
 
 
 def _two_entrypoint_repository(root):
@@ -437,7 +475,8 @@ def _two_entrypoint_repository(root):
         (root / pkg).mkdir(parents=True)
         (root / pkg / "routes.py").write_text(
             "from flask import Flask, request\napp = Flask(__name__)\n"
-            f'@app.route("/{pkg}/<x>")\ndef h_{pkg}(x):\n    return request.args.get("y", "")\n')
+            f'@app.route("/{pkg}/<x>")\ndef h_{pkg}(x):\n    return request.args.get("y", "")\n'
+        )
     (root / "requirements.txt").write_text("Flask==3.0\n")
     return root
 
@@ -447,8 +486,9 @@ def test_failed_unit_stays_open_and_fails_the_gate(tmp_path):
     # It must stay open, the surface must not claim it reviewed, and the gate must fail.
     repository = _two_entrypoint_repository(tmp_path / "twop")
     ws = tmp_path / "ws"
-    res = run_repository_review(repository, ws, reviewer=_RaisingReviewer("beta"),
-                          verify=False, converge_after=1, max_passes=4)
+    res = run_repository_review(
+        repository, ws, reviewer=_RaisingReviewer("beta"), verify=False, converge_after=1, max_passes=4
+    )
     proj = ws / "twop"
 
     assert "beta/routes.py" in res.accumulator.failed_units
@@ -469,15 +509,28 @@ def test_corrupt_union_on_resume_raises_loud_and_keeps_report(custody_repository
     # a corrupt checkpoint on resume must fail loud, never overwrite the prior report
     # with a clean-looking empty run, invariant 4.
     ws = tmp_path / "ws"
-    run_repository_review(custody_repository, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
-                    converge_after=1, max_passes=4)
+    run_repository_review(
+        custody_repository,
+        ws,
+        reviewer=_CountingReviewer(),
+        verifier=_CountingVerifier(),
+        converge_after=1,
+        max_passes=4,
+    )
     proj = ws / "custody"
     before = (proj / "findings.json").read_text()
 
     (proj / "_union.json").write_text("{ this is not valid json", encoding="utf-8")
     with pytest.raises(ValueError, match="corrupt"):
-        run_repository_review(custody_repository, ws, reviewer=_CountingReviewer(), verifier=_CountingVerifier(),
-                        converge_after=1, max_passes=4, fresh=False)
+        run_repository_review(
+            custody_repository,
+            ws,
+            reviewer=_CountingReviewer(),
+            verifier=_CountingVerifier(),
+            converge_after=1,
+            max_passes=4,
+            fresh=False,
+        )
     assert (proj / "findings.json").read_text() == before
 
 
@@ -508,8 +561,9 @@ def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_p
     ws = tmp_path / "ws"
     ws.mkdir()
     findings = [Candidate(title="boom", endpoint="GET /a", file="a.py", line=1)]
-    confirmed, vr = apply_verification(ws, findings, root=str(tmp_path), verifier=_Boom(),
-                                       provider=None, model="m", votes=1, concurrency=1, fresh=True)
+    confirmed, vr = apply_verification(
+        ws, findings, root=str(tmp_path), verifier=_Boom(), provider=None, model="m", votes=1, concurrency=1, fresh=True
+    )
     assert [c.title for c in confirmed] == ["boom"] and vr.errors >= 1
     assert json.loads((ws / "_verified.json").read_text()) == {}
 
@@ -518,7 +572,8 @@ def test_finalize_drops_issue_with_no_file_location(tmp_path):
     target, ws, candidates = _finalize_ws(tmp_path)
     (candidates / "noloc.md").write_text(
         "# missing location\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n"
-        "## Analysis\nno concrete location was cited.\n")
+        "## Analysis\nno concrete location was cited.\n"
+    )
     fr = finalize_repository_review(target, ws, verify=False)
     assert fr.parsed == 0
     data = json.loads((fr.workspace / "findings.json").read_text())
@@ -529,7 +584,8 @@ def test_finalize_preserves_blocked_status(tmp_path):
     target, ws, candidates = _finalize_ws(tmp_path)
     (candidates / "blocked.md").write_text(
         "# needs poc\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n- Status: blocked\n"
-        "## Analysis\napp/s.py:5 no nonce, a PoC needs credentials.\n")
+        "## Analysis\napp/s.py:5 no nonce, a PoC needs credentials.\n"
+    )
     fr = finalize_repository_review(target, ws, verify=False)
     data = json.loads((fr.workspace / "findings.json").read_text())
     assert len(data["findings"]) == 1
@@ -538,14 +594,18 @@ def test_finalize_preserves_blocked_status(tmp_path):
 
 def test_parse_candidate_accepts_data_driven_extensions(tmp_path):
     go = tmp_path / "go.md"
-    go.write_text("# go handler idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x`\n"
-                  "- Status: confirmed\n## Analysis\nsrc/handler.go:42 no owner check\n")
+    go.write_text(
+        "# go handler idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x`\n"
+        "- Status: confirmed\n## Analysis\nsrc/handler.go:42 no owner check\n"
+    )
     c = _parse_candidate(go)
     assert c is not None and c.file == "src/handler.go" and c.line == 42
 
     tsx = tmp_path / "tsx.md"
-    tsx.write_text("# react xss\n- Risk: MEDIUM\n- Type: xss\n- Source: `x`\n"
-                   "- Status: confirmed\n## Analysis\nweb/App.tsx:10 dangerouslySetInnerHTML\n")
+    tsx.write_text(
+        "# react xss\n- Risk: MEDIUM\n- Type: xss\n- Source: `x`\n"
+        "- Status: confirmed\n## Analysis\nweb/App.tsx:10 dangerouslySetInnerHTML\n"
+    )
     c2 = _parse_candidate(tsx)
     assert c2 is not None and c2.file == "web/App.tsx" and c2.line == 10
 
@@ -570,8 +630,10 @@ def test_write_findings_owns_findings_dir_and_never_touches_candidates(tmp_path)
     agent = ws / "candidates" / "agent-note.md"
     agent.write_text("# hand written\n- Risk: HIGH\n## Analysis\napp/x.py:1\n")
 
-    two = [Candidate(title="A", endpoint="GET /a", file="a.py", line=1, severity="HIGH"),
-           Candidate(title="B", endpoint="GET /b", file="b.py", line=2, severity="HIGH")]
+    two = [
+        Candidate(title="A", endpoint="GET /a", file="a.py", line=1, severity="HIGH"),
+        Candidate(title="B", endpoint="GET /b", file="b.py", line=2, severity="HIGH"),
+    ]
     _write_findings(ws, two)
     assert len(list((ws / "findings").glob("*.md"))) == 2
 
@@ -588,8 +650,10 @@ def test_write_findings_keeps_two_findings_that_share_an_endpoint(tmp_path):
 
     ws = tmp_path / "ws"
     ws.mkdir()
-    two = [Candidate(title="missing binding", category="idor", endpoint="POST /x", file="x.py", line=1),
-           Candidate(title="token race", category="race-condition", endpoint="POST /x", file="x.py", line=2)]
+    two = [
+        Candidate(title="missing binding", category="idor", endpoint="POST /x", file="x.py", line=1),
+        Candidate(title="token race", category="race-condition", endpoint="POST /x", file="x.py", line=2),
+    ]
     _write_findings(ws, two)
     assert len(list((ws / "findings").glob("*.md"))) == 2
     assert len(json.loads((ws / "findings.json").read_text())["findings"]) == 2
@@ -615,7 +679,8 @@ def test_shared_context_feeds_the_finder_the_phase1_inventory(tmp_path):
     assert "## Operator-seeded intent invariants" not in ctx
     assert "## Authorization model" not in ctx
     (ws / "inventory" / "_invariants.md").write_text(
-        "# Intent Invariants\n\nonly the owner moves the balance\n", encoding="utf-8")
+        "# Intent Invariants\n\nonly the owner moves the balance\n", encoding="utf-8"
+    )
     assert "only the owner moves the balance" in _shared_context(ws)
 
 
@@ -670,9 +735,11 @@ def test_finalize_links_pocs_and_reconciles(tmp_path):
     (proj / "candidates").mkdir(parents=True)
     (proj / "pocs").mkdir(parents=True)
     (proj / "candidates" / "x.md").write_text(
-        "# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n")
+        "# idor\n- Risk: HIGH\n- Type: idor\n- Source: `GET /x/<id>`\n## Analysis\napp/v.py:10\n"
+    )
     (proj / "candidates" / "y.md").write_text(
-        "# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n")
+        "# replay\n- Risk: HIGH\n- Type: replay\n- Source: `POST /t`\n## Analysis\napp/s.py:5\n"
+    )
     (proj / "pocs" / "x.sh").write_text("#!/bin/sh\necho x\n")
     (proj / "pocs" / "z.sh").write_text("#!/bin/sh\necho orphan\n")
 
@@ -696,8 +763,16 @@ def test_run_pocs_writes_the_poc_annotates_and_never_drops(tmp_path):
 
     ws = tmp_path / "proj"
     (ws / "pocs").mkdir(parents=True)
-    findings = [Candidate(title="oracle", category="access-control", file="O.sol", line=5,
-                          symbol="setX", evidence="unprotected setter")]
+    findings = [
+        Candidate(
+            title="oracle",
+            category="access-control",
+            file="O.sol",
+            line=5,
+            symbol="setX",
+            evidence="unprotected setter",
+        )
+    ]
 
     class FakeBackend:
         def available(self):
@@ -738,8 +813,7 @@ def test_run_pocs_degrades_to_write_only_when_an_executing_toolchain_is_absent(t
 
     ws = tmp_path / "proj"
     (ws / "pocs").mkdir(parents=True)
-    findings = [Candidate(title="x", category="idor", file="A.sol", line=1, symbol="f",
-                          evidence="unchecked")]
+    findings = [Candidate(title="x", category="idor", file="A.sol", line=1, symbol="f", evidence="unchecked")]
 
     class Unavailable:
         ext = "t.sol"
@@ -768,8 +842,9 @@ def test_run_pocs_writes_only_for_a_backend_that_does_not_execute(tmp_path):
 
     ws = tmp_path / "proj"
     (ws / "pocs").mkdir(parents=True)
-    findings = [Candidate(title="idor", category="idor", file="views.py", line=3,
-                          symbol="get_order", evidence="no owner check")]
+    findings = [
+        Candidate(title="idor", category="idor", file="views.py", line=3, symbol="get_order", evidence="no owner check")
+    ]
 
     class WriteOnly:
         executes = False
@@ -794,8 +869,7 @@ def test_run_pocs_folds_a_writer_side_note_into_the_evidence(tmp_path):
 
     ws = tmp_path / "proj"
     (ws / "pocs").mkdir(parents=True)
-    findings = [Candidate(title="idor", category="idor", file="v.py", line=3, symbol="g",
-                          evidence="no owner check")]
+    findings = [Candidate(title="idor", category="idor", file="v.py", line=3, symbol="g", evidence="no owner check")]
 
     class WriteOnly:
         executes = False
@@ -805,8 +879,12 @@ def test_run_pocs_folds_a_writer_side_note_into_the_evidence(tmp_path):
             return False
 
         def generate(self, **kw):
-            return SimpleNamespace(source="def broken(:", ext="py", run_hint="python it",
-                                   note="PoC does not parse as Python: invalid syntax")
+            return SimpleNamespace(
+                source="def broken(:",
+                ext="py",
+                run_hint="python it",
+                note="PoC does not parse as Python: invalid syntax",
+            )
 
     out = _run_pocs(ws, findings, WriteOnly(), root=str(tmp_path))
     assert "does not parse" in out[0].evidence
@@ -820,8 +898,9 @@ def test_execute_present_pocs_runs_an_agent_written_poc(tmp_path):
 
     ws = tmp_path / "proj"
     (ws / "pocs").mkdir(parents=True)
-    c = Candidate(title="oracle", category="access-control", file="O.sol", line=5,
-                  symbol="setX", evidence="unprotected setter")
+    c = Candidate(
+        title="oracle", category="access-control", file="O.sol", line=5, symbol="setX", evidence="unprotected setter"
+    )
     (ws / "pocs" / f"{_finding_name(c)}.t.sol").write_text("contract T {}")
 
     class Runner:
@@ -862,8 +941,14 @@ def test_execute_present_pocs_does_not_run_a_finding_the_write_step_already_ran(
 
     ws = tmp_path / "proj"
     (ws / "pocs").mkdir(parents=True)
-    c = Candidate(title="oracle", category="access-control", file="O.sol", line=5,
-                  symbol="setX", evidence="setter\n\n[PoC reproduced: passed]")
+    c = Candidate(
+        title="oracle",
+        category="access-control",
+        file="O.sol",
+        line=5,
+        symbol="setX",
+        evidence="setter\n\n[PoC reproduced: passed]",
+    )
     (ws / "pocs" / f"{_finding_name(c)}.t.sol").write_text("contract T {}")
 
     ran: list[str] = []
@@ -893,7 +978,8 @@ def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
         "- Risk: HIGH\n- Type: hardcoded-secrets\n- Source: `@auth0()`\n- Status: confirmed\n\n"
         "## Analysis\n`settings/08.py:11` ships a literal AUTH0_AUTH_KEY, no prod override.\n\n"
         "## Attack Path\nRead the repository, replay the Basic header.\n\n"
-        "## Fix\nLoad the key from the environment.\n")
+        "## Fix\nLoad the key from the environment.\n"
+    )
 
     finalize_repository_review(target, ws, verify=False)
     finding = (proj / "findings" / "key-leak.md").read_text()
@@ -907,6 +993,7 @@ def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
 def test_keystr_respects_by_file_for_cross_file_findings():
     from codejury.review.repository.engine import _keystr
     from codejury.review.repository.union import Candidate
+
     a = Candidate(title="t", category="reentrancy", endpoint="withdraw", file="A.sol")
     b = Candidate(title="t", category="reentrancy", endpoint="withdraw", file="B.sol")
     assert _keystr(a, True) != _keystr(b, True)
@@ -916,13 +1003,16 @@ def test_keystr_respects_by_file_for_cross_file_findings():
 def test_seed_run_units_seeds_split_units_and_prunes_orphan(tmp_path):
     # the coded run splits a large file into window units, so the worklist must hold a file per
     # run unit and drop the scaffold-seeded candidate file that no run unit is named after
+    from codejury.domains.registry import default_domain
     from codejury.review.repository.engine import _seed_run_units
     from codejury.review.repository.shapes import Unit
-    from codejury.domains.registry import default_domain
+
     (tmp_path / "units").mkdir()
     (tmp_path / "units" / "foo.md").write_text("# Unit: foo.py\n- Status: open\n", encoding="utf-8")
-    units = [Unit(name="foo.py#1", root=str(tmp_path), files=("foo.py",)),
-             Unit(name="foo.py#2", root=str(tmp_path), files=("foo.py",))]
+    units = [
+        Unit(name="foo.py#1", root=str(tmp_path), files=("foo.py",)),
+        Unit(name="foo.py#2", root=str(tmp_path), files=("foo.py",)),
+    ]
     _seed_run_units(tmp_path, units, default_domain().paths)
     got = {p.name for p in (tmp_path / "units").glob("*.md")}
     assert got == {"foo-py-1.md", "foo-py-2.md"}
@@ -931,14 +1021,16 @@ def test_seed_run_units_seeds_split_units_and_prunes_orphan(tmp_path):
 def test_run_writes_timing_and_state_to_run_json(tmp_path):
     # slowest_units aggregates distinct units, not one entry per pass that reviewed the same unit
     from codejury.review.repository.scaffold import scaffold
+
     repo = tmp_path / "svc"
     repo.mkdir()
     (repo / "a.py").write_text("def get(request, id):\n    return M.objects.get(id=id)\n")
     (repo / "b.py").write_text("def other():\n    return 1\n")
     ws = tmp_path / "ws"
     scaffold(str(repo), str(ws))
-    run_repository_review(str(repo), str(ws), provider=MockProvider(default='{"findings": []}'),
-                          model="mock", verify=False)
+    run_repository_review(
+        str(repo), str(ws), provider=MockProvider(default='{"findings": []}'), model="mock", verify=False
+    )
     run = json.loads((ws / "svc" / "_run.json").read_text())
     assert run["state"] == "converged"
     timing = run["timing"]

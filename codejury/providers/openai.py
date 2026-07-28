@@ -19,8 +19,15 @@ from codejury.providers.chat_format import choice_text
 
 
 class OpenAIProvider(Provider):
-    def __init__(self, *, api_key: str | None = None, api_base: str | None = None,
-                 client: Any | None = None, wire_api: str = "chat", timeout: float = 240.0) -> None:
+    def __init__(
+        self,
+        *,
+        api_key: str | None = None,
+        api_base: str | None = None,
+        client: Any | None = None,
+        wire_api: str = "chat",
+        timeout: float = 240.0,
+    ) -> None:
         self._api_key = api_key
         self._api_base = api_base
         self._client = client
@@ -55,8 +62,7 @@ class OpenAIProvider(Provider):
         cache_prefix: str = "",
     ) -> CompletionResult:
         if self._wire_api == "responses":
-            return self._complete_responses(system=system, messages=messages, model=model,
-                                            max_tokens=max_tokens)
+            return self._complete_responses(system=system, messages=messages, model=model, max_tokens=max_tokens)
         api_messages: list[dict] = []
         if system:
             api_messages.append({"role": "system", "content": system})
@@ -85,8 +91,7 @@ class OpenAIProvider(Provider):
             max_output_tokens=max(max_tokens, 8000),
             timeout=self._timeout,
         )
-        return CompletionResult(text=getattr(response, "output_text", "") or "",
-                                usage=_responses_usage(response))
+        return CompletionResult(text=getattr(response, "output_text", "") or "", usage=_responses_usage(response))
 
 
 def _chat_usage(response: Any) -> Usage:

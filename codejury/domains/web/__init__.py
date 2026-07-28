@@ -17,7 +17,9 @@ def _web_poc(**kw):
     """Build the web PoC writer lazily, so importing the domain never pulls a provider, only
     building a backend does."""
     from codejury.domains.web.poc import WebPoC
+
     return WebPoC(**kw)
+
 
 # named lenses give each shipped class a focused pass. Umbrella lenses use only recognized
 # family names, so a lens name shows whether it covers one class or a related family.

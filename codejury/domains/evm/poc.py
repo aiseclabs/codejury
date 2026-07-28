@@ -51,6 +51,7 @@ class PoCResult:
     """The outcome of one reproduction attempt. `reproduced` is True only when the generated
     test compiled and passed, so a compile failure or a failing test is an inconclusive keep,
     never a refutation."""
+
     reproduced: bool
     test_source: str
     detail: str
@@ -70,8 +71,15 @@ class ForgePoC:
     ext = "t.sol"
     install_hint = f"install Foundry from {_FOUNDRY_URL}"
 
-    def __init__(self, *, provider: Provider | None = None, model: str | None = None,
-                 timeout: int = 180, max_tokens: int = 4096, attempts: int = 2) -> None:
+    def __init__(
+        self,
+        *,
+        provider: Provider | None = None,
+        model: str | None = None,
+        timeout: int = 180,
+        max_tokens: int = 4096,
+        attempts: int = 2,
+    ) -> None:
         # provider is optional so a runner that only executes can be built with no model, which
         # lets finalize run a PoC an agent already wrote without spending a generation call
         self._provider = provider
@@ -88,17 +96,29 @@ class ForgePoC:
         needs it, so a missing forge only means the run step is skipped, not that no PoC is written."""
         return which("forge") is not None
 
-    def generate(self, *, title: str, analysis: str, symbol: str, file: str,
-                 line: int | None, root: str, endpoint: str = "") -> PoCArtifact:
+    def generate(
+        self, *, title: str, analysis: str, symbol: str, file: str, line: int | None, root: str, endpoint: str = ""
+    ) -> PoCArtifact:
         """Write the Foundry test that proves the exploit, without running it. `endpoint` is part of
         the shared finding context the engine passes every backend, a contract has none, so it is
         unused here."""
         import_line, note = self._import_note(Path(root), file)
         target = _read(Path(root) / file) if file else ""
-        prompt = _prompt(title=title, analysis=analysis, symbol=symbol, file=file, line=line,
-                         target_source=target, import_line=import_line, note=note)
-        return PoCArtifact(source=self._complete(prompt), ext=self.ext,
-                           run_hint="forge test, deploys the contract locally, no fork or rpc")
+        prompt = _prompt(
+            title=title,
+            analysis=analysis,
+            symbol=symbol,
+            file=file,
+            line=line,
+            target_source=target,
+            import_line=import_line,
+            note=note,
+        )
+        return PoCArtifact(
+            source=self._complete(prompt),
+            ext=self.ext,
+            run_hint="forge test, deploys the contract locally, no fork or rpc",
+        )
 
     def execute(self, *, source: str, root: str) -> PoCExecResult:
         """Compile and run a written Foundry test locally. Never forks or broadcasts, invariant 6.
@@ -115,8 +135,7 @@ class ForgePoC:
             ok, detail = self._run_test(proj, source, test_path)
         return PoCExecResult(ran=True, ok=ok, detail=detail)
 
-    def reproduce(self, *, title: str, analysis: str, symbol: str, file: str,
-                  line: int | None, root: str) -> PoCResult:
+    def reproduce(self, *, title: str, analysis: str, symbol: str, file: str, line: int | None, root: str) -> PoCResult:
         """Write the test and run it, repairing it across attempts when it fails to compile or
         pass. The coded path uses this to write and prove a PoC in one call."""
         if not self.available():
@@ -135,11 +154,18 @@ class ForgePoC:
         with self._project(root_p, sources, foundry) as (proj, test_path):
             for attempt in range(self._attempts):
                 if attempt == 0:
-                    prompt = _prompt(title=title, analysis=analysis, symbol=symbol, file=file,
-                                     line=line, target_source=target, import_line=import_line, note=note)
+                    prompt = _prompt(
+                        title=title,
+                        analysis=analysis,
+                        symbol=symbol,
+                        file=file,
+                        line=line,
+                        target_source=target,
+                        import_line=import_line,
+                        note=note,
+                    )
                 else:
-                    prompt = _fix_prompt(previous=test_source, error=detail,
-                                         import_line=import_line, note=note)
+                    prompt = _fix_prompt(previous=test_source, error=detail, import_line=import_line, note=note)
                 test_source = self._complete(prompt)
                 if not test_source:
                     detail = "model returned no test source"
@@ -156,8 +182,10 @@ class ForgePoC:
             # the test lives in the repository's own test dir, so it compiles through the repository's
             # remappings and restored libraries, the only way a contract that imports OpenZeppelin builds
             import_line = os.path.relpath(root / file, root / "test") if file else ""
-            note = ("This is a Foundry project. Import other libraries such as OpenZeppelin through "
-                    "the project's own remappings, for example \"openzeppelin/...\".")
+            note = (
+                "This is a Foundry project. Import other libraries such as OpenZeppelin through "
+                'the project\'s own remappings, for example "openzeppelin/...".'
+            )
         else:
             import_line = f"../src/{file}" if file else ""
             note = "The contracts are copied under src, import any dependency by its src-relative path."
@@ -167,8 +195,12 @@ class ForgePoC:
         if self._provider is None:
             raise ValueError("generating a PoC needs a provider, this backend was built to run only")
         reply = self._provider.complete(
-            system=_SYSTEM, messages=[Message(role="user", content=prompt)],
-            model=self._model, max_tokens=self._max_tokens, cache=False)
+            system=_SYSTEM,
+            messages=[Message(role="user", content=prompt)],
+            model=self._model,
+            max_tokens=self._max_tokens,
+            cache=False,
+        )
         return _extract_solidity(reply.text)
 
     @contextmanager
@@ -188,8 +220,8 @@ class ForgePoC:
             else:
                 proj = Path(tmp)
                 (proj / "foundry.toml").write_text(
-                    "[profile.default]\nsrc = 'src'\ntest = 'test'\nauto_detect_solc = true\n",
-                    encoding="utf-8")
+                    "[profile.default]\nsrc = 'src'\ntest = 'test'\nauto_detect_solc = true\n", encoding="utf-8"
+                )
                 for s in sources:
                     dest = proj / "src" / s.relative_to(root)
                     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -211,8 +243,8 @@ class ForgePoC:
     def _forge(self, args: list[str], cwd: Path) -> subprocess.CompletedProcess:
         try:
             return subprocess.run(
-                ["forge", *args], cwd=cwd, capture_output=True, text=True,
-                timeout=self._timeout, check=False)
+                ["forge", *args], cwd=cwd, capture_output=True, text=True, timeout=self._timeout, check=False
+            )
         except subprocess.TimeoutExpired:
             return subprocess.CompletedProcess(args, returncode=1, stdout="", stderr="forge timed out")
 
@@ -229,15 +261,24 @@ def _tail(text: str, limit: int = 800) -> str:
     return text[-limit:] if len(text) > limit else text
 
 
-def _prompt(*, title: str, analysis: str, symbol: str, file: str, line: int | None,
-            target_source: str, import_line: str, note: str) -> str:
+def _prompt(
+    *,
+    title: str,
+    analysis: str,
+    symbol: str,
+    file: str,
+    line: int | None,
+    target_source: str,
+    import_line: str,
+    note: str,
+) -> str:
     loc = f"{file}:{line}" if line else file
     return (
         f"Vulnerability: {title}\n"
         f"Location: {loc}\n"
         f"Function or symbol: {symbol}\n"
         f"Analysis: {analysis}\n\n"
-        f"Import the contract under test with exactly:\nimport \"{import_line}\";\n"
+        f'Import the contract under test with exactly:\nimport "{import_line}";\n'
         f"{note}\n\n"
         f"Source of the file under test ({file}):\n{target_source}\n\n"
         "Write the test that deploys the relevant contract and proves this vulnerability. "
@@ -249,7 +290,7 @@ def _fix_prompt(*, previous: str, error: str, import_line: str, note: str) -> st
     return (
         "Your previous test failed. Return the full corrected test that fixes the reported "
         "problem.\n\n"
-        f"Import the contract under test with exactly:\nimport \"{import_line}\";\n{note}\n\n"
+        f'Import the contract under test with exactly:\nimport "{import_line}";\n{note}\n\n'
         f"Failure:\n{error}\n\n"
         f"Previous test:\n{previous}"
     )

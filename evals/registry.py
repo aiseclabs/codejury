@@ -31,10 +31,11 @@ class Benchmark:
     """One benchmark the registry knows about, public or private. The manifest fields stay
     empty for a legacy answer key that ships no benchmark.yaml, the coverage matrix then
     attributes it from the per-entry knowledge in the answer key instead."""
+
     id: str
     kind: str
     answer_key: Path
-    provenance: str            # public or private, the matrix splits coverage by this
+    provenance: str  # public or private, the matrix splits coverage by this
     manifest: Path | None = None
     stack: dict = field(default_factory=dict)
     knowledge: dict = field(default_factory=dict)
@@ -100,8 +101,16 @@ def _benchmark_at(name: str, answer_key: Path, manifest: Path | None, provenance
     kind, stack, knowledge, tags = "repository", {}, {}, ()
     if manifest is not None:
         kind, stack, knowledge, tags = _read_manifest(manifest)
-    return Benchmark(id=name, kind=kind, answer_key=answer_key, provenance=provenance,
-                     manifest=manifest, stack=stack, knowledge=knowledge, tags=tags)
+    return Benchmark(
+        id=name,
+        kind=kind,
+        answer_key=answer_key,
+        provenance=provenance,
+        manifest=manifest,
+        stack=stack,
+        knowledge=knowledge,
+        tags=tags,
+    )
 
 
 def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
@@ -130,7 +139,8 @@ def _discover(root: Path, provenance: str) -> dict[str, Benchmark]:
                 raise ValueError(
                     f"two repository benchmarks share the leaf name '{d.name}' under {repository_dir}, "
                     f"at {found[d.name].answer_key} and {key}. The id is the leaf directory "
-                    f"name, so rename one of the two target directories.")
+                    f"name, so rename one of the two target directories."
+                )
             found[d.name] = _benchmark_at(d.name, key, manifest, provenance)
     gt_dir = root / "groundtruth"
     if gt_dir.is_dir():
@@ -149,7 +159,8 @@ def all_benchmarks() -> dict[str, Benchmark]:
             if name in merged and not override:
                 raise ValueError(
                     f"benchmark '{name}' is defined in two roots, {merged[name].answer_key} "
-                    f"and {bench.answer_key}. Rename one, or set override: true on the private source.")
+                    f"and {bench.answer_key}. Rename one, or set override: true on the private source."
+                )
             merged[name] = bench
     return merged
 

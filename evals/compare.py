@@ -81,9 +81,7 @@ def _attribution(target: str) -> dict[str, tuple[tuple[str, ...], tuple[str, ...
     from the shipped case library, a repository result from its benchmark answer key."""
     from evals.diff_cases import default_cases
 
-    idx: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-        c.name: (c.knowledge, c.tags) for c in default_cases()
-    }
+    idx: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {c.name: (c.knowledge, c.tags) for c in default_cases()}
     try:
         from evals.registry import find_benchmark
         from evals.schema import load_answer_key
@@ -93,7 +91,7 @@ def _attribution(target: str) -> dict[str, tuple[tuple[str, ...], tuple[str, ...
         for e in (*key.planted, *key.safe):
             idx[e.id] = (e.knowledge, bench.tags)
     except ValueError:
-        pass    # the target is the diff probe or a suite, not a benchmark name
+        pass  # the target is the diff probe or a suite, not a benchmark name
     return idx
 
 
@@ -123,12 +121,17 @@ def compare_by(before: dict, after: dict, axis: str) -> dict:
 
 
 def format_compare(d: dict) -> str:
-    lines = [f"=== compare: {d['target']} ===",
-             f"  recall    {d['recall_before']:.0%} -> {d['recall_after']:.0%}",
-             f"  precision {d['precision_before']:.0%} -> {d['precision_after']:.0%}"]
-    for label, key in (("newly found", "newly_found"), ("newly MISSED", "newly_missed"),
-                       ("new false positive", "newly_false_positive"),
-                       ("fixed false positive", "fixed_false_positive")):
+    lines = [
+        f"=== compare: {d['target']} ===",
+        f"  recall    {d['recall_before']:.0%} -> {d['recall_after']:.0%}",
+        f"  precision {d['precision_before']:.0%} -> {d['precision_after']:.0%}",
+    ]
+    for label, key in (
+        ("newly found", "newly_found"),
+        ("newly MISSED", "newly_missed"),
+        ("new false positive", "newly_false_positive"),
+        ("fixed false positive", "fixed_false_positive"),
+    ):
         if d[key]:
             lines.append(f"  {label}: {', '.join(d[key])}")
     for m in d.get("catch_rate_changed", []):
@@ -138,8 +141,11 @@ def format_compare(d: dict) -> str:
 
 def format_compare_by(d: dict) -> str:
     lines = [f"=== compare: {d['target']} by {d['axis']} ==="]
-    for label, key in (("newly found", "newly_found"), ("newly MISSED", "newly_missed"),
-                       ("new false positive", "newly_false_positive")):
+    for label, key in (
+        ("newly found", "newly_found"),
+        ("newly MISSED", "newly_missed"),
+        ("new false positive", "newly_false_positive"),
+    ):
         groups = d[key]
         if not groups:
             continue

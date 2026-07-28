@@ -2,6 +2,7 @@
 an unavailable domain fails loud rather than silently falling back."""
 
 import shutil
+
 import pytest
 
 from codejury.domains.base import content_paths
@@ -92,7 +93,8 @@ def test_lens_naming_is_uniform(domain):
     for lens, claimed in members.items():
         if len(claimed) == 1:
             assert lens == claimed[0], (
-                f"{domain.name} single-class lens {lens!r} must equal its class id {claimed[0]!r}")
+                f"{domain.name} single-class lens {lens!r} must equal its class id {claimed[0]!r}"
+            )
         else:
             assert lens not in class_ids, f"{domain.name} umbrella lens {lens!r} collides with a class id"
 
@@ -248,8 +250,9 @@ def test_web_poc_writes_a_python_script_and_never_runs_it(tmp_path):
     from codejury.providers.mock import MockProvider
 
     poc = WebPoC(provider=MockProvider(default="import requests\nassert True\n"), model="m")
-    art = poc.generate(title="idor", analysis="no owner check", symbol="get_order",
-                       file="views.py", line=3, root=str(tmp_path))
+    art = poc.generate(
+        title="idor", analysis="no owner check", symbol="get_order", file="views.py", line=3, root=str(tmp_path)
+    )
     assert art.ext == "py"
     assert "requests" in art.source
     assert art.run_hint
@@ -296,12 +299,19 @@ def test_web_poc_feeds_the_endpoint_and_handler_source_into_the_prompt(tmp_path)
 
     src = tmp_path / "models" / "memories.py"
     src.parent.mkdir(parents=True)
-    src.write_text("def update_memory_by_id(id, form):\n    return db.query(Memory).filter(Memory.id == id)\n",
-                   encoding="utf-8")
+    src.write_text(
+        "def update_memory_by_id(id, form):\n    return db.query(Memory).filter(Memory.id == id)\n", encoding="utf-8"
+    )
     rec = _RecordingProvider("import requests\n")
     WebPoC(provider=rec, model="m").generate(
-        title="idor", analysis="a", symbol="update_memory_by_id", file="models/memories.py",
-        line=None, root=str(tmp_path), endpoint="POST /memories/{id}/update")
+        title="idor",
+        analysis="a",
+        symbol="update_memory_by_id",
+        file="models/memories.py",
+        line=None,
+        root=str(tmp_path),
+        endpoint="POST /memories/{id}/update",
+    )
     assert "POST /memories/{id}/update" in rec.last_user
     assert "filter(Memory.id == id)" in rec.last_user
 
@@ -309,8 +319,9 @@ def test_web_poc_feeds_the_endpoint_and_handler_source_into_the_prompt(tmp_path)
 def test_web_poc_prompt_drops_the_read_from_above_line_with_no_endpoint_or_source():
     from codejury.domains.web.poc import _prompt
 
-    grounded = _prompt(title="t", analysis="a", symbol="s", file="v.py", line=1,
-                       endpoint="POST /x", source="def h(): ...")
+    grounded = _prompt(
+        title="t", analysis="a", symbol="s", file="v.py", line=1, endpoint="POST /x", source="def h(): ..."
+    )
     bare = _prompt(title="t", analysis="a", symbol="s", file="v.py", line=1, endpoint="", source="")
     assert "do not guess" in grounded
     assert "do not guess" not in bare
@@ -353,7 +364,8 @@ def test_forge_poc_compiles_and_runs_a_local_test(tmp_path):
 
     (tmp_path / "C.sol").write_text(
         "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.0;\n"
-        "contract C { function v() public pure returns (uint) { return 42; } }\n")
+        "contract C { function v() public pure returns (uint) { return 42; } }\n"
+    )
     poc = ForgePoC(provider=MockProvider(default=_POC_TEST), model="m", timeout=120)
     res = poc.reproduce(title="t", analysis="a", symbol="v", file="C.sol", line=1, root=str(tmp_path))
     if not res.reproduced and "compile failed" in res.detail:
@@ -425,13 +437,24 @@ def test_by_file_groups_contract_facts_by_source_path():
     from codejury.domains.evm.facts.slither import _by_file
 
     def fn(**kw):
-        base = {"visibility": "external", "modifiers": [], "reads": [], "writes": [],
-                "calls": [], "external_call": False, "sends_eth": False, "can_reenter": False}
+        base = {
+            "visibility": "external",
+            "modifiers": [],
+            "reads": [],
+            "writes": [],
+            "calls": [],
+            "external_call": False,
+            "sends_eth": False,
+            "can_reenter": False,
+        }
         return {**base, **kw}
 
     contracts = {
-        "Vault": {"file": "src/Vault.sol", "state": [],
-                  "functions": {"withdraw()": fn(external_call=True, can_reenter=True)}},
+        "Vault": {
+            "file": "src/Vault.sol",
+            "state": [],
+            "functions": {"withdraw()": fn(external_call=True, can_reenter=True)},
+        },
         "Token": {"file": "src/Token.sol", "state": [], "functions": {}},
         "Lib": {"file": "", "state": [], "functions": {}},
     }
@@ -442,9 +465,17 @@ def test_by_file_groups_contract_facts_by_source_path():
 
 
 def _fn(rng, **flags):
-    base = {"visibility": "internal", "modifiers": [], "reads": [], "writes": [],
-            "calls": [], "external_call": False, "sends_eth": False, "can_reenter": False,
-            "range": rng}
+    base = {
+        "visibility": "internal",
+        "modifiers": [],
+        "reads": [],
+        "writes": [],
+        "calls": [],
+        "external_call": False,
+        "sends_eth": False,
+        "can_reenter": False,
+        "range": rng,
+    }
     return {**base, **flags}
 
 
@@ -452,12 +483,17 @@ def test_call_path_units_anchor_on_risk_functions_with_neighborhood():
     from codejury.domains.evm.facts.call_path import call_path_units
 
     contracts = {
-        "Vault": {"file": "src/Vault.sol", "state": [], "functions": {
-            "getBalance()": _fn([0, 100]),
-            "liquidate()": _fn([100, 300], external_call=True, can_reenter=True, calls=["_cleanupLoan()"]),
-            "_cleanupLoan()": _fn([300, 420], external_call=True, can_reenter=True, calls=["_update()"]),
-            "_update()": _fn([420, 480]),
-        }}}
+        "Vault": {
+            "file": "src/Vault.sol",
+            "state": [],
+            "functions": {
+                "getBalance()": _fn([0, 100]),
+                "liquidate()": _fn([100, 300], external_call=True, can_reenter=True, calls=["_cleanupLoan()"]),
+                "_cleanupLoan()": _fn([300, 420], external_call=True, can_reenter=True, calls=["_update()"]),
+                "_update()": _fn([420, 480]),
+            },
+        }
+    }
     units = call_path_units(contracts)
     # liquidate's set {liquidate,_cleanupLoan} is a subset of _cleanupLoan's
     # {_cleanupLoan,_update,liquidate}, so only the larger neighborhood survives
@@ -475,11 +511,16 @@ def test_call_path_units_skip_no_range_and_respect_the_char_cap():
     from codejury.domains.evm.facts.call_path import _UNIT_CHAR_CAP, call_path_units
 
     contracts = {
-        "C": {"file": "a.sol", "state": [], "functions": {
-            "f()": _fn([0, 50], external_call=True, calls=["big()", "noRange()"]),
-            "big()": _fn([50, 50 + _UNIT_CHAR_CAP + 100]),
-            "noRange()": _fn(None),
-        }}}
+        "C": {
+            "file": "a.sol",
+            "state": [],
+            "functions": {
+                "f()": _fn([0, 50], external_call=True, calls=["big()", "noRange()"]),
+                "big()": _fn([50, 50 + _UNIT_CHAR_CAP + 100]),
+                "noRange()": _fn(None),
+            },
+        }
+    }
     units = call_path_units(contracts)
     assert len(units) == 1
     frags = units[0]["fragments"]

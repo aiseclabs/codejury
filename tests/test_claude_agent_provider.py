@@ -40,8 +40,8 @@ def test_complete_folds_system_ahead_of_the_user_content():
         return _envelope('{"findings": []}')
 
     ClaudeAgentProvider(runner=fake_runner).complete(
-        system="SYSTEM RULES", messages=[Message(role="user", content="the body")],
-        model="ignored", max_tokens=100)
+        system="SYSTEM RULES", messages=[Message(role="user", content="the body")], model="ignored", max_tokens=100
+    )
     assert captured["prompt"] == "SYSTEM RULES\n\nthe body"
 
 
@@ -52,8 +52,10 @@ def test_complete_returns_the_unwrapped_envelope_text():
 
 
 def test_is_a_drop_in_provider_for_the_audit_runner():
-    finding = _envelope('{"findings": [{"file": "app.py", "line": 1, "severity": "HIGH", '
-                        '"category": "sql_injection", "description": "x", "confidence": 0.9}]}')
+    finding = _envelope(
+        '{"findings": [{"file": "app.py", "line": 1, "severity": "HIGH", '
+        '"category": "sql_injection", "description": "x", "confidence": 0.9}]}'
+    )
     prov = ClaudeAgentProvider(runner=lambda p, **k: finding)
     findings = AuditRunner(provider=prov, model="ignored").run(_DIFF)
     assert len(findings) == 1 and findings[0].category == "sql_injection"
@@ -91,7 +93,8 @@ def test_diff_agent_passes_no_file_tools_but_keeps_json_output():
         return _envelope('{"findings": []}')
 
     ClaudeAgentProvider(runner=fake_runner).complete(
-        system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+        system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10
+    )
     assert "--allowedTools" not in captured["args"]
     assert "--output-format" in captured["args"] and "json" in captured["args"]
 
@@ -105,7 +108,8 @@ def test_env_args_cannot_widen_the_diff_agent_tools(monkeypatch):
         return _envelope('{"findings": []}')
 
     ClaudeAgentProvider(runner=fake_runner).complete(
-        system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10)
+        system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10
+    )
     assert "Bash" not in captured["args"] and "--allowedTools" not in captured["args"]
     assert "terse" in captured["args"]
 
@@ -118,7 +122,8 @@ def test_model_and_cache_kwargs_are_ignored():
         return _envelope('{"findings": []}')
 
     ClaudeAgentProvider(runner=fake_runner).complete(
-        system="s", messages=[Message(role="user", content="u")], model="whatever", max_tokens=10, cache=True)
+        system="s", messages=[Message(role="user", content="u")], model="whatever", max_tokens=10, cache=True
+    )
     assert "--model" not in captured["args"]
 
 
@@ -149,6 +154,7 @@ def test_process_transport_calls_subprocess_when_selected(monkeypatch):
 
     def fake_run(cmd, **kw):
         import subprocess as sp
+
         captured["cmd"] = cmd
         return sp.CompletedProcess(cmd, 0, stdout=_envelope('{"findings": []}'), stderr="")
 
@@ -188,6 +194,7 @@ def test_explicit_transport_is_used_and_closed():
 def test_process_transport_ask_delegates_to_the_default_runner(monkeypatch):
     def fake_run(cmd, **kw):
         import subprocess
+
         return subprocess.CompletedProcess(cmd, 0, stdout=_envelope("hello"), stderr="")
 
     monkeypatch.setattr("codejury.providers.claude_agent.subprocess.run", fake_run)

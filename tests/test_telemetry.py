@@ -36,9 +36,8 @@ def test_stage_timer_records_one_timeline_entry_per_stage_in_order(tmp_path):
 
 
 def test_stage_timer_records_a_failed_stage_and_reraises(tmp_path, capsys):
-    with pytest.raises(ValueError, match="boom"):
-        with stage_timer("run", tmp_path):
-            raise ValueError("boom")
+    with pytest.raises(ValueError, match="boom"), stage_timer("run", tmp_path):
+        raise ValueError("boom")
     assert "run failed after" in capsys.readouterr().err
     timeline = json.loads((tmp_path / TIMELINE_FILE).read_text())
     assert timeline[-1]["stage"] == "run" and timeline[-1]["ok"] is False

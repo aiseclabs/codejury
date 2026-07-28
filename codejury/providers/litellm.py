@@ -10,7 +10,8 @@ SDK or an API key.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from codejury.providers.base import CompletionResult, Message, Provider
 from codejury.providers.chat_format import choice_text

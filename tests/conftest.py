@@ -7,7 +7,7 @@ self-contained and pass in CI.
 
 import pytest
 
-_FLASK_APP = '''
+_FLASK_APP = """
 from flask import Flask, request
 app = Flask(__name__)
 
@@ -18,7 +18,7 @@ def get_wallet(wallet_id):
 @app.route("/transfers", methods=["POST"])
 def create_transfer():
     return "", 201
-'''
+"""
 
 
 @pytest.fixture
@@ -29,7 +29,6 @@ def custody_repository(tmp_path):
     d = tmp_path / "custody"
     (d / "app" / "services").mkdir(parents=True)
     (d / "app" / "routes.py").write_text(_FLASK_APP)
-    (d / "app" / "services" / "wallet.py").write_text(
-        "def get_wallet(wid):\n    return {'id': wid}\n")
+    (d / "app" / "services" / "wallet.py").write_text("def get_wallet(wid):\n    return {'id': wid}\n")
     (d / "requirements.txt").write_text("Flask==3.0\n")
     return d

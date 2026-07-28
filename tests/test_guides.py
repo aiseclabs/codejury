@@ -32,6 +32,7 @@ def test_mcp_guide_selected_by_protocol_token():
 
 def test_evm_token_launch_guide_selected_by_content_token():
     from codejury.domains.registry import get_domain
+
     paths = get_domain("evm").paths
     pool = load_guides(paths.languages_dir, paths.frameworks_dir, paths.protocols_dir)
     src = "function enableTrading() external onlyOwner { tradingEnabled = true; }\n"
@@ -60,8 +61,22 @@ def test_no_signal_no_match():
 
 
 def test_select_respects_injected_pool():
-    only = [Guide(id="x", kind="framework", language="", title="X", detect_files=("*.xyz",),
-                  detect_manifest=(), detect_imports=(), detect_content=(), entrypoint_files=(),
-                  entrypoint_markers=(), logic_layers=(), api_patterns=(), body="b")]
+    only = [
+        Guide(
+            id="x",
+            kind="framework",
+            language="",
+            title="X",
+            detect_files=("*.xyz",),
+            detect_manifest=(),
+            detect_imports=(),
+            detect_content=(),
+            entrypoint_files=(),
+            entrypoint_markers=(),
+            logic_layers=(),
+            api_patterns=(),
+            body="b",
+        )
+    ]
     assert [g.id for g in select_guides(["a.xyz"], guides=only)] == ["x"]
     assert select_guides(["a.py"], guides=only) == []

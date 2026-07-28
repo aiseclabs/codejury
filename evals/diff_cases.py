@@ -77,7 +77,8 @@ def default_cases() -> list[DiffCase]:
             if case.name in seen:
                 raise ValueError(
                     f"diff case '{case.name}' is defined in two files, {seen[case.name]} "
-                    f"and {f}. A case name must be unique across the library, rename one.")
+                    f"and {f}. A case name must be unique across the library, rename one."
+                )
             seen[case.name] = f
             cases.append(case)
     return cases

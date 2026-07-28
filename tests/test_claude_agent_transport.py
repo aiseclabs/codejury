@@ -165,7 +165,7 @@ def test_session_restarts_when_tools_change():
 def test_a_failed_call_closes_the_session_and_the_next_call_restarts():
     events = []
     bad = [SimpleNamespace(subtype="error_during_execution", is_error=True, result="")]
-    make, creations = _factory(events, messages=bad)
+    make, _creations = _factory(events, messages=bad)
     t = SdkClaudeTransport(make_client=make, pool_size=1, max_turns=8)
     with pytest.raises(RuntimeError):
         _ask(t)
@@ -229,12 +229,14 @@ def test_missing_sdk_package_fails_loud(monkeypatch):
 
 def test_sdk_options_carry_the_allowlist_and_scrub_auth(monkeypatch):
     import claude_agent_sdk as sdk
+
     monkeypatch.setenv("ANTHROPIC_API_KEY", "stale")
     monkeypatch.setenv("PATH_KEEPME", "1")
     env = claude_agent._subscription_env()
     diff = claude_agent._sdk_options(sdk, cwd="", allowed_tools=(), cli_path="claude", env=env)
     assert diff.allowed_tools == []
     repository = claude_agent._sdk_options(
-        sdk, cwd="/r", allowed_tools=("Read", "Grep", "Glob", "LS"), cli_path="claude", env=env)
+        sdk, cwd="/r", allowed_tools=("Read", "Grep", "Glob", "LS"), cli_path="claude", env=env
+    )
     assert repository.allowed_tools == ["Read", "Grep", "Glob", "LS"]
     assert "ANTHROPIC_API_KEY" not in repository.env and repository.env["PATH_KEEPME"] == "1"

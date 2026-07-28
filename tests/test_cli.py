@@ -15,9 +15,9 @@ import pytest
 
 import codejury.cli as climod
 from codejury.cli import main
-from codejury.review.diff.engine import audit_diff, dedup_findings, pack_diff_chunks, split_diff_by_file
 from codejury.finding import Finding
 from codejury.providers.mock import MockProvider
+from codejury.review.diff.engine import audit_diff, dedup_findings, pack_diff_chunks, split_diff_by_file
 
 _FILE_A = "diff --git a/a.py b/a.py\n@@ -0,0 +1 @@\n+x = 1\n"
 _FILE_B = "diff --git a/b.py b/b.py\n@@ -0,0 +1 @@\n+y = 2\n"
@@ -26,23 +26,17 @@ _DIFF = _FILE_A
 
 @pytest.fixture(autouse=True)
 def _hermetic_seat_env(monkeypatch, tmp_path_factory):
-    """Seat resolution reads credentials from the environment and from defaults frozen at import,
-    so a developer shell that sourced a .env would make a keyless seat look key-reachable and flip
-    the executor tests. Every CLI test starts from the clean keyless baseline CI has, and a test
-    that needs a key sets it after this fixture runs. Clearing os.environ is not enough on its own,
-    the defaults were already frozen at import, so they are reset here too. The default workspace is
-    pinned under a tmp dir so a command that omits --workspace never writes to the real user state dir."""
+    """Seat resolution reads credentials from the environment, so a developer shell that sourced a
+    .env would make a keyless seat look key-reachable and flip the executor tests. Every CLI test
+    starts from the clean keyless baseline CI has, and a test that needs a key sets it after this
+    fixture runs. The .env auto-load is stubbed so a developer's working-directory file cannot leak
+    back in, and the default workspace is pinned under a tmp dir so a command that omits --workspace
+    never writes to the real user state dir."""
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path_factory.mktemp("xdg-state")))
     for name in list(os.environ):
         if name.startswith(("CODEJURY_", "ANTHROPIC_", "OPENAI_")):
             monkeypatch.delenv(name, raising=False)
-    monkeypatch.setattr(climod, "DEFAULT_PROVIDER", "anthropic")
-    monkeypatch.setattr(climod, "DEFAULT_MODEL", "claude-opus-4-8")
-    monkeypatch.setattr(climod, "DEFAULT_API_KEY", None)
-    monkeypatch.setattr(climod, "DEFAULT_API_BASE", None)
-    monkeypatch.setattr(climod, "DEFAULT_ROLE_BACKENDS",
-                        {r: dict(provider=None, model=None, api_key=None, api_base=None, wire_api=None)
-                         for r in climod.DEFAULT_ROLE_BACKENDS})
+    monkeypatch.setattr(climod, "load_env_file", lambda: [])
 
 
 def test_split_diff_by_file():
@@ -75,25 +69,23 @@ def test_pack_diff_chunks_isolates_an_oversized_file():
 
 
 def test_dedup_findings_collapses_identical():
-    f = Finding(file="a.py", line=1, severity="HIGH", category="sql-injection",
-                description="d", confidence=0.9)
-    g = Finding(file="a.py", line=2, severity="HIGH", category="sql-injection",
-                description="d", confidence=0.9)
+    f = Finding(file="a.py", line=1, severity="HIGH", category="sql-injection", description="d", confidence=0.9)
+    g = Finding(file="a.py", line=2, severity="HIGH", category="sql-injection", description="d", confidence=0.9)
     assert dedup_findings([f, f, g]) == [f, g]
 
 
 def test_dedup_findings_keeps_the_first_when_only_severity_differs():
-    a = Finding(file="a.py", line=1, severity="HIGH", category="sql-injection",
-                description="d", confidence=0.9)
-    b = Finding(file="a.py", line=1, severity="CRITICAL", category="sql-injection",
-                description="d", confidence=0.9)
+    a = Finding(file="a.py", line=1, severity="HIGH", category="sql-injection", description="d", confidence=0.9)
+    b = Finding(file="a.py", line=1, severity="CRITICAL", category="sql-injection", description="d", confidence=0.9)
     assert dedup_findings([a, b]) == [a]
 
 
 def test_large_diff_is_audited_per_file(monkeypatch):
     monkeypatch.setattr("codejury.review.diff.engine._MAX_DIFF_CHARS", 1)
-    resp = ('{"findings": [{"file": "a.py", "line": 1, "severity": "HIGH", '
-            '"category": "sql_injection", "description": "x", "confidence": 0.9}]}')
+    resp = (
+        '{"findings": [{"file": "a.py", "line": 1, "severity": "HIGH", '
+        '"category": "sql_injection", "description": "x", "confidence": 0.9}]}'
+    )
     provider = MockProvider(default=resp)
     kept, _, _ = audit_diff(_FILE_A + _FILE_B, provider=provider, model="mock")
     assert len(provider.calls) == 2
@@ -101,8 +93,10 @@ def test_large_diff_is_audited_per_file(monkeypatch):
 
 
 def test_audit_diff_honors_exclude_paths():
-    resp = ('{"findings": [{"file": "vendor/lib.py", "line": 1, "severity": "HIGH", '
-            '"category": "sql_injection", "description": "x", "confidence": 0.9}]}')
+    resp = (
+        '{"findings": [{"file": "vendor/lib.py", "line": 1, "severity": "HIGH", '
+        '"category": "sql_injection", "description": "x", "confidence": 0.9}]}'
+    )
     kept, dropped, _ = audit_diff(
         _FILE_A, provider=MockProvider(default=resp), model="mock", exclude_paths=("vendor/",)
     )
@@ -168,6 +162,7 @@ def test_review_repository_facts_flag_is_a_noop_without_a_backend(tmp_path):
 def test_python_dash_m_codejury_runs():
     import subprocess
     import sys
+
     r = subprocess.run([sys.executable, "-m", "codejury", "--version"], capture_output=True, text=True)
     assert r.returncode == 0 and "codejury" in r.stdout.lower()
 
@@ -216,6 +211,7 @@ def test_default_workspace_is_user_private(monkeypatch, tmp_path):
 
 def test_slash_command_does_not_pin_a_shared_workspace():
     from codejury.resources import SLASH_COMMAND_FILE
+
     assert "/var/tmp" not in SLASH_COMMAND_FILE.read_text()
 
 
@@ -223,7 +219,8 @@ def _flask_repository(root):
     root.mkdir()
     (root / "app.py").write_text(
         "from flask import Flask, request\napp = Flask(__name__)\n"
-        '@app.route("/x/<i>")\ndef h(i):\n    return request.args.get("y", "")\n')
+        '@app.route("/x/<i>")\ndef h(i):\n    return request.args.get("y", "")\n'
+    )
     (root / "requirements.txt").write_text("Flask==3.0\n")
     return root
 
@@ -243,8 +240,7 @@ def test_review_diff_closes_its_backends(monkeypatch, tmp_path):
             closed.append(True)
 
     spy = _Spy()
-    monkeypatch.setattr(climod, "build_diff_providers",
-                        lambda args: (spy, "mock", None, None, None, None, None, None))
+    monkeypatch.setattr(climod, "build_diff_providers", lambda args: (spy, "mock", None, None, None, None, None, None))
     monkeypatch.setattr(climod, "audit_diff", lambda *a, **k: ([], None, False))
     diff = tmp_path / "c.diff"
     diff.write_text("--- a/x.py\n+++ b/x.py\n@@ -0,0 +1 @@\n+x = 1\n")
@@ -268,8 +264,7 @@ def test_review_diff_bad_file_exits_nonzero(capsys):
 
 def test_review_diff_empty_stdin_is_clean(monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin", io.StringIO(""))
-    monkeypatch.setattr("codejury.cli.make_provider",
-                        lambda *a, **k: MockProvider(default='{"findings": []}'))
+    monkeypatch.setattr("codejury.cli.make_provider", lambda *a, **k: MockProvider(default='{"findings": []}'))
     # pin the api seat with a key so the keyless auto default does not resolve to the subscription
     # agent and bypass the make_provider mock, the subject here is the empty-diff clean path
     rc = main(["review", "diff", "--executor", "api", "--api-key", "x"])
@@ -279,6 +274,7 @@ def test_review_diff_empty_stdin_is_clean(monkeypatch, capsys):
 
 def test_diff_executor_subscription_uses_the_agent_provider(monkeypatch):
     from codejury.providers.claude_agent import ClaudeAgentProvider
+
     captured = {}
 
     def fake_audit(diff, *, provider, **kw):
@@ -302,6 +298,7 @@ def test_diff_executor_api_without_key_errors_loud(monkeypatch):
 
 def test_diff_executor_auto_keyless_anthropic_falls_back_to_agent(monkeypatch, capsys):
     from codejury.providers.claude_agent import ClaudeAgentProvider
+
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
     captured = {}
@@ -327,6 +324,7 @@ def test_diff_executor_auto_keyless_non_anthropic_errors_loud(monkeypatch):
 
 def test_diff_adversarial_resolves_each_seat_independently(monkeypatch):
     from codejury.providers.claude_agent import ClaudeAgentProvider
+
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
     captured = {}
@@ -338,8 +336,9 @@ def test_diff_adversarial_resolves_each_seat_independently(monkeypatch):
     monkeypatch.setattr(climod, "audit_diff", fake_audit)
     monkeypatch.setattr("sys.stdin", io.StringIO(_DIFF))
     # keyless anthropic finder and judge ride the subscription, the openai challenger uses its key
-    rc = main(["review", "diff", "--mode", "adversarial",
-               "--challenger-provider", "openai", "--challenger-api-key", "k"])
+    rc = main(
+        ["review", "diff", "--mode", "adversarial", "--challenger-provider", "openai", "--challenger-api-key", "k"]
+    )
     assert rc == 0
     assert isinstance(captured["finder"], ClaudeAgentProvider)
     assert isinstance(captured["judge"], ClaudeAgentProvider)
@@ -371,19 +370,31 @@ def test_repository_mode_flags_are_mutually_exclusive(tmp_path):
 def test_repository_run_with_model_errors_exits_nonzero(tmp_path, monkeypatch):
     repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
-    monkeypatch.setattr("codejury.cli.make_provider",
-                        lambda *a, **k: MockProvider(default="not json at all"))
+    monkeypatch.setattr("codejury.cli.make_provider", lambda *a, **k: MockProvider(default="not json at all"))
     # a key keeps the seat on the provider path, the subject under test, the engine then fails loud
     # on the unparseable reply rather than the seat erroring at startup on a missing key
-    rc = main(["review", "repository", str(repository), "--workspace", str(ws), "--run", "--no-verify",
-               "--executor", "api", "--api-key", "x"])
+    rc = main(
+        [
+            "review",
+            "repository",
+            str(repository),
+            "--workspace",
+            str(ws),
+            "--run",
+            "--no-verify",
+            "--executor",
+            "api",
+            "--api-key",
+            "x",
+        ]
+    )
     assert rc == 1
 
 
 def _role_args(**over):
     from argparse import Namespace
-    base = dict(provider="anthropic", model="claude-base", api_key="basekey", api_base=None,
-                wire_api="chat")
+
+    base = {"provider": "anthropic", "model": "claude-base", "api_key": "basekey", "api_base": None, "wire_api": "chat"}
     for role in ("finder", "challenger", "judge"):
         for field in ("provider", "model", "api_key", "api_base", "wire_api"):
             base[f"{role}_{field}"] = None
@@ -393,6 +404,7 @@ def _role_args(**over):
 
 def test_role_spec_inherits_base_when_unset():
     from codejury.cli import _base_spec, _role_spec
+
     a = _role_args()
     s = _role_spec(a, "challenger", _base_spec(a))
     assert (s["provider"], s["model"], s["api_key"]) == ("anthropic", "claude-base", "basekey")
@@ -403,6 +415,7 @@ def test_base_seat_wire_flows_and_role_inherits_it():
     # model that only answers on the responses wire can run a standard review, and a role with no
     # wire of its own inherits it rather than snapping back to chat
     from codejury.cli import _base_spec, _role_spec
+
     a = _role_args(wire_api="responses")
     base = _base_spec(a)
     assert base["wire_api"] == "responses"
@@ -412,6 +425,7 @@ def test_base_seat_wire_flows_and_role_inherits_it():
 def test_role_spec_cross_vendor_override_drops_base_key():
     # a role that switches vendor must not inherit the base vendor's key, it is the wrong key
     from codejury.cli import _base_spec, _role_spec
+
     a = _role_args(challenger_provider="openai", challenger_model="gpt-x")
     s = _role_spec(a, "challenger", _base_spec(a))
     assert (s["provider"], s["model"]) == ("openai", "gpt-x")
@@ -420,6 +434,7 @@ def test_role_spec_cross_vendor_override_drops_base_key():
 
 def test_role_spec_same_vendor_override_keeps_base_key():
     from codejury.cli import _base_spec, _role_spec
+
     a = _role_args(challenger_model="claude-other")
     s = _role_spec(a, "challenger", _base_spec(a))
     assert (s["provider"], s["model"], s["api_key"]) == ("anthropic", "claude-other", "basekey")
@@ -427,7 +442,9 @@ def test_role_spec_same_vendor_override_keeps_base_key():
 
 def test_confirmers_exclude_the_skeptic_and_dedupe(monkeypatch):
     from argparse import Namespace
+
     from codejury.cli import _confirmers
+
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
     a = Namespace(executor="api", retries=0, timeout=10)
     chal = {"provider": "anthropic", "model": "skep", "api_key": "k", "api_base": None, "wire_api": "chat"}
@@ -444,6 +461,7 @@ def test_confirmers_exclude_the_skeptic_and_dedupe(monkeypatch):
 
 def test_key_reachable_by_explicit_key_or_vendor_env(monkeypatch):
     from codejury.cli import _key_reachable
+
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     assert _key_reachable({"provider": "anthropic", "api_key": "k"})
@@ -456,6 +474,7 @@ def test_key_reachable_by_explicit_key_or_vendor_env(monkeypatch):
 
 def test_seat_backend_auto_falls_back_for_a_keyless_anthropic_seat(monkeypatch):
     from codejury.cli import _seat_backend
+
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     assert _seat_backend({"provider": "anthropic", "api_key": None}, "auto") == "agent"
@@ -467,6 +486,7 @@ def test_seat_backend_auto_falls_back_for_a_keyless_anthropic_seat(monkeypatch):
 
 def test_seat_backend_errors_loud_at_startup_on_a_missing_key(monkeypatch):
     from codejury.cli import _seat_backend
+
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     # auto: a keyless non-Anthropic seat has no subscription to fall back to
@@ -479,7 +499,9 @@ def test_seat_backend_errors_loud_at_startup_on_a_missing_key(monkeypatch):
 
 def test_note_verify_route_states_the_active_route(capsys):
     from argparse import Namespace
+
     from codejury.cli import _note_verify_route
+
     args = Namespace(verify=True, dry_run=False)
     _note_verify_route(args, [("m1", object()), ("m2", object())])
     out = capsys.readouterr().err
@@ -497,6 +519,7 @@ def test_run_auto_falls_back_to_agent_finder_and_skeptic_without_a_key(monkeypat
     # the motivating case in miniature: no key anywhere, so the anthropic finder and skeptic ride
     # the subscription as agents, no provider is built
     from codejury.review.repository.agent import AgentReviewer, AgentVerifier
+
     captured = _capture_run(monkeypatch)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
@@ -510,6 +533,7 @@ def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_
     # the challenger backs the skeptic, the judge is the independent confirmer, two distinct vendors
     import codejury.review.repository.engine as eng
     from codejury.review.repository.verifier import ModelRefutationChecker, ModelVerifier
+
     captured = {}
 
     def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
@@ -518,12 +542,29 @@ def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_
 
     monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    rc = main(["review", "repository", str(tmp_path), "--finalize",
-               "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k",
-               "--judge-provider", "anthropic", "--judge-model", "claude-x", "--judge-api-key", "k2"])
+    rc = main(
+        [
+            "review",
+            "repository",
+            str(tmp_path),
+            "--finalize",
+            "--challenger-provider",
+            "openai",
+            "--challenger-model",
+            "gpt-x",
+            "--challenger-api-key",
+            "k",
+            "--judge-provider",
+            "anthropic",
+            "--judge-model",
+            "claude-x",
+            "--judge-api-key",
+            "k2",
+        ]
+    )
     assert rc == 0
     assert isinstance(captured["verifier"], ModelVerifier) and captured["verifier"]._model == "gpt-x"
-    (label, checker), = captured["confirmers"]
+    ((label, checker),) = captured["confirmers"]
     assert label == "claude-x"
     assert isinstance(checker, ModelRefutationChecker) and checker._model == "claude-x"
 
@@ -558,8 +599,10 @@ def test_finalize_mentions_pocs_only_when_the_file_exists(monkeypatch, tmp_path,
 
 
 def _patch_run(monkeypatch, tmp_path, *, converged, errors):
-    import codejury.review.repository.engine as eng
     from types import SimpleNamespace
+
+    import codejury.review.repository.engine as eng
+
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
 
     def fake_run(target, workspace, **kw):
@@ -592,8 +635,10 @@ def test_run_that_did_not_converge_exits_nonzero_and_warns(monkeypatch, tmp_path
 
 def test_finalize_verify_errors_exit_nonzero_and_ask_to_resume(monkeypatch, tmp_path, capsys):
     # an incomplete verification is not a clean finalize, invariant 4
-    import codejury.review.repository.engine as eng
     from types import SimpleNamespace
+
+    import codejury.review.repository.engine as eng
+
     monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
 
     def fake_finalize(target, workspace, **kw):
@@ -611,8 +656,23 @@ def test_run_passes_confirmers_and_no_extra_finders(monkeypatch, tmp_path):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     # the base key keeps the anthropic finder and judge on the API path so a confirmer is built, the
     # openai challenger is the skeptic and brings its own key
-    main(["review", "repository", str(tmp_path), "--run", "--no-verify", "--api-key", "basekey",
-          "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k"])
+    main(
+        [
+            "review",
+            "repository",
+            str(tmp_path),
+            "--run",
+            "--no-verify",
+            "--api-key",
+            "basekey",
+            "--challenger-provider",
+            "openai",
+            "--challenger-model",
+            "gpt-x",
+            "--challenger-api-key",
+            "k",
+        ]
+    )
     assert "extra_finder_backends" not in captured
     # one confirmer, the anthropic judge and finder share the base model, the openai skeptic excluded
     labels = [label for label, _ in captured["confirmers"]]
@@ -625,6 +685,7 @@ def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monk
     import codejury.review.repository.engine as eng
     from codejury.review.repository.agent import AgentRefutationChecker
     from codejury.review.repository.verifier import ModelVerifier
+
     captured = {}
 
     def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
@@ -633,12 +694,27 @@ def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monk
 
     monkeypatch.setattr(eng, "finalize_repository_review", fake_finalize)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    rc = main(["review", "repository", str(tmp_path), "--finalize",
-               "--challenger-provider", "openai", "--challenger-model", "gpt-x", "--challenger-api-key", "k",
-               "--judge-provider", "anthropic", "--judge-model", "claude-x"])
+    rc = main(
+        [
+            "review",
+            "repository",
+            str(tmp_path),
+            "--finalize",
+            "--challenger-provider",
+            "openai",
+            "--challenger-model",
+            "gpt-x",
+            "--challenger-api-key",
+            "k",
+            "--judge-provider",
+            "anthropic",
+            "--judge-model",
+            "claude-x",
+        ]
+    )
     assert rc == 0
     assert isinstance(captured["verifier"], ModelVerifier) and captured["verifier"]._model == "gpt-x"
-    (_label, checker), = captured["confirmers"]
+    ((_label, checker),) = captured["confirmers"]
     assert isinstance(checker, AgentRefutationChecker)
 
 
@@ -646,6 +722,7 @@ def test_executor_subscription_wires_the_agent_verifier(monkeypatch, tmp_path):
     # --executor subscription runs the finder and skeptic as the Claude Code agent, not a provider call
     import codejury.review.repository.engine as eng
     from codejury.review.repository.agent import AgentVerifier
+
     captured = {}
 
     def fake_finalize(target, workspace, *, verifier, confirmers, **kw):
@@ -670,8 +747,10 @@ def test_executor_rename_is_a_clean_break(tmp_path):
 def test_timeout_flag_is_accepted(tmp_path):
     repository = _flask_repository(tmp_path / "svc")
     ws = tmp_path / "ws"
-    assert main(["review", "repository", str(repository), "--workspace", str(ws),
-                 "--run", "--dry-run", "--timeout", "5"]) == 0
+    assert (
+        main(["review", "repository", str(repository), "--workspace", str(ws), "--run", "--dry-run", "--timeout", "5"])
+        == 0
+    )
 
 
 def test_effort_levels_set_shots_and_votes():
@@ -697,11 +776,13 @@ def test_auto_concurrency_holds_the_subscription_agent_to_two():
 
 def _finalize_result(tmp_path):
     from types import SimpleNamespace
+
     return SimpleNamespace(parsed=0, deduped=0, workspace=str(tmp_path), verify=None)
 
 
 def _capture_run(monkeypatch):
     import codejury.review.repository.engine as eng
+
     captured = {}
 
     def fake_run(target, workspace, **kw):
@@ -743,6 +824,7 @@ def test_retries_and_timeout_reach_the_subscription_agent_finder(monkeypatch, tm
     # --retries and --timeout must reach the agent backend on the subscription path, so a
     # documented flag does not silently keep the _ClaudeBackend defaults there.
     from codejury.review.repository.agent import AgentReviewer
+
     captured = _capture_run(monkeypatch)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CODEJURY_API_KEY", raising=False)
@@ -755,7 +837,9 @@ def test_retries_and_timeout_reach_the_subscription_agent_finder(monkeypatch, tm
 
 def test_facts_default_is_on_for_a_backend_domain_but_off_at_low_effort():
     from types import SimpleNamespace
+
     from codejury.domains.registry import get_domain
+
     evm, web = get_domain("evm"), get_domain("web")
 
     def args(facts, effort):
@@ -774,6 +858,7 @@ def test_facts_default_is_on_for_a_backend_domain_but_off_at_low_effort():
 def test_repository_stages_record_a_whole_pipeline_timeline(tmp_path):
     # one timeline spans the separate stage commands, and a re-scaffold starts it fresh
     from codejury.telemetry import TIMELINE_FILE
+
     repo = tmp_path / "svc"
     repo.mkdir()
     (repo / "app.py").write_text("x = 1\n")

@@ -57,8 +57,11 @@ def symbol_line_span(source_root: str, rel_file: str, symbol: str) -> tuple[int,
     raw = p.read_text(encoding="utf-8", errors="replace").splitlines()
     sym = re.escape(symbol.lower())
     decl = next(
-        (i for i, ln in enumerate(raw)
-         if re.search(rf"{_DECL}\b.*\b{sym}\b", ln.lower()) or re.search(rf"\b{sym}\b\s*[=(:]", ln.lower())),
+        (
+            i
+            for i, ln in enumerate(raw)
+            if re.search(rf"{_DECL}\b.*\b{sym}\b", ln.lower()) or re.search(rf"\b{sym}\b\s*[=(:]", ln.lower())
+        ),
         None,
     )
     if decl is None:
@@ -87,12 +90,13 @@ def symbol_line_span(source_root: str, rel_file: str, symbol: str) -> tuple[int,
 def parse_finding_md(text: str, name: str) -> Report:
     """Read one findings/<name>.md into a Report. Endpoint comes from the Source line,
     category from Type, the cited files from any source path in the body."""
+
     def field(key: str) -> str:
         m = re.search(rf"(?im)^\s*-?\s*{key}\s*:\s*(.+?)\s*$", text)
         return m.group(1).strip().strip("`") if m else ""
+
     files = sorted(set(_file_re().findall(text)))
-    return Report.make(name, field("source"), field("type"), files, text=text,
-                       lines=_cited_lines(text, files))
+    return Report.make(name, field("source"), field("type"), files, text=text, lines=_cited_lines(text, files))
 
 
 def reports_from_findings_dir(d: str | Path) -> list[Report]:
@@ -112,12 +116,14 @@ def reports_from_json(path: str | Path) -> list[Report]:
         lines = set(_cited_lines(text, files))
         if isinstance(r.get("line"), int):
             lines.add(r["line"])
-        out.append(Report.make(
-            str(r.get("id") or f"r{i}"),
-            str(r.get("entry") or r.get("source") or ""),
-            str(r.get("category") or r.get("type") or ""),
-            files,
-            text=text,
-            lines=lines,
-        ))
+        out.append(
+            Report.make(
+                str(r.get("id") or f"r{i}"),
+                str(r.get("entry") or r.get("source") or ""),
+                str(r.get("category") or r.get("type") or ""),
+                files,
+                text=text,
+                lines=lines,
+            )
+        )
     return out

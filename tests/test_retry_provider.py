@@ -2,6 +2,7 @@
 deterministic and do not actually sleep."""
 
 import threading
+from typing import ClassVar
 
 import pytest
 
@@ -107,22 +108,20 @@ def test_rate_limit_backs_off_exponentially_with_jitter():
     # rate limit must grow the delay 1, 2, 4 instead of the linear 1, 2, 3 a flat retry gives
     slept = []
     inner = _RateLimited(fail_times=3, exc=_rate_limit_exc())
-    provider = RetryProvider(inner, max_attempts=4, base_delay=1.0,
-                             sleep=slept.append, rand=lambda _lo, hi: hi)
+    provider = RetryProvider(inner, max_attempts=4, base_delay=1.0, sleep=slept.append, rand=lambda _lo, hi: hi)
     assert _call(provider).text == "ok"
     assert slept == [1.0, 2.0, 4.0]
 
 
 def test_rate_limit_honors_retry_after_header():
     class _Resp:
-        headers = {"retry-after": "5"}
+        headers: ClassVar = {"retry-after": "5"}
 
     exc = RuntimeError("rate limit")
     exc.response = _Resp()
     slept = []
     inner = _RateLimited(fail_times=1, exc=exc)
-    provider = RetryProvider(inner, max_attempts=3, base_delay=1.0,
-                             sleep=slept.append, rand=lambda _lo, hi: hi)
+    provider = RetryProvider(inner, max_attempts=3, base_delay=1.0, sleep=slept.append, rand=lambda _lo, hi: hi)
     assert _call(provider).text == "ok"
     assert slept == [5.0]
 
@@ -130,14 +129,13 @@ def test_rate_limit_honors_retry_after_header():
 def test_rate_limit_caps_at_max_delay():
     # a server Retry-After longer than max_delay is clamped, so one bad header cannot stall
     class _Resp:
-        headers = {"retry-after": "9000"}
+        headers: ClassVar = {"retry-after": "9000"}
 
     exc = RuntimeError("rate limit")
     exc.response = _Resp()
     slept = []
     inner = _RateLimited(fail_times=1, exc=exc)
-    provider = RetryProvider(inner, max_attempts=3, base_delay=1.0, max_delay=30.0,
-                             sleep=slept.append)
+    provider = RetryProvider(inner, max_attempts=3, base_delay=1.0, max_delay=30.0, sleep=slept.append)
     assert _call(provider).text == "ok"
     assert slept == [30.0]
 
@@ -156,8 +154,8 @@ def test_is_rate_limit_matches_by_status_class_name_and_message():
     class RateLimitError(Exception):
         pass
 
-    assert _is_rate_limit(RateLimitError("boom"))                      # class name carries ratelimit
-    assert _is_rate_limit(RuntimeError("429 Too Many Requests"))       # message substrings, no status_code
+    assert _is_rate_limit(RateLimitError("boom"))  # class name carries ratelimit
+    assert _is_rate_limit(RuntimeError("429 Too Many Requests"))  # message substrings, no status_code
     assert _is_rate_limit(RuntimeError("hit the rate limit"))
     assert not _is_rate_limit(RuntimeError("connection reset by peer"))
 

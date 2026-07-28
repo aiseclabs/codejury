@@ -10,8 +10,8 @@ classes select by trigger text and guides select by detection signals.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 import yaml
 

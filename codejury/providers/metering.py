@@ -14,6 +14,7 @@ from codejury.providers.base import CompletionResult, Message, Provider
 @dataclass
 class UsageMeter:
     """Running token totals for one run. Guarded by a lock since the fan-out records concurrently."""
+
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
@@ -31,9 +32,11 @@ class UsageMeter:
             self.cache_write_tokens += u.cache_write_tokens
 
     def summary(self) -> str:
-        return (f"tokens over {self.calls} model calls: input={self.input_tokens} "
-                f"output={self.output_tokens} cache_read={self.cache_read_tokens} "
-                f"cache_write={self.cache_write_tokens}")
+        return (
+            f"tokens over {self.calls} model calls: input={self.input_tokens} "
+            f"output={self.output_tokens} cache_read={self.cache_read_tokens} "
+            f"cache_write={self.cache_write_tokens}"
+        )
 
 
 class MeteringProvider(Provider):
@@ -45,10 +48,19 @@ class MeteringProvider(Provider):
         self._inner = inner
         self._meter = meter
 
-    def complete(self, *, system: str, messages: list[Message], model: str, max_tokens: int,
-                 cache: bool = False, cache_prefix: str = "") -> CompletionResult:
-        result = self._inner.complete(system=system, messages=messages, model=model,
-                                      max_tokens=max_tokens, cache=cache, cache_prefix=cache_prefix)
+    def complete(
+        self,
+        *,
+        system: str,
+        messages: list[Message],
+        model: str,
+        max_tokens: int,
+        cache: bool = False,
+        cache_prefix: str = "",
+    ) -> CompletionResult:
+        result = self._inner.complete(
+            system=system, messages=messages, model=model, max_tokens=max_tokens, cache=cache, cache_prefix=cache_prefix
+        )
         self._meter.add(result)
         return result
 

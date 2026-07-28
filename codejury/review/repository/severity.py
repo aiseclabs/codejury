@@ -32,5 +32,5 @@ def median(severities: list[str]) -> str:
     finding graded a few times converges to a stable level instead of first-seen."""
     if not severities:
         return "MEDIUM"
-    ordered = sorted((rank(s) for s in severities))
+    ordered = sorted(rank(s) for s in severities)
     return LEVELS[ordered[len(ordered) // 2]]

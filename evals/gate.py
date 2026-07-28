@@ -12,8 +12,9 @@ it is a real bug, so the gate does not punish it.
 from __future__ import annotations
 
 
-def gate(after: dict, baseline: dict | None = None, *, precision_floor: float = 0.0,
-         structural: bool = True) -> list[str]:
+def gate(
+    after: dict, baseline: dict | None = None, *, precision_floor: float = 0.0, structural: bool = True
+) -> list[str]:
     """The failures that should block landing, empty when the result passes. A baseline lets
     the gate judge a move, a planted issue newly missed or a newly introduced false positive,
     rather than an absolute that a noisy run could trip."""
@@ -40,6 +41,7 @@ def gate(after: dict, baseline: dict | None = None, *, precision_floor: float = 
         # unlocatable key entry is broken data, not a clean review, so the gate blocks it
         try:
             from evals.coverage import coverage_problems
+
             for p in coverage_problems():
                 if p.kind == "unresolved-reference":
                     fails.append(f"unresolved knowledge reference: {p.detail}")

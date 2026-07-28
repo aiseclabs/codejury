@@ -18,10 +18,20 @@ def _canon(cands, aliases):
 
 
 def test_collapse_colocated_merges_same_file_line_class_under_different_endpoints():
-    a = _c("freshness", category="replay", endpoint="VerificationController.check",
-           file="authorizer/controllers/registrar.py", line=58)
-    b = _c("freshness view", category="Replay", endpoint="POST /v1/check_challenge",
-           file="authorizer/controllers/registrar.py", line=58)
+    a = _c(
+        "freshness",
+        category="replay",
+        endpoint="VerificationController.check",
+        file="authorizer/controllers/registrar.py",
+        line=58,
+    )
+    b = _c(
+        "freshness view",
+        category="Replay",
+        endpoint="POST /v1/check_challenge",
+        file="authorizer/controllers/registrar.py",
+        line=58,
+    )
     pool: dict = {}
     merge(pool, [a, b])
     assert len(pool) == 2
@@ -43,10 +53,20 @@ def test_canonical_categories_collapse_one_defect_under_label_variants():
     # endpoint two ways, must collapse to one once categories are canonicalized
     aliases = category_aliases(EVM.paths.vulnerabilities_dir)
     cands = [
-        _c("loan health unguarded", category="oracle-manipulation", endpoint="liquidate",
-           file="src/V3Vault.sol", line=54462),
-        _c("loan health unguarded", category="oracle", endpoint="external liquidate",
-           file="src/V3Vault.sol", line=54462),
+        _c(
+            "loan health unguarded",
+            category="oracle-manipulation",
+            endpoint="liquidate",
+            file="src/V3Vault.sol",
+            line=54462,
+        ),
+        _c(
+            "loan health unguarded",
+            category="oracle",
+            endpoint="external liquidate",
+            file="src/V3Vault.sol",
+            line=54462,
+        ),
     ]
     assert len(collapse_colocated(_canon(cands, aliases))) == 1
 
@@ -136,10 +156,8 @@ def test_symbol_anchor_folds_endpoint_prose_variants():
     # the same defect named with different endpoint prose across passes folds when both name
     # the symbol, so the union converges instead of minting a new key each pass.
     cands = [
-        _c("a", category="reentrancy", symbol="liquidate", endpoint="external liquidate()",
-           file="V.sol", line=10),
-        _c("b", category="reentrancy", symbol="Vault.liquidate", endpoint="POST /liquidate",
-           file="V.sol", line=20),
+        _c("a", category="reentrancy", symbol="liquidate", endpoint="external liquidate()", file="V.sol", line=10),
+        _c("b", category="reentrancy", symbol="Vault.liquidate", endpoint="POST /liquidate", file="V.sol", line=20),
     ]
     pool: dict = {}
     assert merge(pool, cands, by_file=True) == 1
@@ -170,10 +188,14 @@ def test_symbol_anchor_folds_web_route_prose_variants():
     # the web path, not by_file: two passes name one handler through different route prose,
     # they fold on the symbol so the union converges instead of minting a key each pass.
     cands = [
-        _c("a", category="authorization", symbol="getDatabase", endpoint="GET /db/:db",
-           file="lib/routes/db.js"),
-        _c("b", category="authorization", symbol="getDatabase", endpoint="the database listing route",
-           file="lib/routes/db.js"),
+        _c("a", category="authorization", symbol="getDatabase", endpoint="GET /db/:db", file="lib/routes/db.js"),
+        _c(
+            "b",
+            category="authorization",
+            symbol="getDatabase",
+            endpoint="the database listing route",
+            file="lib/routes/db.js",
+        ),
     ]
     pool: dict = {}
     assert merge(pool, cands) == 1
@@ -275,8 +297,7 @@ def test_findings_take_the_median_severity_across_passes():
 def test_findings_keep_the_model_grade_with_no_keyword_override():
     # severity is the model's, a title naming a secret does not force the grade up
     acc = Accumulator(converge_after=1)
-    acc.add_pass([_c("signing key committed", category="Credential / Secret Exposure",
-                     file="a.py", severity="LOW")])
+    acc.add_pass([_c("signing key committed", category="Credential / Secret Exposure", file="a.py", severity="LOW")])
     (f,) = acc.findings
     assert f.severity == "LOW"
 

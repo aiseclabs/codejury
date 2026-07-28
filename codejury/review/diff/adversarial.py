@@ -13,12 +13,11 @@ import json
 from dataclasses import dataclass, field
 
 from codejury.domains.base import ContentPaths
-from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, category_block, rubric_block, severity_rubric_text
-from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.finding import Finding, findings_from_list
 from codejury.json_parse import optional_json_object
 from codejury.providers.base import Message, Provider
-
+from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, category_block, rubric_block, severity_rubric_text
+from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 
 _FINDING_FIELDS = (
     '{"file": "path", "line": 0, "severity": "CRITICAL|HIGH|MEDIUM|LOW", '
@@ -48,14 +47,24 @@ JUDGE_SYSTEM = (
 
 
 def _diff_block(diff: str, vulnerabilities: str, context: str) -> str:
-    vulnerabilities_block = f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
+    vulnerabilities_block = (
+        f"Relevant vulnerability classes for reference:\n{vulnerabilities}\n\n" if vulnerabilities else ""
+    )
     context_block = f"Surrounding code (not under review):\n```\n{context}\n```\n\n" if context else ""
     return f"{vulnerabilities_block}Code change (unified diff):\n```diff\n{diff}\n```\n\n{context_block}"
 
 
-def finder_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", prior: list | None = None,
-                  vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT,
-                  severity_rubric: str = "") -> str:
+def finder_prompt(
+    diff: str,
+    *,
+    vulnerabilities: str = "",
+    context: str = "",
+    prior: list | None = None,
+    vulnerabilities_dir=None,
+    focus: str = FOCUS,
+    do_not_report: str = DO_NOT_REPORT,
+    severity_rubric: str = "",
+) -> str:
     prior_block = ""
     if prior:
         prior_block = (
@@ -72,9 +81,17 @@ def finder_prompt(diff: str, *, vulnerabilities: str = "", context: str = "", pr
     )
 
 
-def challenger_prompt(diff: str, finder_findings: list, *, vulnerabilities: str = "", context: str = "",
-                      vulnerabilities_dir=None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT,
-                      severity_rubric: str = "") -> str:
+def challenger_prompt(
+    diff: str,
+    finder_findings: list,
+    *,
+    vulnerabilities: str = "",
+    context: str = "",
+    vulnerabilities_dir=None,
+    focus: str = FOCUS,
+    do_not_report: str = DO_NOT_REPORT,
+    severity_rubric: str = "",
+) -> str:
     return (
         "Two tasks on the code change below.\n"
         "1. Rebut a finding when the diff SHOWS the value is handled safely: a parameterized "
@@ -89,14 +106,21 @@ def challenger_prompt(diff: str, finder_findings: list, *, vulnerabilities: str 
         f"{_diff_block(diff, vulnerabilities, context)}"
         f"Reported findings:\n{json.dumps(finder_findings, ensure_ascii=False)}\n\n"
         f"{rubric_block(severity_rubric)}"
-        'Respond with a single JSON object exactly like: '
+        "Respond with a single JSON object exactly like: "
         '{"rebuttals": [{"target": "finding description or file:line", "verdict": "dismiss|downgrade", '
         '"reason": "..."}], "new_findings": [' + _FINDING_FIELDS + "]}"
     )
 
 
-def judge_prompt(diff: str, finder_findings: list, rebuttals: list, new_findings: list, *, context: str = "",
-                 severity_rubric: str = "") -> str:
+def judge_prompt(
+    diff: str,
+    finder_findings: list,
+    rebuttals: list,
+    new_findings: list,
+    *,
+    context: str = "",
+    severity_rubric: str = "",
+) -> str:
     context_block = f"Surrounding code (not under review):\n```\n{context}\n```\n\n" if context else ""
     return (
         "Rule on each candidate finding from the two independent reviews below, assigning one verdict:\n"
@@ -172,8 +196,7 @@ def _apply_dismissals(findings: list[dict], rebuttals: list[dict]) -> list[dict]
     dismissal is possible, so the fallback that uses this is marked degraded, not a clean
     pass, invariant 4."""
     dismissed = {
-        str(r.get("target")) for r in rebuttals
-        if str(r.get("verdict", "")).strip().lower() in _DISMISS_VERDICTS
+        str(r.get("target")) for r in rebuttals if str(r.get("verdict", "")).strip().lower() in _DISMISS_VERDICTS
     }
     if not dismissed:
         return findings
@@ -229,7 +252,8 @@ class AdversarialAuditRunner:
         vuln_dir = self._content.vulnerabilities_dir if self._content else None
         if not vulnerabilities:
             vulnerabilities = (
-                vulnerabilities_for_diff(diff, directory=vuln_dir) if vuln_dir is not None
+                vulnerabilities_for_diff(diff, directory=vuln_dir)
+                if vuln_dir is not None
                 else vulnerabilities_for_diff(diff)
             )
         rubric = severity_rubric_text(self._content)
@@ -240,9 +264,16 @@ class AdversarialAuditRunner:
         converged = False
         degraded = False
         for rounds in range(1, max_rounds + 1):
-            fp = finder_prompt(diff, vulnerabilities=vulnerabilities, context=context, prior=prior,
-                               vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report,
-                               severity_rubric=rubric)
+            fp = finder_prompt(
+                diff,
+                vulnerabilities=vulnerabilities,
+                context=context,
+                prior=prior,
+                vulnerabilities_dir=vuln_dir,
+                focus=self._focus,
+                do_not_report=self._do_not_report,
+                severity_rubric=rubric,
+            )
             finder, finder_ok = self._ask(FINDER_SYSTEM, fp, self._finder)
             if not finder_ok:
                 finder, finder_ok = self._ask(FINDER_SYSTEM, fp, self._finder)
@@ -253,9 +284,16 @@ class AdversarialAuditRunner:
                 break
             finder_findings = _dicts(finder.get("findings"))
 
-            cp = challenger_prompt(diff, finder_findings, vulnerabilities=vulnerabilities, context=context,
-                                   vulnerabilities_dir=vuln_dir, focus=self._focus, do_not_report=self._do_not_report,
-                                   severity_rubric=rubric)
+            cp = challenger_prompt(
+                diff,
+                finder_findings,
+                vulnerabilities=vulnerabilities,
+                context=context,
+                vulnerabilities_dir=vuln_dir,
+                focus=self._focus,
+                do_not_report=self._do_not_report,
+                severity_rubric=rubric,
+            )
             challenger, challenger_ok = self._ask(CHALLENGER_SYSTEM, cp, self._challenger)
             if not challenger_ok:
                 challenger, challenger_ok = self._ask(CHALLENGER_SYSTEM, cp, self._challenger)

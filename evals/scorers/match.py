@@ -70,7 +70,7 @@ def _report_endpoints(report_ep: str) -> list[str]:
         # a method token that starts a route, "get /a get /b", begins a new one. It must be
         # followed by whitespace, so a path segment that spells a method, /api/options/x, does
         # not split
-        for piece in re.split(r"(?=\b(?:%s)\b\s)" % "|".join(_METHODS), part):
+        for piece in re.split(rf"(?=\b(?:{'|'.join(_METHODS)})\b\s)", part):
             piece = piece.strip()
             if piece:
                 routes.append(piece)
@@ -85,10 +85,10 @@ def _match_one(report_ep: str, key_entry: str) -> bool:
     if not rseg or not kseg:
         return False
     short, long_ = (rseg, kseg) if len(rseg) <= len(kseg) else (kseg, rseg)
-    tail = long_[-len(short):]
+    tail = long_[-len(short) :]
     if not (short[0] == tail[0] or (short[0] == "*" and tail[0] == "*")):
         return False
-    return all(a == b or a == "*" or b == "*" for a, b in zip(short, tail))
+    return all(a == b or a == "*" or b == "*" for a, b in zip(short, tail, strict=False))
 
 
 def endpoint_match(report_ep: str, key_entry: str) -> bool:

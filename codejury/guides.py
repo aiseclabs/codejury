@@ -108,12 +108,12 @@ def _matches(guide: Guide, files: list[str], manifest_text: str, source_text: st
         return True
     if any(i in source_text for i in guide.detect_imports):
         return True
-    if any(c in source_text for c in guide.detect_content):
-        return True
-    return False
+    return any(c in source_text for c in guide.detect_content)
 
 
-def select_guides(files, *, manifest_text: str = "", source_text: str = "", guides: list[Guide] | None = None) -> list[Guide]:
+def select_guides(
+    files, *, manifest_text: str = "", source_text: str = "", guides: list[Guide] | None = None
+) -> list[Guide]:
     """The guides whose detect signals fire on the target, languages first, then
     frameworks, then protocols. `files` are the target's file paths. `manifest_text` is the
     dependency-manifest content, scanned only for dependency-name substrings, so a

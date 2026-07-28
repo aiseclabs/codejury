@@ -17,10 +17,20 @@ from evals.results import Result
 __all__ = ["DiffCase", "default_cases", "load_cases", "run_diff_cases"]
 
 
-def run_diff_cases(cases: list[DiffCase], *, provider, model: str, mode: str = "standard",
-                   rounds: int = 3, finder_provider=None, finder_model=None,
-                   challenger_provider=None, challenger_model=None,
-                   judge_provider=None, judge_model=None) -> Result:
+def run_diff_cases(
+    cases: list[DiffCase],
+    *,
+    provider,
+    model: str,
+    mode: str = "standard",
+    rounds: int = 3,
+    finder_provider=None,
+    finder_model=None,
+    challenger_provider=None,
+    challenger_model=None,
+    judge_provider=None,
+    judge_model=None,
+) -> Result:
     """Run every case through audit_diff and fold into a Result. A positive is found when
     the audit returns any finding, a safe case is a false positive when it does. Each case
     runs under its own domain, so a Solidity case scores against the evm knowledge and
@@ -31,10 +41,17 @@ def run_diff_cases(cases: list[DiffCase], *, provider, model: str, mode: str = "
     for c in cases:
         try:
             kept, _dropped, degraded = audit_diff(
-                c.diff, provider=provider, model=model, mode=mode, max_rounds=rounds,
-                finder_provider=finder_provider, finder_model=finder_model,
-                challenger_provider=challenger_provider, challenger_model=challenger_model,
-                judge_provider=judge_provider, judge_model=judge_model,
+                c.diff,
+                provider=provider,
+                model=model,
+                mode=mode,
+                max_rounds=rounds,
+                finder_provider=finder_provider,
+                finder_model=finder_model,
+                challenger_provider=challenger_provider,
+                challenger_model=challenger_model,
+                judge_provider=judge_provider,
+                judge_model=judge_model,
                 domain=get_domain(c.domain),
             )
         except Exception:

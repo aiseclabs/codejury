@@ -11,36 +11,46 @@ from codejury.providers.openai import OpenAIProvider
 from codejury.providers.retry import RetryProvider
 
 PROVIDERS = ("anthropic", "openai", "litellm")
-# the base backend is env-backed so callers can configure a default once.
-DEFAULT_PROVIDER = os.environ.get("CODEJURY_PROVIDER", "anthropic")
-DEFAULT_MODEL = os.environ.get("CODEJURY_MODEL", "claude-opus-4-8")
-DEFAULT_API_KEY = os.environ.get("CODEJURY_API_KEY")
-DEFAULT_API_BASE = os.environ.get("CODEJURY_API_BASE")
-# the OpenAI wire is env-backed because GPT-5 reasoning models answer on Responses.
-DEFAULT_WIRE_API = os.environ.get("CODEJURY_WIRE_API", "chat")
-DEFAULT_RETRIES = int(os.environ.get("CODEJURY_RETRIES", "2"))
 
-# finder, challenger, and judge can inherit the base backend or name their own.
-# a distinct judge makes deletion require two independent reads, and with none set
-# nothing is refuted, the recall-safe default.
+# finder, challenger, and judge can inherit the base backend or name their own. A distinct judge
+# makes deletion require two independent reads, and with none set nothing is refuted, recall-safe.
 ROLES = ("finder", "challenger", "judge")
-DEFAULT_ROLE_BACKENDS = {
-    role: {
-        "provider": os.environ.get(f"CODEJURY_{role.upper()}_PROVIDER"),
-        "model": os.environ.get(f"CODEJURY_{role.upper()}_MODEL"),
-        "api_key": os.environ.get(f"CODEJURY_{role.upper()}_API_KEY"),
-        "api_base": os.environ.get(f"CODEJURY_{role.upper()}_API_BASE"),
-        "wire_api": os.environ.get(f"CODEJURY_{role.upper()}_WIRE_API"),
+
+_DEFAULT_TIMEOUT = 240.0
+
+
+def env_defaults() -> dict:
+    """The env-backed defaults, read on call rather than frozen at import, so a CLI that loaded a
+    .env first sees them."""
+    return {
+        "provider": os.environ.get("CODEJURY_PROVIDER", "anthropic"),
+        "model": os.environ.get("CODEJURY_MODEL", "claude-opus-4-8"),
+        "api_key": os.environ.get("CODEJURY_API_KEY"),
+        "api_base": os.environ.get("CODEJURY_API_BASE"),
+        "wire_api": os.environ.get("CODEJURY_WIRE_API", "chat"),
+        "retries": int(os.environ.get("CODEJURY_RETRIES", "2")),
+        "timeout": float(os.environ.get("CODEJURY_TIMEOUT") or _DEFAULT_TIMEOUT),
+        "role_backends": {
+            role: {
+                "provider": os.environ.get(f"CODEJURY_{role.upper()}_PROVIDER"),
+                "model": os.environ.get(f"CODEJURY_{role.upper()}_MODEL"),
+                "api_key": os.environ.get(f"CODEJURY_{role.upper()}_API_KEY"),
+                "api_base": os.environ.get(f"CODEJURY_{role.upper()}_API_BASE"),
+                "wire_api": os.environ.get(f"CODEJURY_{role.upper()}_WIRE_API"),
+            }
+            for role in ROLES
+        },
     }
-    for role in ROLES
-}
-# the retry layer also enforces this deadline when an SDK timeout cannot.
-DEFAULT_TIMEOUT = float(os.environ.get("CODEJURY_TIMEOUT", "240"))
 
 
 def make_provider(
-    name: str, *, api_key: str | None = None, api_base: str | None = None, retries: int = 0,
-    wire_api: str = "chat", timeout: float = DEFAULT_TIMEOUT
+    name: str,
+    *,
+    api_key: str | None = None,
+    api_base: str | None = None,
+    retries: int = 0,
+    wire_api: str = "chat",
+    timeout: float = _DEFAULT_TIMEOUT,
 ) -> Provider:
     if name == "openai":
         provider: Provider = OpenAIProvider(api_key=api_key, api_base=api_base, wire_api=wire_api, timeout=timeout)

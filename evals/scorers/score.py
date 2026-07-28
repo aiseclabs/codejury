@@ -87,8 +87,9 @@ def score(key: AnswerKey, reports: list[Report], *, source_root: str | None = No
     for p in key.planted:
         # credit a report to one planted entry only, so a single report cannot satisfy two
         # planted entries that share a loose file and class anchor and inflate recall
-        hit = next((r for r in reports
-                    if r.name not in matched_reports and _matches(r, p, source_root=source_root)), None)
+        hit = next(
+            (r for r in reports if r.name not in matched_reports and _matches(r, p, source_root=source_root)), None
+        )
         if hit is not None:
             res.found.append(p.id)
             matched_reports.add(hit.name)
@@ -98,8 +99,7 @@ def score(key: AnswerKey, reports: list[Report], *, source_root: str | None = No
     # a safe anchor, not even the duplicate the planted credit did not take. A bug spanning two
     # functions is often written as two findings, one credits the planted and the other must not be
     # scored a false positive because it also matches the safe sibling on a loose file and symbol.
-    finds_planted = {r.name for r in reports
-                     if any(_matches(r, p, source_root=source_root) for p in key.planted)}
+    finds_planted = {r.name for r in reports if any(_matches(r, p, source_root=source_root) for p in key.planted)}
     for s in key.safe:
         for r in reports:
             # count a report once: skip one already credited to a planted finding or to an

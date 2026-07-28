@@ -14,7 +14,7 @@ The session id is not rotated at login, also called fixation, the session cookie
 ## Python
 Vulnerable:
 ```python
-resp.set_cookie("sid", token)        # no HttpOnly/Secure/SameSite, and the id is reused across login
+resp.set_cookie("sid", token)  # no HttpOnly/Secure/SameSite, and the id is reused across login
 ```
 Secure:
 ```python

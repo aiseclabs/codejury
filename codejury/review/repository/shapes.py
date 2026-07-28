@@ -26,6 +26,7 @@ class Unit:
     of whole files, so a call-path unit co-locates a function and its call-graph neighborhood
     rather than a char window. `files` still names the source files for facts grounding and
     coverage bookkeeping."""
+
     name: str
     root: str
     files: tuple[str, ...]
@@ -102,5 +103,7 @@ def lens_line(lens: str) -> str:
     reports the others, so a focused pass never narrows recall."""
     if not lens:
         return "Review for every high-impact class.\n\n"
-    return (f"This pass LEADS WITH THE {lens.upper()} LENS: prioritize finding {lens} "
-            f"issues across this unit, while still reporting any other class you see.\n\n")
+    return (
+        f"This pass LEADS WITH THE {lens.upper()} LENS: prioritize finding {lens} "
+        f"issues across this unit, while still reporting any other class you see.\n\n"
+    )

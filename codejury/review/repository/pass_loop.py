@@ -12,10 +12,10 @@ does not vary run to run, even though the model's per-unit findings do.
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from time import perf_counter
-from typing import Callable
 
 from codejury.domains.registry import default_domain
 from codejury.review.repository.reviewer import UnitReviewer
@@ -94,7 +94,7 @@ def run_passes(
         lens_shots[lens] = lens_shots.get(lens, 0) + 1
         if concurrency > 1 and len(units) > 1:
             with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                per_unit = list(pool.map(lambda u: review_unit(u, lens, rv), units))
+                per_unit = list(pool.map(lambda u, lens=lens, rv=rv: review_unit(u, lens, rv), units))
         else:
             per_unit = [review_unit(u, lens, rv) for u in units]
         # tag each finding with the model that produced it, so two models reaching the same
@@ -102,7 +102,7 @@ def run_passes(
         candidates = [replace(c, found_by=(labels[mi],)) for cands, _err in per_unit for c in cands]
         pass_errors = sum(1 for _cands, err in per_unit if err is not None)
         acc.errors += pass_errors
-        reviewed_ok.update(u.name for u, (_cands, err) in zip(units, per_unit) if err is None)
+        reviewed_ok.update(u.name for u, (_cands, err) in zip(units, per_unit, strict=True) if err is None)
         # a pass with any failed call did not fully run, so its empty result is not evidence
         # of saturation, keep it from counting toward convergence, invariant 4
         n_new = acc.add_pass(candidates, clean=pass_errors == 0)
@@ -110,7 +110,7 @@ def run_passes(
             persist(acc.findings)  # checkpoint the union so a kill mid-run can resume
         if on_pass is not None:
             on_pass(i + 1, lens, n_new, len(acc.findings))
-        covered = all(lens_shots.get(l, 0) >= floor for l in lenses)
+        covered = all(lens_shots.get(ln, 0) >= floor for ln in lenses)
         if covered and acc.converged:
             break
     acc.failed_units = {u.name for u in units} - reviewed_ok

@@ -68,8 +68,13 @@ def fetch_source(
     payload = fetch_getsourcecode(chain, address, api_key.strip(), opener=opener)
     source_url = chain.address_url.format(address=address)
     meta, files = parse_getsourcecode(
-        payload, source=chain.source, chain=chain.key, chain_id=chain.chain_id,
-        address=address, source_url=source_url, fetched_at=fetched_at,
+        payload,
+        source=chain.source,
+        chain=chain.key,
+        chain_id=chain.chain_id,
+        address=address,
+        source_url=source_url,
+        fetched_at=fetched_at,
     )
 
     out_dir.mkdir(parents=True, exist_ok=True)

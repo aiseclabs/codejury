@@ -23,7 +23,8 @@ from evals.scorers.match import category_of
 @dataclass(frozen=True, kw_only=True)
 class KnowledgeItem:
     """One knowledge file the matrix tracks, addressed by its namespaced ref."""
-    ref: str        # vuln:<id> or guide:<path>, the form a benchmark references
+
+    ref: str  # vuln:<id> or guide:<path>, the form a benchmark references
     kind: str
     path: Path
 
@@ -31,6 +32,7 @@ class KnowledgeItem:
 @dataclass(kw_only=True)
 class Coverage:
     """How much eval evidence exercises one knowledge item, by source and provenance."""
+
     item: KnowledgeItem
     diff_positive: int = 0
     diff_safe: int = 0
@@ -62,6 +64,7 @@ class CoverageProblem:
     broken benchmark, the rest are gaps the case library should fill. missing-repository-target is the
     integration gap, a class a diff case exercises but no whole-repository benchmark plants, so its
     cross-file and business-logic recall is unmeasured."""
+
     kind: str
     ref: str
     detail: str
@@ -80,7 +83,8 @@ def scan_knowledge() -> dict[str, KnowledgeItem]:
         if prior is not None and prior.path != path:
             raise ValueError(
                 f"knowledge ref {ref} is defined in two domains, {prior.path} and {path}. "
-                f"Refs are flat across domains, rename one or namespace the ref.")
+                f"Refs are flat across domains, rename one or namespace the ref."
+            )
         items[ref] = KnowledgeItem(ref=ref, kind=kind, path=path)
 
     for name in available_domains():
@@ -172,28 +176,49 @@ def coverage_problems(cov: dict[str, Coverage] | None = None) -> list[CoveragePr
         if c.item.kind != "vulnerability":
             continue
         if not c.diff_positive:
-            problems.append(CoverageProblem(kind="missing-positive", ref=ref,
-                                            detail="no positive diff case for this vulnerability class"))
+            problems.append(
+                CoverageProblem(
+                    kind="missing-positive", ref=ref, detail="no positive diff case for this vulnerability class"
+                )
+            )
         if not c.diff_safe:
-            problems.append(CoverageProblem(kind="missing-safe", ref=ref,
-                                            detail="no safe diff case to guard the false positive on this class"))
+            problems.append(
+                CoverageProblem(
+                    kind="missing-safe", ref=ref, detail="no safe diff case to guard the false positive on this class"
+                )
+            )
         if not c.repository_planted:
-            problems.append(CoverageProblem(kind="missing-repository-target", ref=ref,
-                                            detail="no whole-repository benchmark plants this class, so its "
-                                                   "cross-file and business-logic recall is unmeasured"))
+            problems.append(
+                CoverageProblem(
+                    kind="missing-repository-target",
+                    ref=ref,
+                    detail="no whole-repository benchmark plants this class, so its "
+                    "cross-file and business-logic recall is unmeasured",
+                )
+            )
 
     known = set(scan_knowledge())
     for ref, where in _all_referenced():
         if ref not in known:
-            problems.append(CoverageProblem(kind="unresolved-reference", ref=ref,
-                                            detail=f"{where} references {ref}, which matches no knowledge file"))
+            problems.append(
+                CoverageProblem(
+                    kind="unresolved-reference",
+                    ref=ref,
+                    detail=f"{where} references {ref}, which matches no knowledge file",
+                )
+            )
 
     for bench in registry.all_benchmarks().values():
         key = load_answer_key(bench.answer_key)
         for entry in (*key.planted, *key.safe):
             if not entry.knowledge:
-                problems.append(CoverageProblem(kind="entry-without-knowledge", ref=entry.id,
-                                                detail=f"benchmark '{bench.id}' entry '{entry.id}' names no knowledge"))
+                problems.append(
+                    CoverageProblem(
+                        kind="entry-without-knowledge",
+                        ref=entry.id,
+                        detail=f"benchmark '{bench.id}' entry '{entry.id}' names no knowledge",
+                    )
+                )
     return problems
 
 
@@ -201,8 +226,7 @@ def format_matrix(cov: dict[str, Coverage], problems: list[CoverageProblem]) -> 
     """A plain table of coverage by knowledge item, then the gap list. Uncovered files are
     the point, they name what the case library still has to reach."""
     rows = sorted(cov.values(), key=lambda c: (c.item.kind, c.item.ref))
-    lines = ["=== knowledge coverage ===",
-             f"  {'knowledge':52} diff+  diff-  repository+  repository-  prov"]
+    lines = ["=== knowledge coverage ===", f"  {'knowledge':52} diff+  diff-  repository+  repository-  prov"]
     for c in rows:
         prov = "/".join(p for p, n in (("pub", c.public), ("priv", c.private)) if n) or "-"
         if not c.covered:
@@ -211,8 +235,10 @@ def format_matrix(cov: dict[str, Coverage], problems: list[CoverageProblem]) -> 
             flag = "  REPOSITORY-UNCOVERED"
         else:
             flag = ""
-        lines.append(f"  {c.item.ref:52} {c.diff_positive:>4}  {c.diff_safe:>4}  "
-                     f"{c.repository_planted:>4}  {c.repository_safe:>4}  {prov}{flag}")
+        lines.append(
+            f"  {c.item.ref:52} {c.diff_positive:>4}  {c.diff_safe:>4}  "
+            f"{c.repository_planted:>4}  {c.repository_safe:>4}  {prov}{flag}"
+        )
     uncovered = sum(1 for c in rows if not c.covered)
     repository_gap = sum(1 for c in rows if c.item.kind == "vulnerability" and not c.repository_covered)
     vulns = sum(1 for c in rows if c.item.kind == "vulnerability")

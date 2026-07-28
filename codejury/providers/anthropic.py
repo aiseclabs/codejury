@@ -100,9 +100,8 @@ def _mark_cache_prefix(api_messages: list[dict], cache_prefix: str) -> bool:
     content = api_messages[0].get("content")
     if not isinstance(content, str) or not content.startswith(cache_prefix):
         return False
-    blocks: list[dict] = [
-        {"type": "text", "text": cache_prefix, "cache_control": {"type": "ephemeral"}}]
-    remainder = content[len(cache_prefix):]
+    blocks: list[dict] = [{"type": "text", "text": cache_prefix, "cache_control": {"type": "ephemeral"}}]
+    remainder = content[len(cache_prefix) :]
     if remainder:
         blocks.append({"type": "text", "text": remainder})
     api_messages[0]["content"] = blocks

@@ -37,12 +37,24 @@ def test_is_test_path_keeps_production_sampleish_names():
 
 def test_is_noise_path_drops_docs_lockfiles_tests_and_vendored():
     d = load_detection()
-    for f in ("README.md", "docs/guide.rst", "NOTES.txt", "site/intro.mdx",
-              "package-lock.json", "frontend/yarn.lock", "go.sum",
-              "uv.lock", "bun.lock", "deno.lock",
-              "app/tests/test_views.py", "app/views_test.go",
-              "node_modules/left-pad/index.js", "dist/bundle.js",
-              "vendor/github.com/pkg/errors.go", "coverage/lcov.info"):
+    for f in (
+        "README.md",
+        "docs/guide.rst",
+        "NOTES.txt",
+        "site/intro.mdx",
+        "package-lock.json",
+        "frontend/yarn.lock",
+        "go.sum",
+        "uv.lock",
+        "bun.lock",
+        "deno.lock",
+        "app/tests/test_views.py",
+        "app/views_test.go",
+        "node_modules/left-pad/index.js",
+        "dist/bundle.js",
+        "vendor/github.com/pkg/errors.go",
+        "coverage/lcov.info",
+    ):
         assert d.is_noise_path(f), f
 
 
@@ -50,14 +62,21 @@ def test_is_noise_path_keeps_source_and_security_relevant_non_source():
     # a denylist, not the inverse of source_extensions, so a non-source file that can still
     # carry an exploit stays in review, invariant 2
     d = load_detection()
-    for f in ("app/views.py", "src/main.go",
-              "migrations/001_users.sql", "deploy/entrypoint.sh",
-              "Dockerfile", "infra/main.tf", "config/settings.yaml"):
+    for f in (
+        "app/views.py",
+        "src/main.go",
+        "migrations/001_users.sql",
+        "deploy/entrypoint.sh",
+        "Dockerfile",
+        "infra/main.tf",
+        "config/settings.yaml",
+    ):
         assert not d.is_noise_path(f), f
 
 
 def test_skip_root_dirs_prunes_at_root_only():
     from codejury.domains.registry import resolve_domain
+
     evm = load_detection(resolve_domain("evm").paths.detection_file)
     assert evm.is_noise_path("lib/openzeppelin-contracts/token/ERC20.sol")
     assert not evm.is_noise_path("contracts/lib/Math.sol")

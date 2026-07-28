@@ -19,7 +19,7 @@ class Suite:
     name: str
     description: str = ""
     tags: tuple[str, ...] = ()
-    kinds: tuple[str, ...] = ()     # optional filter, diff or repository, empty selects both
+    kinds: tuple[str, ...] = ()  # optional filter, diff or repository, empty selects both
 
 
 def load_suite(name_or_path: str | Path) -> Suite:

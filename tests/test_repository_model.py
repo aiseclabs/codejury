@@ -26,9 +26,7 @@ def test_candidate_entrypoint_files_by_content_markers(tmp_path):
     (tmp_path / "handlers.py").write_text("class TokenViewSet(ViewSet):\n    pass\n")
     (tmp_path / "notes.md").write_text("ViewSet mentioned in prose, not code\n")
     (tmp_path / "util.py").write_text("def helper():\n    return 1\n")
-    got = candidate_entrypoint_files(
-        ["handlers.py", "notes.md", "util.py"], root=tmp_path, markers=["ViewSet"]
-    )
+    got = candidate_entrypoint_files(["handlers.py", "notes.md", "util.py"], root=tmp_path, markers=["ViewSet"])
     assert got == ["handlers.py"]
 
 

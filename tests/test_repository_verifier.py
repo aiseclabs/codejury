@@ -30,6 +30,7 @@ class StubVerifier(Verifier):
 class StubChecker(RefutationChecker):
     """Confirms the refutation only for the named titles, so a deletion needs this independent
     second read to agree, mirroring the production checker."""
+
     def __init__(self, holds_titles):
         self.h = set(holds_titles)
 
@@ -43,19 +44,19 @@ def _judge(checker):
 
 
 def test_a_refutation_alone_never_drops_a_finding_without_a_confirmer():
-    cands = [Candidate(title="real1", endpoint="GET /a"),
-             Candidate(title="fp", endpoint="GET /b")]
+    cands = [Candidate(title="real1", endpoint="GET /a"), Candidate(title="fp", endpoint="GET /b")]
     vr = verify_findings(cands, StubVerifier(["fp"]), ".", concurrency=2)
     assert {c.title for c in vr.confirmed} == {"real1", "fp"}
     assert not vr.refuted
 
 
 def test_drops_only_when_an_independent_confirmer_upholds_the_refutation():
-    cands = [Candidate(title="real1", endpoint="GET /a"),
-             Candidate(title="fp", endpoint="GET /b"),
-             Candidate(title="real2", endpoint="GET /c")]
-    vr = verify_findings(cands, StubVerifier(["fp"]), ".",
-                         confirmers=_judge(StubChecker(["fp"])), concurrency=2)
+    cands = [
+        Candidate(title="real1", endpoint="GET /a"),
+        Candidate(title="fp", endpoint="GET /b"),
+        Candidate(title="real2", endpoint="GET /c"),
+    ]
+    vr = verify_findings(cands, StubVerifier(["fp"]), ".", confirmers=_judge(StubChecker(["fp"])), concurrency=2)
     assert {c.title for c in vr.confirmed} == {"real1", "real2"}
     assert [c.title for c, _ in vr.refuted] == ["fp"]
 
@@ -82,12 +83,16 @@ def test_a_confirmer_that_found_the_finding_is_skipped_as_not_independent():
     # the only confirmer is the model that surfaced the finding, so it cannot give an independent
     # read, it is skipped and with no applicable confirmer left the finding is kept
     cands = [Candidate(title="fp", endpoint="GET /b", found_by=("c1",))]
-    vr = verify_findings(cands, StubVerifier(["fp"]), ".",
-                         confirmers=[("c1", StubChecker(["fp"]))], concurrency=1)
+    vr = verify_findings(cands, StubVerifier(["fp"]), ".", confirmers=[("c1", StubChecker(["fp"]))], concurrency=1)
     assert [c.title for c in vr.confirmed] == ["fp"] and not vr.refuted
     # a second, independent confirmer that did not find it can drop it
-    vr2 = verify_findings(cands, StubVerifier(["fp"]), ".",
-                          confirmers=[("c1", StubChecker(["fp"])), ("c2", StubChecker(["fp"]))], concurrency=1)
+    vr2 = verify_findings(
+        cands,
+        StubVerifier(["fp"]),
+        ".",
+        confirmers=[("c1", StubChecker(["fp"])), ("c2", StubChecker(["fp"]))],
+        concurrency=1,
+    )
     assert [c.title for c, _ in vr2.refuted] == ["fp"]
 
 
@@ -99,8 +104,7 @@ class FlakyVerifier(Verifier):
 
 
 def test_error_keeps_finding_and_is_counted_never_silently_refuted():
-    vr = verify_findings([Candidate(title="boom", endpoint="GET /a")],
-                         FlakyVerifier(), ".", votes=1, concurrency=1)
+    vr = verify_findings([Candidate(title="boom", endpoint="GET /a")], FlakyVerifier(), ".", votes=1, concurrency=1)
     assert vr.errors >= 1
     assert [c.title for c in vr.confirmed] == ["boom"]
     assert not vr.refuted
@@ -116,8 +120,13 @@ def test_a_confirmer_error_keeps_the_finding_incomplete_not_frozen():
         def holds(self, candidate, reason, root):
             raise RuntimeError("rate limited")
 
-    vr = verify_findings([Candidate(title="fp", endpoint="GET /b")],
-                         StubVerifier(["fp"]), ".", confirmers=_judge(BoomChecker([])), concurrency=1)
+    vr = verify_findings(
+        [Candidate(title="fp", endpoint="GET /b")],
+        StubVerifier(["fp"]),
+        ".",
+        confirmers=_judge(BoomChecker([])),
+        concurrency=1,
+    )
     assert [c.title for c in vr.confirmed] == ["fp"]
     assert [c.title for c in vr.incomplete] == ["fp"]
     assert vr.errors >= 1
@@ -125,6 +134,7 @@ def test_a_confirmer_error_keeps_the_finding_incomplete_not_frozen():
 
 class SequenceVerifier(Verifier):
     """Returns real, real, refuted in sequence, so 3 votes are 2-1 in favour of real."""
+
     def __init__(self):
         self.i = 0
 
@@ -134,20 +144,25 @@ class SequenceVerifier(Verifier):
 
 
 def test_majority_vote_keeps_when_only_a_minority_refutes():
-    vr = verify_findings([Candidate(title="x", endpoint="GET /a")],
-                         SequenceVerifier(), ".", votes=3, concurrency=1)
+    vr = verify_findings([Candidate(title="x", endpoint="GET /a")], SequenceVerifier(), ".", votes=3, concurrency=1)
     assert [c.title for c in vr.confirmed] == ["x"]
 
 
 def test_every_vote_refuting_and_an_upholding_confirmer_drops_at_votes_above_one():
-    vr = verify_findings([Candidate(title="fp", endpoint="GET /b")],
-                         StubVerifier(["fp"]), ".", votes=3,
-                         confirmers=_judge(StubChecker(["fp"])), concurrency=1)
+    vr = verify_findings(
+        [Candidate(title="fp", endpoint="GET /b")],
+        StubVerifier(["fp"]),
+        ".",
+        votes=3,
+        confirmers=_judge(StubChecker(["fp"])),
+        concurrency=1,
+    )
     assert [c.title for c, _ in vr.refuted] == ["fp"] and not vr.confirmed
 
 
 class RefuteThenKeepVerifier(Verifier):
     """Refutes the first two votes then keeps on the third, so one keep sits among three votes."""
+
     def __init__(self):
         self.i = 0
 
@@ -157,16 +172,22 @@ class RefuteThenKeepVerifier(Verifier):
 
 
 def test_one_keep_vote_saves_the_finding_even_with_an_upholding_confirmer():
-    vr = verify_findings([Candidate(title="x", endpoint="GET /a")],
-                         RefuteThenKeepVerifier(), ".", votes=3,
-                         confirmers=_judge(StubChecker(["x"])), concurrency=1)
+    vr = verify_findings(
+        [Candidate(title="x", endpoint="GET /a")],
+        RefuteThenKeepVerifier(),
+        ".",
+        votes=3,
+        confirmers=_judge(StubChecker(["x"])),
+        concurrency=1,
+    )
     assert [c.title for c in vr.confirmed] == ["x"] and not vr.refuted
 
 
 def test_model_verifier_parses_a_refutation():
     prov = MockProvider(default='{"real": false, "reason": "the lock holds on a real RDBMS"}')
     verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="race", endpoint="POST /t", file=""), ".")
+        Candidate(title="race", endpoint="POST /t", file=""), "."
+    )
     assert verdict.real is False and "lock holds" in verdict.reason
     assert prov.calls[0]["cache"] is True
     cache_prefix = prov.calls[0]["cache_prefix"]
@@ -177,14 +198,16 @@ def test_model_verifier_parses_a_refutation():
 def test_model_verifier_keeps_a_refutation_citing_a_same_named_file_in_another_dir():
     prov = MockProvider(default='{"real": false, "control_file": "services/config.py"}')
     verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="x", endpoint="GET /a", file="models/config.py"), ".")
+        Candidate(title="x", endpoint="GET /a", file="models/config.py"), "."
+    )
     assert verdict.real is True
 
 
 def test_model_verifier_treats_a_bare_filename_control_as_on_file():
     prov = MockProvider(default='{"real": false, "control_file": "config.py"}')
     verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="x", endpoint="GET /a", file="models/config.py"), ".")
+        Candidate(title="x", endpoint="GET /a", file="models/config.py"), "."
+    )
     assert verdict.real is False
 
 
@@ -199,8 +222,7 @@ def test_verify_findings_keeps_but_flags_an_unparseable_verification():
     # a verifier that cannot parse its reply keeps the finding for recall but marks it incomplete and
     # counts an error, so a resume re-attempts it instead of freezing an unverified confirmation
     prov = MockProvider(default="no json here")
-    vr = verify_findings([Candidate(title="x", endpoint="GET /a")],
-                         ModelVerifier(provider=prov, model="mock"), ".")
+    vr = verify_findings([Candidate(title="x", endpoint="GET /a")], ModelVerifier(provider=prov, model="mock"), ".")
     assert [c.title for c in vr.confirmed] == ["x"]
     assert [c.title for c in vr.incomplete] == ["x"]
     assert vr.errors == 1
@@ -209,19 +231,20 @@ def test_verify_findings_keeps_but_flags_an_unparseable_verification():
 def test_model_verifier_keeps_a_refutation_that_rests_on_an_unshown_file():
     # a refutation that rests on an upstream check in a file the skeptic never read keeps the
     # finding, so a cross-file authorization gap is not dropped
-    prov = MockProvider(default='{"real": false, "reason": "the service checks the owner", '
-                        '"control_file": "internal/service/answer_service.go"}')
+    prov = MockProvider(
+        default='{"real": false, "reason": "the service checks the owner", '
+        '"control_file": "internal/service/answer_service.go"}'
+    )
     verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="accept", file="internal/repository/activity/answer_repository.go"), ".")
+        Candidate(title="accept", file="internal/repository/activity/answer_repository.go"), "."
+    )
     assert verdict.real is True
     assert "answer_service.go" in verdict.reason
 
 
 def test_model_verifier_refutes_on_a_fact_in_the_shown_file():
-    prov = MockProvider(default='{"real": false, "reason": "owner filter present", '
-                        '"control_file": "models/item.go"}')
-    verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="idor", file="models/item.go"), ".")
+    prov = MockProvider(default='{"real": false, "reason": "owner filter present", "control_file": "models/item.go"}')
+    verdict = ModelVerifier(provider=prov, model="mock").verify(Candidate(title="idor", file="models/item.go"), ".")
     assert verdict.real is False
 
 
@@ -251,6 +274,7 @@ def test_verify_findings_reports_progress_per_candidate():
     # verify fan-out shows movement instead of hanging silent
     cands = [Candidate(title=f"c{i}", endpoint="GET /x") for i in range(4)]
     seen = []
-    verify_findings(cands, StubVerifier([]), ".", concurrency=2,
-                    on_verify=lambda done, total, secs: seen.append((done, total)))
+    verify_findings(
+        cands, StubVerifier([]), ".", concurrency=2, on_verify=lambda done, total, secs: seen.append((done, total))
+    )
     assert sorted(seen) == [(1, 4), (2, 4), (3, 4), (4, 4)]

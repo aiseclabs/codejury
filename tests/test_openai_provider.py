@@ -64,16 +64,20 @@ def test_sdk_exception_propagates():
 
 
 def test_chat_usage_subtracts_the_cached_read_from_the_prompt_total():
-    response = SimpleNamespace(usage=SimpleNamespace(
-        prompt_tokens=2700, completion_tokens=40,
-        prompt_tokens_details=SimpleNamespace(cached_tokens=2600)))
+    response = SimpleNamespace(
+        usage=SimpleNamespace(
+            prompt_tokens=2700, completion_tokens=40, prompt_tokens_details=SimpleNamespace(cached_tokens=2600)
+        )
+    )
     assert _chat_usage(response) == Usage(input_tokens=100, output_tokens=40, cache_read_tokens=2600)
 
 
 def test_responses_usage_reads_the_cached_tokens_detail():
-    response = SimpleNamespace(usage=SimpleNamespace(
-        input_tokens=2700, output_tokens=40,
-        input_tokens_details=SimpleNamespace(cached_tokens=2600)))
+    response = SimpleNamespace(
+        usage=SimpleNamespace(
+            input_tokens=2700, output_tokens=40, input_tokens_details=SimpleNamespace(cached_tokens=2600)
+        )
+    )
     assert _responses_usage(response) == Usage(input_tokens=100, output_tokens=40, cache_read_tokens=2600)
 
 
@@ -99,9 +103,7 @@ def test_empty_content_yields_empty_text():
 def test_missing_sdk_raises_a_clear_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "openai", None)
     with pytest.raises(RuntimeError, match="pip install"):
-        OpenAIProvider().complete(
-            system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
-        )
+        OpenAIProvider().complete(system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8)
 
 
 class _FakeResponsesClient:
@@ -136,6 +138,9 @@ def test_responses_empty_output_comes_back_as_an_empty_string_not_an_error():
     # too small a budget yields empty output, which must return "" so the retry and JSON layers
     # read it as an unusable reply, rather than raising here on a missing output_text
     result = OpenAIProvider(client=_FakeResponsesClient(output_text=""), wire_api="responses").complete(
-        system="s", messages=[Message(role="user", content="c")], model="gpt-5.5", max_tokens=1024,
+        system="s",
+        messages=[Message(role="user", content="c")],
+        model="gpt-5.5",
+        max_tokens=1024,
     )
     assert result.text == ""

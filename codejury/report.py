@@ -28,7 +28,7 @@ def _sorted(findings: list[Finding]) -> list[Finding]:
 
 
 def severity_breakdown(findings: list[Finding]) -> dict[str, int]:
-    out = {s: 0 for s in SEVERITIES}
+    out = dict.fromkeys(SEVERITIES, 0)
     for f in findings:
         out[f.severity] = out.get(f.severity, 0) + 1
     return out
@@ -57,8 +57,13 @@ def to_markdown(findings: list[Finding], target: SourceMeta | None = None) -> st
     if not findings:
         return "\n".join([*preamble, "## Security review", "", "No findings.", ""])
     b = severity_breakdown(findings)
-    out = [*preamble, "## Security review", "",
-           f"{b['CRITICAL']} critical, {b['HIGH']} high, {b['MEDIUM']} medium, {b['LOW']} low.", ""]
+    out = [
+        *preamble,
+        "## Security review",
+        "",
+        f"{b['CRITICAL']} critical, {b['HIGH']} high, {b['MEDIUM']} medium, {b['LOW']} low.",
+        "",
+    ]
     for f in _sorted(findings):
         cat = f" {f.category}" if f.category else ""
         out.append(f"### {f.severity}{cat} `{_loc(f)}`")
@@ -89,27 +94,34 @@ def to_sarif(findings: list[Finding], target: SourceMeta | None = None) -> str:
         rule_id = f.category or "security"
         if rule_id not in rule_index:
             rule_index[rule_id] = len(rules)
-            rules.append({"id": rule_id, "name": rule_id,
-                          "shortDescription": {"text": f"codejury: {rule_id}"}})
+            rules.append({"id": rule_id, "name": rule_id, "shortDescription": {"text": f"codejury: {rule_id}"}})
         region: dict = {}
         if f.line:
             region = {"startLine": f.line}
         physical = {"artifactLocation": {"uri": f.file}}
         if region:
             physical["region"] = region
-        results.append({
-            "ruleId": rule_id,
-            "ruleIndex": rule_index[rule_id],
-            "level": SARIF_LEVEL.get(f.severity, "warning"),
-            "message": {"text": f.description or f.category or "security finding"},
-            "locations": [{"physicalLocation": physical}],
-            "properties": {"severity": f.severity, "category": f.category,
-                           "confidence": f.confidence, "exploitScenario": f.exploit_scenario},
-        })
-    run: dict = {"tool": {"driver": {"name": "codejury",
-                                     "informationUri": "https://github.com/aiseclabs/codejury",
-                                     "rules": rules}},
-                 "results": results}
+        results.append(
+            {
+                "ruleId": rule_id,
+                "ruleIndex": rule_index[rule_id],
+                "level": SARIF_LEVEL.get(f.severity, "warning"),
+                "message": {"text": f.description or f.category or "security finding"},
+                "locations": [{"physicalLocation": physical}],
+                "properties": {
+                    "severity": f.severity,
+                    "category": f.category,
+                    "confidence": f.confidence,
+                    "exploitScenario": f.exploit_scenario,
+                },
+            }
+        )
+    run: dict = {
+        "tool": {
+            "driver": {"name": "codejury", "informationUri": "https://github.com/aiseclabs/codejury", "rules": rules}
+        },
+        "results": results,
+    }
     if target is not None:
         # provenance rides in run properties, a valid place for tool context under the SARIF schema
         run["properties"] = {"target": target.to_dict()}

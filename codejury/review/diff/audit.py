@@ -12,11 +12,11 @@ import re
 
 from codejury.domains.base import ContentPaths
 from codejury.finding import Finding, findings_from_list
-from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, SYSTEM, severity_rubric_text, standard_audit_prompt
-from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 from codejury.guides import load_guides, select_guides
 from codejury.json_parse import require_json_object
 from codejury.providers.base import Message, Provider
+from codejury.review.diff.prompts import DO_NOT_REPORT, FOCUS, SYSTEM, severity_rubric_text, standard_audit_prompt
+from codejury.review.diff.vulnerabilities import vulnerabilities_for_diff
 
 _DIFF_PATH = re.compile(r"^(?:\+\+\+ b/|diff --git a/\S+ b/)(\S+)", re.MULTILINE)
 
@@ -29,7 +29,8 @@ def guides_for_diff(diff: str, content: ContentPaths | None = None) -> str:
     paths = _DIFF_PATH.findall(diff)
     guides = (
         load_guides(content.languages_dir, content.frameworks_dir, content.protocols_dir)
-        if content is not None else None
+        if content is not None
+        else None
     )
     return "\n\n---\n\n".join(g.body for g in select_guides(paths, source_text=diff, guides=guides))
 
@@ -45,8 +46,16 @@ class AuditError(RuntimeError):
 
 
 class AuditRunner:
-    def __init__(self, *, provider: Provider, model: str, max_tokens: int = 4096,
-                 content: ContentPaths | None = None, focus: str = FOCUS, do_not_report: str = DO_NOT_REPORT) -> None:
+    def __init__(
+        self,
+        *,
+        provider: Provider,
+        model: str,
+        max_tokens: int = 4096,
+        content: ContentPaths | None = None,
+        focus: str = FOCUS,
+        do_not_report: str = DO_NOT_REPORT,
+    ) -> None:
         self._provider = provider
         self._model = model
         self._max_tokens = max_tokens
@@ -58,23 +67,37 @@ class AuditRunner:
         vuln_dir = self._content.vulnerabilities_dir if self._content else None
         if not vulnerabilities:
             vulnerabilities = (
-                vulnerabilities_for_diff(diff, directory=vuln_dir) if vuln_dir is not None
+                vulnerabilities_for_diff(diff, directory=vuln_dir)
+                if vuln_dir is not None
                 else vulnerabilities_for_diff(diff)
             )
         stack = guides_for_diff(diff, self._content)
         result = self._provider.complete(
             system=SYSTEM,
-            messages=[Message(role="user", content=standard_audit_prompt(
-                diff, vulnerabilities=vulnerabilities, context=context, stack=stack, vulnerabilities_dir=vuln_dir,
-                focus=self._focus, do_not_report=self._do_not_report,
-                severity_rubric=severity_rubric_text(self._content)))],
+            messages=[
+                Message(
+                    role="user",
+                    content=standard_audit_prompt(
+                        diff,
+                        vulnerabilities=vulnerabilities,
+                        context=context,
+                        stack=stack,
+                        vulnerabilities_dir=vuln_dir,
+                        focus=self._focus,
+                        do_not_report=self._do_not_report,
+                        severity_rubric=severity_rubric_text(self._content),
+                    ),
+                )
+            ],
             model=self._model,
             max_tokens=self._max_tokens,
         )
         obj = require_json_object(
-            result.text, required_key="findings", error=AuditError,
+            result.text,
+            required_key="findings",
+            error=AuditError,
             message="the model reply was not a valid audit result. it had no JSON object, "
-                    "or a JSON object without a findings key, so it is a failed audit "
-                    "rather than a clean pass",
+            "or a JSON object without a findings key, so it is a failed audit "
+            "rather than a clean pass",
         )
         return findings_from_list(obj.get("findings"))

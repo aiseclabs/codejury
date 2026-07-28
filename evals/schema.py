@@ -24,6 +24,7 @@ class Report:
     `lines` are the source lines the report pins in its cited files, so a symbol anchor can
     credit a report that located the bug by line inside the symbol's body without typing the
     symbol's name."""
+
     name: str
     endpoint: str = ""
     category: str = ""
@@ -32,10 +33,15 @@ class Report:
     lines: tuple[int, ...] = ()
 
     @classmethod
-    def make(cls, name: str, endpoint: str, category: str, files, text: str = "", lines=()) -> "Report":
-        return cls(name=name, endpoint=normalize_endpoint(endpoint),
-                   category=category_of(category), files=tuple(files), text=text.lower(),
-                   lines=tuple(sorted({int(n) for n in lines})))
+    def make(cls, name: str, endpoint: str, category: str, files, text: str = "", lines=()) -> Report:
+        return cls(
+            name=name,
+            endpoint=normalize_endpoint(endpoint),
+            category=category_of(category),
+            files=tuple(files),
+            text=text.lower(),
+            lines=tuple(sorted({int(n) for n in lines})),
+        )
 
 
 def knowledge_refs(block) -> tuple[str, ...]:
@@ -58,6 +64,7 @@ class KeyEntry:
     accepted, a report naming any one of the path's functions counts. `knowledge` names the
     vulnerability classes and guides the entry exercises, so the coverage matrix can
     attribute it, empty for a legacy key authored before the rename."""
+
     id: str
     entry: str = ""
     files: tuple[str, ...] = ()
@@ -109,16 +116,18 @@ def _key_entries(rows, *, require_category: bool, where: str) -> tuple[KeyEntry,
             raise ValueError(f"{where}[{i}] has neither entry nor file, it cannot be matched")
         if require_category and not r.get("category"):
             raise ValueError(f"{where}[{i}] has no category")
-        out.append(KeyEntry(
-            id=str(r.get("id") or f"{where}-{i}"),
-            entry=str(r.get("entry", "")),
-            files=files,
-            category=category_of(str(r.get("category", ""))),
-            severity=str(r.get("severity", "")),
-            note=str(r.get("note", "")),
-            knowledge=knowledge_refs(r.get("knowledge")),
-            symbols=_entry_symbols(r),
-        ))
+        out.append(
+            KeyEntry(
+                id=str(r.get("id") or f"{where}-{i}"),
+                entry=str(r.get("entry", "")),
+                files=files,
+                category=category_of(str(r.get("category", ""))),
+                severity=str(r.get("severity", "")),
+                note=str(r.get("note", "")),
+                knowledge=knowledge_refs(r.get("knowledge")),
+                symbols=_entry_symbols(r),
+            )
+        )
     return tuple(out)
 
 

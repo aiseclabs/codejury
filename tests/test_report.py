@@ -5,6 +5,7 @@ from pathlib import Path
 
 import jsonschema
 
+from codejury.finding import Finding
 from codejury.report import (
     gate,
     render,
@@ -14,19 +15,36 @@ from codejury.report import (
     to_sarif,
     to_text,
 )
-from codejury.finding import Finding
 from codejury.sources.metadata import SourceMeta
 
-_TARGET = SourceMeta(chain="bsc", chain_id=56, address="0x" + "ab" * 20,
-                     source_url="https://bscscan.com/address/x#code", contract_name="Token")
+_TARGET = SourceMeta(
+    chain="bsc",
+    chain_id=56,
+    address="0x" + "ab" * 20,
+    source_url="https://bscscan.com/address/x#code",
+    contract_name="Token",
+)
 
 _SCHEMA = json.loads((Path(__file__).parent / "data" / "sarif-schema-2.1.0.json").read_text())
 
 _FINDINGS = [
-    Finding(file="app/payment.py", line=42, severity="CRITICAL", category="sql_injection",
-            description="string-concatenated query", exploit_scenario="send ' OR 1=1 --", confidence=0.95),
-    Finding(file="app/views.py", line=10, severity="MEDIUM", category="idor",
-            description="missing ownership check", confidence=0.6),
+    Finding(
+        file="app/payment.py",
+        line=42,
+        severity="CRITICAL",
+        category="sql_injection",
+        description="string-concatenated query",
+        exploit_scenario="send ' OR 1=1 --",
+        confidence=0.95,
+    ),
+    Finding(
+        file="app/views.py",
+        line=10,
+        severity="MEDIUM",
+        category="idor",
+        description="missing ownership check",
+        confidence=0.6,
+    ),
 ]
 
 

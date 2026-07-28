@@ -69,8 +69,12 @@ def _read_text(path: Path) -> str:
 
 
 def candidate_entrypoint_files(
-    files: Sequence[str], *, root: str | Path | None = None, globs: Sequence[str] = (),
-    markers: Sequence[str] = (), detection: Detection | None = None,
+    files: Sequence[str],
+    *,
+    root: str | Path | None = None,
+    globs: Sequence[str] = (),
+    markers: Sequence[str] = (),
+    detection: Detection | None = None,
 ) -> list[str]:
     """Files likely to define entrypoints. A file is a candidate when its path
     matches one of `globs`, or when `root` is given and its content contains one
@@ -97,7 +101,10 @@ def candidate_entrypoint_files(
 
 
 def public_api_files(
-    files: Sequence[str], *, root: str | Path | None = None, patterns: Sequence[str] = (),
+    files: Sequence[str],
+    *,
+    root: str | Path | None = None,
+    patterns: Sequence[str] = (),
     detection: Detection | None = None,
 ) -> list[str]:
     """Non-test source files that define public or exported API. A library has no application
@@ -184,7 +191,9 @@ def span_line_range(text: str, span: tuple[int, int]) -> tuple[int, int]:
     return first, last
 
 
-def logic_layer_files(files: Sequence[str], *, globs: Sequence[str] = (), detection: Detection | None = None) -> list[str]:
+def logic_layer_files(
+    files: Sequence[str], *, globs: Sequence[str] = (), detection: Detection | None = None
+) -> list[str]:
     """Non-test files whose path matches one of the downstream logic-layer globs,
     for example managers, controllers, dao, or services. These are not entrypoints
     but the call targets to trace into from an entrypoint, so a review does not

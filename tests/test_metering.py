@@ -15,8 +15,7 @@ class _Fake(Provider):
 
 
 def _call(provider):
-    return provider.complete(system="s", messages=[Message(role="user", content="u")],
-                             model="m", max_tokens=8)
+    return provider.complete(system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=8)
 
 
 def test_metering_records_each_calls_usage_and_returns_the_inner_result():

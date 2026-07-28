@@ -10,7 +10,7 @@ from codejury.sources.reconstruct import parse_getsourcecode, parse_source_code
 __all__ = [
     "SourceError",
     "SourceMeta",
-    "source_meta_from_dict",
     "parse_getsourcecode",
     "parse_source_code",
+    "source_meta_from_dict",
 ]

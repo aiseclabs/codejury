@@ -52,11 +52,13 @@ class SlitherFacts(FactsBackend):
                 # skip the pseudo functions Slither synthesizes for state variable initializers
                 if f.name.startswith("slitherConstructor"):
                     continue
-                callees = sorted({
-                    op.function.full_name
-                    for op in f.internal_calls
-                    if isinstance(op, InternalCall) and op.function is not None
-                })
+                callees = sorted(
+                    {
+                        op.function.full_name
+                        for op in f.internal_calls
+                        if isinstance(op, InternalCall) and op.function is not None
+                    }
+                )
                 functions[f.full_name] = {
                     "visibility": f.visibility,
                     "modifiers": [m.name for m in f.modifiers],
