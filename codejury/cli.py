@@ -52,6 +52,7 @@ from codejury.providers.factory import (
     ROLES,
     make_provider,
 )
+from codejury.providers.metering import MeteringProvider, UsageMeter
 from codejury.providers.mock import MockProvider
 from codejury.review.repository.scaffold import scaffold
 
@@ -162,9 +163,12 @@ def _role_spec(args, role, base):
 
 def _role_provider(args, spec):
     """Build a provider for a resolved role spec. Construction is lazy, so a per-role provider
-    object is cheap, no SDK or key is touched until a call is made."""
-    return make_provider(spec["provider"], api_key=spec["api_key"], api_base=spec["api_base"],
-                         retries=args.retries, wire_api=spec["wire_api"], timeout=args.timeout)
+    object is cheap, no SDK or key is touched until a call is made. When the run has set a usage
+    meter, every seat is wrapped so one shared total spans finder, skeptic, and confirmers."""
+    provider = make_provider(spec["provider"], api_key=spec["api_key"], api_base=spec["api_base"],
+                             retries=args.retries, wire_api=spec["wire_api"], timeout=args.timeout)
+    meter = getattr(args, "_usage_meter", None)
+    return MeteringProvider(provider, meter) if meter is not None else provider
 
 
 # The env var each vendor SDK reads when no explicit key is passed. LiteLLM has no single name, so
@@ -688,6 +692,7 @@ def _cmd_repository_finalize(args) -> int:
     provider = None
     verifier_obj = None
     confirmers: list = []
+    args._usage_meter = UsageMeter()
     # the challenger backs the skeptic, the judge backs the confirmer, a drop needs the two to be
     # distinct models so a single read cannot drop a real finding
     if args.dry_run:
@@ -738,6 +743,8 @@ def _cmd_repository_finalize(args) -> int:
         print(f"Confirmed findings in {fr.workspace}/findings/ and {fr.workspace}/findings.json")
         if (Path(fr.workspace) / "_pocs.md").exists():
             print(f"PoC reconciliation in {fr.workspace}/_pocs.md")
+        if args._usage_meter.calls:
+            print(args._usage_meter.summary(), file=sys.stderr)
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
             return 1   # fail loud: an incomplete verification is not a clean finalize, invariant 4
@@ -775,6 +782,7 @@ def _cmd_repository_run(args) -> int:
     provider = None
     model = args.model
     confirmers: list = []
+    args._usage_meter = UsageMeter()
     if args.dry_run:
         provider = MockProvider(default=_REPOSITORY_MOCK_REPLY)
         model = "mock"
@@ -851,6 +859,8 @@ def _cmd_repository_run(args) -> int:
                   "recall is not guaranteed. Raise --max-passes or narrow the scope and re-run.",
                   file=sys.stderr)
         print(f"Findings written to {res.scaffold.workspace}/findings/ and {res.scaffold.workspace}/findings.json")
+        if args._usage_meter.calls:
+            print(args._usage_meter.summary(), file=sys.stderr)
         # fail loud: a partial run or a run still finding issues at the cap must not exit clean,
         # invariant 4 and the stability red line, so a non-converged run is not reported as done
         return 1 if failures or not acc.converged else 0
