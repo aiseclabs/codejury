@@ -259,8 +259,6 @@ def verify_findings(
     confirmers = confirmers or []
 
     def verify_one(candidate: Candidate):
-        # `incomplete` marks a keep forced by a failed call, not a genuine keep vote, so the caller
-        # can keep it for this run yet leave it unfrozen for a resume to re-attempt, invariant 4.
         verdicts: list[Verdict] = []
         errors = 0
         for _ in range(max(1, votes)):

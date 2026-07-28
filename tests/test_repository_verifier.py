@@ -110,14 +110,10 @@ def test_error_keeps_finding_and_is_counted_never_silently_refuted():
     assert vr.errors >= 1
     assert [c.title for c in vr.confirmed] == ["boom"]
     assert not vr.refuted
-    # the keep was forced by the failure, so it is reported incomplete, not a confirmation, so a
-    # resume re-attempts it rather than freezing the failure as kept
     assert [c.title for c in vr.incomplete] == ["boom"]
 
 
 def test_a_confirmer_error_keeps_the_finding_incomplete_not_frozen():
-    # every vote refuted, but the confirmer that must uphold a deletion raised, so the finding is
-    # kept and marked incomplete rather than confirmed safe on a failed audit
     class BoomChecker(StubChecker):
         def holds(self, candidate, reason, root):
             raise RuntimeError("rate limited")
@@ -237,8 +233,6 @@ def test_model_verifier_raises_on_unparseable_reply(tmp_path):
 
 
 def test_verify_findings_keeps_but_flags_an_unparseable_verification(tmp_path):
-    # a verifier that cannot parse its reply keeps the finding for recall but marks it incomplete and
-    # counts an error, so a resume re-attempts it instead of freezing an unverified confirmation
     prov = MockProvider(default="no json here")
     root = _repo(tmp_path, "t.py")
     vr = verify_findings(
