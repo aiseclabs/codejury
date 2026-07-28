@@ -289,6 +289,18 @@ def _close_backends(*objs) -> None:
                 close()
 
 
+def _warn_unlocatable(verify) -> None:
+    kept = list(getattr(verify, "unlocatable", ()) or ())
+    if not kept:
+        return
+    shown = ", ".join(f"{c.title} at {c.file or '<no file>'}" for c in kept[:3])
+    print(
+        f"WARNING: {len(kept)} finding(s) cite a location no file in the repository matches, so they "
+        f"were kept unverified and will be re-verified on resume: {shown}" + (", ..." if len(kept) > 3 else ""),
+        file=sys.stderr,
+    )
+
+
 def _note_verify_route(args, confirmers) -> None:
     """State the verification route so the choice is visible rather than inferred. There is one
     route: the skeptic refutes and every independent confirmer must uphold the refutation before a
@@ -930,6 +942,7 @@ def _cmd_repository_finalize(args) -> int:
             print(f"PoC reconciliation in {fr.workspace}/_pocs.md")
         if args._usage_meter.calls:
             print(args._usage_meter.summary(), file=sys.stderr)
+        _warn_unlocatable(fr.verify)
         if fr.verify and fr.verify.errors:
             print(f"WARNING: {fr.verify.errors} verification calls failed. Re-run to resume.", file=sys.stderr)
             return 1  # fail loud: an incomplete verification is not a clean finalize, invariant 4
@@ -1051,6 +1064,7 @@ def _cmd_repository_run(args) -> int:
             f"{len(reported)} findings: "
             + ", ".join(f"{by_sev.get(s, 0)} {s}" for s in ("CRITICAL", "HIGH", "MEDIUM", "LOW"))
         )
+        _warn_unlocatable(res.verify)
         failures = acc.errors + (res.verify.errors if res.verify else 0)
         if failures:
             print(

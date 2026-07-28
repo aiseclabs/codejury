@@ -30,7 +30,7 @@ from codejury.providers.base import Provider
 from codejury.review.diff.vulnerabilities import canonical_category, category_aliases
 from codejury.review.repository.model import char_spans
 from codejury.review.repository.pass_loop import run_passes
-from codejury.review.repository.paths import is_unsafe_rel, safe_repository_path
+from codejury.review.repository.paths import is_unsafe_rel, resolve_source_path, safe_repository_path
 from codejury.review.repository.reviewer import ModelReviewer, UnitReviewer
 from codejury.review.repository.scaffold import (
     _AUTH_MODEL_TEMPLATE,
@@ -505,7 +505,8 @@ def apply_verification(
 ) -> tuple[list[Candidate], VerifyResult]:
     """Verify a finding list, resumable via `_verified.json`, and record the refuted. The single
     home and the single route the coded run and the finalize pass both share. A finding two models
-    surfaced independently is kept on that consensus and skips the route. Otherwise the skeptic tries
+    surfaced independently is kept on that consensus and skips the route, as does one whose recorded
+    location matches no file in the repository. Otherwise the skeptic tries
     to refute it, and a refuted finding is dropped only when every independent confirmer, a model
     that did not itself surface it, upholds the refutation. A failed call keeps the finding and is
     counted, never silently dropped, invariant 4."""
@@ -517,19 +518,25 @@ def apply_verification(
     pending = [c for c in findings if _keystr(c, by_file) not in verified]
     # consensus skips the verify route: two models surfacing the same finding independently is a
     # strong signal, so verifying it spends calls for little gain and risks a wrong drop
-    consensus = [c for c in pending if len(set(c.found_by)) >= 2]
+    consensus: list[Candidate] = []
+    singletons: list[Candidate] = []
+    for c in pending:
+        (consensus if len(set(c.found_by)) >= 2 else singletons).append(c)
     for c in consensus:
         verified[_keystr(c, by_file)] = {"real": True, "reason": "consensus of models"}
-    singletons = [c for c in pending if len(set(c.found_by)) < 2]
+    locatable: list[Candidate] = []
+    unlocatable: list[Candidate] = []
+    for c in singletons:
+        (locatable if resolve_source_path(root, c.file) is not None else unlocatable).append(c)
     # a finding kept only because a verify call could not complete is kept for this run but never
     # written to _verified.json, so a resume re-attempts it rather than freezing the failure as
     # confirmed, the resume-integrity rule of invariant 4
     vr = verify_findings(
-        singletons, verifier, root, confirmers=confirmers, votes=votes, concurrency=concurrency, on_verify=on_verify
+        locatable, verifier, root, confirmers=confirmers, votes=votes, concurrency=concurrency, on_verify=on_verify
     )
-    incomplete = {_keystr(c, by_file) for c in vr.incomplete}
+    unfrozen = {_keystr(c, by_file) for c in (*vr.incomplete, *unlocatable)}
     for c in vr.confirmed:
-        if _keystr(c, by_file) not in incomplete:
+        if _keystr(c, by_file) not in unfrozen:
             verified[_keystr(c, by_file)] = {"real": True, "reason": ""}
     for c, reason in vr.refuted:
         verified[_keystr(c, by_file)] = {"real": False, "reason": reason}
@@ -542,7 +549,7 @@ def apply_verification(
         if not verified.get(_keystr(c, by_file), {"real": True})["real"]
     ]
     _write_refuted(ws, refuted)
-    return confirmed, VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors)
+    return confirmed, VerifyResult(confirmed=confirmed, refuted=refuted, errors=errors, unlocatable=unlocatable)
 
 
 def _md_field(text: str, key: str) -> str:

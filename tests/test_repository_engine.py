@@ -407,7 +407,9 @@ class _AllReal(Verifier):
 
 def _finalize_ws(tmp_path):
     target = tmp_path / "proj"
-    target.mkdir()
+    (target / "app").mkdir(parents=True)
+    for name in ("v.py", "s.py", "d.py"):
+        (target / "app" / name).write_text("x = 1\n")
     ws = tmp_path / "work"
     candidates = ws / "proj" / "candidates"
     candidates.mkdir(parents=True)
@@ -571,12 +573,40 @@ def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_p
 
     ws = tmp_path / "ws"
     ws.mkdir()
+    (tmp_path / "a.py").write_text("x = 1\n")
     findings = [Candidate(title="boom", endpoint="GET /a", file="a.py", line=1)]
     confirmed, vr = apply_verification(
         ws, findings, root=str(tmp_path), verifier=_Boom(), provider=None, model="m", votes=1, concurrency=1, fresh=True
     )
     assert [c.title for c in confirmed] == ["boom"]
     assert vr.errors >= 1
+    assert json.loads((ws / "_verified.json").read_text()) == {}
+
+
+def test_a_location_matching_no_file_is_kept_unverified_and_left_unfrozen(tmp_path):
+    from codejury.review.repository.engine import apply_verification
+
+    class _NeverCalled(Verifier):
+        def verify(self, c, root):
+            raise AssertionError("a location matching no file must never reach the skeptic")
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    findings = [Candidate(title="ghost", endpoint="GET /a", file="gone.py", line=1)]
+    confirmed, vr = apply_verification(
+        ws,
+        findings,
+        root=str(tmp_path),
+        verifier=_NeverCalled(),
+        provider=None,
+        model="m",
+        votes=1,
+        concurrency=1,
+        fresh=True,
+    )
+    assert [c.title for c in confirmed] == ["ghost"]
+    assert [c.title for c in vr.unlocatable] == ["ghost"]
+    assert not vr.refuted
     assert json.loads((ws / "_verified.json").read_text()) == {}
 
 

@@ -41,7 +41,7 @@ from codejury.domains.base import ContentPaths
 from codejury.json_parse import optional_json_object
 from codejury.providers.base import Message, Provider
 from codejury.resources import FALSE_POSITIVE_TRAPS_FILE
-from codejury.review.repository.paths import safe_repository_path
+from codejury.review.repository.paths import resolve_source_path
 from codejury.review.repository.union import Candidate
 
 _READ_MAX = 40_000
@@ -74,6 +74,9 @@ class VerifyResult:
     # failed checker, not a genuine keep vote. They are kept for this run, recall-safe, but must not
     # be frozen as final so a resume re-attempts them rather than reading the failure as confirmed.
     incomplete: list[Candidate] = field(default_factory=list)
+    # kept and never frozen, like an incomplete keep, but counted apart from a failed model call
+    # because the cause is the recorded location, not the provider, so the operator fixes it differently
+    unlocatable: list[Candidate] = field(default_factory=list)
 
 
 _SYSTEM = (
@@ -109,7 +112,7 @@ def _control_is_on_file(control: str, candidate_file: str) -> bool:
 
 
 def _read_file(root: str, rel: str) -> str:
-    path = safe_repository_path(root, rel)
+    path = resolve_source_path(root, rel)
     if path is None:
         return ""
     try:
