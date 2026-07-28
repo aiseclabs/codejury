@@ -202,6 +202,8 @@ class ModelRefutationChecker(RefutationChecker):
 
     def holds(self, candidate: Candidate, reason: str, root: str) -> bool:
         code = _read_file(root, candidate.file)
+        if not code.strip():
+            return False
         prompt = (
             "Audit this refutation. Does the controlling fact genuinely make the finding "
             "unexploitable on its real path, or does it guard a different path or precondition?\n\n"

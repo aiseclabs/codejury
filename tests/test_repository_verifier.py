@@ -187,10 +187,19 @@ def test_one_keep_vote_saves_the_finding_even_with_an_upholding_confirmer():
     assert not vr.refuted
 
 
-def test_model_verifier_parses_a_refutation():
+def _repo(tmp_path, *rels):
+    for rel in rels:
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("placeholder\n", encoding="utf-8")
+    return str(tmp_path)
+
+
+def test_model_verifier_parses_a_refutation(tmp_path):
     prov = MockProvider(default='{"real": false, "reason": "the lock holds on a real RDBMS"}')
+    root = _repo(tmp_path, "t.py")
     verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="race", endpoint="POST /t", file=""), "."
+        Candidate(title="race", endpoint="POST /t", file="t.py"), root
     )
     assert verdict.real is False
     assert "lock holds" in verdict.reason
@@ -201,69 +210,100 @@ def test_model_verifier_parses_a_refutation():
     assert "Proposed finding" not in cache_prefix
 
 
-def test_model_verifier_keeps_a_refutation_citing_a_same_named_file_in_another_dir():
+def test_model_verifier_keeps_a_refutation_citing_a_same_named_file_in_another_dir(tmp_path):
     prov = MockProvider(default='{"real": false, "control_file": "services/config.py"}')
+    root = _repo(tmp_path, "models/config.py")
     verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="x", endpoint="GET /a", file="models/config.py"), "."
+        Candidate(title="x", endpoint="GET /a", file="models/config.py"), root
     )
     assert verdict.real is True
 
 
-def test_model_verifier_treats_a_bare_filename_control_as_on_file():
+def test_model_verifier_treats_a_bare_filename_control_as_on_file(tmp_path):
     prov = MockProvider(default='{"real": false, "control_file": "config.py"}')
+    root = _repo(tmp_path, "models/config.py")
     verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="x", endpoint="GET /a", file="models/config.py"), "."
+        Candidate(title="x", endpoint="GET /a", file="models/config.py"), root
     )
     assert verdict.real is False
 
 
-def test_model_verifier_raises_on_unparseable_reply():
+def test_model_verifier_raises_on_unparseable_reply(tmp_path):
     # an unparseable verifier reply is a failed step, not a clean confirmation, invariant 4
     prov = MockProvider(default="no json here")
+    root = _repo(tmp_path, "t.py")
     with pytest.raises(VerifyError):
-        ModelVerifier(provider=prov, model="mock").verify(Candidate(title="x"), ".")
+        ModelVerifier(provider=prov, model="mock").verify(Candidate(title="x", file="t.py"), root)
 
 
-def test_verify_findings_keeps_but_flags_an_unparseable_verification():
+def test_verify_findings_keeps_but_flags_an_unparseable_verification(tmp_path):
     # a verifier that cannot parse its reply keeps the finding for recall but marks it incomplete and
     # counts an error, so a resume re-attempts it instead of freezing an unverified confirmation
     prov = MockProvider(default="no json here")
-    vr = verify_findings([Candidate(title="x", endpoint="GET /a")], ModelVerifier(provider=prov, model="mock"), ".")
+    root = _repo(tmp_path, "t.py")
+    vr = verify_findings(
+        [Candidate(title="x", endpoint="GET /a", file="t.py")], ModelVerifier(provider=prov, model="mock"), root
+    )
     assert [c.title for c in vr.confirmed] == ["x"]
     assert [c.title for c in vr.incomplete] == ["x"]
     assert vr.errors == 1
 
 
-def test_model_verifier_keeps_a_refutation_that_rests_on_an_unshown_file():
+def test_a_refutation_on_a_location_that_does_not_resolve_never_drops_the_finding(tmp_path):
+    prov = MockProvider(default='{"real": false, "reason": "no owner check needed"}')
+    checker = ModelRefutationChecker(provider=MockProvider(default='{"holds": true}'), model="mock")
+    vr = verify_findings(
+        [Candidate(title="ghost", endpoint="GET /a", file="gone.py")],
+        ModelVerifier(provider=prov, model="mock"),
+        _repo(tmp_path, "t.py"),
+        confirmers=[("mock", checker)],
+    )
+    assert [c.title for c in vr.confirmed] == ["ghost"]
+    assert not vr.refuted
+
+
+def test_model_verifier_keeps_a_refutation_that_rests_on_an_unshown_file(tmp_path):
     # a refutation that rests on an upstream check in a file the skeptic never read keeps the
     # finding, so a cross-file authorization gap is not dropped
     prov = MockProvider(
         default='{"real": false, "reason": "the service checks the owner", '
         '"control_file": "internal/service/answer_service.go"}'
     )
+    rel = "internal/repository/activity/answer_repository.go"
     verdict = ModelVerifier(provider=prov, model="mock").verify(
-        Candidate(title="accept", file="internal/repository/activity/answer_repository.go"), "."
+        Candidate(title="accept", file=rel), _repo(tmp_path, rel)
     )
     assert verdict.real is True
     assert "answer_service.go" in verdict.reason
 
 
-def test_model_verifier_refutes_on_a_fact_in_the_shown_file():
+def test_model_verifier_refutes_on_a_fact_in_the_shown_file(tmp_path):
     prov = MockProvider(default='{"real": false, "reason": "owner filter present", "control_file": "models/item.go"}')
-    verdict = ModelVerifier(provider=prov, model="mock").verify(Candidate(title="idor", file="models/item.go"), ".")
+    verdict = ModelVerifier(provider=prov, model="mock").verify(
+        Candidate(title="idor", file="models/item.go"), _repo(tmp_path, "models/item.go")
+    )
     assert verdict.real is False
 
 
-def test_model_checker_confirms_a_holding_refutation():
+def test_model_checker_confirms_a_holding_refutation(tmp_path):
     prov = MockProvider(default='{"holds": true, "reason": "the guard dominates the only path"}')
     checker = ModelRefutationChecker(provider=prov, model="mock")
-    assert checker.holds(Candidate(title="x", file=""), "owner check present", ".") is True
+    root = _repo(tmp_path, "t.py")
+    assert checker.holds(Candidate(title="x", file="t.py"), "owner check present", root) is True
 
 
-def test_model_checker_keeps_the_finding_on_an_unparseable_audit():
+def test_model_checker_keeps_the_finding_on_an_unparseable_audit(tmp_path):
     prov = MockProvider(default="not json")
     checker = ModelRefutationChecker(provider=prov, model="mock")
-    assert checker.holds(Candidate(title="x", file=""), "some reason", ".") is False
+    root = _repo(tmp_path, "t.py")
+    assert checker.holds(Candidate(title="x", file="t.py"), "some reason", root) is False
+
+
+def test_model_checker_cannot_confirm_a_refutation_it_could_not_read(tmp_path):
+    prov = MockProvider(default='{"holds": true, "reason": "the guard dominates"}')
+    checker = ModelRefutationChecker(provider=prov, model="mock")
+    assert checker.holds(Candidate(title="x", file="gone.py"), "owner check present", _repo(tmp_path, "t.py")) is False
+    assert prov.calls == []
 
 
 def test_read_file_returns_empty_for_an_out_of_root_path(tmp_path):
