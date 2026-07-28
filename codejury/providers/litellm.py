@@ -51,6 +51,7 @@ class LiteLLMProvider(Provider):
         model: str,
         max_tokens: int,
         cache: bool = False,
+        cache_prefix: str = "",
     ) -> CompletionResult:
         api_messages: list[dict] = []
         if system:

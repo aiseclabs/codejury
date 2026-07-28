@@ -52,6 +52,7 @@ class OpenAIProvider(Provider):
         model: str,
         max_tokens: int,
         cache: bool = False,
+        cache_prefix: str = "",
     ) -> CompletionResult:
         if self._wire_api == "responses":
             return self._complete_responses(system=system, messages=messages, model=model,

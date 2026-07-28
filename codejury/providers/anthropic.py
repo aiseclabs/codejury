@@ -59,9 +59,13 @@ class AnthropicProvider(Provider):
         model: str,
         max_tokens: int,
         cache: bool = False,
+        cache_prefix: str = "",
     ) -> CompletionResult:
+        api_messages = [{"role": m.role, "content": m.content} for m in messages]
         system_param: Any = system
-        if cache and system:
+        if cache and _mark_cache_prefix(api_messages, cache_prefix):
+            pass
+        elif cache and system:
             system_param = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
 
         request: dict[str, Any] = {
@@ -69,7 +73,7 @@ class AnthropicProvider(Provider):
             "max_tokens": max_tokens,
             "timeout": self._timeout,
             "system": system_param,
-            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "messages": api_messages,
         }
         response = self._create(request)
         return CompletionResult(text=_extract_text(response), usage=_extract_usage(response))
@@ -86,6 +90,23 @@ class AnthropicProvider(Provider):
             # drop it for this provider so later calls skip the rejected param, no wasted retry
             self._temperature = None
             return client.messages.create(**request)
+
+
+def _mark_cache_prefix(api_messages: list[dict], cache_prefix: str) -> bool:
+    """The two split blocks concatenate back to the original content, so the model reads the same
+    prompt. Returns False when there is nothing to split, so the caller falls back to the system."""
+    if not cache_prefix or not api_messages:
+        return False
+    content = api_messages[0].get("content")
+    if not isinstance(content, str) or not content.startswith(cache_prefix):
+        return False
+    blocks: list[dict] = [
+        {"type": "text", "text": cache_prefix, "cache_control": {"type": "ephemeral"}}]
+    remainder = content[len(cache_prefix):]
+    if remainder:
+        blocks.append({"type": "text", "text": remainder})
+    api_messages[0]["content"] = blocks
+    return True
 
 
 def _is_temperature_rejected(exc: Exception) -> bool:

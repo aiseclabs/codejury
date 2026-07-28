@@ -464,5 +464,5 @@ class ClaudeAgentProvider(_ClaudeBackend, Provider):
         self._cwd = cwd
 
     def complete(self, *, system: str, messages: list[Message], model: str, max_tokens: int,
-                 cache: bool = False) -> CompletionResult:
+                 cache: bool = False, cache_prefix: str = "") -> CompletionResult:
         return CompletionResult(text=_result_text(self._ask(_fold_prompt(system, messages), self._cwd)))

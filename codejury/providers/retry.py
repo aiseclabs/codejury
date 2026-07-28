@@ -135,11 +135,13 @@ class RetryProvider(Provider):
         model: str,
         max_tokens: int,
         cache: bool = False,
+        cache_prefix: str = "",
     ) -> CompletionResult:
         for attempt in range(1, self._max_attempts + 1):
             try:
                 result = self._call_inner(
-                    system=system, messages=messages, model=model, max_tokens=max_tokens, cache=cache
+                    system=system, messages=messages, model=model, max_tokens=max_tokens,
+                    cache=cache, cache_prefix=cache_prefix
                 )
             except self._retryable as exc:
                 if attempt == self._max_attempts:

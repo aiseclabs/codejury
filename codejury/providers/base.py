@@ -8,6 +8,11 @@ interface does not over-commit early.
 ``cache_control`` breakpoint, OpenAI ignores it and caches long prefixes
 automatically, LiteLLM depends on the backend. Each provider decides how to map
 the hint onto its own implementation.
+
+``cache_prefix``, when given, is the leading substring of the first user message
+that stays constant across calls. A provider that caches explicitly marks the
+breakpoint there, so the large reused block is what gets cached, not only the
+short system prompt.
 """
 
 from __future__ import annotations
@@ -52,4 +57,5 @@ class Provider(ABC):
         model: str,
         max_tokens: int,
         cache: bool = False,
+        cache_prefix: str = "",
     ) -> CompletionResult: ...
