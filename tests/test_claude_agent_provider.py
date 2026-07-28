@@ -58,7 +58,8 @@ def test_is_a_drop_in_provider_for_the_audit_runner():
     )
     prov = ClaudeAgentProvider(runner=lambda p, **k: finding)
     findings = AuditRunner(provider=prov, model="ignored").run(_DIFF)
-    assert len(findings) == 1 and findings[0].category == "sql_injection"
+    assert len(findings) == 1
+    assert findings[0].category == "sql_injection"
 
 
 def test_complete_fails_loud_on_an_error_envelope_via_the_default_runner(monkeypatch):
@@ -96,7 +97,8 @@ def test_diff_agent_passes_no_file_tools_but_keeps_json_output():
         system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10
     )
     assert "--allowedTools" not in captured["args"]
-    assert "--output-format" in captured["args"] and "json" in captured["args"]
+    assert "--output-format" in captured["args"]
+    assert "json" in captured["args"]
 
 
 def test_env_args_cannot_widen_the_diff_agent_tools(monkeypatch):
@@ -110,7 +112,8 @@ def test_env_args_cannot_widen_the_diff_agent_tools(monkeypatch):
     ClaudeAgentProvider(runner=fake_runner).complete(
         system="s", messages=[Message(role="user", content="u")], model="m", max_tokens=10
     )
-    assert "Bash" not in captured["args"] and "--allowedTools" not in captured["args"]
+    assert "Bash" not in captured["args"]
+    assert "--allowedTools" not in captured["args"]
     assert "terse" in captured["args"]
 
 

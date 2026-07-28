@@ -36,7 +36,9 @@ def test_with_facts_folds_persisted_facts_and_marks_truncation(tmp_path):
 
     (tmp_path / "_facts.md").write_text("contract V\n  external withdraw()  ext-call", encoding="utf-8")
     folded = _with_facts("STACK", tmp_path)
-    assert "STACK" in folded and "Contract facts:" in folded and "withdraw()" in folded
+    assert "STACK" in folded
+    assert "Contract facts:" in folded
+    assert "withdraw()" in folded
 
     # oversize facts are folded but the cut is marked, never silently dropped, invariant 4
     (tmp_path / "_facts.md").write_text("x" * (_FACTS_CONTEXT_CAP + 500), encoding="utf-8")
@@ -59,7 +61,8 @@ def test_reviewer_grounds_a_unit_with_only_its_own_files_facts(tmp_path):
     rev = ModelReviewer(provider=prov, model="mock", facts_by_file=by_file)
     rev.review(Unit(name="V3Vault.sol", root=str(tmp_path), files=("V3Vault.sol",)), "reentrancy")
     prompt = _prompt_of(prov)
-    assert "_cleanupLoan" in prompt and "reenter" in prompt
+    assert "_cleanupLoan" in prompt
+    assert "reenter" in prompt
     assert "Swapper" not in prompt
 
 
@@ -100,7 +103,8 @@ def test_gather_assembles_call_path_fragments(tmp_path):
     (tmp_path / "V.sol").write_text("AAAA" + "B" * 100 + "CCCC_TWO" + "D" * 50)
     u = Unit(name="cp", root=str(tmp_path), files=("V.sol",), fragments=(("V.sol", 0, 4), ("V.sol", 104, 112)))
     g = gather(u)
-    assert "AAAA" in g and "CCCC_TWO" in g
+    assert "AAAA" in g
+    assert "CCCC_TWO" in g
     assert "B" * 100 not in g
     assert "chars 0-4" in g
 
@@ -112,7 +116,8 @@ def test_build_units_appends_call_path_units_from_facts(tmp_path):
     assert "V.sol" in [u.name for u in units]
     cp = [u for u in units if u.fragments]
     assert len(cp) == 1
-    assert cp[0].name == "V.sol#V.liquidate" and cp[0].files == ("V.sol",)
+    assert cp[0].name == "V.sol#V.liquidate"
+    assert cp[0].files == ("V.sol",)
     assert cp[0].fragments == (("V.sol", 10, 50), ("V.sol", 60, 120))
 
 
@@ -171,7 +176,8 @@ def test_build_units_keeps_a_small_file_whole(tmp_path):
 def test_gather_reads_only_the_span_window_of_a_chunked_unit(tmp_path):
     (tmp_path / "big.py").write_text("AAAA" + "B" * 30_000 + "ZZZZ")
     tail = gather(Unit(name="big.py#2", root=str(tmp_path), files=("big.py",), span=(30_000, 30_008)))
-    assert "ZZZZ" in tail and "AAAA" not in tail
+    assert "ZZZZ" in tail
+    assert "AAAA" not in tail
 
 
 def test_run_converges_writes_findings_and_marks_units(custody_repository, tmp_path):
@@ -187,10 +193,12 @@ def test_run_converges_writes_findings_and_marks_units(custody_repository, tmp_p
     data = json.loads((ws / "findings.json").read_text())
     assert any(f["entry"] == "GET /wallets/<wallet_id>" for f in data["findings"])
     findings = list((ws / "findings").glob("*.md"))
-    assert findings and "Risk: HIGH" in findings[0].read_text()
+    assert findings
+    assert "Risk: HIGH" in findings[0].read_text()
 
     units = list((ws / "units").glob("*.md"))
-    assert units and all("Status: reviewed" in u.read_text() for u in units)
+    assert units
+    assert all("Status: reviewed" in u.read_text() for u in units)
     assert not any("Status: open" in u.read_text() for u in units)
 
     # the coded run has no agent candidates or pocs, so there is nothing to reconcile
@@ -238,7 +246,8 @@ def test_resume_skips_reviewed_units_and_verified_findings(custody_repository, t
         custody_repository, ws, reviewer=_CountingReviewer(), verifier=r1v, converge_after=1, max_passes=4
     )
     findings_after_1 = json.loads((ws / "custody" / "findings.json").read_text())["findings"]
-    assert findings_after_1 and r1v.calls >= 1
+    assert findings_after_1
+    assert r1v.calls >= 1
 
     r2 = _CountingReviewer()
     r2v = _CountingVerifier()
@@ -366,7 +375,8 @@ def test_finalize_dedups_verifies_and_reports(tmp_path):
     assert len(fr.verify.refuted) == 1
     data = json.loads((fr.workspace / "findings.json").read_text())
     entries = {f["entry"] for f in data["findings"]}
-    assert any("/x/" in e for e in entries) and any("/t" in e for e in entries)
+    assert any("/x/" in e for e in entries)
+    assert any("/t" in e for e in entries)
     assert not any("/r" in e for e in entries)
 
 
@@ -500,7 +510,8 @@ def test_failed_unit_stays_open_and_fails_the_gate(tmp_path):
 
     surface = (proj / "inventory" / "_surface.md").read_text()
     beta_row = next(line for line in surface.splitlines() if "beta/routes.py" in line)
-    assert "open" in beta_row and "reviewed" not in beta_row
+    assert "open" in beta_row
+    assert "reviewed" not in beta_row
 
     assert check_gate(proj).passed is False
 
@@ -564,7 +575,8 @@ def test_failed_verification_is_kept_for_the_run_but_not_frozen_for_resume(tmp_p
     confirmed, vr = apply_verification(
         ws, findings, root=str(tmp_path), verifier=_Boom(), provider=None, model="m", votes=1, concurrency=1, fresh=True
     )
-    assert [c.title for c in confirmed] == ["boom"] and vr.errors >= 1
+    assert [c.title for c in confirmed] == ["boom"]
+    assert vr.errors >= 1
     assert json.loads((ws / "_verified.json").read_text()) == {}
 
 
@@ -599,7 +611,9 @@ def test_parse_candidate_accepts_data_driven_extensions(tmp_path):
         "- Status: confirmed\n## Analysis\nsrc/handler.go:42 no owner check\n"
     )
     c = _parse_candidate(go)
-    assert c is not None and c.file == "src/handler.go" and c.line == 42
+    assert c is not None
+    assert c.file == "src/handler.go"
+    assert c.line == 42
 
     tsx = tmp_path / "tsx.md"
     tsx.write_text(
@@ -607,7 +621,9 @@ def test_parse_candidate_accepts_data_driven_extensions(tmp_path):
         "- Status: confirmed\n## Analysis\nweb/App.tsx:10 dangerouslySetInnerHTML\n"
     )
     c2 = _parse_candidate(tsx)
-    assert c2 is not None and c2.file == "web/App.tsx" and c2.line == 10
+    assert c2 is not None
+    assert c2.file == "web/App.tsx"
+    assert c2.line == 10
 
 
 def test_run_fails_loud_on_zero_units(tmp_path):
@@ -704,7 +720,8 @@ def test_git_blame_owner_annotates_a_committed_line_and_is_fail_soft(tmp_path):
     git("commit", "-q", "-m", "init")
 
     owner = _git_blame_owner(str(repository), "a.py", 1)
-    assert "Dev One" in owner and "dev@example.com" in owner
+    assert "Dev One" in owner
+    assert "dev@example.com" in owner
     # fail-soft: a missing line, no root, a traversal path, and a non-git dir never raise
     assert _git_blame_owner(str(repository), "a.py", None) == ""
     assert _git_blame_owner("", "a.py", 1) == ""
@@ -984,7 +1001,8 @@ def test_finalize_finding_carries_agent_analysis_not_a_filename(tmp_path):
     finalize_repository_review(target, ws, verify=False)
     finding = (proj / "findings" / "key-leak.md").read_text()
     assert "ships a literal AUTH0_AUTH_KEY" in finding
-    assert "## Attack Path" in finding and "## Fix" in finding
+    assert "## Attack Path" in finding
+    assert "## Fix" in finding
     assert "key-leak.md" not in finding
     data = json.loads((proj / "findings.json").read_text())
     assert data["findings"][0]["candidate"] == "candidates/key-leak.md"
@@ -1035,7 +1053,9 @@ def test_run_writes_timing_and_state_to_run_json(tmp_path):
     assert run["state"] == "converged"
     timing = run["timing"]
     assert isinstance(timing["total_seconds"], (int, float))
-    assert timing["per_pass"] and all("seconds" in p for p in timing["per_pass"])
+    assert timing["per_pass"]
+    assert all("seconds" in p for p in timing["per_pass"])
     names = [u["unit"] for u in timing["slowest_units"]]
-    assert names and len(names) == len(set(names))
+    assert names
+    assert len(names) == len(set(names))
     assert set(names) <= {"a.py", "b.py"}

@@ -53,7 +53,8 @@ def test_trailing_comma_is_repaired():
 
 def test_truncated_object_is_repaired():
     out = extract_json_object('{"findings": [{"file": "a.py", "description": "unterminated')
-    assert isinstance(out, dict) and "findings" in out
+    assert isinstance(out, dict)
+    assert "findings" in out
 
 
 def test_require_json_object_returns_the_object_when_the_key_is_present():
@@ -73,17 +74,20 @@ def test_require_json_object_raises_when_the_key_is_missing():
 
 def test_optional_json_object_reports_usable_when_the_key_is_present():
     obj, ok = optional_json_object('{"real": true}', required_key="real")
-    assert obj == {"real": True} and ok is True
+    assert obj == {"real": True}
+    assert ok is True
 
 
 def test_optional_json_object_reports_unusable_for_no_object():
     obj, ok = optional_json_object("not json at all", required_key="real")
-    assert obj == {} and ok is False
+    assert obj == {}
+    assert ok is False
 
 
 def test_optional_json_object_returns_the_object_but_not_usable_when_the_key_is_missing():
     obj, ok = optional_json_object('{"other": 1}', required_key="real")
-    assert obj == {"other": 1} and ok is False
+    assert obj == {"other": 1}
+    assert ok is False
 
 
 def test_optional_json_object_without_a_required_key_is_usable_for_any_object():

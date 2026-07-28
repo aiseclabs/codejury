@@ -31,7 +31,7 @@ def test_content_paths_layout_follows_the_root():
 def test_get_domain_returns_registered_and_fails_loud_on_unknown():
     assert get_domain("web") is WEB
     assert get_domain("evm") is EVM
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown or unavailable review domain"):
         get_domain("nonsense")
 
 
@@ -416,7 +416,8 @@ def test_slither_facts_extract_grounds_a_real_contract(tmp_path):
     assert withdraw["visibility"] == "external"
     assert "balances" in withdraw["writes"]
     # the external call and the internal callee are the facts that ground a reentrancy read
-    assert withdraw["external_call"] and withdraw["sends_eth"]
+    assert withdraw["external_call"]
+    assert withdraw["sends_eth"]
     assert "_check(uint256)" in withdraw["calls"]
     assert "ext-call" in facts.summary
     # the per-file map keys this contract's facts on its source path, so the engine grounds a
@@ -429,7 +430,8 @@ def test_slither_facts_extract_grounds_a_real_contract(tmp_path):
     text = sol.read_text()
     withdraw_unit = next(u for u in facts.data["units"] if "withdraw" in u["name"])
     body = "".join(text[s:e] for _f, s, e in withdraw_unit["fragments"])
-    assert "function withdraw" in body and "_check" in body
+    assert "function withdraw" in body
+    assert "_check" in body
 
 
 def test_by_file_groups_contract_facts_by_source_path():
@@ -460,7 +462,8 @@ def test_by_file_groups_contract_facts_by_source_path():
     }
     by = _by_file(contracts)
     assert set(by) == {"src/Vault.sol", "src/Token.sol"}
-    assert "contract Vault" in by["src/Vault.sol"] and "reenter" in by["src/Vault.sol"]
+    assert "contract Vault" in by["src/Vault.sol"]
+    assert "reenter" in by["src/Vault.sol"]
     assert "contract Token" in by["src/Token.sol"]
 
 
@@ -499,7 +502,8 @@ def test_call_path_units_anchor_on_risk_functions_with_neighborhood():
     # {_cleanupLoan,_update,liquidate}, so only the larger neighborhood survives
     assert len(units) == 1
     u = units[0]
-    assert "_cleanupLoan" in u["name"] and u["files"] == ["src/Vault.sol"]
+    assert "_cleanupLoan" in u["name"]
+    assert u["files"] == ["src/Vault.sol"]
     starts = [f[1] for f in u["fragments"]]
     assert starts == sorted(starts) == [100, 300, 420]
     assert all(f[0] == "src/Vault.sol" for f in u["fragments"])

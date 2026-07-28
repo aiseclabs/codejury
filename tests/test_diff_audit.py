@@ -32,7 +32,8 @@ def test_engine_parses_findings():
     )
     out = AuditRunner(provider=MockProvider(default=reply), model="m").run(_DIFF)
     assert len(out) == 1
-    assert out[0].severity == "CRITICAL" and out[0].category == "sql_injection"
+    assert out[0].severity == "CRITICAL"
+    assert out[0].category == "sql_injection"
 
 
 def test_engine_empty_on_no_findings():
@@ -67,7 +68,8 @@ def test_guides_for_diff_selects_by_path_and_content():
 
     diff = "diff --git a/app/urls.py b/app/urls.py\n+from django.urls import path\n+urlpatterns = []\n"
     notes = guides_for_diff(diff)
-    assert "Django" in notes and "Python" in notes
+    assert "Django" in notes
+    assert "Python" in notes
     assert guides_for_diff("+++ b/README.md\n+hello\n") == ""
 
 
@@ -88,19 +90,22 @@ def _f(file, conf=0.9):
 def test_filter_drops_test_paths():
     kept, dropped = FindingsFilter().filter([_f("app/views.py"), _f("tests/test_views.py")])
     assert [k.file for k in kept] == ["app/views.py"]
-    assert dropped[0][0].file == "tests/test_views.py" and "test path" in dropped[0][1]
+    assert dropped[0][0].file == "tests/test_views.py"
+    assert "test path" in dropped[0][1]
 
 
 def test_filter_drops_test_file_naming_outside_test_dir():
     kept, dropped = FindingsFilter().filter([_f("app/views_test.go"), _f("app/billing.spec.js")])
-    assert kept == [] and len(dropped) == 2
+    assert kept == []
+    assert len(dropped) == 2
 
 
 def test_filter_keeps_production_file_with_sampleish_name():
     kept, dropped = FindingsFilter().filter(
         [_f("app/sample_rate.py"), _f("app/mock_billing.py"), _f("app/example_config.py")]
     )
-    assert len(kept) == 3 and dropped == []
+    assert len(kept) == 3
+    assert dropped == []
 
 
 def test_filter_honors_operator_exclude_paths():
@@ -112,17 +117,20 @@ def test_filter_honors_operator_exclude_paths():
 
 def test_filter_drops_low_confidence():
     kept, dropped = FindingsFilter(min_confidence=0.6).filter([_f("a.py", conf=0.3)])
-    assert kept == [] and "confidence" in dropped[0][1]
+    assert kept == []
+    assert "confidence" in dropped[0][1]
 
 
 def test_filter_keeps_confidence_exactly_at_the_floor():
     kept, dropped = FindingsFilter(min_confidence=0.5).filter([_f("a.py", conf=0.5)])
-    assert [f.file for f in kept] == ["a.py"] and dropped == []
+    assert [f.file for f in kept] == ["a.py"]
+    assert dropped == []
 
 
 def test_filter_keeps_real_high_confidence_prod_finding():
     kept, dropped = FindingsFilter().filter([_f("app/payment.py", conf=0.95)])
-    assert len(kept) == 1 and dropped == []
+    assert len(kept) == 1
+    assert dropped == []
 
 
 _SRC = "diff --git a/app.py b/app.py\n@@ -0,0 +1 @@\n+cursor.execute('SELECT * FROM u WHERE n=' + name)\n"
@@ -139,7 +147,8 @@ def test_strip_noise_files_drops_docs_and_lockfiles_keeps_source():
 def test_strip_noise_files_keeps_a_chunk_whose_path_cannot_be_read():
     headerless = "@@ -0,0 +1 @@\n+x = 1\n"
     kept, skipped = strip_noise_files(headerless)
-    assert kept == headerless and skipped == ()
+    assert kept == headerless
+    assert skipped == ()
 
 
 def test_chunk_path_reads_the_deletion_and_git_header_fallbacks():
@@ -152,7 +161,9 @@ def test_chunk_path_reads_the_deletion_and_git_header_fallbacks():
 def test_audit_diff_whitespace_only_diff_is_clean_without_a_model_call():
     provider = MockProvider(default='{"findings": []}')
     kept, dropped, degraded = audit_diff("   \n", provider=provider, model="m")
-    assert kept == [] and dropped == [] and degraded is False
+    assert kept == []
+    assert dropped == []
+    assert degraded is False
     assert provider.calls == []
 
 
@@ -168,7 +179,9 @@ def test_audit_diff_docs_only_diff_is_clean_without_a_model_call():
     reply = _reply([{"file": "README.md", "line": 1, "severity": "HIGH", "description": "x", "confidence": 0.9}])
     provider = MockProvider(default=reply)
     kept, dropped, degraded = audit_diff(_DOC + _LOCK, provider=provider, model="m")
-    assert kept == [] and dropped == [] and degraded is False
+    assert kept == []
+    assert dropped == []
+    assert degraded is False
     assert provider.calls == []
 
 
@@ -203,4 +216,6 @@ def test_findings_filter_uses_the_passed_detection():
     f = _f("Counter.t.sol")
     assert FindingsFilter().filter([f])[0] == [f]
     kept, dropped = FindingsFilter(detection=evm).filter([f])
-    assert kept == [] and dropped and "test path" in dropped[0][1]
+    assert kept == []
+    assert dropped
+    assert "test path" in dropped[0][1]

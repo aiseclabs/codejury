@@ -100,7 +100,9 @@ def test_audit_diff_honors_exclude_paths():
     kept, dropped, _ = audit_diff(
         _FILE_A, provider=MockProvider(default=resp), model="mock", exclude_paths=("vendor/",)
     )
-    assert kept == [] and dropped and "excluded path" in dropped[0][1]
+    assert kept == []
+    assert dropped
+    assert "excluded path" in dropped[0][1]
 
 
 def test_version_flag_exits_zero(capsys):
@@ -164,7 +166,8 @@ def test_python_dash_m_codejury_runs():
     import sys
 
     r = subprocess.run([sys.executable, "-m", "codejury", "--version"], capture_output=True, text=True)
-    assert r.returncode == 0 and "codejury" in r.stdout.lower()
+    assert r.returncode == 0
+    assert "codejury" in r.stdout.lower()
 
 
 def test_install_slash_command_writes_the_file(tmp_path):
@@ -172,7 +175,8 @@ def test_install_slash_command_writes_the_file(tmp_path):
     assert rc == 0
     f = tmp_path / "codejury-review.md"
     text = f.read_text()
-    assert f.is_file() and "codejury review repository" in text
+    assert f.is_file()
+    assert "codejury review repository" in text
     # the dispatcher carries both paths, repository fan-out and the coded diff command
     assert "codejury review diff" in text
 
@@ -192,7 +196,8 @@ def test_install_slash_command_writes_both_agent_dirs(monkeypatch, tmp_path):
     assert main(["install-slash-command"]) == 0
     claude = tmp_path / ".claude" / "commands" / "codejury-review.md"
     codex = tmp_path / ".codex" / "prompts" / "codejury-review.md"
-    assert claude.is_file() and codex.is_file()
+    assert claude.is_file()
+    assert codex.is_file()
     # one domain-agnostic command that threads --domain, so both web and evm run from it
     assert "--domain auto|web|evm" in claude.read_text()
     assert claude.read_text() == codex.read_text()
@@ -563,10 +568,12 @@ def test_finalize_wires_challenger_skeptic_and_judge_confirmer(monkeypatch, tmp_
         ]
     )
     assert rc == 0
-    assert isinstance(captured["verifier"], ModelVerifier) and captured["verifier"]._model == "gpt-x"
+    assert isinstance(captured["verifier"], ModelVerifier)
+    assert captured["verifier"]._model == "gpt-x"
     ((label, checker),) = captured["confirmers"]
     assert label == "claude-x"
-    assert isinstance(checker, ModelRefutationChecker) and checker._model == "claude-x"
+    assert isinstance(checker, ModelRefutationChecker)
+    assert checker._model == "claude-x"
 
 
 def test_finalize_default_has_no_confirmer_and_notes_keep_all(monkeypatch, tmp_path, capsys):
@@ -620,7 +627,8 @@ def test_run_with_failed_calls_exits_nonzero_and_warns(monkeypatch, tmp_path, ca
     rc = main(["review", "repository", str(tmp_path), "--run", "--no-verify"])
     err = capsys.readouterr().err
     assert rc == 1
-    assert "model calls failed" in err and "did not converge" not in err
+    assert "model calls failed" in err
+    assert "did not converge" not in err
 
 
 def test_run_that_did_not_converge_exits_nonzero_and_warns(monkeypatch, tmp_path, capsys):
@@ -630,7 +638,8 @@ def test_run_that_did_not_converge_exits_nonzero_and_warns(monkeypatch, tmp_path
     rc = main(["review", "repository", str(tmp_path), "--run", "--no-verify"])
     err = capsys.readouterr().err
     assert rc == 1
-    assert "did not converge" in err and "model calls failed" not in err
+    assert "did not converge" in err
+    assert "model calls failed" not in err
 
 
 def test_finalize_verify_errors_exit_nonzero_and_ask_to_resume(monkeypatch, tmp_path, capsys):
@@ -676,7 +685,8 @@ def test_run_passes_confirmers_and_no_extra_finders(monkeypatch, tmp_path):
     assert "extra_finder_backends" not in captured
     # one confirmer, the anthropic judge and finder share the base model, the openai skeptic excluded
     labels = [label for label, _ in captured["confirmers"]]
-    assert len(labels) == 1 and labels[0] != "gpt-x"
+    assert len(labels) == 1
+    assert labels[0] != "gpt-x"
 
 
 def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monkeypatch, tmp_path):
@@ -713,7 +723,8 @@ def test_finalize_auto_builds_an_agent_confirmer_for_a_keyless_claude_judge(monk
         ]
     )
     assert rc == 0
-    assert isinstance(captured["verifier"], ModelVerifier) and captured["verifier"]._model == "gpt-x"
+    assert isinstance(captured["verifier"], ModelVerifier)
+    assert captured["verifier"]._model == "gpt-x"
     ((_label, checker),) = captured["confirmers"]
     assert isinstance(checker, AgentRefutationChecker)
 

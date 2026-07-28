@@ -104,7 +104,8 @@ def test_vulnerabilities_load_with_frontmatter():
     sqli = _BY_ID["sql-injection"]
     assert sqli.impact == "CRITICAL"
     assert "cwe-89" in sqli.tags
-    assert sqli.triggers and "Parameterized" not in sqli.triggers
+    assert sqli.triggers
+    assert "Parameterized" not in sqli.triggers
     assert "parameterized queries" in sqli.body.lower()
     assert _BY_ID["insecure-direct-object-reference"].impact == "HIGH"
 
@@ -144,7 +145,8 @@ def test_no_match_is_empty():
 
 def test_vulnerabilities_for_diff_returns_relevant_body():
     text = vulnerabilities_for_diff(_CMDI_DIFF)
-    assert "Command Injection" in text and "shell=False" in text
+    assert "Command Injection" in text
+    assert "shell=False" in text
     assert "SQL Injection" not in text
 
 

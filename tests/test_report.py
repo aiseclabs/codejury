@@ -74,7 +74,8 @@ def test_sarif_validates_against_schema():
     doc = json.loads(to_sarif(_FINDINGS))
     jsonschema.validate(doc, _SCHEMA)
     res = doc["runs"][0]["results"]
-    assert res[0]["ruleId"] == "sql_injection" and res[0]["level"] == "error"
+    assert res[0]["ruleId"] == "sql_injection"
+    assert res[0]["level"] == "error"
     assert res[0]["properties"]["confidence"] == 0.95
 
 

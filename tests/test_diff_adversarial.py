@@ -59,7 +59,8 @@ def test_three_roles_run_in_order_one_round():
     provider, out = _run([_finder([_VULN]), _challenger(), _judge([_VULN])], max_rounds=1)
     assert len(provider.calls) == 3
     assert [c["system"] for c in provider.calls] == [FINDER_SYSTEM, CHALLENGER_SYSTEM, JUDGE_SYSTEM]
-    assert len(out.findings) == 1 and out.findings[0].category == "sql_injection"
+    assert len(out.findings) == 1
+    assert out.findings[0].category == "sql_injection"
     assert out.rounds == 1
 
 
@@ -87,7 +88,8 @@ def test_challenger_independent_finding_can_survive():
 
 def test_judge_converged_flag_stops_early():
     provider, out = _run([_finder([_VULN]), _challenger(), _judge([_VULN], converged=True)], max_rounds=5)
-    assert out.converged is True and out.rounds == 1
+    assert out.converged is True
+    assert out.rounds == 1
     assert len(provider.calls) == 3
 
 
@@ -98,7 +100,8 @@ def test_converged_flag_ignored_while_investigate_pending():
         _judge([_VULN], converged=True, investigate=[{"target": "x", "reason": "runtime check"}]),
     ]
     provider, out = _run(r1 + r1, max_rounds=2)
-    assert out.rounds == 2 and len(provider.calls) == 6
+    assert out.rounds == 2
+    assert len(provider.calls) == 6
 
 
 def test_judge_downgrade_lowers_finding_severity():
@@ -130,7 +133,8 @@ def test_runs_to_max_rounds_when_unstable():
     r1 = [_finder([_VULN]), _challenger(), _judge([_VULN])]
     r2 = [_finder([_VULN]), _challenger(), _judge([{**_VULN, "line": 7}])]
     provider, out = _run(r1 + r2, max_rounds=2)
-    assert out.converged is False and out.rounds == 2
+    assert out.converged is False
+    assert out.rounds == 2
     assert len(provider.calls) == 6
 
 
@@ -151,7 +155,8 @@ def test_unusable_judge_falls_back_to_finder_findings_not_empty():
 def test_unusable_judge_includes_challenger_independent_findings():
     missed = {"file": "a.py", "line": 9, "severity": "HIGH", "category": "idor", "confidence": 0.8}
     _, out = _run([_finder([]), _challenger(new_findings=[missed]), "not json"], max_rounds=1)
-    assert [f.category for f in out.findings] == ["idor"] and out.degraded is True
+    assert [f.category for f in out.findings] == ["idor"]
+    assert out.degraded is True
 
 
 def test_audit_diff_surfaces_degraded_on_unusable_judge():
@@ -166,7 +171,8 @@ def test_audit_diff_surfaces_degraded_on_unusable_judge():
 def test_audit_diff_standard_mode_is_never_degraded():
     provider = MockProvider(default=_finder([_VULN]))
     kept, _, degraded = audit_diff(_DIFF, provider=provider, model="m", mode="standard")
-    assert degraded is False and len(kept) == 1
+    assert degraded is False
+    assert len(kept) == 1
 
 
 def test_provider_exception_degrades_rather_than_crashes():
@@ -239,9 +245,12 @@ def test_prompts_carry_role_context():
     assert "red-team" not in finder_prompt(_DIFF)
     assert "SELECT * FROM u" in finder_prompt(_DIFF)
     fp = challenger_prompt(_DIFF, [_VULN])
-    assert "rebuttal" in fp and "Independently" in fp and "sql_injection" in fp
+    assert "rebuttal" in fp
+    assert "Independently" in fp
+    assert "sql_injection" in fp
     jp = judge_prompt(_DIFF, [_VULN], [], [])
-    assert "Finder findings" in jp and "Challenger" in jp
+    assert "Finder findings" in jp
+    assert "Challenger" in jp
 
 
 class _RoleProvider:
@@ -277,9 +286,12 @@ def test_adversarial_routes_each_role_to_its_own_provider():
         judge_model="judge-m",
     )
     runner.run(_DIFF, max_rounds=1)
-    assert finder_p.systems == [FINDER_SYSTEM] and finder_p.models == ["finder-m"]
-    assert challenger_p.systems == [CHALLENGER_SYSTEM] and challenger_p.models == ["challenger-m"]
-    assert judge_p.systems == [JUDGE_SYSTEM] and judge_p.models == ["judge-m"]
+    assert finder_p.systems == [FINDER_SYSTEM]
+    assert finder_p.models == ["finder-m"]
+    assert challenger_p.systems == [CHALLENGER_SYSTEM]
+    assert challenger_p.models == ["challenger-m"]
+    assert judge_p.systems == [JUDGE_SYSTEM]
+    assert judge_p.models == ["judge-m"]
 
 
 def test_finder_unparseable_reply_degrades_not_clean_pass():

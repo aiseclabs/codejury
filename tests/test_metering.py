@@ -33,14 +33,19 @@ def test_meter_accumulates_across_calls():
     _call(metered)
     _call(metered)
     assert meter.calls == 2
-    assert meter.input_tokens == 20 and meter.output_tokens == 10 and meter.cache_write_tokens == 20
+    assert meter.input_tokens == 20
+    assert meter.output_tokens == 10
+    assert meter.cache_write_tokens == 20
 
 
 def test_summary_names_every_bucket():
     meter = UsageMeter(calls=3, input_tokens=1, output_tokens=2, cache_read_tokens=3, cache_write_tokens=4)
     s = meter.summary()
     assert "3 model calls" in s
-    assert "input=1" in s and "output=2" in s and "cache_read=3" in s and "cache_write=4" in s
+    assert "input=1" in s
+    assert "output=2" in s
+    assert "cache_read=3" in s
+    assert "cache_write=4" in s
 
 
 def test_close_delegates_to_the_inner_provider():

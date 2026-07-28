@@ -142,12 +142,14 @@ def test_candidates_from_obj_is_tolerant():
     }
     cands = candidates_from_obj(obj)
     assert len(cands) == 1
-    assert cands[0].severity == "CRITICAL" and cands[0].endpoint == "POST /t"
+    assert cands[0].severity == "CRITICAL"
+    assert cands[0].endpoint == "POST /t"
 
 
 def test_candidates_default_severity_is_medium_not_dropped():
     cands = candidates_from_obj({"findings": [{"title": "x", "severity": "spicy"}]})
-    assert len(cands) == 1 and cands[0].severity == "MEDIUM"
+    assert len(cands) == 1
+    assert cands[0].severity == "MEDIUM"
 
 
 def test_model_reviewer_builds_prompt_and_parses(tmp_path):
@@ -163,7 +165,8 @@ def test_model_reviewer_builds_prompt_and_parses(tmp_path):
 
     cands = reviewer.review(unit, "authorization", shared_context="stack: flask")
     assert len(cands) == 1
-    assert cands[0].endpoint == "GET /x/<id>" and cands[0].severity == "HIGH"
+    assert cands[0].endpoint == "GET /x/<id>"
+    assert cands[0].severity == "HIGH"
 
     sent = prov.calls[0]["messages"][0].content
     assert "AUTHORIZATION LENS" in sent
@@ -173,7 +176,8 @@ def test_model_reviewer_builds_prompt_and_parses(tmp_path):
     cache_prefix = prov.calls[0]["cache_prefix"]
     assert sent.startswith(cache_prefix)
     assert "Severity rubric" in cache_prefix
-    assert "AUTHORIZATION LENS" not in cache_prefix and "def handler" not in cache_prefix
+    assert "AUTHORIZATION LENS" not in cache_prefix
+    assert "def handler" not in cache_prefix
 
 
 def test_model_reviewer_raises_on_unparseable_reply():
@@ -192,7 +196,8 @@ def test_model_reviewer_empty_findings_is_not_an_error():
 def test_run_passes_counts_an_unparseable_reply_as_an_error():
     prov = MockProvider(default="sorry, no JSON here")
     acc = run_passes(_U, ModelReviewer(provider=prov, model="mock"), lenses=("",), max_passes=2)
-    assert acc.errors >= 1 and acc.findings == []
+    assert acc.errors >= 1
+    assert acc.findings == []
 
 
 class OneFindingReviewer(UnitReviewer):
@@ -216,7 +221,8 @@ def test_multi_model_fanout_unions_what_each_model_finds():
     acc = run_passes(_U, [a, b], lenses=("x",), converge_after=2, max_passes=24)
     assert {c.title for c in acc.findings} == {"a", "b"}
     # both models were actually run, neither skipped by an early stop
-    assert a.calls >= 1 and b.calls >= 1
+    assert a.calls >= 1
+    assert b.calls >= 1
 
 
 class FixedReviewer(UnitReviewer):

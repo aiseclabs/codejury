@@ -16,9 +16,11 @@ def test_finding_from_dict_maps_fields():
             "confidence": 0.9,
         }
     )
-    assert f.file == "app.py" and f.line == 3
+    assert f.file == "app.py"
+    assert f.line == 3
     assert f.severity == "HIGH"
-    assert f.category == "sql_injection" and f.confidence == 0.9
+    assert f.category == "sql_injection"
+    assert f.confidence == 0.9
 
 
 def test_finding_without_file_is_dropped():
@@ -41,4 +43,5 @@ def test_finding_coerces_bad_values():
 
 def test_findings_from_list_filters_bad_entries():
     out = findings_from_list([{"file": "a.py"}, "not a dict", {"no": "file"}])
-    assert len(out) == 1 and out[0].file == "a.py"
+    assert len(out) == 1
+    assert out[0].file == "a.py"

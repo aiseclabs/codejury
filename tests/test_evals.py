@@ -92,7 +92,8 @@ def test_load_answer_key_accepts_legacy_issues_alias(tmp_path):
     legacy = load_answer_key(
         _key(tmp_path, "target: t\nissues:\n  - id: a\n    category: idor\n    entry: GET /x/<id>\n")
     )
-    assert len(new.planted) == 1 and len(legacy.planted) == 1
+    assert len(new.planted) == 1
+    assert len(legacy.planted) == 1
     assert new.planted[0].id == legacy.planted[0].id == "a"
 
 
@@ -134,7 +135,8 @@ def test_score_counts_found_missed_fp_and_extra(tmp_path):
         Report.make("r-extra", "GET /unknown/thing", "xss", []),
     ]
     res = score(key, reports)
-    assert res.found == ["hit"] and res.missed == ["miss"]
+    assert res.found == ["hit"]
+    assert res.missed == ["miss"]
     assert res.false_positives == ["r-fp"]
     assert res.extra == ["r-extra"]
     assert res.recall == 0.5
@@ -456,7 +458,8 @@ def test_parse_finding_md_and_score_repository(tmp_path):
         "## Analysis\napp/services/wallet.py:11 no owner check\n"
     )
     rep = parse_finding_md((findings / "f1.md").read_text(), "f1")
-    assert rep.endpoint == "get /wallets/*" and rep.category == "insecure-direct-object-reference"
+    assert rep.endpoint == "get /wallets/*"
+    assert rep.category == "insecure-direct-object-reference"
     assert "app/services/wallet.py" in rep.files
 
     key = load_answer_key(
@@ -496,7 +499,8 @@ def test_registry_resolves_a_private_path_source_legacy_layout(tmp_path, monkeyp
     monkeypatch.setenv("CODEJURY_EVAL_CONFIG", str(cfg))
 
     bench = registry.find_benchmark("secret")
-    assert bench.provenance == "private" and bench.manifest is None
+    assert bench.provenance == "private"
+    assert bench.manifest is None
     assert bench.answer_key == src / "groundtruth" / "secret.yaml"
     assert load_answer_key(bench.answer_key).planted[0].id == "s1"
 
@@ -598,7 +602,8 @@ def test_suite_result_to_markdown_shows_runs_and_flaky():
         ],
     )
     md = sr.to_markdown()
-    assert "runs: 2" in md and "flaky: b 1/2" in md
+    assert "runs: 2" in md
+    assert "flaky: b 1/2" in md
 
 
 def test_run_diff_cases_handles_the_audit_three_tuple_and_degraded(monkeypatch):
@@ -647,12 +652,14 @@ def test_coverage_matrix_attributes_repository_entries_to_knowledge(tmp_path, mo
     # attributes to its repository entries. Assert a lower bound, another target adding an IDOR,
     # such as vikunja's task attachment IDOR, must not break this
     idor = cov["vuln:insecure-direct-object-reference"]
-    assert idor.repository_planted >= 3 and idor.repository_safe >= 2
+    assert idor.repository_planted >= 3
+    assert idor.repository_safe >= 2
     assert idor.diff_positive >= 1
     # languages/python is exercised by every Python repository target, so assert a lower bound
     # rather than a fixed count that a newly added target would break
     py = cov["guide:languages/python"]
-    assert py.repository_planted >= 3 and py.public >= 1
+    assert py.repository_planted >= 3
+    assert py.public >= 1
 
 
 def test_coverage_problems_flag_a_vulnerability_missing_a_safe_case(tmp_path, monkeypatch):
@@ -717,7 +724,8 @@ def test_load_suite_selects_cases_by_tag_and_fails_loud_on_unknown():
     smoke = load_suite("public-smoke")
     cases = select_cases(smoke, default_cases())
     names = {c.name for c in cases}
-    assert "sqli" in names and "safe-param-sql" in names
+    assert "sqli" in names
+    assert "safe-param-sql" in names
     assert all("smoke" in c.tags for c in cases)
     # the whole-library suite selects every shipped case
     full = select_cases(load_suite("knowledge-coverage"), default_cases())
@@ -752,7 +760,8 @@ def test_shipped_solidity_cases_run_under_the_evm_domain():
     assert sol, "no Solidity diff cases shipped"
     assert all(c.domain == "evm" for c in sol)
     # the pairs guard each class against a miss and a false positive
-    assert any(c.is_positive for c in sol) and any(not c.is_positive for c in sol)
+    assert any(c.is_positive for c in sol)
+    assert any(not c.is_positive for c in sol)
 
 
 def test_scan_knowledge_spans_domains(tmp_path, monkeypatch):
@@ -772,7 +781,8 @@ def test_solidity_cases_resolve_to_evm_knowledge_no_unresolved(tmp_path, monkeyp
 
     cov = coverage_matrix()
     # the shipped Solidity pairs attribute to the EVM classes, a positive and a safe each
-    assert cov["vuln:reentrancy"].diff_positive >= 1 and cov["vuln:reentrancy"].diff_safe >= 1
+    assert cov["vuln:reentrancy"].diff_positive >= 1
+    assert cov["vuln:reentrancy"].diff_safe >= 1
     # an evm class case must not read as a broken reference, the gate-fatal problem kind
     unresolved = {p.ref for p in coverage_problems(cov) if p.kind == "unresolved-reference"}
     assert "vuln:reentrancy" not in unresolved
@@ -838,9 +848,13 @@ def test_coverage_splits_diff_and_repository_dimensions():
 
     it = KnowledgeItem(ref="vuln:x", kind="vulnerability", path=Path("x.md"))
     diff_only = Coverage(item=it, diff_positive=1, diff_safe=1)
-    assert diff_only.diff_covered and not diff_only.repository_covered and diff_only.covered
+    assert diff_only.diff_covered
+    assert not diff_only.repository_covered
+    assert diff_only.covered
     repository_only = Coverage(item=it, repository_planted=1)
-    assert repository_only.repository_covered and not repository_only.diff_covered and repository_only.covered
+    assert repository_only.repository_covered
+    assert not repository_only.diff_covered
+    assert repository_only.covered
     assert not Coverage(item=it).covered
 
 

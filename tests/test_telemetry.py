@@ -19,7 +19,8 @@ def test_stage_timer_prints_elapsed_and_no_workspace_writes_no_file(capsys, tmp_
     with stage_timer("diff"):
         pass
     err = capsys.readouterr().err
-    assert "diff done in" in err and err.strip().endswith("s")
+    assert "diff done in" in err
+    assert err.strip().endswith("s")
     assert not (tmp_path / TIMELINE_FILE).exists()
 
 
@@ -31,7 +32,8 @@ def test_stage_timer_records_one_timeline_entry_per_stage_in_order(tmp_path):
     assert [r["stage"] for r in timeline] == ["scaffold", "run", "finalize", "gate"]
     for r in timeline:
         assert r["ok"] is True
-        assert isinstance(r["seconds"], (int, float)) and r["seconds"] >= 0
+        assert isinstance(r["seconds"], (int, float))
+        assert r["seconds"] >= 0
         assert r["started_at"].endswith("Z")
 
 
@@ -40,7 +42,8 @@ def test_stage_timer_records_a_failed_stage_and_reraises(tmp_path, capsys):
         raise ValueError("boom")
     assert "run failed after" in capsys.readouterr().err
     timeline = json.loads((tmp_path / TIMELINE_FILE).read_text())
-    assert timeline[-1]["stage"] == "run" and timeline[-1]["ok"] is False
+    assert timeline[-1]["stage"] == "run"
+    assert timeline[-1]["ok"] is False
 
 
 def test_a_corrupt_timeline_is_rebuilt_not_raised(tmp_path):

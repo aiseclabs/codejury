@@ -5,17 +5,20 @@ from codejury.markdown_docs import iter_md_docs, parse_frontmatter
 
 def test_parse_frontmatter_well_formed():
     meta, body = parse_frontmatter("---\nid: x\ntitle: X\n---\nthe body\n")
-    assert meta == {"id": "x", "title": "X"} and body == "the body"
+    assert meta == {"id": "x", "title": "X"}
+    assert body == "the body"
 
 
 def test_parse_frontmatter_absent():
     meta, body = parse_frontmatter("no frontmatter here\n")
-    assert meta == {} and body == "no frontmatter here\n"
+    assert meta == {}
+    assert body == "no frontmatter here\n"
 
 
 def test_parse_frontmatter_empty_block():
     meta, body = parse_frontmatter("---\n---\nbody")
-    assert meta == {} and body == "body"
+    assert meta == {}
+    assert body == "body"
 
 
 def test_iter_md_docs_skips_index_and_missing(tmp_path):
@@ -24,5 +27,6 @@ def test_iter_md_docs_skips_index_and_missing(tmp_path):
     (tmp_path / "note.txt").write_text("ignored")
     docs = list(iter_md_docs(tmp_path))
     assert [p.name for p, _, _ in docs] == ["a.md"]
-    assert docs[0][1] == {"id": "a"} and docs[0][2] == "A"
+    assert docs[0][1] == {"id": "a"}
+    assert docs[0][2] == "A"
     assert list(iter_md_docs(tmp_path / "nope")) == []

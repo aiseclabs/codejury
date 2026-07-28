@@ -76,7 +76,8 @@ def test_a_drop_needs_every_applicable_confirmer_to_uphold_the_refutation():
     cands = [Candidate(title="fp", endpoint="GET /b")]
     confirmers = [("c1", StubChecker(["fp"])), ("c2", StubChecker([]))]
     vr = verify_findings(cands, StubVerifier(["fp"]), ".", confirmers=confirmers, concurrency=1)
-    assert [c.title for c in vr.confirmed] == ["fp"] and not vr.refuted
+    assert [c.title for c in vr.confirmed] == ["fp"]
+    assert not vr.refuted
 
 
 def test_a_confirmer_that_found_the_finding_is_skipped_as_not_independent():
@@ -84,7 +85,8 @@ def test_a_confirmer_that_found_the_finding_is_skipped_as_not_independent():
     # read, it is skipped and with no applicable confirmer left the finding is kept
     cands = [Candidate(title="fp", endpoint="GET /b", found_by=("c1",))]
     vr = verify_findings(cands, StubVerifier(["fp"]), ".", confirmers=[("c1", StubChecker(["fp"]))], concurrency=1)
-    assert [c.title for c in vr.confirmed] == ["fp"] and not vr.refuted
+    assert [c.title for c in vr.confirmed] == ["fp"]
+    assert not vr.refuted
     # a second, independent confirmer that did not find it can drop it
     vr2 = verify_findings(
         cands,
@@ -157,7 +159,8 @@ def test_every_vote_refuting_and_an_upholding_confirmer_drops_at_votes_above_one
         confirmers=_judge(StubChecker(["fp"])),
         concurrency=1,
     )
-    assert [c.title for c, _ in vr.refuted] == ["fp"] and not vr.confirmed
+    assert [c.title for c, _ in vr.refuted] == ["fp"]
+    assert not vr.confirmed
 
 
 class RefuteThenKeepVerifier(Verifier):
@@ -180,7 +183,8 @@ def test_one_keep_vote_saves_the_finding_even_with_an_upholding_confirmer():
         confirmers=_judge(StubChecker(["x"])),
         concurrency=1,
     )
-    assert [c.title for c in vr.confirmed] == ["x"] and not vr.refuted
+    assert [c.title for c in vr.confirmed] == ["x"]
+    assert not vr.refuted
 
 
 def test_model_verifier_parses_a_refutation():
@@ -188,11 +192,13 @@ def test_model_verifier_parses_a_refutation():
     verdict = ModelVerifier(provider=prov, model="mock").verify(
         Candidate(title="race", endpoint="POST /t", file=""), "."
     )
-    assert verdict.real is False and "lock holds" in verdict.reason
+    assert verdict.real is False
+    assert "lock holds" in verdict.reason
     assert prov.calls[0]["cache"] is True
     cache_prefix = prov.calls[0]["cache_prefix"]
     assert prov.calls[0]["messages"][0].content.startswith(cache_prefix)
-    assert "Traps to check against" in cache_prefix and "Proposed finding" not in cache_prefix
+    assert "Traps to check against" in cache_prefix
+    assert "Proposed finding" not in cache_prefix
 
 
 def test_model_verifier_keeps_a_refutation_citing_a_same_named_file_in_another_dir():

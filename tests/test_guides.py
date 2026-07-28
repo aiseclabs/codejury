@@ -53,7 +53,8 @@ def test_select_by_file_glob():
 
 def test_select_by_manifest_substring():
     matched = {g.id for g in select_guides(["main.py"], manifest_text="Django==4.2\nrequests\n")}
-    assert "django" in matched and "python" in matched
+    assert "django" in matched
+    assert "python" in matched
 
 
 def test_no_signal_no_match():

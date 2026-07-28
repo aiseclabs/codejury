@@ -7,11 +7,15 @@ from codejury.detection import load_detection
 
 def test_detection_config_loads_with_content():
     d = load_detection()
-    assert ".py" in d.source_extensions and ".go" in d.source_extensions
+    assert ".py" in d.source_extensions
+    assert ".go" in d.source_extensions
     assert ".yaml" in d.config_extensions
-    assert ".py" in d.detection_extensions and ".yaml" in d.detection_extensions
-    assert "requirements.txt" in d.manifests and "package.json" in d.manifests
-    assert ".venv" in d.skip_dirs and "node_modules" in d.skip_dirs
+    assert ".py" in d.detection_extensions
+    assert ".yaml" in d.detection_extensions
+    assert "requirements.txt" in d.manifests
+    assert "package.json" in d.manifests
+    assert ".venv" in d.skip_dirs
+    assert "node_modules" in d.skip_dirs
 
 
 def test_is_test_path_by_directory_segment():

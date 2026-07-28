@@ -200,7 +200,8 @@ def test_concurrent_asks_do_not_share_a_client():
         th.join(timeout=10)
     t.close()
     assert results == {1: "ok", 2: "ok"}
-    assert len(creations) == 2 and len(set(seen_ids)) == 2
+    assert len(creations) == 2
+    assert len(set(seen_ids)) == 2
 
 
 def test_resolve_transport_selects_sdk_and_reports_both_on_unknown():
@@ -239,4 +240,5 @@ def test_sdk_options_carry_the_allowlist_and_scrub_auth(monkeypatch):
         sdk, cwd="/r", allowed_tools=("Read", "Grep", "Glob", "LS"), cli_path="claude", env=env
     )
     assert repository.allowed_tools == ["Read", "Grep", "Glob", "LS"]
-    assert "ANTHROPIC_API_KEY" not in repository.env and repository.env["PATH_KEEPME"] == "1"
+    assert "ANTHROPIC_API_KEY" not in repository.env
+    assert repository.env["PATH_KEEPME"] == "1"

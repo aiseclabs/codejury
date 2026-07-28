@@ -83,11 +83,15 @@ def test_scaffold_seeds_the_inventory_templates(tmp_path):
     auth = res.workspace / "inventory" / "_auth_model.md"
     inv = res.workspace / "inventory" / "_invariants.md"
     sev = res.workspace / "inventory" / "_severity.md"
-    assert surface.is_file() and "Attack Surface Inventory" in surface.read_text()
-    assert auth.is_file() and "Authorization Model" in auth.read_text()
-    assert inv.is_file() and "Intent Invariants" in inv.read_text()
+    assert surface.is_file()
+    assert "Attack Surface Inventory" in surface.read_text()
+    assert auth.is_file()
+    assert "Authorization Model" in auth.read_text()
+    assert inv.is_file()
+    assert "Intent Invariants" in inv.read_text()
     rubric = sev.read_text()
-    assert sev.is_file() and "Severity Rubric" in rubric
+    assert sev.is_file()
+    assert "Severity Rubric" in rubric
     for level in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
         assert level in rubric
 
@@ -178,7 +182,8 @@ def test_scaffold_seeds_a_unit_per_candidate(tmp_path):
     body = (res.workspace / "units" / "app.md").read_text()
     assert "- Status: open" in body
     assert "app.py" in body
-    assert "trace" in body.lower() and "_severity.md" in body
+    assert "trace" in body.lower()
+    assert "_severity.md" in body
 
 
 def test_scaffold_splits_a_large_candidate_into_slice_units(tmp_path):
@@ -194,9 +199,11 @@ def test_scaffold_splits_a_large_candidate_into_slice_units(tmp_path):
     res = scaffold(d, tmp_path / "work")
     slugs = sorted(p.stem for p in (res.workspace / "units").glob("*.md"))
     assert "views" not in slugs
-    assert "views-py-1" in slugs and "views-py-2" in slugs
+    assert "views-py-1" in slugs
+    assert "views-py-2" in slugs
     first = (res.workspace / "units" / "views-py-1.md").read_text()
-    assert "views.py" in first and "lines 1 to " in first
+    assert "views.py" in first
+    assert "lines 1 to " in first
 
 
 def test_methodology_is_a_fan_out(tmp_path):
@@ -383,13 +390,15 @@ def test_scaffold_persists_facts_for_the_evm_domain(tmp_path):
     facts = res.workspace / "_facts.md"
     assert facts.is_file()
     text = facts.read_text()
-    assert "contract Vault" in text and "reenter" in text
+    assert "contract Vault" in text
+    assert "reenter" in text
     # the per-file map keys Vault's facts on its source path, so a unit owning that file is
     # grounded with its call graph no matter which slice it reviews
 
     by_file = json.loads((res.workspace / "_facts_by_file.json").read_text())
     vault_key = next(k for k in by_file if k.endswith("Vault.sol"))
-    assert "contract Vault" in by_file[vault_key] and "reenter" in by_file[vault_key]
+    assert "contract Vault" in by_file[vault_key]
+    assert "reenter" in by_file[vault_key]
 
 
 def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):
@@ -403,10 +412,12 @@ def test_scaffold_no_candidates_when_nothing_flagged(tmp_path):
 
 def test_scaffold_seeds_stack_guides(tmp_path):
     res = scaffold(_target(tmp_path), tmp_path / "work")
-    assert "python" in res.guides and "flask" in res.guides
+    assert "python" in res.guides
+    assert "flask" in res.guides
     assert "app.py" in res.candidate_files
     stack = (res.workspace / "_stack.md").read_text().lower()
-    assert "python" in stack and "flask" in stack
+    assert "python" in stack
+    assert "flask" in stack
 
 
 def test_scaffold_seeds_vulnerability_classes(tmp_path):
@@ -435,7 +446,8 @@ def test_scaffold_fresh_clears_prior_output(tmp_path):
     (first.workspace / "candidates" / "found.md").write_text("# a finding\n")
     (first.workspace / "units" / "u1.md").write_text("# unit\n- Status: reviewed\n")
     fresh = scaffold(_target(tmp_path), ws_root, fresh=True)
-    assert fresh.had_prior_run is True and fresh.cleared
+    assert fresh.had_prior_run is True
+    assert fresh.cleared
     assert not (fresh.workspace / "candidates" / "found.md").exists()
     assert not (fresh.workspace / "units" / "u1.md").exists()
     assert (fresh.workspace / "inventory" / "_surface.md").is_file()

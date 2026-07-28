@@ -181,7 +181,8 @@ def test_fold_unions_evidence_never_drops_the_second_report():
     merge(pool, [a], by_file=True)
     merge(pool, [b], by_file=True)
     (kept,) = pool.values()
-    assert "no guard at f:10" in kept.evidence and "also reverts at f:20" in kept.evidence
+    assert "no guard at f:10" in kept.evidence
+    assert "also reverts at f:20" in kept.evidence
 
 
 def test_symbol_anchor_folds_web_route_prose_variants():

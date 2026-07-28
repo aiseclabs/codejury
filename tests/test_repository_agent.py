@@ -43,15 +43,19 @@ def test_agent_reviewer_parses_findings_from_claude_output():
 
     rev = AgentReviewer(runner=fake_runner)
     cands = rev.review(Unit(name="u", root="/repository", files=("a.py", "svc/b.py")), "authorization")
-    assert len(cands) == 1 and cands[0].endpoint == "GET /x/<id>" and cands[0].severity == "HIGH"
+    assert len(cands) == 1
+    assert cands[0].endpoint == "GET /x/<id>"
+    assert cands[0].severity == "HIGH"
     assert captured["cwd"] == "/repository"
-    assert "a.py" in captured["prompt"] and "AUTHORIZATION LENS" in captured["prompt"]
+    assert "a.py" in captured["prompt"]
+    assert "AUTHORIZATION LENS" in captured["prompt"]
 
 
 def test_agent_verifier_parses_refutation_and_keeps_on_garbage():
     refute = AgentVerifier(runner=lambda p, **k: _envelope('{"real": false, "reason": "lock holds on Postgres"}'))
     v = refute.verify(Candidate(title="race", endpoint="POST /t", file="x.py"), "/repository")
-    assert v.real is False and "lock holds" in v.reason
+    assert v.real is False
+    assert "lock holds" in v.reason
 
     garbage = AgentVerifier(runner=lambda p, **k: _envelope("no json"))
     with pytest.raises(VerifyError):
@@ -77,16 +81,21 @@ def test_ask_retries_a_transient_failure_then_succeeds():
 
     rev = AgentReviewer(runner=flaky, retries=2, backoff=0)
     cands = rev.review(Unit(name="u", root=".", files=()), "")
-    assert calls["n"] == 2 and len(cands) == 1
+    assert calls["n"] == 2
+    assert len(cands) == 1
 
 
 def test_read_only_allowlist_is_mandatory_and_extra_args_cannot_remove_it():
     args = _compose_claude_args(("--model", "claude-x"), unsafe=False)
-    assert "Read,Grep,Glob,LS" in args and "--model" in args and "claude-x" in args
+    assert "Read,Grep,Glob,LS" in args
+    assert "--model" in args
+    assert "claude-x" in args
     widened = _compose_claude_args(("--allowedTools", "Bash,Write", "--model", "x"), unsafe=False)
-    assert "Bash,Write" not in widened and "Read,Grep,Glob,LS" in widened
+    assert "Bash,Write" not in widened
+    assert "Read,Grep,Glob,LS" in widened
     unsafe = _compose_claude_args(("--allowedTools", "Bash"), unsafe=True)
-    assert "Bash" in unsafe and "Read,Grep,Glob,LS" not in unsafe
+    assert "Bash" in unsafe
+    assert "Read,Grep,Glob,LS" not in unsafe
 
 
 def test_env_args_are_shlex_parsed_and_cannot_drop_the_read_only_guard(monkeypatch):
@@ -99,7 +108,8 @@ def test_env_args_are_shlex_parsed_and_cannot_drop_the_read_only_guard(monkeypat
 
     AgentReviewer(runner=fake_runner).review(Unit(name="u", root=".", files=()), "")
     args = captured["args"]
-    assert "Read,Grep,Glob,LS" in args and "Bash" not in args
+    assert "Read,Grep,Glob,LS" in args
+    assert "Bash" not in args
     assert "be terse" in args
 
 
@@ -152,6 +162,7 @@ def test_run_with_agent_backends_needs_no_provider(custody_repository, tmp_path)
         concurrency=2,
     )
 
-    assert res.verify is not None and res.verify.confirmed
+    assert res.verify is not None
+    assert res.verify.confirmed
     data = json.loads((res.scaffold.workspace / "findings.json").read_text())
     assert any(f["entry"] == "GET /wallets/<id>" for f in data["findings"])
