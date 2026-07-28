@@ -169,6 +169,9 @@ def test_model_verifier_parses_a_refutation():
         Candidate(title="race", endpoint="POST /t", file=""), ".")
     assert verdict.real is False and "lock holds" in verdict.reason
     assert prov.calls[0]["cache"] is True
+    cache_prefix = prov.calls[0]["cache_prefix"]
+    assert prov.calls[0]["messages"][0].content.startswith(cache_prefix)
+    assert "Traps to check against" in cache_prefix and "Proposed finding" not in cache_prefix
 
 
 def test_model_verifier_keeps_a_refutation_citing_a_same_named_file_in_another_dir():

@@ -161,6 +161,11 @@ def test_model_reviewer_builds_prompt_and_parses(tmp_path):
     assert "Severity rubric" in sent
     assert "def handler" in sent
 
+    cache_prefix = prov.calls[0]["cache_prefix"]
+    assert sent.startswith(cache_prefix)
+    assert "Severity rubric" in cache_prefix
+    assert "AUTHORIZATION LENS" not in cache_prefix and "def handler" not in cache_prefix
+
 
 def test_model_reviewer_raises_on_unparseable_reply():
     prov = MockProvider(default="sorry, no JSON here")

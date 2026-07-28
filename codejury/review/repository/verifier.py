@@ -131,13 +131,16 @@ class ModelVerifier(Verifier):
 
     def verify(self, candidate: Candidate, root: str) -> Verdict:
         code = _read_file(root, candidate.file)
-        prompt = (
+        cache_head = (
             "Try to REFUTE this proposed finding. Read the code and decide whether a "
             "controlling fact makes it genuinely safe, judging against PRODUCTION "
             "semantics, not a shallow read.\n\n"
             f"Traps to check against, in both directions, refuting a real finding as "
             f"wrongly as confirming a safe one:\n{self._traps}\n\n"
-            f"Proposed finding:\n- {candidate.title}\n- category: {candidate.category}\n"
+        )
+        prompt = (
+            cache_head
+            + f"Proposed finding:\n- {candidate.title}\n- category: {candidate.category}\n"
             f"- endpoint: {candidate.endpoint}\n- location: {candidate.file}:{candidate.line}\n"
             f"- claimed evidence: {candidate.evidence}\n\n"
             f"Code at {candidate.file}:\n```\n{code}\n```\n\n"
@@ -149,6 +152,7 @@ class ModelVerifier(Verifier):
             model=self._model,
             max_tokens=self._max_tokens,
             cache=True,
+            cache_prefix=cache_head,
         )
         obj, ok = optional_json_object(result.text, required_key="real")
         if not ok:

@@ -132,9 +132,10 @@ class ModelReviewer(UnitReviewer):
 
     def review(self, unit: Unit, lens: str, *, shared_context: str = "") -> list[Candidate]:
         unit_facts = self._facts_for(unit)
+        cache_head = f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
         prompt = (
-            f"{self._mandate}\n\n---\nSeverity rubric:\n{self._rubric}\n\n---\n"
-            f"{lens_line(lens)}"
+            cache_head
+            + f"{lens_line(lens)}"
             + (f"Shared review context:\n{shared_context}\n\n" if shared_context else "")
             + (f"Contract facts for this unit, tool-extracted, the call graph and storage "
                f"the slice below may not show in full:\n{unit_facts}\n\n" if unit_facts else "")
@@ -147,6 +148,7 @@ class ModelReviewer(UnitReviewer):
             model=self._model,
             max_tokens=self._max_tokens,
             cache=True,
+            cache_prefix=cache_head,
         )
         obj = require_json_object(
             result.text, required_key="findings", error=RepositoryReviewError,
