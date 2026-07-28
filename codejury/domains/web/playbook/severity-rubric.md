@@ -8,19 +8,18 @@ the impact.
 
 Grade by impact times exploitability, on the code you read:
 
-- **CRITICAL**: a control protecting funds, signing, custody, or authentication is
+- **CRITICAL**: a control protecting funds, signing, custody, or authentication
   defeated with little or no precondition, or unauthenticated. Mint or move funds,
   take over an account, forge a trusted signature, RCE, read or write any user's
   secret material at will.
-- **HIGH**: such a control can be defeated, but with a precondition that is a line in
-  the attack path, not a reason to drop the finding: capture one request, hold one
-  credential, win a race. Cross-user or cross-tenant IDOR to sensitive data or a
-  privileged action,
+- **HIGH**: the same control defeated with a precondition that is a line in the attack
+  path, not a reason to drop the finding: capture one request, hold one credential, win
+  a race. Cross-user or cross-tenant IDOR to sensitive data or a privileged action,
   replay of a privileged signed request, a missing authorization check on a
   state-changing endpoint, mass assignment of a privileged field.
-- **MEDIUM**: real but bounded. An unauthenticated read of status or metadata, an
-  enumerable-id information leak, a defect needing heavy preconditions or yielding
-  limited impact, an idempotent state trigger reachable without auth. A real
+- **MEDIUM**: a real but bounded defect. An unauthenticated read of status or
+  metadata, an enumerable-id information leak, a defect needing heavy preconditions or
+  yielding limited impact, an idempotent state trigger reachable without auth. A real
   missing-auth or enumerable defect that looks low impact lands here, reported, not
   refuted.
 - **LOW**: a real issue with a narrow or weak exploit path. A bypassable control, a

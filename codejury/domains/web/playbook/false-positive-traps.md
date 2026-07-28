@@ -2,9 +2,9 @@
 
 Recurring ways a static read misjudges a finding, in both directions: calling it
 real when it is safe, and the inverse, refuting a real one on an incomplete read.
-The refutation step checks a candidate against every trap below. Each names the
-controlling fact to confirm in the code. When a real run later proves a new
-recurring misjudgement, add it here.
+The refutation step checks a candidate against every trap below. Most name the
+controlling fact to confirm in the code, the rest state that fact themselves. When a
+real run later proves a new recurring misjudgement, add it here.
 
 ## Locks and Transactions
 
@@ -72,7 +72,7 @@ positive kept, so these bind the refutation:
   fund movement. You must rule out every path to refute. Ruling out one is not a
   refutation: proving the attacker cannot activate their own resource does not
   refute a finding whose harm is inactivating the victim's. Proving a trigger is
-  idempotent does not refute an unauthenticated READ that leaks data.
+  idempotent does not refute an unauthenticated read that leaks data.
 - An unauthenticated endpoint reachable by an enumerable id that reads sensitive
   state or changes state is a real finding, do not refute it.
 - When you are not certain it is safe on all paths, keep it real.

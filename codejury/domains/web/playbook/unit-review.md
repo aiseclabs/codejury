@@ -33,10 +33,10 @@ presence of a named control:
   endpoints and endpoint versions, but repeated branches in one handler, a query run
   once per object type in a fan out, or one method in a set of similar methods. Where
   most scope to the owner and one does not, that one is the likely IDOR.
-- **Disclosure on a list endpoint**: a list or ReadAll that returns a secret field, a
-  hash, token, password, or key, hands it to every caller allowed to list, including one
-  meant to see only a less privileged subset. Returning the hash of a write or admin
-  share to a viewer with read access is an escalation, not a clean list.
+- **Disclosure on a list endpoint**: does a list or ReadAll return a secret field, a
+  hash, token, password, or key, to every caller allowed to list, including one meant to
+  see only a less privileged subset? Returning the hash of a write or admin share to a
+  viewer with read access is an escalation, not a clean list.
 - **Replay**: does a signed or authenticated privileged request both consume a
   one-time nonce and enforce a freshness window? A signature alone is not enough.
 - **Concurrency**: is a check-then-act serialized by a lock held across the act? A
@@ -49,20 +49,20 @@ presence of a named control:
   guard rather than denying is bypassable by forcing that error, for example by
   timing out the service it calls or sending input that throws. Read the error and
   fallback branches, not only the success path.
-- **Trusted-source**: a value is not safe because a caller you treat as trusted set
-  it, if that caller is a distinct tenant or service.
-- **Seeded invariant**: `inventory/_invariants.md` may name a property the operator
-  asserts must always hold, conservation, single-use, monotonic, ownership, ordering.
-  Apply it only to the invariants whose assets or operations this unit's code actually
-  touches, and skip every other row. For each one that applies, trace whether the code
-  on this path can break the property, and treat a breakable invariant as a finding,
-  the same as any control you read. Decide on the code you read, not on the row: a
-  seeded property is a hypothesis to test against this path, never a finding on its
-  own. When the file is blank, or no seeded row touches this unit's code, there is
-  nothing to check here and you report nothing for it. A break you confirm is graded
-  by its real impact per the rubric, the seeded blast radius is its floor, never its
-  ceiling, and a property you find the code preserves is a cleared control you record,
-  not a finding.
+- **Trusted-source**: is a value treated as safe only because a caller you treat as
+  trusted set it, when that caller is a distinct tenant or service?
+- **Seeded invariant**: does a property the operator asserts must always hold in
+  `inventory/_invariants.md`, conservation, single-use, monotonic, ownership, ordering,
+  break on this path? Apply it only to the invariants whose assets or operations this
+  unit's code actually touches, and skip every other row. For each one that applies,
+  trace whether the code on this path can break the property, and treat a breakable
+  invariant as a finding, the same as any control you read. Decide on the code you
+  read, not on the row: a seeded property is a hypothesis to test against this path,
+  never a finding on its own. When the file is blank, or no seeded row touches this
+  unit's code, there is nothing to check here and you report nothing for it. A break
+  you confirm is graded by its real impact per the rubric, the seeded blast radius is
+  its floor, never its ceiling, and a property you find the code preserves is a
+  cleared control you record, not a finding.
 
 Refute in place: name the one controlling fact that would make the code safe, read
 that exact code, and settle it. Confirmed if the control is absent or bypassable,

@@ -15,13 +15,13 @@ one agent's rounds.
 
 So the work is three phases:
 
-- **Map**, build the attack-surface inventory, the role and ownership model, and the
+- **Map**: build the attack-surface inventory, the role and ownership model, and the
   value map. The inventory is the coverage denominator: you cannot claim coverage against
   what you happened to notice, only against an enumerated list of external entrypoints.
-- **Fan Out**, decompose the surface into per-contract units and run a focused deep
+- **Fan Out**: decompose the surface into per-contract units and run a focused deep
   sub-review on each, in parallel. Each traces its functions to where value moves and
   challenges every control. This is where findings are made.
-- **Aggregate**, collect the unit verdicts, derive coverage against the inventory, and
+- **Aggregate**: collect the unit verdicts, derive coverage against the inventory, and
   report the confirmed findings, each carrying the refutation it survived.
 
 Workspace: `<workspace>/<project>/`, holding `inventory/`, `units/`, `candidates/`,
@@ -83,7 +83,7 @@ Supplement the seeded units with what glob-based seeding cannot know, copying th
 from a seeded one:
 
 - **Contracts no glob flagged**: add a unit for each contract with external surface.
-- **Sequence units**: one per multi-step or multi-contract flow whose invariant spans
+- **Sequence units**: add one per multi-step or multi-contract flow whose invariant spans
   several calls, for example deposit then borrow then liquidate, or a cross-contract
   callback, where a per-contract look misses an invariant that breaks across the sequence.
 
@@ -112,11 +112,12 @@ protocol, refutes its own candidates, and grades every real finding by the rubri
 
 *Pull the unit results together, derive coverage, and report what survived.*
 
-- **Coverage** is the units with a verdict over the units in the inventory. An un-reviewed
-  unit is a known gap, list it, do not report the review clean with units outstanding.
-- **Dedup** findings several units reached from different contracts, keeping the
-  highest-impact instance.
-- **Report every real finding, graded by the severity rubric** in
+- **Coverage**: count the units with a verdict over the units in the inventory. An
+  un-reviewed unit is a known gap, list it, do not report the review clean with units
+  outstanding.
+- **Dedup**: merge the findings several units reached from different contracts, keeping
+  the highest-impact instance.
+- **Severity**: report every real finding, graded by the severity rubric in
   `inventory/_severity.md`, CRITICAL through LOW. The only thing dropped is a finding whose
   controlling fact holds when you read the code. When unsure between two levels, report at
   the higher and say why.

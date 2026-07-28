@@ -17,14 +17,14 @@ agent's rounds and not from re-running the whole review many times.
 
 So the work is three phases:
 
-- **Map**, build the attack-surface inventory, the authorization model, and the
+- **Map**: build the attack-surface inventory, the authorization model, and the
   sensitive-data map. The inventory is the coverage denominator: a real repository has
   100+ endpoints, and you cannot claim coverage against what you happened to
   notice, only against an enumerated list.
-- **Fan Out**, decompose the surface into units and run a focused deep sub-review on
+- **Fan Out**: decompose the surface into units and run a focused deep sub-review on
   each, in parallel. Each unit gets full attention on a small slice, traces it to
   its real sink, and challenges every control. This is where findings are made.
-- **Aggregate**, collect the unit verdicts, derive coverage against the inventory,
+- **Aggregate**: collect the unit verdicts, derive coverage against the inventory,
   and report the confirmed findings, each carrying the refutation it survived.
 
 The one irreducible human dependency, the credentials and go-ahead to run a PoC
@@ -67,9 +67,9 @@ record the module, the route, the auth method, and a review status.
 Then record three cross-cutting artifacts in `inventory/`:
 
 - **The authorization model**: how this codebase enforces access control, by a
-  decorator, middleware, permission class, signature, or guard, the actors, tenants, and services,
-  and the trust boundaries between them. Every unit refers to this instead of
-  re-deriving it.
+  decorator, middleware, permission class, signature, or guard, the actors, tenants,
+  and services, and the trust boundaries between them. Every unit refers to this
+  instead of re-deriving it.
 - **The sensitive-data map**: where tokens, secrets, PII, keys, and other tenants'
   data live, since the data-exposure class has no attacker entrypoint and an
   entrypoint-anchored read misses it.
@@ -98,9 +98,9 @@ Supplement the seeded units with the ones glob-based seeding cannot know, copyin
 the mandate from a seeded unit:
 
 - **Entrypoint modules no guide flagged**: add a unit for each.
-- **Non-HTTP sources**: deserializers, queue and topic consumers, file parsers,
-  webhooks and callbacks.
-- **Sequence units**: one per multi-step flow whose invariant spans several
+- **Non-HTTP sources**: add a unit for each deserializer, queue and topic consumer,
+  file parser, webhook, and callback.
+- **Sequence units**: add one per multi-step flow whose invariant spans several
   endpoints, for example create then approve then execute, or set then trigger,
   where a per-endpoint look misses an invariant that breaks across the sequence,
   such as a resource mutated after it was approved.
@@ -134,8 +134,8 @@ Each sub-review follows the full mandate below:
 2. **Hunts** the high-impact classes: broken authorization and IDOR, business-logic
    and state-machine bypass, replay, signature and key-trust flaws, race conditions,
    injection, mass assignment, SSRF, missing authentication.
-3. **Verifies each control on the path, on the code it actually reads, never on the
-   presence of a named control.** Challenge each control:
+3. **Verifies** each control on the path, on the code it actually reads, never on the
+   presence of a named control. Challenges each one:
    - **Authorization granularity**: does the check scope to the right principal,
      owner vs tenant vs service, or only prove the caller is some valid user?
      Compare the unit's siblings and versions for a dropped or weakened check.
@@ -145,9 +145,9 @@ Each sub-review follows the full mandate below:
      Read the real mechanism. A `select_for_update` whose result is discarded still
      holds the row lock on a production RDBMS inside a transaction, so judge against
      production semantics, not a SQLite or in-memory test where locking is a no-op.
-   - **Trusted-source**: a value is not safe because a caller you treat as trusted
-     set it, if that caller is a distinct tenant or service.
-4. **Refutes in place.** A candidate is a hypothesis. From a fresh skeptical read,
+   - **Trusted-source**: is a value treated as safe only because a caller you treat as
+     trusted set it, when that caller is a distinct tenant or service?
+4. **Refutes** in place. A candidate is a hypothesis. From a fresh skeptical read,
    name the one controlling fact that would make the code safe, then read that exact
    code and settle it. If it holds, the candidate is refuted. If it is absent or
    bypassable, it is confirmed. If it turns on a runtime fact you cannot read, it is
@@ -164,12 +164,12 @@ cleared it, so a wrong clear is visible.
 
 *Pull the unit results together, derive coverage, and report what survived.*
 
-- **Coverage** is the units with a verdict over the units in the inventory. Every
-  unit must come back with findings or an evidenced clear. An un-reviewed unit is a
-  known gap, list it, do not report the review clean with units outstanding.
-- **Dedup** findings that several units reached from different entrypoints, keeping
-  the highest-impact instance.
-- **Report every real finding, graded by the severity rubric** in
+- **Coverage**: count the units with a verdict over the units in the inventory.
+  Every unit must come back with findings or an evidenced clear. An un-reviewed unit
+  is a known gap, list it, do not report the review clean with units outstanding.
+- **Dedup**: merge the findings that several units reached from different entrypoints,
+  keeping the highest-impact instance.
+- **Severity**: report every real finding, graded by the severity rubric in
   `inventory/_severity.md`, CRITICAL through LOW. A real, evidenced defect is graded
   at its level and surfaced. The only thing dropped is a finding whose controlling
   fact holds when you read the code, which is a refutation on the facts, never a

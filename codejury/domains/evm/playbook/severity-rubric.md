@@ -11,15 +11,15 @@ Severity is anchored on funds. Grade by impact times exploitability, on the code
   with little or no precondition. Drain a pool or vault via reentrancy, mint unlimited
   supply through a missing access check, seize ownership of an unguarded initializer or
   proxy, arbitrary `delegatecall`, a reachable `selfdestruct` that bricks held funds.
-- **HIGH**: funds can be taken or locked, but with a precondition that is a line in the
-  attack path, not a reason to drop the finding: a flash loan is available, a particular
+- **HIGH**: funds taken or locked with a precondition that is a line in the attack
+  path, not a reason to drop the finding: a flash loan is available, a particular
   market state, winning a race, holding one signed message. Flash-loan oracle
   manipulation, a replayable privileged signature, griefing that locks user funds, a
   rounding or first-depositor attack that captures deposits.
-- **MEDIUM**: real but bounded. A precision leak of dust, a DoS that recovers or only
-  delays, a manipulation needing capital out of proportion to the gain, an issue gated by
-  a trusted role misbehaving. A real defect that looks limited lands here, reported, not
-  refuted.
+- **MEDIUM**: a real but bounded defect. A precision leak of dust, a DoS that recovers
+  or only delays, a manipulation needing capital out of proportion to the gain, an issue
+  gated by a trusted role misbehaving. A real defect that looks limited lands here,
+  reported, not refuted.
 - **LOW**: a real issue with a narrow or weak exploit path, such as a bypassable control
   or a concrete but low-impact defect. A pure hardening gap, a missing event, or a
   missing zero-address check with no concrete exploit is not a LOW, it is not reported,

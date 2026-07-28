@@ -2,8 +2,9 @@
 
 Recurring ways a static read misjudges a contract finding, in both directions: calling it
 real when it is safe, and refuting a real one on an incomplete read. The refutation step
-checks a candidate against every trap below. Each names the controlling fact to confirm in
-the code. When a real run later proves a new recurring misjudgement, add it here.
+checks a candidate against every trap below. Most name the controlling fact to confirm in
+the code, the rest state that fact themselves. When a real run later proves a new
+recurring misjudgement, add it here.
 
 ## Reentrancy Guards
 
@@ -56,8 +57,8 @@ the code. When a real run later proves a new recurring misjudgement, add it here
 - A `constant`, an `immutable` set in the constructor, or a value only an owner-gated path
   can set is not attacker-controlled even though it feeds a sink. Controlling fact: trace
   where the value is actually set, not where it is read.
-- An address passed by an arbitrary external caller IS attacker-controlled, including a
-  token or callback target, treat it as hostile.
+- An address passed by an arbitrary external caller is attacker-controlled, including a
+  token or callback target, so treat it as hostile.
 
 ## Oracles and Reachability
 
