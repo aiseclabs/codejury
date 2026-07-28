@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from codejury.providers.base import Message
-from codejury.providers.openai import OpenAIProvider
+from codejury.providers.base import Message, Usage
+from codejury.providers.openai import OpenAIProvider, _chat_usage, _responses_usage
 
 
 class _FakeClient:
@@ -61,6 +61,25 @@ def test_sdk_exception_propagates():
         OpenAIProvider(client=_Boom()).complete(
             system="s", messages=[Message(role="user", content="x")], model="m", max_tokens=8
         )
+
+
+def test_chat_usage_subtracts_the_cached_read_from_the_prompt_total():
+    response = SimpleNamespace(usage=SimpleNamespace(
+        prompt_tokens=2700, completion_tokens=40,
+        prompt_tokens_details=SimpleNamespace(cached_tokens=2600)))
+    assert _chat_usage(response) == Usage(input_tokens=100, output_tokens=40, cache_read_tokens=2600)
+
+
+def test_responses_usage_reads_the_cached_tokens_detail():
+    response = SimpleNamespace(usage=SimpleNamespace(
+        input_tokens=2700, output_tokens=40,
+        input_tokens_details=SimpleNamespace(cached_tokens=2600)))
+    assert _responses_usage(response) == Usage(input_tokens=100, output_tokens=40, cache_read_tokens=2600)
+
+
+def test_usage_defaults_to_zero_when_unreported():
+    assert _chat_usage(SimpleNamespace(model="m")) == Usage()
+    assert _responses_usage(SimpleNamespace(model="m")) == Usage()
 
 
 def test_empty_content_yields_empty_text():

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from codejury.providers.base import CompletionResult, Message, Provider
+from codejury.providers.base import CompletionResult, Message, Provider, Usage
 from codejury.providers.chat_format import choice_text
 
 
@@ -68,7 +68,7 @@ class OpenAIProvider(Provider):
             temperature=0,  # so the same input yields the same verdicts
             timeout=self._timeout,
         )
-        return CompletionResult(text=choice_text(response))
+        return CompletionResult(text=choice_text(response), usage=_chat_usage(response))
 
     def _complete_responses(
         self, *, system: str, messages: list[Message], model: str, max_tokens: int
@@ -84,4 +84,48 @@ class OpenAIProvider(Provider):
             max_output_tokens=max(max_tokens, 8000),
             timeout=self._timeout,
         )
-        return CompletionResult(text=getattr(response, "output_text", "") or "")
+        return CompletionResult(text=getattr(response, "output_text", "") or "",
+                                usage=_responses_usage(response))
+
+
+def _chat_usage(response: Any) -> Usage:
+    """The Chat Completions token counts. `prompt_tokens` already includes the cached read, so the
+    uncached input is the remainder, and OpenAI reports the cache read under prompt_tokens_details."""
+    u = getattr(response, "usage", None)
+    if u is None:
+        return Usage()
+    cached = _int(_nested(u, "prompt_tokens_details", "cached_tokens"))
+    return Usage(
+        input_tokens=max(_int(_get(u, "prompt_tokens")) - cached, 0),
+        output_tokens=_int(_get(u, "completion_tokens")),
+        cache_read_tokens=cached,
+    )
+
+
+def _responses_usage(response: Any) -> Usage:
+    """The Responses API token counts, where the cache read is under input_tokens_details and
+    input_tokens already includes it."""
+    u = getattr(response, "usage", None)
+    if u is None:
+        return Usage()
+    cached = _int(_nested(u, "input_tokens_details", "cached_tokens"))
+    return Usage(
+        input_tokens=max(_int(_get(u, "input_tokens")) - cached, 0),
+        output_tokens=_int(_get(u, "output_tokens")),
+        cache_read_tokens=cached,
+    )
+
+
+def _get(obj: Any, name: str) -> Any:
+    value = getattr(obj, name, None)
+    if value is None and isinstance(obj, dict):
+        value = obj.get(name)
+    return value
+
+
+def _nested(obj: Any, outer: str, inner: str) -> Any:
+    return _get(_get(obj, outer) or {}, inner)
+
+
+def _int(value: Any) -> int:
+    return int(value) if isinstance(value, (int, float)) else 0

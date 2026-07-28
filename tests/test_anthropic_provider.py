@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from codejury.providers.anthropic import AnthropicProvider
-from codejury.providers.base import Message
+from codejury.providers.anthropic import AnthropicProvider, _extract_usage
+from codejury.providers.base import Message, Usage
 
 
 class _FakeClient:
@@ -57,6 +57,17 @@ def test_cache_marks_system_with_ephemeral_cache_control():
     assert client.create_kwargs["system"] == [
         {"type": "text", "text": "sys", "cache_control": {"type": "ephemeral"}}
     ]
+
+
+def test_extract_usage_maps_cache_read_and_write_separately():
+    response = SimpleNamespace(usage=SimpleNamespace(
+        input_tokens=30, output_tokens=12, cache_creation_input_tokens=2600, cache_read_input_tokens=0))
+    assert _extract_usage(response) == Usage(
+        input_tokens=30, output_tokens=12, cache_write_tokens=2600, cache_read_tokens=0)
+
+
+def test_extract_usage_defaults_to_zero_when_unreported():
+    assert _extract_usage(SimpleNamespace(model="m")) == Usage()
 
 
 class _BadRequest(Exception):

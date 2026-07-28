@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from codejury.providers.base import CompletionResult, Message, Provider
+from codejury.providers.base import CompletionResult, Message, Provider, Usage
 
 
 class AnthropicProvider(Provider):
@@ -72,7 +72,7 @@ class AnthropicProvider(Provider):
             "messages": [{"role": m.role, "content": m.content} for m in messages],
         }
         response = self._create(request)
-        return CompletionResult(text=_extract_text(response))
+        return CompletionResult(text=_extract_text(response), usage=_extract_usage(response))
 
     def _create(self, request: dict[str, Any]) -> Any:
         client = self._get_client()
@@ -96,6 +96,27 @@ def _is_temperature_rejected(exc: Exception) -> bool:
     if status != 400 and "BadRequest" not in type(exc).__name__:
         return False
     return "temperature" in str(exc).lower()
+
+
+def _extract_usage(response: Any) -> Usage:
+    """The token counts Anthropic reports separately for uncached input, cache write, and cache
+    read, so a run can show whether the cached prefix is being hit."""
+    u = getattr(response, "usage", None)
+    if u is None:
+        return Usage()
+    return Usage(
+        input_tokens=_int_attr(u, "input_tokens"),
+        output_tokens=_int_attr(u, "output_tokens"),
+        cache_read_tokens=_int_attr(u, "cache_read_input_tokens"),
+        cache_write_tokens=_int_attr(u, "cache_creation_input_tokens"),
+    )
+
+
+def _int_attr(obj: Any, name: str) -> int:
+    value = getattr(obj, name, None)
+    if value is None and isinstance(obj, dict):
+        value = obj.get(name)
+    return int(value) if isinstance(value, (int, float)) else 0
 
 
 def _extract_text(response: Any) -> str:
