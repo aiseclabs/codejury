@@ -10,31 +10,31 @@ Run a codejury security review of: $ARGUMENTS
 
 `$ARGUMENTS` holds a target plus optional flags. Settle them before running anything.
 
-- The first non-flag token is the target: a unified diff file such as a `.diff` or `.patch`, a git
-  range such as `origin/main...HEAD`, or a repository directory.
-- `--coded` is one switch that decides the engine and the model backend together:
+- Take the first non-flag token as the target: a unified diff file such as a `.diff` or `.patch`, a
+  git range such as `origin/main...HEAD`, or a repository directory.
+- Read `--coded` as one switch that decides the engine and the model backend together:
   - absent, the default: model calls run on your Claude Code subscription with
-    `--executor subscription`, so **your `.env` provider config is not used**. A repository is reviewed by the
-    agent fan-out you orchestrate.
+    `--executor subscription`, so **your `.env` provider config is not used**. A repository is
+    reviewed by the agent fan-out you orchestrate.
   - present: every codejury model call runs with `--executor api`, so **your `.env` provider
     config is used**. A repository is reviewed by codejury's own coded engine with `--run`.
 - Let `EXEC` be `api` when `--coded` is present, else `subscription`.
-- These flags pass through to codejury, each routed to the step that reads it. `--coded` is for
+- Pass these flags through to codejury, each routed to the step that reads it. `--coded` is for
   you, never pass it to codejury, and never pass `--executor`, `--coded` already sets it:
   - `--domain auto|web|evm`, the review domain, `auto` detects from the target. Pass it to every
     step so they agree. Omit to let codejury detect.
   - `--effort low|medium|high`, the depth dial, append to `--run` and `--finalize`.
   - `--invariants <file>`, the operator-seeded intent invariants, append to `--scaffold` only.
-  - `--workspace <path>`, append to every step so they share one workspace.
+  - `--workspace <path>`, the review workspace, append to every step so they share one.
 - Announce the choice on the first line before running anything, so it is never a guess:
   `Engine: agent fan-out | model: Claude Code subscription | .env: not used`, or
   `Engine: coded --run | model: api | .env: used`.
 
 Then pick the path by the target. Diff and whole-repository are different tools, do not mix them.
 
-- DIFF REVIEW when the target is a diff file or a git range. Fully coded, you run one command and
-  relay its report, there is no fan-out and no workspace.
-- REPOSITORY REVIEW when the target is a directory. `--coded` chooses the coded engine, its
+- **Diff Review** when the target is a diff file or a git range. Fully coded, you run one command
+  and relay its report, there is no fan-out and no workspace.
+- **Repository Review** when the target is a directory. `--coded` chooses the coded engine, its
   absence chooses the fan-out you orchestrate.
 
 If `codejury` is not on PATH it is a pip-installed console script, so activate the project venv
@@ -50,10 +50,11 @@ codejury review diff --file <the diff file> --executor $EXEC
 ```
 
 For a git range instead of a file, use `--git-range <range>` in place of `--file`, adding
-`--repository <path>` if the range lives in another repository. A failed, rate-limited, blank, or error-exited run is a
-failed review, not a clean pass, surface the error and never report zero findings from a broken
-run. A non-zero exit means a finding hit the severity gate or the audit degraded, say which. Then
-stop, Diff Review does not use the units, the workspace, or the gate below.
+`--repository <path>` if the range lives in another repository. A failed, rate-limited, blank, or
+error-exited run is a failed review, not a clean pass, surface the error and never report zero
+findings from a broken run. A non-zero exit means a finding hit the severity gate or the audit
+degraded, say which. Then stop, diff review does not use the units, the workspace, or the gate
+below.
 
 ## Repository Review
 
@@ -77,7 +78,7 @@ It imports that file and never overwrites an already edited `inventory/_invarian
 If it reports a previous review's output, ask me whether to clear it, and if I say yes, re-run with
 `--fresh`.
 
-RESUMING. If a previous run was interrupted, re-run without clearing, answer no when it asks to
+**Resuming**. If a previous run was interrupted, re-run without clearing, answer no when it asks to
 clear. It resumes: a unit already `- Status: reviewed` is skipped, and `--finalize` does not
 re-verify a settled finding. Keep resuming in new sessions until the gate passes.
 
@@ -99,14 +100,14 @@ deterministic unit worklist, you run one focused sub-review per unit in parallel
 findings across diverse passes, verify, and stop on a gate. The deep reading happens inside each
 sub-review, never in this main context.
 
-1. MAP. Make the worklist complete. Enumerate every attacker-influenced entrypoint into
+1. **Map**. Make the worklist complete. Enumerate every attacker-influenced entrypoint into
    `inventory/_surface.md`, and fill `inventory/_auth_model.md` with the access model and trust
    boundaries. If the operator seeded `inventory/_invariants.md`, leave it for the units. If it is
    blank, do not invent rows. For anything the seeded units miss, add a unit file by copying the
    mandate from a seeded one. Cover non-HTTP sources such as deserializers, queues, and file
    parsers. Every entrypoint in the surface must be owned by some unit.
 
-2. FAN OUT. This step is mechanical, not a matter of judgment. For every unit in `units/` with
+2. **Fan Out**. This step is mechanical, not a matter of judgment. For every unit in `units/` with
    `- Status: open`, launch one sub-review per unit as a separate subagent or task, in parallel.
    One per unit, no unit skipped, no two merged to save calls. Give each only its unit file, which
    carries the mandate and the files to own, plus the shared `_stack.md`,
@@ -134,7 +135,7 @@ On the coded path append `--poc`, so the coded engine writes a runnable PoC per 
 fan-out units do, keeping the two paths consistent. It writes for every finding and runs it only
 where the domain runs locally and safely, such as evm under Foundry. When the toolchain is absent it
 writes the PoC and notes how to run it by hand, and it never drops a finding. Do not add `--poc` on
-the fan-out path, its units already wrote a PoC each during FAN OUT.
+the fan-out path, its units already wrote a PoC each during Fan Out.
 
 It dedups by location and class, adversarially verifies each survivor, drops the refuted into
 `_refuted.md`, and writes the ranked `findings.json`. Re-run to resume, settled findings are

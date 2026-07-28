@@ -34,8 +34,8 @@ recurring misjudgement, add it here.
 ## Access Control off the Function Body
 
 - The `onlyOwner` or role modifier may be declared in an inherited base contract, not in
-  the file you are reading. Controlling fact: read the full inheritance chain and the
-  modifier definition before concluding a check is absent.
+  the file you are reading. Controlling fact: does the check live anywhere in the
+  inheritance chain, including the modifier definition?
 - A `constructor` with `_disableInitializers()` or an `initializer` modifier makes
   `initialize` non-re-callable. Controlling fact: is the initializer actually guarded, and
   is the proxy initialized at deploy?
@@ -43,8 +43,8 @@ recurring misjudgement, add it here.
 ## Arithmetic
 
 - Solidity 0.8 and later revert on overflow and underflow by default. An add or subtract
-  outside an `unchecked` block is not an overflow finding. Controlling fact: check the
-  pragma and whether the code sits in an `unchecked` block.
+  outside an `unchecked` block is not an overflow finding. Controlling fact: is the pragma
+  below 0.8, or does the code sit in an `unchecked` block?
 
 ## Token and Call Returns
 
@@ -55,8 +55,8 @@ recurring misjudgement, add it here.
 ## Input That Looks Attacker-Controlled but Is Not
 
 - A `constant`, an `immutable` set in the constructor, or a value only an owner-gated path
-  can set is not attacker-controlled even though it feeds a sink. Controlling fact: trace
-  where the value is actually set, not where it is read.
+  can set is not attacker-controlled even though it feeds a sink. Controlling fact: where
+  is the value actually set, not where it is read?
 - An address passed by an arbitrary external caller is attacker-controlled, including a
   token or callback target, so treat it as hostile.
 
@@ -67,7 +67,7 @@ recurring misjudgement, add it here.
   Controlling fact: which source does the value actually come from, and can a flash loan
   move it for free in one transaction?
 - A dangerous sink is only exploitable if an external caller can reach it with chosen
-  values. Controlling fact: trace a concrete path from an external function to the sink.
+  values. Controlling fact: is there a concrete path from an external function to the sink?
 
 ## Refuting Safely: Recall Comes First
 

@@ -21,7 +21,7 @@ real run later proves a new recurring misjudgement, add it here.
 
 - An id, ticket, or key read from the session, a signed cookie, or a server-set
   field is not attacker-controlled even though it arrives in the request object.
-  Controlling fact: trace where the value is actually set, not where it is read.
+  Controlling fact: where is the value actually set, not where it is read?
 - A value the framework derives from an authenticated identity, not from the
   request body, is trusted input.
 
@@ -29,8 +29,8 @@ real run later proves a new recurring misjudgement, add it here.
 
 - The auth, ownership, or signature check may be in a decorator, a middleware, a
   permission class, a base class, or a wrapper, not in the handler you are reading.
-  Controlling fact: read the full dispatch path, including base classes and
-  decorators, before concluding a check is absent.
+  Controlling fact: does the check live anywhere on the full dispatch path,
+  including base classes and decorators?
 
 ## Replay and Freshness
 
@@ -54,9 +54,9 @@ real run later proves a new recurring misjudgement, add it here.
 ## Reachability
 
 - A dangerous sink is only exploitable if attacker input actually reaches it.
-  Controlling fact: trace a concrete path from an entrypoint to the sink. If the
-  value at the sink is a constant, a server-derived value, or an internal-only
-  caller, there is no exploit.
+  Controlling fact: is there a concrete path from an entrypoint to the sink? If the
+  value at the sink is a constant or server-derived, or the only caller is internal,
+  there is no exploit.
 
 ## Refuting Safely: Recall Comes First
 
