@@ -1,6 +1,5 @@
-"""Token accounting across a whole run. The meter records each call's usage so a repository review
-can report where the tokens went, uncached input, output, and cache read or write, without threading
-usage through every reviewer and verifier return value.
+"""Token accounting across a whole run, so a repository review can report where the tokens went
+without threading usage through every reviewer and verifier return value.
 """
 
 from __future__ import annotations
@@ -40,9 +39,8 @@ class UsageMeter:
 
 
 class MeteringProvider(Provider):
-    """Wrap a provider and record each call's usage into a shared meter. A backend that reports no
-    usage, such as the subscription agent, simply adds zeros, so the total reflects the metered
-    seats and never blocks a call."""
+    """Record each wrapped call's usage into the shared meter. A backend that reports no usage, such
+    as the subscription agent, adds zeros, so the total reflects the metered seats and never blocks."""
 
     def __init__(self, inner: Provider, meter: UsageMeter) -> None:
         self._inner = inner
