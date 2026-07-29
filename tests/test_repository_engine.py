@@ -100,13 +100,19 @@ def test_load_facts_by_file_reads_the_map_drops_empty_and_fails_loud_on_corrupt(
 def test_gather_assembles_call_path_fragments(tmp_path):
     # a call-path unit reviews its source fragments, the packed function bodies, not whole
     # files, so the model sees the path co-located and not the rest of a large file
-    (tmp_path / "V.sol").write_text("AAAA" + "B" * 100 + "CCCC_TWO" + "D" * 50)
-    u = Unit(name="cp", root=str(tmp_path), files=("V.sol",), fragments=(("V.sol", 0, 4), ("V.sol", 104, 112)))
+    text = "AAAA\n" + "B\n" * 100 + "CCCC_TWO\n" + "D\n" * 50
+    (tmp_path / "V.sol").write_text(text)
+    second = text.index("CCCC_TWO")
+    u = Unit(
+        name="cp", root=str(tmp_path), files=("V.sol",), fragments=(("V.sol", 0, 4), ("V.sol", second, second + 8))
+    )
     g = gather(u)
     assert "AAAA" in g
     assert "CCCC_TWO" in g
-    assert "B" * 100 not in g
-    assert "chars 0-4" in g
+    assert "B\nB" not in g
+    assert "# file: V.sol lines 1-1" in g
+    assert "# file: V.sol lines 102-102" in g
+    assert "102 | CCCC_TWO" in g
 
 
 def test_build_units_appends_call_path_units_from_facts(tmp_path):
@@ -178,6 +184,22 @@ def test_gather_reads_only_the_span_window_of_a_chunked_unit(tmp_path):
     tail = gather(Unit(name="big.py#2", root=str(tmp_path), files=("big.py",), span=(30_000, 30_008)))
     assert "ZZZZ" in tail
     assert "AAAA" not in tail
+
+
+def test_gather_numbers_a_span_window_from_its_real_first_line(tmp_path):
+    text = "".join(f"line{i}\n" for i in range(1, 501))
+    (tmp_path / "big.py").write_text(text)
+    start = text.index("line300")
+    g = gather(Unit(name="big.py#2", root=str(tmp_path), files=("big.py",), span=(start, start + 8)))
+    assert "300 | line300" in g
+    assert "# file: big.py lines 300-300" in g
+
+
+def test_gather_budget_counts_source_not_the_line_number_prefixes(tmp_path):
+    for name in ("a.py", "b.py", "c.py"):
+        (tmp_path / name).write_text("x\n" * 20_000)
+    g = gather(Unit(name="u", root=str(tmp_path), files=("a.py", "b.py", "c.py")))
+    assert g.count("# file: ") == 3
 
 
 def test_run_converges_writes_findings_and_marks_units(custody_repository, tmp_path):

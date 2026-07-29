@@ -34,10 +34,27 @@ class Unit:
     fragments: tuple[tuple[str, int, int], ...] = ()
 
 
+def _numbered(rel: str, text: str, first_line: int) -> str:
+    """One labeled block whose every line carries its real line number in the file.
+
+    A finding must cite a `file:line`, but a slice starting mid-file gives the model no way to
+    derive one: the newlines before the slice are not in the prompt, so an absolute line is not
+    computable, only guessable. Numbering each line makes it a value to copy rather than a count
+    to keep, and the header's range shows the block is a cut of the file."""
+    lines = text.splitlines()
+    last = first_line + max(len(lines), 1) - 1
+    width = len(str(last))
+    body = "\n".join(f"{first_line + i:>{width}} | {line}" for i, line in enumerate(lines))
+    return f"# file: {rel} lines {first_line}-{last}\n{body}"
+
+
+def _first_line(text: str, start: int) -> int:
+    return text[:start].count("\n") + 1
+
+
 def _gather_fragments(unit: Unit) -> str:
     """Assemble a call-path unit from its source fragments, the function bodies the packer
-    co-located, so the model sees the path in one focused window. Each fragment is labeled
-    with its file and char range, the same header form a block of a whole file uses."""
+    co-located, so the model sees the path in one focused window."""
     parts: list[str] = []
     total = 0
     for rel, start, end in unit.fragments:
@@ -49,17 +66,19 @@ def _gather_fragments(unit: Unit) -> str:
         except (OSError, UnicodeDecodeError):
             continue
         seg = text[start:end]
-        block = f"# file: {rel} chars {start}-{end}\n{seg}"
-        parts.append(block)
-        total += len(block)
+        parts.append(_numbered(rel, seg, _first_line(text, start)))
+        # the budget counts source, not the line-number prefixes, so numbering cannot cost a unit
+        # one of the files it was packed with
+        total += len(seg)
         if total >= _GATHER_TOTAL:
             break
     return "\n\n".join(parts)
 
 
 def gather(unit: Unit) -> str:
-    """Pack the unit's files into one bounded block, so a single call can trace
-    across them without live file access. Unreadable or oversized files are skipped."""
+    """Pack the unit's files into one block, so a single call can trace across them without live
+    file access. The cap that stops packing counts source characters, so the returned block runs
+    over it by the width of the line numbers."""
     if unit.fragments:
         return _gather_fragments(unit)
     parts: list[str] = []
@@ -76,14 +95,11 @@ def gather(unit: Unit) -> str:
             # this unit owns one char window of a file too large for a single call, so it
             # reviews just that slice and sibling units cover the rest, no silent truncation
             start, end = unit.span
-            header = f"# file: {rel} chars {start}-{end}"
-            text = text[start:end]
+            first, text = _first_line(text, start), text[start:end]
         else:
-            header = f"# file: {rel}"
-            text = text[:_GATHER_PER_FILE]
-        block = f"{header}\n{text}"
-        parts.append(block)
-        total += len(block)
+            first, text = 1, text[:_GATHER_PER_FILE]
+        parts.append(_numbered(rel, text, first))
+        total += len(text)
         if total >= _GATHER_TOTAL:
             break
     return "\n\n".join(parts)
