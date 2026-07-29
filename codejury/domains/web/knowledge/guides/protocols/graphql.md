@@ -4,8 +4,8 @@ title: GraphQL
 kind: protocol
 detect:
   content: ["graphql", "GraphQLSchema", "buildSchema", "makeExecutableSchema", "ApolloServer", "typeDefs", "@Resolver", "@Query", "@Mutation", "resolveType", "introspection", "gql`"]
-entrypoint_files: ["*resolvers.py", "*/resolvers/*.py", "*schema.py", "*.resolver.ts", "*.resolver.js", "*/resolvers/*.ts", "*/resolvers/*.js"]
-entrypoint_markers: ["def resolve_", "resolve_reference", "graphene.ObjectType", "@strawberry.field", "strawberry.type", "@Resolver(", "@ResolveField(", "@FieldResolver(", ".set_field("]
+entrypoint_files: ["*resolvers.py", "*/resolvers/*.py", "*schema.py", "*.resolver.ts", "*.resolver.js", "*/resolvers/*.ts", "*/resolvers/*.js", "*subscription.py", "*subscriptions.py", "*/subscriptions/*.py", "*subscription.ts", "*subscriptions.ts", "*.subscription.ts", "*/subscriptions/*.ts", "*subscription.js", "*subscriptions.js", "*/subscriptions/*.js"]
+entrypoint_markers: ["def resolve_", "resolve_reference", "graphene.ObjectType", "@strawberry.field", "strawberry.type", "@Resolver(", "@ResolveField(", "@FieldResolver(", ".set_field(", "type Subscription", "@Subscription(", "@strawberry.subscription", "SubscriptionType(", "asyncIterator(", "subscribe:"]
 ---
 # GraphQL Review Notes
 
@@ -33,6 +33,25 @@ the actual schema and resolvers.
 - A resolver argument flows into a database query, a shell command, or a template the
   same way any untrusted input does. See the sql-injection, nosql-injection, and
   command-injection vulnerability classes.
+
+## Subscriptions
+- A subscription reads records and pushes them to the subscriber, so it is a read path and
+  carries the same authorization duty as a query. It rarely carries the same code. A
+  subscription runs outside the per-request pipeline, driven by an event rather than by the
+  caller's request, so the caller's identity and permission context is the thing most easily
+  dropped on the way. Read how the subscription obtains its data access object and compare it
+  with the query path on the same collection: where the query passes the caller's identity,
+  permissions, or tenant, and the subscription constructs its reader with only a schema or a
+  connection, the subscription returns records the caller cannot read. A low-privilege
+  subscriber then receives create and update events, field values included, for records the
+  query path would have filtered out. See the missing-authorization and
+  insecure-direct-object-reference vulnerability classes.
+- The subscribe step and the resolve step are separate. A check on subscribe runs once at
+  connect time, so it cannot enforce anything about the records each later event carries.
+  Confirm the per-event read is filtered, not just the initial connection authenticated.
+- A subscription filter argument that selects which events a client receives is a filter, not
+  a control. Confirm the server also enforces what that client may see, or a client widens
+  its own filter and receives everything.
 
 ## Introspection and Schema Exposure
 - Introspection enabled on a production endpoint maps the whole schema, including
