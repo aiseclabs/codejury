@@ -32,6 +32,23 @@ example `codejury/domains/web/knowledge/`, so adding a stack or class is usually
 change rather than a Python code change. The `web` domain is the default and `evm` reviews
 Solidity smart contracts, selected with `--domain` or detected automatically.
 
+## When to Use This Tool
+
+Direct model review is often best for a small, one off check. This tool is useful when
+security review needs a repeatable harness around the model: scoped inputs, domain
+guidance, review state, verification, fail loud behavior, structured output, and gates.
+
+Use **Diff Review** for pull requests, release branches, and CI gates. It asks whether a
+code change introduced a reportable security issue.
+
+Use **Repository Review** for full repository audits, release reviews, high risk systems,
+authorization boundaries, business invariants, and smart contracts. It asks whether a
+repository was reviewed through a tracked worklist and which findings survived
+verification.
+
+For the detailed decision matrix, see
+[`docs/direct-model-review-vs-diff-and-repository-review.md`](docs/direct-model-review-vs-diff-and-repository-review.md).
+
 ## Install
 
 ```bash
