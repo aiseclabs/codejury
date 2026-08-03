@@ -7,11 +7,9 @@
  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝ ╚════╝  ╚═════╝ ╚═╝  ╚═╝   ╚═╝
 ```
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/aiseclabs/codejury/test.yml?branch=main&label=tests)](https://github.com/aiseclabs/codejury/actions/workflows/test.yml)
-[![PyPI](https://img.shields.io/pypi/v/codejury)](https://pypi.org/project/codejury/)
-[![Python](https://img.shields.io/pypi/pyversions/codejury)](https://pypi.org/project/codejury/)
-[![Downloads](https://img.shields.io/pepy/dt/codejury)](https://pepy.tech/project/codejury)
-[![License](https://img.shields.io/pypi/l/codejury)](https://github.com/aiseclabs/codejury/blob/main/LICENSE)
+> [!IMPORTANT]
+> This project is no longer maintained.
+> It has been replaced by a new project.
 
 AI-assisted security review for code diffs and whole repositories.
 
